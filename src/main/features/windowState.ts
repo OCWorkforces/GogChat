@@ -5,7 +5,15 @@ import store from '../config';
 export default (window: BrowserWindow) => {
 
   if (store.has('window.bounds')) {
-    window.setBounds(store.get('window.bounds'))
+    const bounds = store.get('window.bounds');
+    if (bounds.x !== null && bounds.y !== null) {
+      window.setBounds({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height
+      });
+    }
   }
 
   window.on('ready-to-show', () => {

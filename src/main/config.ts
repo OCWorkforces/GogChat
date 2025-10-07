@@ -1,5 +1,24 @@
 import Store from 'electron-store';
 
+interface StoreType {
+  window: {
+    bounds: {
+      x: number | null;
+      y: number | null;
+      width: number;
+      height: number;
+    };
+    isMaximized: boolean;
+  };
+  app: {
+    autoCheckForUpdates: boolean;
+    autoLaunchAtLogin: boolean;
+    startHidden: boolean;
+    hideMenuBar: boolean;
+    disableSpellChecker: boolean;
+  };
+}
+
 const schema = {
   window: {
     type: 'object',
@@ -64,6 +83,6 @@ const schema = {
   }
 };
 
-const store = new Store({schema});
+const store = new Store<StoreType>({schema});
 
 export default store;
