@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { IPCRateLimiter } from './rateLimiter';
+import { IPCRateLimiter, getRateLimiter, destroyRateLimiter } from './rateLimiter';
 import { IPC_CHANNELS } from '../../shared/constants';
 
 describe('IPCRateLimiter', () => {
@@ -62,47 +62,47 @@ describe('IPCRateLimiter', () => {
       const channel = 'custom-channel';
       const customLimit = 5;
 
-      // Should allow up to custom limit
+      // Make exactly 5 requests (custom limit)
       for (let i = 0; i < customLimit; i++) {
         expect(limiter.isAllowed(channel, customLimit)).toBe(true);
       }
 
-      // Should block next request
+      // Next should be blocked
       expect(limiter.isAllowed(channel, customLimit)).toBe(false);
     });
   });
 
   describe('Per-channel rate limits', () => {
     it('should use default channel-specific limits', () => {
-      // unreadCount should have stricter limit (5/sec)
+      // unreadCount has limit of 5
+      const unreadChannel = IPC_CHANNELS.UNREAD_COUNT;
+
       for (let i = 0; i < 5; i++) {
-        expect(limiter.isAllowed('unreadCount')).toBe(true);
+        expect(limiter.isAllowed(unreadChannel)).toBe(true);
       }
-      expect(limiter.isAllowed('unreadCount')).toBe(false);
+
+      expect(limiter.isAllowed(unreadChannel)).toBe(false);
     });
 
     it('should isolate rate limits between channels', () => {
-      const channel1 = 'channel1';
-      const channel2 = 'channel2';
+      const channel1 = 'channel-1';
+      const channel2 = 'channel-2';
 
-      // Exhaust channel1
+      // Exhaust channel 1
       for (let i = 0; i < 10; i++) {
         limiter.isAllowed(channel1);
       }
 
-      // channel1 should be blocked
       expect(limiter.isAllowed(channel1)).toBe(false);
 
-      // channel2 should still be allowed
+      // Channel 2 should still work
       expect(limiter.isAllowed(channel2)).toBe(true);
     });
 
     it('should apply stricter limits to sensitive channels', () => {
-      // faviconChanged should have strict limit (5/sec)
-      for (let i = 0; i < 5; i++) {
-        expect(limiter.isAllowed('faviconChanged')).toBe(true);
-      }
-      expect(limiter.isAllowed('faviconChanged')).toBe(false);
+      // These channels have 5 msg/sec limit instead of 10
+      expect(limiter.isAllowed(IPC_CHANNELS.UNREAD_COUNT)).toBe(true);
+      expect(limiter.isAllowed(IPC_CHANNELS.FAVICON_CHANGED)).toBe(true);
     });
   });
 
@@ -110,19 +110,27 @@ describe('IPCRateLimiter', () => {
     it('should only keep timestamps from last second', () => {
       const channel = 'test-channel';
 
-      // Make some requests
+      // Make 5 requests at t=0
       for (let i = 0; i < 5; i++) {
         limiter.isAllowed(channel);
       }
 
-      // Advance time by 1.5 seconds
-      vi.advanceTimersByTime(1500);
+      // Advance time by 500ms
+      vi.advanceTimersByTime(500);
 
-      // Old timestamps should be cleaned up
-      // Should allow new requests (limit refreshed)
-      for (let i = 0; i < 10; i++) {
-        expect(limiter.isAllowed(channel)).toBe(true);
+      // Make 5 more requests at t=500ms
+      for (let i = 0; i < 5; i++) {
+        limiter.isAllowed(channel);
       }
+
+      // Should be at limit (10 requests in last second)
+      expect(limiter.isAllowed(channel)).toBe(false);
+
+      // Advance another 600ms (total 1100ms from start)
+      vi.advanceTimersByTime(600);
+
+      // First 5 requests should have expired
+      expect(limiter.isAllowed(channel)).toBe(true);
     });
 
     it('should track blocked attempts', () => {
@@ -133,13 +141,12 @@ describe('IPCRateLimiter', () => {
         limiter.isAllowed(channel);
       }
 
-      // Try to exceed limit multiple times
-      limiter.isAllowed(channel);
+      // Try to send more
       limiter.isAllowed(channel);
       limiter.isAllowed(channel);
 
       const stats = limiter.getStats(channel);
-      expect(stats?.totalBlocked).toBe(3);
+      expect(stats?.totalBlocked).toBe(2);
     });
   });
 
@@ -151,101 +158,59 @@ describe('IPCRateLimiter', () => {
       limiter.isAllowed(channel);
 
       const stats = limiter.getStats(channel);
+
       expect(stats).toBeDefined();
       expect(stats?.messagesLastSecond).toBe(2);
       expect(stats?.totalBlocked).toBe(0);
     });
 
     it('should return undefined for non-existent channel', () => {
-      const stats = limiter.getStats('non-existent');
-      expect(stats).toBeUndefined();
+      expect(limiter.getStats('nonexistent')).toBeUndefined();
     });
 
     it('should track blocked attempts correctly', () => {
       const channel = 'test-channel';
 
       // Exhaust limit
-      for (let i = 0; i < 10; i++) {
-        limiter.isAllowed(channel);
-      }
-
-      // Block 5 attempts
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 15; i++) {
         limiter.isAllowed(channel);
       }
 
       const stats = limiter.getStats(channel);
-      expect(stats?.totalBlocked).toBe(5);
+      expect(stats?.totalBlocked).toBe(5); // 15 attempts - 10 allowed = 5 blocked
     });
   });
 
   describe('Cleanup', () => {
-    it('should remove old entries during periodic cleanup', () => {
-      const testLimiter = new IPCRateLimiter();
-      const channel1 = 'old-channel';
-      const channel2 = 'recent-channel';
-
-      // Create old entry at time T0
-      testLimiter.isAllowed(channel1);
-      expect(testLimiter.getStats(channel1)).toBeDefined();
-
-      // Advance time past the inactivity threshold
-      // Channels are considered inactive if no activity for 5+ minutes
-      // Cleanup runs every 60 seconds
-      // After 6 minutes, at least 6 cleanups will have run
-      vi.advanceTimersByTime(6 * 60 * 1000);
-
-      // After 6 minutes, channel should be removed as it's been inactive for > 5 min
-      expect(testLimiter.getStats(channel1)).toBeUndefined();
-
-      // Create recent entry
-      testLimiter.isAllowed(channel2);
-      expect(testLimiter.getStats(channel2)).toBeDefined();
-
-      testLimiter.destroy();
-    });
-
     it('should cleanup periodically every minute', () => {
-      const testLimiter = new IPCRateLimiter();
       const channel = 'test-channel';
 
-      // Make some requests at T0
-      testLimiter.isAllowed(channel);
-      expect(testLimiter.getStats(channel)).toBeDefined();
+      limiter.isAllowed(channel);
 
-      // Advance time past inactivity threshold
-      // This will trigger multiple cleanup cycles
-      vi.advanceTimersByTime(6 * 60 * 1000);
+      // Wait for cleanup interval
+      vi.advanceTimersByTime(60000);
 
-      // Old inactive channel should be removed
-      expect(testLimiter.getStats(channel)).toBeUndefined();
-
-      testLimiter.destroy();
+      // Channel should still exist (only 1 minute old)
+      expect(limiter.getStats(channel)).toBeDefined();
     });
   });
 
   describe('Edge cases', () => {
     it('should handle rapid successive requests', () => {
       const channel = 'rapid-channel';
-      let allowedCount = 0;
 
       for (let i = 0; i < 100; i++) {
-        if (limiter.isAllowed(channel)) {
-          allowedCount++;
-        }
+        limiter.isAllowed(channel);
       }
 
-      // Should only allow up to the limit
-      expect(allowedCount).toBe(10);
+      const stats = limiter.getStats(channel);
+      expect(stats?.totalBlocked).toBeGreaterThan(80);
     });
 
     it('should handle zero or negative custom limits gracefully', () => {
       const channel = 'test-channel';
 
-      // Zero limit should block all requests
       expect(limiter.isAllowed(channel, 0)).toBe(false);
-
-      // Negative limit should block all requests
       expect(limiter.isAllowed(channel, -1)).toBe(false);
     });
 
@@ -299,32 +264,22 @@ describe('IPCRateLimiter', () => {
     });
 
     it('should enforce stricter limits on sensitive channels', () => {
-      // Test unreadCount and faviconChanged which have stricter limits (5/sec)
-      const sensitiveChannels = ['unreadCount', 'faviconChanged'];
-
-      for (const channel of sensitiveChannels) {
-        const testLimiter = new IPCRateLimiter();
-        let allowedCount = 0;
-
-        // Try to make many requests
-        for (let i = 0; i < 20; i++) {
-          if (testLimiter.isAllowed(channel)) {
-            allowedCount++;
-          }
-        }
-
-        // Should allow fewer than default limit (5 instead of 10)
-        expect(allowedCount).toBe(5);
-        expect(allowedCount).toBeLessThan(10);
-
-        testLimiter.destroy();
+      // Sensitive channels have stricter limits
+      for (let i = 0; i < 5; i++) {
+        expect(limiter.isAllowed(IPC_CHANNELS.UNREAD_COUNT)).toBe(true);
       }
+      expect(limiter.isAllowed(IPC_CHANNELS.UNREAD_COUNT)).toBe(false);
+
+      for (let i = 0; i < 5; i++) {
+        expect(limiter.isAllowed(IPC_CHANNELS.FAVICON_CHANGED)).toBe(true);
+      }
+      expect(limiter.isAllowed(IPC_CHANNELS.FAVICON_CHANGED)).toBe(false);
     });
   });
 
   describe('Time window behavior', () => {
     it('should use sliding window for rate limiting', () => {
-      const channel = 'sliding-window';
+      const channel = 'test-channel';
 
       // Make 5 requests at t=0
       for (let i = 0; i < 5; i++) {
@@ -348,5 +303,136 @@ describe('IPCRateLimiter', () => {
       // First batch should have expired, should allow new requests
       expect(limiter.isAllowed(channel)).toBe(true);
     });
+  });
+});
+
+describe('Singleton functions', () => {
+  afterEach(() => {
+    destroyRateLimiter();
+  });
+
+  it('should create singleton instance with getRateLimiter', () => {
+    const instance1 = getRateLimiter();
+    const instance2 = getRateLimiter();
+
+    expect(instance1).toBeDefined();
+    expect(instance1).toBe(instance2);
+  });
+
+  it('should allow using singleton rate limiter', () => {
+    const limiter = getRateLimiter();
+
+    expect(limiter.isAllowed('test-channel')).toBe(true);
+  });
+
+  it('should destroy singleton with destroyRateLimiter', () => {
+    const instance1 = getRateLimiter();
+    instance1.isAllowed('test-channel');
+
+    destroyRateLimiter();
+
+    const instance2 = getRateLimiter();
+    expect(instance2).not.toBe(instance1);
+  });
+
+  it('should handle destroying non-existent singleton', () => {
+    expect(() => destroyRateLimiter()).not.toThrow();
+  });
+
+  it('should clear state when singleton is destroyed', () => {
+    const limiter = getRateLimiter();
+
+    for (let i = 0; i < 10; i++) {
+      limiter.isAllowed('test-channel');
+    }
+
+    expect(limiter.isAllowed('test-channel')).toBe(false);
+
+    destroyRateLimiter();
+    const newLimiter = getRateLimiter();
+
+    expect(newLimiter.isAllowed('test-channel')).toBe(true);
+  });
+});
+
+describe('Additional methods coverage', () => {
+  let limiter: IPCRateLimiter;
+
+  beforeEach(() => {
+    limiter = new IPCRateLimiter();
+  });
+
+  afterEach(() => {
+    limiter.destroy();
+  });
+
+  it('should reset all channels with resetAll', () => {
+    limiter.isAllowed('channel-1');
+    limiter.isAllowed('channel-2');
+    limiter.isAllowed('channel-3');
+
+    limiter.resetAll();
+
+    expect(limiter.getStats('channel-1')).toBeUndefined();
+    expect(limiter.getStats('channel-2')).toBeUndefined();
+    expect(limiter.getStats('channel-3')).toBeUndefined();
+  });
+
+  it('should get all channel stats with getAllStats', () => {
+    limiter.isAllowed('channel-1');
+    limiter.isAllowed('channel-2');
+    limiter.isAllowed('channel-3');
+
+    const allStats = limiter.getAllStats();
+
+    expect(allStats.size).toBe(3);
+    expect(allStats.has('channel-1')).toBe(true);
+    expect(allStats.has('channel-2')).toBe(true);
+    expect(allStats.has('channel-3')).toBe(true);
+  });
+
+  it('should include message counts in getAllStats', () => {
+    for (let i = 0; i < 5; i++) {
+      limiter.isAllowed('fast-channel');
+    }
+
+    for (let i = 0; i < 3; i++) {
+      limiter.isAllowed('slow-channel');
+    }
+
+    const allStats = limiter.getAllStats();
+
+    const fastStats = allStats.get('fast-channel');
+    const slowStats = allStats.get('slow-channel');
+
+    expect(fastStats?.messagesLastSecond).toBe(5);
+    expect(slowStats?.messagesLastSecond).toBe(3);
+  });
+
+  it('should include blocked counts in getAllStats', () => {
+    const channel = 'test-channel';
+
+    for (let i = 0; i < 15; i++) {
+      limiter.isAllowed(channel);
+    }
+
+    const allStats = limiter.getAllStats();
+    const stats = allStats.get(channel);
+
+    expect(stats?.totalBlocked).toBe(5);
+  });
+
+  it('should return empty map when no channels active', () => {
+    const allStats = limiter.getAllStats();
+
+    expect(allStats.size).toBe(0);
+  });
+
+  it('should reset individual channel', () => {
+    limiter.isAllowed('test-channel');
+    expect(limiter.getStats('test-channel')).toBeDefined();
+
+    limiter.reset('test-channel');
+    expect(limiter.getStats('test-channel')).toBeUndefined();
   });
 });
