@@ -7,10 +7,10 @@ echo "Finding package version..."
 PACKAGE_VERSION=$(cat ./package.json | grep '"version"' | sed s/'  \"version\": \"'//g | sed s/'\",'//g)
 echo "Version: $PACKAGE_VERSION"
 
-SOURCE_DIR="./dist/google-chat-electron-darwin-x64/"
+SOURCE_DIR="./dist/gchat-darwin-x64/"
 # output directory would be one level up from working directory
 OUT_DIR="../installers/"
-OUT_FILE_PATH="${OUT_DIR}google-chat-electron-${PACKAGE_VERSION}-darwin-x64.zip"
+OUT_FILE_PATH="${OUT_DIR}gchat-${PACKAGE_VERSION}-darwin-x64.zip"
 
 echo "Switch to dist directory: ${SOURCE_DIR}"
 cd "$SOURCE_DIR"

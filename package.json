@@ -1,6 +1,6 @@
 {
-  "name": "google-chat-electron",
-  "version": "3.0.1",
+  "name": "gchat",
+  "version": "3.0.2",
   "description": "GChat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
@@ -21,11 +21,13 @@
     "pack:mac": "electron-packager . --platform=darwin --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns",
     "pack:mac-arm": "electron-packager . --platform=darwin --arch=arm64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns",
     "build:mac-zip": "bash ./mac/installer-zip.sh",
+    "build:mac-dmg": "bash ./mac/installer-dmg.sh",
     "build:mac-arm-zip": "bash ./mac/installer-arm-zip.sh",
+    "build:mac-arm-dmg": "bash ./mac/installer-arm-dmg.sh",
     "prepack:linux": "npm run clean:dist && npm run ts",
     "pack:linux": "electron-packager . --platform=linux --arch=x64 --asar --overwrite --out=./dist/",
     "build:deb": "electron-installer-debian --config=./debian/config.json --arch=amd64",
-    "build:deb-checksum": "cd ./dist/installers && sha512sum *.deb > google-chat-electron-deb-SHA512.txt"
+    "build:deb-checksum": "cd ./dist/installers && sha512sum *.deb > gchat-deb-SHA512.txt"
   },
   "devDependencies": {
     "@types/auto-launch": "^5.0.5",
