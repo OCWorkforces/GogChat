@@ -6,7 +6,7 @@ import { debugInfo } from 'electron-util/main';
 
 export default async () => {
   const {default: unhandled} = await import('electron-unhandled');
-  const packageJson = require(path.join(app.getAppPath(), 'package.json'));
+  const packageJson = require(path.join(app.getAppPath(), 'packageon'));
 
   unhandled({
     logger: log.error,

@@ -7,13 +7,13 @@ export default (url: string): BrowserWindow => {
   const window = new BrowserWindow({
     webPreferences: {
       autoplayPolicy: 'user-gesture-required',
-      contextIsolation: true,  // Enabled - prevents renderer from accessing Node.js
+      contextIsolation: true,  // Enabled - prevents renderer from accessing Node
       nodeIntegration: false,   // Keep disabled
       sandbox: true,            // Enabled - OS-level process isolation
       webSecurity: true,        // Explicit enable
       allowRunningInsecureContent: false, // Block mixed content
       disableBlinkFeatures: 'Auxclick', // Prevent Auxclick exploits
-      preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
+      preload: path.join(app.getAppPath(), 'lib/preload/index'),
     },
     icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/256.png')),
     show: false,

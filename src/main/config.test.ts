@@ -32,12 +32,12 @@ describe('Config Store', () => {
   });
 
   it('should export a store instance', async () => {
-    const config = await import('./config.js');
+    const config = await import('./config');
     expect(config.default).toBeDefined();
   });
 
   it('should be callable with get/set methods', async () => {
-    const config = await import('./config.js');
+    const config = await import('./config');
     const store = config.default;
 
     expect(store.get).toBeDefined();
@@ -45,7 +45,7 @@ describe('Config Store', () => {
   });
 
   it('should support window bounds configuration', async () => {
-    const config = await import('./config.js');
+    const config = await import('./config');
     const store = config.default;
 
     store.get('window.bounds');
@@ -53,7 +53,7 @@ describe('Config Store', () => {
   });
 
   it('should support app configuration', async () => {
-    const config = await import('./config.js');
+    const config = await import('./config');
     const store = config.default;
 
     store.get('app.autoCheckForUpdates');
