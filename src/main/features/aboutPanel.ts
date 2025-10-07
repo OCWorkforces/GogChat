@@ -14,7 +14,7 @@ export default async (window: BrowserWindow) => {
   const { response } = await dialog.showMessageBox(window, {
     type: 'info',
     title: 'About',
-    message: 'Google Chat',
+    message: 'GChat',
     detail: packageJson.description + "\n\n" + detail.join('\n'),
     buttons: ['Copy', 'Ok'],
     cancelId: 1,
