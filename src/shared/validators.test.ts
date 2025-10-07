@@ -10,7 +10,9 @@ import {
   validateExternalURL,
   validateBoolean,
   validateString,
-  sanitizeHTML
+  sanitizeHTML,
+  isWhitelistedHost,
+  isSafeObject
 } from './validators';
 
 describe('validateUnreadCount', () => {
@@ -31,6 +33,11 @@ describe('validateUnreadCount', () => {
     expect(validateUnreadCount(42.7)).toBe(42);
     expect(validateUnreadCount(1.1)).toBe(1);
     expect(validateUnreadCount(99.99)).toBe(99);
+  });
+
+  it('should handle very large finite numbers within max', () => {
+    expect(validateUnreadCount(9998.9)).toBe(9998);
+    expect(validateUnreadCount(5000.5)).toBe(5000);
   });
 
   it('should reject negative numbers', () => {
@@ -117,6 +124,14 @@ describe('validateExternalURL', () => {
     expect(() => validateExternalURL('data:text/html,<script>alert(1)</script>')).toThrow('Unsafe protocol');
     expect(() => validateExternalURL('file:///etc/passwd')).toThrow('Unsafe protocol');
     expect(() => validateExternalURL('vbscript:msgbox(1)')).toThrow('Unsafe protocol');
+  });
+
+  it('should reject URLs containing dangerous patterns in path', () => {
+    expect(() => validateExternalURL('https://example.com/javascript:alert(1)')).toThrow('dangerous pattern');
+    expect(() => validateExternalURL('https://example.com/path?data:text')).toThrow('dangerous pattern');
+    expect(() => validateExternalURL('https://example.com/vbscript:void')).toThrow('dangerous pattern');
+    expect(() => validateExternalURL('https://example.com/file:///path')).toThrow('dangerous pattern');
+    expect(() => validateExternalURL('https://example.com/about:blank')).toThrow('dangerous pattern');
   });
 
   it('should reject invalid URL formats', () => {
@@ -268,7 +283,60 @@ describe('sanitizeHTML', () => {
   });
 });
 
+describe('isWhitelistedHost', () => {
+  it('should return true for current host', () => {
+    expect(isWhitelistedHost('https://example.com/path', 'example.com')).toBe(true);
+  });
+
+  it('should return true for whitelisted Google hosts', () => {
+    expect(isWhitelistedHost('https://mail.google.com/chat', 'other.com')).toBe(true);
+    expect(isWhitelistedHost('https://accounts.google.com/signin', 'other.com')).toBe(true);
+  });
+
+  it('should return false for non-whitelisted hosts', () => {
+    expect(isWhitelistedHost('https://evil.com', 'example.com')).toBe(false);
+  });
+
+  it('should return false for invalid URLs', () => {
+    expect(isWhitelistedHost('not a url', 'example.com')).toBe(false);
+    expect(isWhitelistedHost('', 'example.com')).toBe(false);
+  });
+});
+
+describe('isSafeObject', () => {
+  it('should return true for plain objects', () => {
+    expect(isSafeObject({})).toBe(true);
+    expect(isSafeObject({key: 'value'})).toBe(true);
+  });
+
+  it('should return false for null', () => {
+    expect(isSafeObject(null)).toBe(false);
+  });
+
+  it('should return false for arrays', () => {
+    expect(isSafeObject([])).toBe(false);
+    expect(isSafeObject([1, 2, 3])).toBe(false);
+  });
+
+  it('should return false for non-objects', () => {
+    expect(isSafeObject('string')).toBe(false);
+    expect(isSafeObject(123)).toBe(false);
+    expect(isSafeObject(true)).toBe(false);
+    expect(isSafeObject(undefined)).toBe(false);
+  });
+
+  it('should return false for objects with custom prototypes', () => {
+    class CustomClass {}
+    expect(isSafeObject(new CustomClass())).toBe(false);
+  });
+});
+
 describe('Security integration tests', () => {
+  it('should reject Infinity in unread count', () => {
+    expect(() => validateUnreadCount(Infinity)).toThrow();
+    expect(() => validateUnreadCount(-Infinity)).toThrow();
+  });
+
   it('should protect against XSS in unread count', () => {
     expect(() => validateUnreadCount('<script>alert(1)</script>')).toThrow();
   });

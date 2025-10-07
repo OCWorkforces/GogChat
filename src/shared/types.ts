@@ -51,6 +51,7 @@ export interface AppConfig {
   startHidden: boolean;
   hideMenuBar: boolean;
   disableSpellChecker: boolean;
+  suppressPasskeyDialog: boolean;
 }
 
 /**
@@ -66,6 +67,14 @@ export interface StoreType {
  */
 export interface OnlineStatusData {
   online: boolean;
+  timestamp: number;
+}
+
+/**
+ * Passkey authentication failure data
+ */
+export interface PasskeyFailureData {
+  errorType: string;
   timestamp: number;
 }
 
@@ -94,6 +103,7 @@ export interface GChatBridgeAPI {
   sendFaviconChanged: (href: string) => void;
   sendNotificationClicked: () => void;
   checkIfOnline: () => void;
+  reportPasskeyFailure: (errorType: string) => void;
 
   // Receive messages from main process
   onSearchShortcut: (callback: () => void) => () => void;

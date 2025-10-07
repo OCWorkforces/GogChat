@@ -20,5 +20,9 @@
   },
   "include": [
     "./src/**/*", "src/main/config.ts"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "node_modules"
   ]
 }

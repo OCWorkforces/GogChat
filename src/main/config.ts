@@ -73,6 +73,10 @@ const schema = {
         type: 'boolean',
         default: false
       },
+      suppressPasskeyDialog: {
+        type: 'boolean',
+        default: false
+      },
     },
     default: {}
   }

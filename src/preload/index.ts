@@ -7,7 +7,7 @@
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GChatBridgeAPI} from '../shared/types';
 import {IPC_CHANNELS} from '../shared/constants';
-import {validateUnreadCount, validateFaviconURL} from '../shared/validators';
+import {validateUnreadCount, validateFaviconURL, validatePasskeyFailureData} from '../shared/validators';
 
 /**
  * Expose secure API to renderer process via window.gchat
@@ -41,6 +41,15 @@ const api: GChatBridgeAPI = {
     ipcRenderer.send(IPC_CHANNELS.CHECK_IF_ONLINE);
   },
 
+  reportPasskeyFailure: (errorType: string) => {
+    try {
+      const validated = validatePasskeyFailureData(errorType);
+      ipcRenderer.send(IPC_CHANNELS.PASSKEY_AUTH_FAILED, validated);
+    } catch (error) {
+      console.error('[GChat API] Invalid passkey failure data:', error);
+    }
+  },
+
   // Receive messages from main process (returns unsubscribe function)
   onSearchShortcut: (callback: () => void) => {
     const listener = () => callback();
@@ -70,6 +79,7 @@ contextBridge.exposeInMainWorld('gchat', api);
 // These will use the window.gchat API we just exposed
 import './faviconChanged';
 import './offline';
+import './passkeyMonitor';
 import './searchShortcut';
 import './unreadCount';
 // Note: overrideNotifications needs special handling - loaded separately
