@@ -23,6 +23,7 @@
     "build:mac-zip": "bash ./mac/installer-zip.sh",
     "build:mac-dmg": "bash ./mac/installer-dmg.sh",
     "build:mac-arm-zip": "bash ./mac/installer-arm-zip.sh",
+    "build:mac-arm-dmg": "bash ./mac/installer-arm-dmg.sh",
     "prepack:linux": "npm run clean:dist && npm run ts",
     "pack:linux": "electron-packager . --platform=linux --arch=x64 --asar --overwrite --out=./dist/",
     "build:deb": "electron-installer-debian --config=./debian/config.json --arch=amd64",
