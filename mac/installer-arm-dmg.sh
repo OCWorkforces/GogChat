@@ -7,11 +7,11 @@ echo "Finding package version..."
 PACKAGE_VERSION=$(cat ./package.json | grep '"version"' | sed s/'  \"version\": \"'//g | sed s/'\",'//g)
 echo "Version: $PACKAGE_VERSION"
 
-SOURCE_DIR="./dist/gchat-darwin-arm64/"
-APP_NAME="gchat.app"
+SOURCE_DIR="./dist/GChat-darwin-arm64/"
+APP_NAME="GChat.app"
 OUT_DIR="./dist/"
-OUT_FILE_PATH="${OUT_DIR}gchat-v${PACKAGE_VERSION}-arm64.dmg"
-TEMP_DMG="./dist/gchat-v${PACKAGE_VERSION}-arm64-temp.dmg"
+OUT_FILE_PATH="${OUT_DIR}GChat-v${PACKAGE_VERSION}-arm64.dmg"
+TEMP_DMG="./dist/GChat-v${PACKAGE_VERSION}-arm64-temp.dmg"
 VOLUME_NAME="GChat ${PACKAGE_VERSION}"
 
 echo "Creating output folder: ${OUT_DIR}"

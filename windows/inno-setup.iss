@@ -8,10 +8,10 @@
 #define AppVersion "{{appVersion}}"
 #define AppPublisher "CCWorkforce"
 #define AppURL "https://github.com/CCWorkforce/GChat"
-#define AppExeName "gchat.exe"
-#define OutputBaseFilename "gchat-setup-win-x64-{{appVersion}}"
+#define AppExeName "GChat.exe"
+#define OutputBaseFilename "GChat-setup-win-x64-{{appVersion}}"
 #define OutputDir "../dist/installers"
-#define AppSourceDir "../dist/gchat-win32-x64/*"
+#define AppSourceDir "../dist/GChat-win32-x64/*"
 
 
 [Setup]
