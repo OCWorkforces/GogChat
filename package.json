@@ -1,6 +1,7 @@
 {
   "name": "gchat",
-  "version": "3.0.2",
+  "productName": "GChat",
+  "version": "3.0.4",
   "description": "GChat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
@@ -27,7 +28,7 @@
     "prepack:linux": "npm run clean:dist && npm run ts",
     "pack:linux": "electron-packager . --platform=linux --arch=x64 --asar --overwrite --out=./dist/",
     "build:deb": "electron-installer-debian --config=./debian/config.json --arch=amd64",
-    "build:deb-checksum": "cd ./dist/installers && sha512sum *.deb > gchat-deb-SHA512.txt"
+    "build:deb-checksum": "cd ./dist/installers && sha512sum *.deb > GChat-deb-SHA512.txt"
   },
   "devDependencies": {
     "@types/auto-launch": "^5.0.5",
