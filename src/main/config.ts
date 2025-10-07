@@ -1,21 +1,6 @@
 import Store from 'electron-store';
-import {Rectangle} from 'electron';
 
-type StoreType = {
-  window: {
-    bounds: Rectangle,
-    isMaximized: boolean
-  },
-  app: {
-    autoCheckForUpdates: boolean,
-    launchAtLogin: boolean,
-    startHidden: boolean,
-    hideMenuBar: boolean,
-    disableSpellChecker: boolean,
-  }
-}
-
-const schema: Store.Schema<StoreType> = {
+const schema = {
   window: {
     type: 'object',
     properties: {
@@ -77,9 +62,8 @@ const schema: Store.Schema<StoreType> = {
     },
     default: {}
   }
-}
+};
 
-export default new Store<StoreType>({
-  schema,
-  clearInvalidConfig: true
-});
+const store = new Store({schema});
+
+export default store;

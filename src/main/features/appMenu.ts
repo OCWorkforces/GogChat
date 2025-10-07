@@ -1,13 +1,14 @@
-import {Menu, app, shell, clipboard, BrowserWindow, dialog} from 'electron';
+import { Menu, app, shell, clipboard, BrowserWindow, dialog, session } from 'electron';
 import {checkForUpdates} from 'electron-update-notifier';
 import path from 'path';
 import log from 'electron-log';
 import {autoLaunch} from './openAtLogin';
 import aboutPanel from './aboutPanel';
-import store from './../config';
+import store from '../config';
 import {toggleExternalLinksGuard} from "./externalLinks";
 import environment from "../../environment";
-import { debugInfo, openNewGitHubIssue } from 'electron-util';
+import { openNewGitHubIssue } from 'electron-util';
+import { debugInfo } from 'electron-util/main';
 
 export default (window: BrowserWindow) => {
   const pkg = require(path.join(app.getAppPath(), 'package.json'));
