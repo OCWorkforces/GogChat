@@ -37,6 +37,7 @@
   "devDependencies": {
     "@types/auto-launch": "^5.0.5",
     "@types/throttle-debounce": "^5.0.2",
+    "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
     "electron": "^38.2.1",
     "electron-packager": "^17.1.2",
