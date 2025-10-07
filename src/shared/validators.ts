@@ -230,3 +230,36 @@ export function sanitizeHTML(html: string): string {
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
 }
+
+/**
+ * Validates passkey authentication failure data
+ * @param errorType - Error type from WebAuthn API
+ * @returns Validated PasskeyFailureData object
+ * @throws Error if data is invalid
+ */
+export function validatePasskeyFailureData(errorType: unknown): {errorType: string; timestamp: number} {
+  // Validate error type
+  const validatedErrorType = validateString(errorType, 100);
+
+  // Whitelist of known WebAuthn error types
+  const allowedErrors = [
+    'NotAllowedError',
+    'NotSupportedError',
+    'SecurityError',
+    'AbortError',
+    'ConstraintError',
+    'InvalidStateError',
+    'UnknownError',
+    'TimeoutError',
+  ];
+
+  // Allow any error type but log if unexpected
+  if (!allowedErrors.includes(validatedErrorType)) {
+    console.warn(`[Validator] Unexpected passkey error type: ${validatedErrorType}`);
+  }
+
+  return {
+    errorType: validatedErrorType,
+    timestamp: Date.now(),
+  };
+}

@@ -19,6 +19,7 @@ import setupOfflineHandlers, {checkForInternet} from './features/inOnline';
 import logFirstLaunch from './features/firstLaunch';
 import handleNotification from './features/handleNotification';
 import setupCertificatePinning from './features/certificatePinning';
+import passkeySupport from './features/passkeySupport';
 import { enforceMacOSAppLocation } from 'electron-util/main';
 
 // Keep a global reference of the window object, if you don't, the window will
@@ -50,6 +51,7 @@ if (enforceSingleInstance()) {
       // Security features
       externalLinks(mainWindow);
       handleNotification(mainWindow);
+      passkeySupport(mainWindow);
 
       // Badge/notification system
       badgeIcons(mainWindow, trayIcon);
