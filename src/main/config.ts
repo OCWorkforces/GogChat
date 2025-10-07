@@ -1,23 +1,5 @@
 import Store from 'electron-store';
-
-interface StoreType {
-  window: {
-    bounds: {
-      x: number | null;
-      y: number | null;
-      width: number;
-      height: number;
-    };
-    isMaximized: boolean;
-  };
-  app: {
-    autoCheckForUpdates: boolean;
-    autoLaunchAtLogin: boolean;
-    startHidden: boolean;
-    hideMenuBar: boolean;
-    disableSpellChecker: boolean;
-  };
-}
+import type {StoreType} from '../shared/types';
 
 const schema = {
   window: {

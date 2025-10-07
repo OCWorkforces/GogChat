@@ -1,4 +1,5 @@
 import {app, BrowserWindow} from 'electron';
+import log from 'electron-log';
 
 import reportExceptions from './features/reportExceptions';
 import windowWrapper from './windowWrapper';
@@ -30,25 +31,50 @@ reportExceptions().catch(console.error);
 if (enforceSingleInstance()) {
   app.whenReady()
     .then(() => {
+      // ✅ PERFORMANCE: Critical path - Load essential features first
       overrideUserAgent();
       mainWindow = windowWrapper(environment.appUrl);
       setupOfflineHandlers(mainWindow);
       checkForInternet(mainWindow);
 
+      // Critical UI features
       trayIcon = setupTrayIcon(mainWindow);
-      logFirstLaunch();
       setAppMenu(mainWindow);
       restoreFirstInstance(mainWindow);
       keepWindowState(mainWindow);
-      runAtLogin(mainWindow);
-      updateNotifier();
-      enableContextMenu();
-      badgeIcons(mainWindow, trayIcon);
-      closeToTray(mainWindow);
+
+      // Security features
       externalLinks(mainWindow);
       handleNotification(mainWindow);
-      enforceMacOSAppLocation();
+
+      // Badge/notification system
+      badgeIcons(mainWindow, trayIcon);
+      closeToTray(mainWindow);
+
+      // ✅ PERFORMANCE: Defer non-critical features using setImmediate
+      // These run after the main event loop tick, improving startup time
+      setImmediate(() => {
+        if (!mainWindow) {
+          log.error('[Main] Main window not available for deferred features');
+          return;
+        }
+
+        log.debug('[Main] Loading non-critical features');
+
+        // Deferred features (don't block startup)
+        runAtLogin(mainWindow);
+        updateNotifier();
+        enableContextMenu();
+        logFirstLaunch();
+        enforceMacOSAppLocation();
+
+        log.info('[Main] All features initialized');
+      });
     })
+    .catch(error => {
+      log.error('[Main] Failed to initialize application:', error);
+      app.quit();
+    });
 }
 
 app.setAppUserModelId('com.electron.google-chat');
