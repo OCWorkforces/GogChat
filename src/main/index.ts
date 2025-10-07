@@ -17,7 +17,7 @@ import overrideUserAgent from './features/userAgent';
 import setupOfflineHandlers, {checkForInternet} from './features/inOnline';
 import logFirstLaunch from './features/firstLaunch';
 import handleNotification from './features/handleNotification';
-import {enforceMacOSAppLocation} from "electron-util";
+import { enforceMacOSAppLocation } from 'electron-util/main';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -25,7 +25,7 @@ let mainWindow: BrowserWindow | null = null;
 let trayIcon = null;
 
 // Features
-reportExceptions();
+reportExceptions().catch(console.error);
 
 if (enforceSingleInstance()) {
   app.whenReady()

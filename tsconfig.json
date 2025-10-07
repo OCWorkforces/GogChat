@@ -4,8 +4,8 @@
     "declaration": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
     "newLine": "lf",
     "noEmitOnError": true,
     "outDir": "./lib",
@@ -13,12 +13,12 @@
     "skipLibCheck": true,
     "sourceMap": false,
     "strict": true,
-    "target": "esnext",
+    "target": "es2022",
     "typeRoots": [
       "node_modules/@types"
     ]
   },
   "include": [
-    "./src/**/*"
+    "./src/**/*", "src/main/config.ts"
   ]
 }
