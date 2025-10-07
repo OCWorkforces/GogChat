@@ -106,8 +106,8 @@ Runs in parallel, similar to Build workflow but with additional steps:
 
 ### Package Manager
 - **Manager:** pnpm
-- **Version:** 10.x
-- **Setup:** Uses `pnpm/action-setup@v4`
+- **Version:** Controlled by `packageManager` field in package.json (10.18.1)
+- **Setup:** Uses `pnpm/action-setup@v4` (reads version from package.json)
 - **Caching:** pnpm store cached using `actions/cache@v4`
 
 ### Caching Strategy
