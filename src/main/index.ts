@@ -25,7 +25,7 @@ let mainWindow: BrowserWindow | null = null;
 let trayIcon = null;
 
 // Features
-reportExceptions();
+reportExceptions().catch(console.error);
 
 if (enforceSingleInstance()) {
   app.whenReady()
