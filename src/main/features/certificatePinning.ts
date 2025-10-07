@@ -49,13 +49,16 @@ function isPinnedDomain(hostname: string): boolean {
 function verifyCertificateIssuer(cert: Certificate): boolean {
   const issuerName = cert.issuerName || cert.issuer;
 
+  // Convert to string for comparison
+  const issuerString = typeof issuerName === 'string' ? issuerName : issuerName.commonName || '';
+
   // Check if issuer matches any trusted Google CA
   const isTrusted = TRUSTED_GOOGLE_ISSUERS.some(trustedIssuer =>
-    issuerName.includes(trustedIssuer)
+    issuerString.includes(trustedIssuer)
   );
 
   if (!isTrusted) {
-    log.warn('[CertPinning] Certificate issuer not in trusted list:', issuerName);
+    log.warn('[CertPinning] Certificate issuer not in trusted list:', issuerString);
   }
 
   return isTrusted;

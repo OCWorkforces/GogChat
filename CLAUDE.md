@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 GChat is an Electron-based desktop application that wraps Google Chat (https://mail.google.com/chat/u/0) with native OS integrations and features. The app is built with TypeScript and targets Windows, macOS (Intel and ARM), and Linux (Debian) platforms.
 
-**Package Manager:** This project uses `pnpm` (specified version ^7.0.0). Use `pnpm install` for dependencies.
+**Package Manager:** This project uses `pnpm` (specified version ^10.0.0). Use `pnpm install` for dependencies.
 
 **Runtime Environment:**
 - **Electron version**: 38.2.1 (latest stable)
@@ -64,19 +64,35 @@ npm run build:deb-checksum # Generate SHA512 checksums
 
 ### Core Structure
 
-The application follows a standard Electron architecture with three main layers:
+The application follows a secure Electron architecture with four main layers:
 
 1. **Main Process** (`src/main/`) - Node.js environment, controls app lifecycle
-2. **Preload Scripts** (`src/preload/`) - Bridge between main and renderer with limited Node.js access
-3. **Renderer Process** - Loads Google Chat web app via BrowserWindow
+2. **Preload Scripts** (`src/preload/`) - Secure bridge using contextBridge API with context isolation enabled
+3. **Renderer Process** - Sandboxed browser context loading Google Chat web app
+4. **Shared Utilities** (`src/shared/`) - Type-safe utilities used across main and preload processes
 
 ### Key Files
 
-- **`src/main/index.ts`** - Application entry point. Initializes all features in sequence when app is ready. This is where you'll add new feature initialization calls.
-- **`src/main/windowWrapper.ts`** - BrowserWindow factory with security settings and store-based configuration (menu bar, spell checker, start hidden).
-- **`src/main/config.ts`** - Typed electron-store configuration with JSON schema validation. Manages app settings (window state, auto-updates, launch options) and persists them across launches.
+- **`src/main/index.ts`** - Application entry point. Initializes security features early, then loads critical and deferred features. Certificate pinning is initialized before any network requests.
+- **`src/main/windowWrapper.ts`** - BrowserWindow factory with strict security settings: context isolation enabled, sandbox enabled, Node.js integration disabled, Content Security Policy enforced.
+- **`src/main/config.ts`** - Encrypted electron-store configuration with AES-256-GCM encryption. Manages app settings (window state, auto-updates, launch options) and persists them securely across launches.
 - **`src/environment.ts`** - Environment configuration (development mode detection, URLs). Only accessible in main process.
 - **`src/urls.ts`** - Application URLs (Google Chat URL, logout URL).
+
+### Shared Utilities (`src/shared/`)
+
+Cross-process utilities ensuring consistency and type safety:
+
+- **`constants.ts`** - Centralized constants (IPC channels, DOM selectors, timing values, whitelisted domains). Prevents magic strings and typos.
+- **`validators.ts`** - Input validation functions for all IPC messages. Includes URL sanitization, type checking, bounds validation, HTML escaping.
+- **`types.ts`** - Shared TypeScript interfaces (StoreType, GChatBridgeAPI, IPC data structures). Single source of truth for types across main/renderer.
+
+### Security Utilities (`src/main/utils/`)
+
+Security-critical utilities for the main process:
+
+- **`rateLimiter.ts`** - IPC rate limiting to prevent flooding and DoS attacks. Per-channel limits with auto-cleanup. Default 10 msg/sec, stricter limits for sensitive channels.
+- **`logger.ts`** - Structured logging with scoped loggers. Environment-aware log levels. Pre-configured loggers for security, performance, and IPC.
 
 ### Feature System
 
@@ -86,30 +102,44 @@ Features live in `src/main/features/`. Each feature is a self-contained module t
 - **aboutPanel** - Custom About panel with app information
 - **appMenu** - Native application menu with keyboard shortcuts
 - **appUpdates** - Update notification system (electron-update-notifier)
-- **badgeIcon** - Badge/overlay icon for unread count (platform-specific)
+- **badgeIcon** - Badge/overlay icon for unread count with caching (platform-specific)
+- **certificatePinning** - SSL certificate validation for Google domains to prevent MITM attacks
 - **closeToTray** - Minimize to system tray instead of closing
 - **contextMenu** - Right-click context menu (electron-context-menu)
-- **externalLinks** - Opens external URLs in default browser
+- **externalLinks** - Opens external URLs in default browser with URL sanitization
 - **firstLaunch** - Logs first launch via electron-log
-- **handleNotification** - Native OS notification handling
-- **inOnline** - Internet connectivity monitoring
+- **handleNotification** - Native OS notification handling with rate limiting
+- **inOnline** - Internet connectivity monitoring with rate limiting
 - **openAtLogin** - Auto-launch on system startup (auto-launch)
 - **reportExceptions** - Unhandled exception reporting (electron-unhandled)
 - **singleInstance** - Ensures only one app instance runs (brings existing to focus)
 - **trayIcon** - System tray icon with context menu
 - **userAgent** - Custom User-Agent string override
-- **windowState** - Persists window position/size between launches
+- **windowState** - Persists window position/size between launches with debouncing
 
 ### Preload Scripts
 
-Preload scripts (`src/preload/`) inject functionality into the renderer process:
-- **faviconChanged** - Monitors favicon changes to detect Google Chat state
-- **offline** - Handles offline state UI
-- **searchShortcut** - Keyboard shortcut for search functionality
-- **overrideNotifications** - Intercepts web notifications for native handling
-- **unreadCount** - Extracts unread message count from page
+Preload scripts (`src/preload/`) provide a secure bridge between renderer and main process using Electron's `contextBridge` API. With context isolation enabled, the renderer cannot directly access Node.js or Electron APIs.
 
-All preload scripts are imported via `src/preload/index.ts` and bundled into the renderer.
+**`src/preload/index.ts`** exposes the `window.gchat` API to the renderer:
+```typescript
+window.gchat {
+  sendUnreadCount(count: number)      // Send unread count to main process
+  sendFaviconChanged(href: string)    // Send favicon URL to main process
+  sendNotificationClicked()           // Notify main that notification was clicked
+  checkIfOnline()                     // Request online status check
+  onSearchShortcut(callback)          // Register search shortcut handler
+  onOnlineStatus(callback)            // Register online/offline status handler
+}
+```
+
+**Individual preload modules:**
+- **faviconChanged** - Uses MutationObserver to monitor favicon changes (no polling)
+- **offline** - Listens for online/offline status via contextBridge API
+- **searchShortcut** - Keyboard shortcut for search functionality with cleanup
+- **unreadCount** - Uses MutationObserver to extract unread message count (no polling)
+
+All IPC messages are validated before sending to the main process using shared validators from `src/shared/validators.ts`. Event listeners are properly cleaned up to prevent memory leaks.
 
 ### Offline Functionality
 
@@ -121,22 +151,84 @@ The app includes an offline page (`src/offline/`) shown when no internet connect
 - **Module:** NodeNext (ESM with Node.js resolution)
 - **Output:** `lib/` directory (mirrors `src/` structure)
 - **Strict mode:** Enabled
-- Source maps are disabled for production
+- **Source maps:** Enabled for debugging
 
 ## Configuration Store Schema
 
-The app uses `electron-store` with a typed schema. When adding new settings:
-1. Update the `StoreType` interface in `src/main/config.ts`
-2. Add the corresponding schema definition with type and default value
+The app uses `electron-store` with AES-256-GCM encryption and typed schema validation. All configuration data is encrypted at rest using a key derived from app-specific data.
+
+When adding new settings:
+1. Update the `StoreType` interface in `src/shared/types.ts`
+2. Add the corresponding schema definition with type and default value in `src/main/config.ts`
 3. Access via `store.get('key.path')` and `store.set('key.path', value)`
 
-## Security Notes
+**Current schema structure:**
+```typescript
+window: {
+  bounds: { x, y, width, height }
+  isMaximized: boolean
+}
+app: {
+  autoCheckForUpdates: boolean
+  autoLaunchAtLogin: boolean
+  startHidden: boolean
+  hideMenuBar: boolean
+  disableSpellChecker: boolean
+}
+```
 
-- **Context Isolation:** Disabled (legacy requirement for preload scripts)
-- **Node Integration:** Disabled in renderer for security
-- **Auxclick:** Disabled to prevent security exploits
-- **Sandbox:** Disabled (allows preload scripts to work)
-- External links are intercepted and opened in the default browser, never in-app
+## Security Architecture
+
+This application implements defense-in-depth security with multiple layers:
+
+### Process Isolation
+- **Context Isolation:** ✅ Enabled - Renderer cannot access Node.js APIs directly
+- **Sandbox Mode:** ✅ Enabled - OS-level process isolation for renderer
+- **Node Integration:** ✅ Disabled - Renderer cannot require Node.js modules
+- **Auxclick:** ✅ Disabled - Prevents middle-click exploits
+
+### Content Security Policy (CSP)
+Strict CSP enforced via webRequest.onHeadersReceived:
+- Script sources restricted to Google domains only
+- `object-src 'none'` blocks plugins
+- Inline scripts/eval allowed only where required by Google Chat
+- Frame sources limited to Google domains
+
+### Input Validation & Sanitization
+- All IPC messages validated using `src/shared/validators.ts`
+- URL sanitization with protocol whitelist (http/https only)
+- Numeric bounds checking and NaN protection
+- HTML entity encoding for string outputs
+
+### Rate Limiting
+- IPC rate limiter prevents flooding and DoS attacks
+- Per-channel limits: default 10 msg/sec, stricter for sensitive channels
+- Auto-cleanup prevents memory leaks
+
+### External Content Handling
+- URLs validated before opening with `shell.openExternal()`
+- Protocol whitelist enforcement
+- Credential stripping (removes username/password)
+- Dangerous patterns blocked (javascript:, data:, file:, vbscript:)
+
+### Certificate Pinning
+- SSL certificate validation for all Google domains
+- Trusted issuers: Google Trust Services (GTS), GlobalSign
+- Certificate validity period verification
+- Prevents Man-in-the-Middle attacks
+
+### Data Encryption at Rest
+- All configuration data encrypted with AES-256-GCM
+- Encryption key derived from app-specific data
+- Protects user preferences and window state
+
+### Permission Management
+- Restrictive permission handler
+- Only allows: notifications, media, mediaKeySystem, geolocation
+- All other permissions denied by default
+- All requests logged for audit
+
+For complete security details, see `SECURITY.md` in the repository root.
 
 ## Platform-Specific Considerations
 
