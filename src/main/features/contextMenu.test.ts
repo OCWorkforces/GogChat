@@ -13,7 +13,7 @@ vi.mock('electron-context-menu', () => ({
 
 describe('Context Menu', () => {
   it('should initialize context menu', async () => {
-    const contextMenu = await import('./contextMenu');
+    const contextMenu = await import('./contextMenu.js');
 
     contextMenu.default();
 
@@ -21,7 +21,7 @@ describe('Context Menu', () => {
   });
 
   it('should be called without errors', async () => {
-    const contextMenu = await import('./contextMenu');
+    const contextMenu = await import('./contextMenu.js');
 
     expect(() => contextMenu.default()).not.toThrow();
   });

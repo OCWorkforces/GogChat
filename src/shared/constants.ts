@@ -12,6 +12,7 @@ export const IPC_CHANNELS = {
   FAVICON_CHANGED: 'faviconChanged',
   NOTIFICATION_CLICKED: 'notificationClicked',
   CHECK_IF_ONLINE: 'checkIfOnline',
+  PASSKEY_AUTH_FAILED: 'passkeyAuthFailed',
 
   // From main to renderer
   SEARCH_SHORTCUT: 'searchShortcut',
