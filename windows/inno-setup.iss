@@ -8,10 +8,10 @@
 #define AppVersion "{{appVersion}}"
 #define AppPublisher "CCWorkforce"
 #define AppURL "https://github.com/CCWorkforce/GChat"
-#define AppExeName "google-chat-electron.exe"
-#define OutputBaseFilename "google-chat-electron-setup-win-x64-{{appVersion}}"
+#define AppExeName "gchat.exe"
+#define OutputBaseFilename "gchat-setup-win-x64-{{appVersion}}"
 #define OutputDir "../dist/installers"
-#define AppSourceDir "../dist/google-chat-electron-win32-x64/*"
+#define AppSourceDir "../dist/gchat-win32-x64/*"
 
 
 [Setup]

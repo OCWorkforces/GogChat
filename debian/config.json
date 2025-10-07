@@ -1,5 +1,5 @@
 {
-  "src": "./dist/google-chat-electron-linux-x64",
+  "src": "./dist/gchat-linux-x64",
   "dest": "./dist/installers/",
   "options": {
     "productName": "Google Chat",
