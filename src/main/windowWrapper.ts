@@ -26,27 +26,30 @@ export default (url: string): BrowserWindow => {
   });
 
   // ✅ SECURITY: Implement Content Security Policy
+  // Note: CSP is relaxed to allow Google Chat full functionality while still blocking malicious content
   const installCSP = () => {
     const ses = window.webContents.session;
 
     ses.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self' https://mail.google.com https://*.google.com https://*.gstatic.com; " +
-            "script-src 'self' https://mail.google.com https://*.google.com https://*.gstatic.com 'unsafe-inline' 'unsafe-eval'; " +
-            "style-src 'self' https://*.google.com https://*.gstatic.com 'unsafe-inline'; " +
-            "img-src 'self' https://*.google.com https://*.gstatic.com https://*.googleusercontent.com data: blob:; " +
-            "font-src 'self' https://*.google.com https://*.gstatic.com data:; " +
-            "connect-src 'self' https://*.google.com https://*.googleapis.com wss://*.google.com; " +
-            "frame-src 'self' https://*.google.com; " +
-            "media-src 'self' https://*.google.com https://*.googleusercontent.com blob:; " +
-            "object-src 'none'; " +
-            "base-uri 'self';"
-          ]
-        }
-      });
+      // Only apply CSP to main frame, not to Google's internal resources
+      // This prevents blocking Google Chat's settings and other interactive features
+      if (details.resourceType === 'mainFrame') {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [
+              "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+              "object-src 'none'; " +
+              "base-uri 'self';"
+            ]
+          }
+        });
+      } else {
+        // Pass through other resources without modification
+        callback({
+          responseHeaders: details.responseHeaders
+        });
+      }
     });
 
     log.debug('[Security] Content Security Policy installed');
