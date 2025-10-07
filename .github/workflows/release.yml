@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v3.0.6)'
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: '22.x'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read CHANGELOG
+        id: changelog
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            # Extract the latest version's changelog
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            awk '/^## \[/{if(p)exit;p=1;next} p' CHANGELOG.md >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "changelog=No changelog available" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          release_name: Release ${{ steps.get_version.outputs.version }}
+          body: |
+            ## GChat ${{ steps.get_version.outputs.version }}
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Downloads
+            - **macOS Intel (x64)**: GChat-${{ steps.get_version.outputs.version }}-mac-x64.zip
+            - **macOS ARM (Apple Silicon)**: GChat-${{ steps.get_version.outputs.version }}-mac-arm64.zip
+
+            ### Security
+            - See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for security details
+
+            ---
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
+          draft: false
+          prerelease: false
+
+  build-and-upload-macos:
+    name: Build & Upload macOS
+    runs-on: macos-latest
+    needs: create-release
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build TypeScript
+        run: npm run ts
+
+      - name: Run tests
+        run: npm run test:run
+
+      - name: Package macOS app (Intel)
+        if: matrix.arch == 'x64'
+        run: npm run pack:mac
+
+      - name: Package macOS app (ARM)
+        if: matrix.arch == 'arm64'
+        run: npm run pack:mac-arm
+
+      - name: Build macOS ZIP (Intel)
+        if: matrix.arch == 'x64'
+        run: npm run build:mac-zip
+
+      - name: Build macOS ZIP (ARM)
+        if: matrix.arch == 'arm64'
+        run: npm run build:mac-arm-zip
+
+      - name: Get installer filename
+        id: get_filename
+        run: |
+          INSTALLER=$(ls dist/installers/*.zip | head -n 1)
+          echo "filename=${INSTALLER##*/}" >> $GITHUB_OUTPUT
+          echo "filepath=$INSTALLER" >> $GITHUB_OUTPUT
+
+      - name: Upload macOS installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.get_filename.outputs.filepath }}
+          asset_name: ${{ steps.get_filename.outputs.filename }}
+          asset_content_type: application/zip
+
+  release-summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [build-and-upload-macos]
+    if: always()
+
+    steps:
+      - name: Check release status
+        run: |
+          echo "Release Summary for ${{ needs.create-release.outputs.version }}:"
+          echo "- macOS: ${{ needs.build-and-upload-macos.result }}"
+
+          if [ "${{ needs.build-and-upload-macos.result }}" != "success" ]; then
+            echo "❌ macOS release build failed"
+            exit 1
+          else
+            echo "✅ All release builds succeeded"
+            echo "🎉 Release ${{ needs.create-release.outputs.version }} published successfully!"
+          fi
