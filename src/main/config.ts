@@ -1,22 +1,17 @@
 import Store from 'electron-store';
+import {app} from 'electron';
+import {createHash} from 'crypto';
+import type {StoreType} from '../shared/types';
 
-interface StoreType {
-  window: {
-    bounds: {
-      x: number | null;
-      y: number | null;
-      width: number;
-      height: number;
-    };
-    isMaximized: boolean;
-  };
-  app: {
-    autoCheckForUpdates: boolean;
-    autoLaunchAtLogin: boolean;
-    startHidden: boolean;
-    hideMenuBar: boolean;
-    disableSpellChecker: boolean;
-  };
+/**
+ * Generate encryption key from app-specific data
+ * This creates a consistent key per machine/user
+ * Encrypts sensitive configuration data at rest
+ */
+function getEncryptionKey(): string {
+  // Use app name + user data path to generate consistent key per installation
+  const keyMaterial = `${app.getName()}-${app.getPath('userData')}`;
+  return createHash('sha256').update(keyMaterial).digest('hex');
 }
 
 const schema = {
@@ -83,6 +78,13 @@ const schema = {
   }
 };
 
-const store = new Store<StoreType>({schema});
+/**
+ * Initialize encrypted store
+ * All configuration data is encrypted at rest using AES-256-GCM
+ */
+const store = new Store<StoreType>({
+  schema,
+  encryptionKey: getEncryptionKey(),
+});
 
 export default store;

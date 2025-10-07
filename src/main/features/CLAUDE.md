@@ -60,7 +60,16 @@ Checks for application updates using `electron-update-notifier`.
 - Manual check available via Help menu
 
 ### badgeIcon.ts
-Manages the unread message count badge on the app icon and tray.
+Manages the unread message count badge on the app icon and tray with security enhancements.
+
+**Security features:**
+- Input validation using `validateUnreadCount()` from shared validators
+- Rate limiting (5 messages/second) to prevent flooding
+- Error handling with try-catch blocks
+
+**Performance optimizations:**
+- Icon caching using Map<string, NativeImage> to avoid redundant file loads
+- Reuses loaded icons across badge updates
 
 **Platform differences:**
 - **macOS**: Uses `app.setBadgeCount()` for dock icon
@@ -68,8 +77,37 @@ Manages the unread message count badge on the app icon and tray.
 - **Linux**: Limited support, attempts to use `app.setBadgeCount()`
 
 **Data source:**
-- Receives unread count from preload script via IPC (`totalUnreadCount` channel)
+- Receives unread count from preload script via IPC (`IPC_CHANNELS.UNREAD_COUNT`)
 - Updates both app badge and tray icon tooltip
+
+### certificatePinning.ts
+Validates SSL certificates for Google domains to prevent Man-in-the-Middle (MITM) attacks.
+
+**Security implementation:**
+- Listens to `certificate-error` events from Electron
+- Validates certificate issuer against trusted Google CAs:
+  - Google Trust Services LLC
+  - GTS Root R1, R2, R3, R4
+  - GTS CA 1C3, 1D4
+  - GlobalSign
+- Verifies certificate validity period (not expired, not future-dated)
+
+**Pinned domains:**
+- `google.com` and all subdomains
+- `mail.google.com`
+- `chat.google.com`
+- `accounts.google.com`
+- `googleapis.com`
+- `gstatic.com`
+- `googleusercontent.com`
+
+**Initialization:**
+- Called early in `../index.ts` BEFORE any network requests
+- Non-pinned domains are allowed through without validation
+
+**Logging:**
+- All certificate validation attempts logged
+- Failed validations logged with issuer and error details
 
 ### closeToTray.ts
 Prevents window from closing; hides it to tray instead.
@@ -88,17 +126,31 @@ Enables right-click context menu with standard options (copy, paste, inspect ele
 - Includes "Inspect Element" option for debugging
 
 ### externalLinks.ts
-Intercepts clicks on external links and opens them in the default browser instead of in-app.
+Intercepts clicks on external links and opens them in the default browser with URL sanitization.
+
+**Security features:**
+- URL validation using `validateExternalURL()` from shared validators
+- Protocol whitelist enforcement (http/https only)
+- Credential stripping (removes username/password from URLs)
+- Dangerous pattern blocking:
+  - `javascript:` URIs
+  - `data:` URIs
+  - `vbscript:` URIs
+  - `file:` URIs
+  - `about:` URIs
+- Domain whitelist for Google services using `WHITELISTED_HOSTS` constant
 
 **Implementation:**
 - Listens to `will-navigate` and `new-window` events
-- Checks if URL is external (not Google Chat domain)
-- Opens in default browser via `shell.openExternal()`
+- Checks if URL is external (not in whitelist)
+- Sanitizes URL before opening
+- Opens in default browser via `shell.openExternal()` in `setImmediate()`
 - Includes a toggleable guard (can be disabled via troubleshooting menu)
 
 **Special handling:**
 - Allows navigation within Google Chat domains
 - Blocks popup windows (security measure)
+- All validation failures logged
 
 ### firstLaunch.ts
 Logs the first time the application is launched.
@@ -109,15 +161,26 @@ Logs the first time the application is launched.
 - Useful for analytics or first-run setup logic
 
 ### handleNotification.ts
-Handles web notifications from Google Chat and converts them to native OS notifications.
+Handles web notifications from Google Chat and converts them to native OS notifications with rate limiting.
+
+**Security features:**
+- Rate limiting (5 messages/second) to prevent notification flooding
+- Error handling with try-catch blocks
+- Uses IPC constants from shared module
 
 **Implementation:**
-- Receives notification data from preload script via IPC
+- Receives notification data from preload script via IPC (`IPC_CHANNELS.NOTIFICATION_CLICKED`)
 - Creates native notification using Electron's Notification API
 - Clicking notification brings window to focus and navigates to relevant chat
+- All errors logged for debugging
 
 ### inOnline.ts
-Monitors internet connectivity and switches to offline page when disconnected.
+Monitors internet connectivity and switches to offline page when disconnected with rate limiting.
+
+**Security features:**
+- Rate limiting (1 message/second) for online status checks
+- Error handling with try-catch blocks
+- Timeout parameter with proper type annotation
 
 **Two main functions:**
 - `setupOfflineHandlers()`: Sets up event listeners for online/offline events
@@ -127,6 +190,8 @@ Monitors internet connectivity and switches to offline page when disconnected.
 - When offline: Loads `src/offline/index.html`
 - When back online: Reloads Google Chat URL
 - Throttles checks to avoid excessive polling
+- Uses timing constants from shared module (CONNECTIVITY_CHECK_FAST/SLOW)
+- All errors logged for debugging
 
 ### openAtLogin.ts
 Configures the app to launch automatically on system startup.
@@ -194,13 +259,25 @@ Overrides the default Electron User-Agent string.
 - Must be called before window creation
 
 ### windowState.ts
-Persists window position, size, and maximized state between app launches.
+Persists window position, size, and maximized state between app launches with performance optimizations.
+
+**Performance optimizations:**
+- Debounce on close event (100ms) to avoid immediate writes
+- Throttle on resize/move events (uses `TIMING.WINDOW_STATE_SAVE` constant)
+- Checks `isDestroyed()` before accessing window to prevent errors
+- Reduces disk I/O operations
+
+**Error handling:**
+- All window operations wrapped in try-catch blocks
+- Errors logged for debugging
+- Graceful degradation if state restoration fails
 
 **Implementation:**
-- On window move/resize: Debounces and saves bounds to store
-- On window maximize/unmaximize: Saves state to store
+- On window move/resize: Throttles and saves bounds to encrypted store
+- On window maximize/unmaximize: Saves state immediately
+- On window close: Debounced save to avoid blocking
 - On app start: Restores bounds and maximized state from store
-- Uses throttle-debounce to avoid excessive writes
+- Uses throttle-debounce package for rate control
 
 **Saved data:**
 ```typescript
@@ -213,22 +290,74 @@ window: {
 ## Adding a New Feature
 
 1. Create `myFeature.ts` in this directory
-2. Export default function:
+2. Export default function with error handling:
    ```typescript
    import { BrowserWindow } from 'electron';
+   import { ipcMain } from 'electron';
+   import log from 'electron-log';
+   import { IPC_CHANNELS } from '../../shared/constants';
+   import { validateInput } from '../../shared/validators';
+   import { rateLimiter } from '../utils/rateLimiter';
 
    export default (window: BrowserWindow) => {
-     // Feature implementation
+     try {
+       // Feature implementation
+
+       // If using IPC, follow secure pattern:
+       ipcMain.on(IPC_CHANNELS.MY_CHANNEL, (event, data) => {
+         try {
+           // Rate limiting
+           if (!rateLimiter.isAllowed(IPC_CHANNELS.MY_CHANNEL)) {
+             log.warn('[MyFeature] Rate limited');
+             return;
+           }
+
+           // Input validation
+           const validated = validateInput(data);
+
+           // Handle validated data
+           handleData(validated);
+         } catch (error) {
+           log.error('[MyFeature] Failed:', error);
+         }
+       });
+
+       log.info('[MyFeature] Initialized');
+     } catch (error) {
+       log.error('[MyFeature] Initialization failed:', error);
+     }
    }
    ```
-3. Import and initialize in `../index.ts`:
+3. Import and initialize in `../index.ts` in the appropriate phase:
    ```typescript
    import myFeature from './features/myFeature';
 
    app.whenReady().then(() => {
-     // ...
+     // Critical features
      myFeature(mainWindow);
+
+     // Or defer non-critical features:
+     setImmediate(() => {
+       if (!mainWindow) return;
+       myFeature(mainWindow);
+     });
    });
    ```
-4. If feature needs configuration, add to `../config.ts` schema
-5. If feature needs IPC, add handlers here and senders in `../../preload/`
+4. If feature needs configuration:
+   - Update `StoreType` in `../../shared/types.ts`
+   - Add schema in `../config.ts`
+5. If feature needs IPC:
+   - Add channel constant to `../../shared/constants.ts`
+   - Add validator to `../../shared/validators.ts` if needed
+   - Add sender in `../../preload/index.ts` with validation
+6. If feature needs new types:
+   - Add to `../../shared/types.ts` for cross-process types
+
+**Security checklist for new features:**
+- [ ] All IPC handlers use rate limiting
+- [ ] All inputs validated before use
+- [ ] All errors handled with try-catch
+- [ ] All operations logged appropriately
+- [ ] No eval() or dangerous functions
+- [ ] External URLs sanitized before opening
+- [ ] File paths validated before access
