@@ -1,31 +1,25 @@
 import isOnline from 'is-online';
 import {BrowserWindow, ipcMain, Notification, app, nativeImage, IpcMainEvent} from 'electron';
 import path from 'path';
+import log from 'electron-log';
+import {IPC_CHANNELS, TIMING} from '../../shared/constants';
+import {getRateLimiter} from '../utils/rateLimiter';
 
-export default (window: BrowserWindow) => {
-  ipcMain.on('checkIfOnline', async (event: IpcMainEvent) => {
-    const online = await checkIfOnline(5000)
-
-    event.reply('onlineStatus', online);
-  });
-}
-
-const checkIfOnline = async (timeout = 3000) => {
-  return await isOnline({
-    timeout
-  });
-}
-
-const checkForInternet = async (window: BrowserWindow) => {
-  const canChat = await checkIfOnline();
-
-  if (!canChat) {
-    const offlinePagePath = path.join(app.getAppPath(), 'src/offline/index.html');
-    await window.loadURL(`file://${offlinePagePath}`);
-    showOfflineNotification(window);
+/**
+ * Check internet connectivity
+ */
+const checkIfOnline = async (timeout: number = TIMING.CONNECTIVITY_CHECK_FAST): Promise<boolean> => {
+  try {
+    return await isOnline({timeout});
+  } catch (error) {
+    log.error('[Connectivity] Failed to check online status:', error);
+    return false;
   }
-}
+};
 
+/**
+ * Show offline notification to user
+ */
 const showOfflineNotification = (window: BrowserWindow) => {
   const notification = new Notification({
     title: 'Google Chat',
@@ -41,6 +35,54 @@ const showOfflineNotification = (window: BrowserWindow) => {
   });
 
   notification.show();
-}
+};
 
-export {checkForInternet}
+/**
+ * Check for internet connectivity and load offline page if disconnected
+ */
+const checkForInternet = async (window: BrowserWindow) => {
+  try {
+    const canChat = await checkIfOnline();
+
+    if (!canChat) {
+      const offlinePagePath = path.join(app.getAppPath(), 'src/offline/index.html');
+      await window.loadURL(`file://${offlinePagePath}`);
+      showOfflineNotification(window);
+      log.warn('[Connectivity] Loaded offline page - no internet connection');
+    }
+  } catch (error) {
+    log.error('[Connectivity] Failed to check internet:', error);
+  }
+};
+
+/**
+ * Setup IPC handlers for connectivity checks
+ */
+export default (window: BrowserWindow) => {
+  const rateLimiter = getRateLimiter();
+
+  // ✅ SECURITY: Add rate limiting to prevent connectivity check spam
+  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, async (event: IpcMainEvent) => {
+    try {
+      // Rate limit check (allow 1 check per second max)
+      if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
+        log.warn('[Connectivity] Check if online rate limited');
+        return;
+      }
+
+      log.debug('[Connectivity] Checking online status...');
+      const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
+
+      // Reply with online status
+      event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
+
+      log.debug(`[Connectivity] Online status: ${online}`);
+    } catch (error) {
+      log.error('[Connectivity] Failed to handle checkIfOnline:', error);
+      // Reply with false on error
+      event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+    }
+  });
+};
+
+export {checkForInternet};

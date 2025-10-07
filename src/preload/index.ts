@@ -1,5 +1,75 @@
+/**
+ * Preload script entry point
+ * With contextIsolation enabled, this script creates a secure bridge between
+ * main and renderer processes using Electron's contextBridge API
+ */
+
+import {contextBridge, ipcRenderer} from 'electron';
+import type {GChatBridgeAPI} from '../shared/types';
+import {IPC_CHANNELS} from '../shared/constants';
+import {validateUnreadCount, validateFaviconURL} from '../shared/validators';
+
+/**
+ * Expose secure API to renderer process via window.gchat
+ * This API is the ONLY way renderer can communicate with main process
+ */
+const api: GChatBridgeAPI = {
+  // Send messages to main process (with validation)
+  sendUnreadCount: (count: number) => {
+    try {
+      const validated = validateUnreadCount(count);
+      ipcRenderer.send(IPC_CHANNELS.UNREAD_COUNT, validated);
+    } catch (error) {
+      console.error('[GChat API] Invalid unread count:', error);
+    }
+  },
+
+  sendFaviconChanged: (href: string) => {
+    try {
+      const validated = validateFaviconURL(href);
+      ipcRenderer.send(IPC_CHANNELS.FAVICON_CHANGED, validated);
+    } catch (error) {
+      console.error('[GChat API] Invalid favicon URL:', error);
+    }
+  },
+
+  sendNotificationClicked: () => {
+    ipcRenderer.send(IPC_CHANNELS.NOTIFICATION_CLICKED);
+  },
+
+  checkIfOnline: () => {
+    ipcRenderer.send(IPC_CHANNELS.CHECK_IF_ONLINE);
+  },
+
+  // Receive messages from main process (returns unsubscribe function)
+  onSearchShortcut: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on(IPC_CHANNELS.SEARCH_SHORTCUT, listener);
+
+    // Return cleanup function
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.SEARCH_SHORTCUT, listener);
+    };
+  },
+
+  onOnlineStatus: (callback: (online: boolean) => void) => {
+    const listener = (_event: any, online: boolean) => callback(online);
+    ipcRenderer.on(IPC_CHANNELS.ONLINE_STATUS, listener);
+
+    // Return cleanup function
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.ONLINE_STATUS, listener);
+    };
+  },
+};
+
+// Expose API to renderer
+contextBridge.exposeInMainWorld('gchat', api);
+
+// Now load feature-specific preload scripts
+// These will use the window.gchat API we just exposed
 import './faviconChanged';
 import './offline';
 import './searchShortcut';
-import './overrideNotifications';
 import './unreadCount';
+// Note: overrideNotifications needs special handling - loaded separately

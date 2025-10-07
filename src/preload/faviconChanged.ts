@@ -1,32 +1,92 @@
-import {ipcRenderer} from 'electron';
+/**
+ * Favicon change detector - Now using MutationObserver for better performance
+ * Replaces polling with reactive DOM observation
+ */
 
-// Google chat initially loads favicon with rel="icon",
-// but replace it with rel="shortcut icon" when a new message appears.
-// We need to query for both elements
-const targetSelectors = [
-  'link[rel="shortcut icon"]',
-  'link[rel="icon"]'
-];
+import {SELECTORS} from '../shared/constants';
 
-let previousHref: null | string = '';
-const emitFaviconChanged = (favicon: HTMLLinkElement) => {
-  const href = favicon?.href || '';
+let previousHref: string = '';
+let observer: MutationObserver | null = null;
 
-  if (previousHref === href) {
+/**
+ * Notify main process of favicon changes
+ */
+const emitFaviconChanged = (href: string) => {
+  if (previousHref === href || !href) {
     return;
   }
+
   previousHref = href;
 
-  ipcRenderer.send('faviconChanged', href);
-}
+  // Use the secure API exposed via contextBridge
+  if (window.gchat?.sendFaviconChanged) {
+    window.gchat.sendFaviconChanged(href);
+  }
+};
 
+/**
+ * Get current favicon element and href
+ */
+const getCurrentFavicon = (): string => {
+  // Try shortcut icon first, then regular icon
+  const favicon = document.querySelector(SELECTORS.FAVICON_SHORTCUT) as HTMLLinkElement ||
+                  document.querySelector(SELECTORS.FAVICON_ICON) as HTMLLinkElement;
+
+  return favicon?.href || '';
+};
+
+/**
+ * Initialize MutationObserver to watch for favicon changes
+ * ✅ PERFORMANCE: Replaces 1-second polling with reactive observation
+ */
 const initObserver = () => {
-  let favicons = document.head.querySelectorAll(targetSelectors.join(','));
-  emitFaviconChanged(favicons[0] as HTMLLinkElement);
-}
+  // Clean up existing observer
+  if (observer) {
+    observer.disconnect();
+  }
 
-let interval: NodeJS.Timeout;
-window.addEventListener('DOMContentLoaded', () => {
-  clearInterval(interval);
-  interval = setInterval(initObserver, 1000)
-});
+  // Initial check
+  const initialHref = getCurrentFavicon();
+  if (initialHref) {
+    emitFaviconChanged(initialHref);
+  }
+
+  // Create observer for <head> element changes
+  observer = new MutationObserver((mutations) => {
+    // Check if any mutation affected favicon elements
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList' || mutation.type === 'attributes') {
+        const currentHref = getCurrentFavicon();
+        if (currentHref) {
+          emitFaviconChanged(currentHref);
+        }
+        break; // Only need to check once per batch
+      }
+    }
+  });
+
+  // Observe changes to <head>
+  const head = document.head;
+  if (head) {
+    observer.observe(head, {
+      childList: true,    // Watch for added/removed nodes
+      subtree: true,       // Watch descendants
+      attributes: true,    // Watch for attribute changes
+      attributeFilter: ['href', 'rel'], // Only watch relevant attributes
+    });
+  }
+};
+
+// ✅ SECURITY FIX: Add cleanup to prevent memory leaks
+const cleanup = () => {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
+};
+
+// Initialize when DOM is ready
+window.addEventListener('DOMContentLoaded', initObserver);
+
+// ✅ PERFORMANCE: Clean up observer when page unloads
+window.addEventListener('beforeunload', cleanup);
