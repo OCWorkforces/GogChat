@@ -1,0 +1,58 @@
+{
+  "name": "google-chat-electron",
+  "version": "3.0.0",
+  "description": "GChat",
+  "private": true,
+  "repository": "https://github.com/CCWorkforce/GChat",
+  "homepage": "https://github.com/CCWorkforce/GChat",
+  "author": "CCWorkforce",
+  "main": "lib/main/index.js",
+  "scripts": {
+    "prestart": "npm run ts",
+    "start": "electron .",
+    "clean:dist": "rimraf ./dist",
+    "clean:lib": "rimraf ./lib",
+    "prets": "npm run clean:lib",
+    "ts": "tsc",
+    "prepack:windows": "npm run clean:dist && npm run ts",
+    "pack:windows": "electron-packager . --platform=win32 --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/windows.ico",
+    "build:windows": "node ./windows/installer.js",
+    "prepack:mac": "npm run clean:dist && npm run ts",
+    "pack:mac": "electron-packager . --platform=darwin --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns",
+    "pack:mac-arm": "electron-packager . --platform=darwin --arch=arm64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns",
+    "build:mac-zip": "bash ./mac/installer-zip.sh",
+    "build:mac-arm-zip": "bash ./mac/installer-arm-zip.sh",
+    "prepack:linux": "npm run clean:dist && npm run ts",
+    "pack:linux": "electron-packager . --platform=linux --arch=x64 --asar --overwrite --out=./dist/",
+    "build:deb": "electron-installer-debian --config=./debian/config.json --arch=amd64",
+    "build:deb-checksum": "cd ./dist/installers && sha512sum *.deb > google-chat-electron-deb-SHA512.txt"
+  },
+  "devDependencies": {
+    "@types/auto-launch": "^5.0.5",
+    "@types/throttle-debounce": "^5.0.2",
+    "electron": "^38.2.1",
+    "electron-packager": "^17.1.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "auto-launch": "^5.0.6",
+    "electron-context-menu": "^4.1.1",
+    "electron-log": "^5.4.3",
+    "electron-store": "^8.1.0",
+    "electron-unhandled": "^4.0.1",
+    "electron-update-notifier": "^1.7.0",
+    "electron-util": "^0.17.2",
+    "is-online": "^12.0.1",
+    "throttle-debounce": "^5.0.2"
+  },
+  "optionalDependencies": {
+    "electron-installer-debian": "^3.2.0"
+  },
+  "engineStrict": true,
+  "packageManager": "pnpm@10.18.1",
+  "engines": {
+    "node": ">=18.12",
+    "pnpm": "^7.0.0"
+  }
+}
