@@ -8,6 +8,12 @@ GChat is an Electron-based desktop application that wraps Google Chat (https://m
 
 **Package Manager:** This project uses `pnpm` (specified version ^7.0.0). Use `pnpm install` for dependencies.
 
+**Runtime Environment:**
+- **Electron version**: 38.2.1 (latest stable)
+- **Node.js version**: 22.19.0 (bundled with Electron 38)
+- **Chromium version**: 140.0.7339.41
+- **V8 version**: 14.0
+
 ## Development Commands
 
 ```bash
