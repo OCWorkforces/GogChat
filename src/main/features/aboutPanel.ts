@@ -5,7 +5,7 @@ import os from 'os';
 // The default Electron AboutWindow does not load app icon from asar
 // So let's create a custom dialog instead
 export default async (window: BrowserWindow) => {
-  const packageJson = require(path.join(app.getAppPath(), 'package.json'));
+  const packageJson = require(path.join(app.getAppPath(), 'packageon'));
   const detail = getDetails();
 
   detail.unshift(`Developed by - ${packageJson.author}\n`)
