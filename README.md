@@ -35,10 +35,8 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 ## Download
 
 Get the latest release for your platform:
-- **Windows**: [Download .exe](https://github.com/CCWorkforce/GChat/releases/latest)
-- **macOS (Intel)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
-- **macOS (ARM)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
-- **Linux (Debian)**: [Download .deb](https://github.com/CCWorkforce/GChat/releases/latest)
+- **macOS Intel (x64)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
+- **macOS ARM (Apple Silicon)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
 
 ## Development
 
@@ -57,11 +55,9 @@ npm start
 # Run tests
 npm run test:run
 
-# Build for your platform
-npm run pack:windows  # Windows
-npm run pack:mac      # macOS Intel
-npm run pack:mac-arm  # macOS ARM
-npm run pack:linux    # Linux
+# Build for macOS
+npm run pack:mac      # macOS Intel (x64)
+npm run pack:mac-arm  # macOS ARM (Apple Silicon)
 ```
 
 ### Testing
@@ -78,24 +74,20 @@ npm test
 
 ### Building Installers
 ```bash
-# Windows
-npm run build:windows
+# macOS Intel (x64)
+npm run build:mac-zip
 
-# macOS
-npm run build:mac-zip    # Intel
-npm run build:mac-arm-zip # ARM
-
-# Linux
-npm run build:deb
+# macOS ARM (Apple Silicon)
+npm run build:mac-arm-zip
 ```
 
 ## CI/CD
 
 This project uses GitHub Actions for automated building and testing:
 
-- **Build Workflow**: Runs on every push and PR, builds for all platforms
+- **Build Workflow**: Runs on every push and PR, builds for macOS (Intel & ARM)
 - **Release Workflow**: Automatically creates releases when tags are pushed
-- **Multi-platform**: Windows, macOS (Intel & ARM), Linux (Debian)
+- **Platforms**: macOS Intel (x64) and macOS ARM (Apple Silicon)
 
 ### Creating a Release
 

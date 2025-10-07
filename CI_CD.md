@@ -4,11 +4,9 @@ This document explains the Continuous Integration and Continuous Deployment setu
 
 ## Overview
 
-GChat uses **GitHub Actions** for automated building, testing, and releasing across multiple platforms:
-- Windows (x64)
+GChat uses **GitHub Actions** for automated building, testing, and releasing for macOS:
 - macOS Intel (x64)
 - macOS ARM (Apple Silicon)
-- Linux Debian (x64)
 
 ## Workflows
 
@@ -29,28 +27,17 @@ Runs on Ubuntu (fastest for testing):
 - Run unit tests (`npm run test:run`)
 - Run security audit (`npm audit --production`)
 
-#### Stage 2: Multi-Platform Builds
-Runs in parallel after tests pass:
-
-**Windows Build** (runs on windows-latest):
-- Package app with electron-packager
-- Build installer with Inno Setup
-- Upload `.exe` installer as artifact (30-day retention)
+#### Stage 2: macOS Builds
+Runs in parallel after tests pass using matrix strategy:
 
 **macOS Build** (runs on macos-latest, matrix strategy):
-- Builds both Intel (x64) and ARM (arm64) versions
+- Builds both Intel (x64) and ARM (arm64) versions in parallel
 - Package app with electron-packager
 - Create ZIP archives
 - Upload ZIP files as artifacts (30-day retention)
 
-**Linux Build** (runs on ubuntu-latest):
-- Package app with electron-packager
-- Build `.deb` package with electron-installer-debian
-- Generate SHA512 checksums
-- Upload `.deb` and checksums as artifacts (30-day retention)
-
 #### Stage 3: Build Summary
-- Checks status of all platform builds
+- Checks status of macOS builds
 - Fails if any build failed
 - Provides summary of build results
 
@@ -76,19 +63,16 @@ Runs in parallel after tests pass:
   - Auto-generated description
 
 #### Stage 2: Build & Upload Assets
-Runs in parallel, similar to Build workflow but with additional steps:
+Runs in parallel using matrix strategy for both macOS architectures:
 
-**For each platform:**
+**For each architecture:**
 1. Run full test suite (zero failures required)
 2. Build platform-specific installer
 3. Upload installer directly to GitHub Release as asset
 
 **Release Assets:**
-- `GChat-Setup-{version}.exe` (Windows)
 - `GChat-{version}-mac-x64.zip` (macOS Intel)
 - `GChat-{version}-mac-arm64.zip` (macOS ARM)
-- `GChat-{version}-amd64.deb` (Linux)
-- `GChat-deb-SHA512.txt` (Linux checksums)
 
 #### Stage 3: Release Summary
 - Verifies all platform builds succeeded
@@ -130,24 +114,17 @@ Runs in parallel, similar to Build workflow but with additional steps:
 
 ## Platform-Specific Notes
 
-### Windows
-- **Runner:** windows-latest (Windows Server 2022)
-- **Build Tool:** Inno Setup (via `./windows/installer.js`)
-- **Output:** `.exe` installer with blockmap
-- **Signing:** Not configured (TODO: Add code signing)
-
 ### macOS
 - **Runner:** macos-latest (macOS 14 Sonoma)
-- **Matrix Strategy:** Builds both x64 and arm64 in parallel
-- **Build Tool:** Shell scripts (`./mac/installer-zip.sh`, `./mac/installer-arm-zip.sh`)
+- **Matrix Strategy:** Builds both x64 (Intel) and arm64 (Apple Silicon) in parallel
+- **Build Tools:**
+  - Intel: `./mac/installer-zip.sh`
+  - ARM: `./mac/installer-arm-zip.sh`
 - **Output:** ZIP archives
+- **Architectures:**
+  - x64: Intel-based Macs
+  - arm64: Apple Silicon (M1, M2, M3, etc.)
 - **Signing:** Not configured (TODO: Add notarization)
-
-### Linux
-- **Runner:** ubuntu-latest (Ubuntu 22.04)
-- **Build Tool:** electron-installer-debian
-- **Output:** `.deb` package with SHA512 checksums
-- **Config:** `./debian/config.json`
 
 ---
 
@@ -228,17 +205,13 @@ npm run test:run
 
 **Platform-Specific Build Fails:**
 ```bash
-# Windows
-npm run pack:windows
-npm run build:windows
-
-# macOS
+# macOS Intel
 npm run pack:mac
 npm run build:mac-zip
 
-# Linux
-npm run pack:linux
-npm run build:deb
+# macOS ARM
+npm run pack:mac-arm
+npm run build:mac-arm-zip
 ```
 
 ### Artifact Issues
@@ -339,16 +312,14 @@ Future enhancements:
 ## Performance Optimization
 
 ### Build Time Optimization
-- **Parallel builds:** Windows, macOS, Linux build simultaneously
+- **Parallel builds:** macOS x64 and ARM64 build simultaneously
 - **Caching:** pnpm store cached across runs
-- **Matrix strategy:** macOS x64 and ARM64 build in parallel
+- **Matrix strategy:** Both architectures build in parallel
 
 ### Typical Build Times
 - Test stage: ~2-3 minutes
-- Windows build: ~5-7 minutes
 - macOS build (per arch): ~5-7 minutes
-- Linux build: ~4-6 minutes
-- **Total (parallel):** ~7-10 minutes
+- **Total (parallel):** ~5-7 minutes (both architectures build simultaneously)
 
 ---
 
@@ -357,14 +328,13 @@ Future enhancements:
 ### Planned Improvements
 - [ ] Code coverage reporting
 - [ ] Automated changelog generation
-- [ ] Code signing for all platforms
+- [ ] macOS code signing and notarization
 - [ ] Automated version bumping
 - [ ] Pre-release/beta channel
 - [ ] Integration tests
 - [ ] E2E tests with Playwright
 - [ ] Performance benchmarking
-- [ ] Docker builds
-- [ ] Snap/AppImage for Linux
+- [ ] Universal macOS binary (combined x64 + ARM)
 
 ### Nice-to-Have
 - [ ] Auto-update server integration
@@ -372,6 +342,7 @@ Future enhancements:
 - [ ] Analytics integration
 - [ ] Automated security scanning (Snyk, Dependabot)
 - [ ] Nightly builds
+- [ ] Windows and Linux support (currently macOS only)
 
 ---
 
