@@ -61,7 +61,7 @@ const checkForInternet = async (window: BrowserWindow) => {
 export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
-  // ✅ SECURITY: Add rate limiting to prevent connectivity check spam
+  // Add rate limiting to prevent connectivity check spam
   ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, async (event: IpcMainEvent) => {
     try {
       // Rate limit check (allow 1 check per second max)

@@ -87,7 +87,7 @@ function verifyCertificateValidity(cert: Certificate): boolean {
 
 /**
  * Initialize certificate pinning
- * ✅ SECURITY: Prevents MITM attacks on Google domains
+ * Prevents MITM attacks on Google domains
  */
 export default function setupCertificatePinning(): void {
   app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {

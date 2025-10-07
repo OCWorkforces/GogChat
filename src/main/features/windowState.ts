@@ -29,7 +29,7 @@ export default (window: BrowserWindow) => {
       }
     });
 
-    // ✅ PERFORMANCE: Debounced save function to reduce disk writes
+    // Debounced save function to reduce disk writes
     const saveWindowPosition = () => {
       try {
         if (!window.isMaximized() && !window.isDestroyed()) {
@@ -48,7 +48,7 @@ export default (window: BrowserWindow) => {
     // Debounced version for close event to avoid immediate write
     const debouncedSave = debounce(100, saveWindowPosition);
 
-    // ✅ PERFORMANCE: Use debounce on close, throttle on resize/move
+    // Use debounce on close, throttle on resize/move
     window.on('close', debouncedSave);
     window.on('resize', throttle(TIMING.WINDOW_STATE_SAVE, saveWindowPosition));
     window.on('move', throttle(TIMING.WINDOW_STATE_SAVE, saveWindowPosition));

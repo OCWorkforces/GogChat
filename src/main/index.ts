@@ -26,7 +26,7 @@ import { enforceMacOSAppLocation } from 'electron-util/main';
 let mainWindow: BrowserWindow | null = null;
 let trayIcon = null;
 
-// ✅ SECURITY: Initialize certificate pinning early (before any network requests)
+// Initialize certificate pinning early (before any network requests)
 setupCertificatePinning();
 
 // Features
@@ -35,7 +35,7 @@ reportExceptions().catch(console.error);
 if (enforceSingleInstance()) {
   app.whenReady()
     .then(() => {
-      // ✅ PERFORMANCE: Critical path - Load essential features first
+      // Critical path - Load essential features first
       overrideUserAgent();
       mainWindow = windowWrapper(environment.appUrl);
       setupOfflineHandlers(mainWindow);
@@ -55,7 +55,7 @@ if (enforceSingleInstance()) {
       badgeIcons(mainWindow, trayIcon);
       closeToTray(mainWindow);
 
-      // ✅ PERFORMANCE: Defer non-critical features using setImmediate
+      // Defer non-critical features using setImmediate
       // These run after the main event loop tick, improving startup time
       setImmediate(() => {
         if (!mainWindow) {

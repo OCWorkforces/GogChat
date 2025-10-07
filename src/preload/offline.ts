@@ -29,7 +29,7 @@ const handleCheckOnline = () => {
   }
 };
 
-// ✅ SECURITY: Use secure API exposed via contextBridge
+// Use secure API exposed via contextBridge
 window.addEventListener('DOMContentLoaded', () => {
   // Listen to global event from offline.html
   window.addEventListener('app:checkIfOnline', handleCheckOnline);
@@ -40,7 +40,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ✅ PERFORMANCE: Clean up listeners when page unloads
+// Clean up listeners when page unloads
 window.addEventListener('beforeunload', () => {
   window.removeEventListener('app:checkIfOnline', handleCheckOnline);
 

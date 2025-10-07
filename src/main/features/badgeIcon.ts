@@ -23,7 +23,7 @@ const decideIcon = (href: string): IconType => {
 };
 
 /**
- * ✅ PERFORMANCE: Badge icon cache for Windows
+ * Badge icon cache for Windows
  * Caches overlay icon instances to avoid repeated file I/O
  */
 const badgeIconCache = new Map<string, NativeImage>();
@@ -40,7 +40,7 @@ const getBadgeOverlayIcon = (count: number): NativeImage | null => {
 
   const cacheKey = count > 0 ? 'badge' : 'none';
 
-  // ✅ PERFORMANCE: Check cache first
+  // Check cache first
   if (badgeIconCache.has(cacheKey)) {
     return badgeIconCache.get(cacheKey)!;
   }
@@ -80,7 +80,7 @@ const updateBadgeIcon = (window: BrowserWindow, count: number) => {
 export default (window: BrowserWindow, trayIcon: Tray) => {
   const rateLimiter = getRateLimiter();
 
-  // ✅ SECURITY: Validate favicon URL and check rate limit
+  // Validate favicon URL and check rate limit
   ipcMain.on(IPC_CHANNELS.FAVICON_CHANGED, (evt, href) => {
     try {
       // Rate limit check
@@ -108,8 +108,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
     }
   });
 
-  // ✅ SECURITY: Validate unread count and check rate limit
-  // ✅ PERFORMANCE: Uses cached badge icons for Windows
+  // Validate unread count and check rate limit
+  // Uses cached badge icons for Windows
   ipcMain.on(IPC_CHANNELS.UNREAD_COUNT, (event, count) => {
     try {
       // Rate limit check

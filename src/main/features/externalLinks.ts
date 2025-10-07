@@ -70,7 +70,7 @@ export default (window: BrowserWindow) => {
   const handleRedirect = (details: HandlerDetails): typeof ACTION_DENIED | typeof ACTION_ALLOWED => {
     const url = details.url;
 
-    // ✅ SECURITY: Validate URL protocol first
+    // Validate URL protocol first
     if (!isValidHttpURL(url)) {
       log.warn('[ExternalLinks] Blocked non-HTTP URL:', url);
       return ACTION_DENIED;
@@ -89,7 +89,7 @@ export default (window: BrowserWindow) => {
       if (shouldOpenExternally(url, currentHost)) {
         setImmediate(() => {
           try {
-            // ✅ SECURITY: Sanitize URL before opening
+            // Sanitize URL before opening
             const sanitizedURL = validateExternalURL(url);
             shell.openExternal(sanitizedURL);
             log.info('[ExternalLinks] Opened external URL:', sanitizedURL);

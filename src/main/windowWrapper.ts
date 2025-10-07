@@ -7,12 +7,12 @@ export default (url: string): BrowserWindow => {
   const window = new BrowserWindow({
     webPreferences: {
       autoplayPolicy: 'user-gesture-required',
-      contextIsolation: true,  // ✅ SECURITY: Enabled - prevents renderer from accessing Node.js
-      nodeIntegration: false,   // ✅ SECURITY: Keep disabled
-      sandbox: true,            // ✅ SECURITY: Enabled - OS-level process isolation
-      webSecurity: true,        // ✅ SECURITY: Explicit enable
-      allowRunningInsecureContent: false, // ✅ SECURITY: Block mixed content
-      disableBlinkFeatures: 'Auxclick', // ✅ SECURITY: Prevent Auxclick exploits
+      contextIsolation: true,  // Enabled - prevents renderer from accessing Node.js
+      nodeIntegration: false,   // Keep disabled
+      sandbox: true,            // Enabled - OS-level process isolation
+      webSecurity: true,        // Explicit enable
+      allowRunningInsecureContent: false, // Block mixed content
+      disableBlinkFeatures: 'Auxclick', // Prevent Auxclick exploits
       preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
     },
     icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/256.png')),
@@ -25,7 +25,7 @@ export default (url: string): BrowserWindow => {
     autoHideMenuBar: store.get('app.hideMenuBar'),
   });
 
-  // ✅ SECURITY: Implement Content Security Policy
+  // Implement Content Security Policy
   // Note: CSP is relaxed to allow Google Chat full functionality while still blocking malicious content
   const installCSP = () => {
     const ses = window.webContents.session;
@@ -55,7 +55,7 @@ export default (url: string): BrowserWindow => {
     log.debug('[Security] Content Security Policy installed');
   };
 
-  // ✅ SECURITY: Set permission request handler
+  // Set permission request handler
   window.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
     // Only allow specific permissions needed for Google Chat
     const allowedPermissions = ['notifications', 'media', 'mediaKeySystem', 'geolocation'];

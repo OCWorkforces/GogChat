@@ -6,7 +6,7 @@ import type {StoreType} from '../shared/types';
 /**
  * Generate encryption key from app-specific data
  * This creates a consistent key per machine/user
- * ✅ SECURITY: Encrypts sensitive configuration data at rest
+ * Encrypts sensitive configuration data at rest
  */
 function getEncryptionKey(): string {
   // Use app name + user data path to generate consistent key per installation
@@ -80,7 +80,7 @@ const schema = {
 
 /**
  * Initialize encrypted store
- * ✅ SECURITY: All configuration data is encrypted at rest using AES-256-GCM
+ * All configuration data is encrypted at rest using AES-256-GCM
  */
 const store = new Store<StoreType>({
   schema,

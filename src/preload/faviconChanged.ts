@@ -37,7 +37,7 @@ const getCurrentFavicon = (): string => {
 
 /**
  * Initialize MutationObserver to watch for favicon changes
- * ✅ PERFORMANCE: Replaces 1-second polling with reactive observation
+ * Replaces 1-second polling with reactive observation
  */
 const initObserver = () => {
   // Clean up existing observer
@@ -88,5 +88,5 @@ const cleanup = () => {
 // Initialize when DOM is ready
 window.addEventListener('DOMContentLoaded', initObserver);
 
-// ✅ PERFORMANCE: Clean up observer when page unloads
+// Clean up observer when page unloads
 window.addEventListener('beforeunload', cleanup);

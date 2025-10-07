@@ -6,7 +6,7 @@ import {getRateLimiter} from '../utils/rateLimiter';
 export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
-  // ✅ SECURITY: Add rate limiting to prevent notification spam
+  // Add rate limiting to prevent notification spam
   ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, (event: IpcMainEvent) => {
     try {
       // Rate limit check (max 5 clicks per second)

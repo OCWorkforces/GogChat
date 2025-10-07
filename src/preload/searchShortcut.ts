@@ -25,7 +25,7 @@ const handleSearchShortcut = () => {
   }
 };
 
-// ✅ SECURITY: Use secure API exposed via contextBridge
+// Use secure API exposed via contextBridge
 // Listen to event coming from main process
 let unsubscribe: (() => void) | null = null;
 
@@ -35,7 +35,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ✅ PERFORMANCE: Clean up listener when page unloads
+// Clean up listener when page unloads
 window.addEventListener('beforeunload', () => {
   if (unsubscribe) {
     unsubscribe();
