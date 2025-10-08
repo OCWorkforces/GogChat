@@ -42,7 +42,7 @@ export class MessageDatabase {
 
       // Open database connection
       this.db = new Database(this.dbPath, {
-        verbose: process.env.NODE_ENV === 'development' ? log.debug : undefined,
+        verbose: process.env.NODE_ENV === 'development' ? (msg) => log.debug(msg) : undefined,
       });
 
       // Enable WAL mode for better concurrency
