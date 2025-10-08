@@ -22,6 +22,7 @@ import logFirstLaunch from './features/firstLaunch';
 import handleNotification from './features/handleNotification';
 import setupCertificatePinning from './features/certificatePinning';
 import passkeySupport from './features/passkeySupport';
+import setupMessageLogger, { cleanupMessageLogger } from './features/messageLogger';
 import { enforceMacOSAppLocation } from './utils/platform';
 import { getIconCache } from './utils/iconCache';
 import store from './config';
@@ -103,6 +104,9 @@ if (enforceSingleInstance()) {
         logFirstLaunch();
         enforceMacOSAppLocation();
 
+        // Message logging (if enabled)
+        setupMessageLogger(mainWindow);
+
         perfMonitor.mark('all-features-loaded', 'All features initialized');
         log.info('[Main] All features initialized');
 
@@ -122,9 +126,12 @@ if (enforceSingleInstance()) {
     });
 }
 
-// Log cache statistics before app quits
+// Log cache statistics and cleanup before app quits
 app.on('before-quit', () => {
   try {
+    // Cleanup message logger
+    cleanupMessageLogger();
+
     // Log icon cache stats
     const iconCache = getIconCache();
     const iconStats = iconCache.getStats();

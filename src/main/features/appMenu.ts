@@ -150,7 +150,7 @@ export default (window: BrowserWindow) => {
           label: 'Auto check for Updates',
           type: 'checkbox',
           enabled: true,
-          checked: store.get('app.autoCheckForUpdates'),
+          checked: store.get('app.autoCheckForUpdates') as boolean,
           click: (menuItem) => {
             store.set('app.autoCheckForUpdates', menuItem.checked);
           },
@@ -158,7 +158,7 @@ export default (window: BrowserWindow) => {
         {
           label: 'Auto Launch at Login',
           type: 'checkbox',
-          checked: store.get('app.autoLaunchAtLogin'),
+          checked: store.get('app.autoLaunchAtLogin') as boolean,
           click: (menuItem) => {
             void (async () => {
               if (menuItem.checked) {
@@ -174,7 +174,7 @@ export default (window: BrowserWindow) => {
         {
           label: 'Start Hidden',
           type: 'checkbox',
-          checked: store.get('app.startHidden'),
+          checked: store.get('app.startHidden') as boolean,
           click: (menuItem) => {
             store.set('app.startHidden', menuItem.checked);
           },
@@ -183,7 +183,7 @@ export default (window: BrowserWindow) => {
           label: 'Hide Menu Bar',
           type: 'checkbox',
           enabled: process.platform !== 'darwin',
-          checked: store.get('app.hideMenuBar'),
+          checked: store.get('app.hideMenuBar') as boolean,
           click: (menuItem) => {
             window.setMenuBarVisibility(!menuItem.checked);
             window.setAutoHideMenuBar(menuItem.checked);
@@ -193,7 +193,7 @@ export default (window: BrowserWindow) => {
         {
           label: 'Disable Spell Checker',
           type: 'checkbox',
-          checked: store.get('app.disableSpellChecker'),
+          checked: store.get('app.disableSpellChecker') as boolean,
           click: (menuItem) => {
             window.webContents.session.setSpellCheckerEnabled(!menuItem.checked);
             store.set('app.disableSpellChecker', menuItem.checked);

@@ -51,6 +51,7 @@
   "devDependencies": {
     "@electron/osx-sign": "^2.2.0",
     "@types/auto-launch": "^5.0.5",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
@@ -68,6 +69,8 @@
   },
   "dependencies": {
     "auto-launch": "^5.0.6",
+    "better-sqlite3": "^12.4.1",
+    "date-fns": "^4.1.0",
     "electron-context-menu": "^4.1.1",
     "electron-log": "^5.4.3",
     "electron-store": "^11.0.2",

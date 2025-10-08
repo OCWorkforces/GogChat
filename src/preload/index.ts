@@ -11,6 +11,7 @@ import {
   validateUnreadCount,
   validateFaviconURL,
   validatePasskeyFailureData,
+  validateMessageData,
 } from '../shared/validators';
 
 /**
@@ -54,6 +55,15 @@ const api: GChatBridgeAPI = {
     }
   },
 
+  sendMessageData: (messageData) => {
+    try {
+      const validated = validateMessageData(messageData);
+      ipcRenderer.send(IPC_CHANNELS.MESSAGE_CAPTURED, validated);
+    } catch (error) {
+      console.error('[GChat API] Invalid message data:', error);
+    }
+  },
+
   // Receive messages from main process (returns unsubscribe function)
   onSearchShortcut: (callback: () => void) => {
     const listener = () => callback();
@@ -87,4 +97,5 @@ import './offline';
 import './passkeyMonitor';
 import './searchShortcut';
 import './unreadCount';
+import './messageObserver';
 // Note: overrideNotifications needs special handling - loaded separately

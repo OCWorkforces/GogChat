@@ -52,8 +52,10 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
 
     // Cache miss - read from store
     stats.misses++;
-    // Call originalGet with proper typing - the bound method already has correct signature
-    const value = originalGet(key, defaultValue);
+    // Call originalGet - handle with/without default separately to satisfy TypeScript
+    const value = defaultValue !== undefined
+      ? originalGet(key as never, defaultValue as never)
+      : originalGet(key as never);
     cache.set(key as string, value);
     log.debug(`[ConfigCache] Cache miss: ${String(key)}, value cached`);
 

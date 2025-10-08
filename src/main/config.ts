@@ -80,6 +80,41 @@ const schema = {
     },
     default: {},
   },
+  messageLogging: {
+    type: 'object',
+    properties: {
+      enabled: {
+        type: 'boolean',
+        default: true, // Disabled by default for privacy
+      },
+      retentionDays: {
+        type: 'number',
+        default: 30,
+      },
+      excludedConversations: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+        default: [],
+      },
+      showAnalyticsInTray: {
+        type: 'boolean',
+        default: false,
+      },
+      maxMessageSize: {
+        type: 'number',
+        default: 50000, // 50KB
+      },
+    },
+    default: {
+      enabled: false,
+      retentionDays: 30,
+      excludedConversations: [],
+      showAnalyticsInTray: false,
+      maxMessageSize: 50000,
+    },
+  },
 };
 
 /**
