@@ -25,7 +25,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4.1.0
 
       - name: Get pnpm store directory
         id: pnpm-cache
@@ -34,7 +34,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Setup pnpm cache
-        uses: actions/cache@v4
+        uses: actions/cache@v4.3.0
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -72,7 +72,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4.1.0
 
       - name: Install dependencies
         run: pnpm install
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload macOS artifacts (Intel)
         if: matrix.arch == 'x64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: gchat-macos-x64
           path: dist/installers/*.zip
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload macOS artifacts (ARM)
         if: matrix.arch == 'arm64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: gchat-macos-arm64
           path: dist/installers/*.zip
