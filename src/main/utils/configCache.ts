@@ -17,14 +17,22 @@ interface CacheStats {
 }
 
 /**
+ * Extended store type with cache methods
+ */
+interface CachedStore<T> extends Store<T> {
+  getCacheStats(): CacheStats & { hitRate: string };
+  clearCache(): void;
+}
+
+/**
  * Add caching layer to electron-store
  * @param store - electron-store instance
  * @returns Store with caching enabled
  */
-export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): Store<T> {
+export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>): CachedStore<T> {
   // In-memory cache
-  const cache = new Map<string, any>();
-  const stats: CacheStats = {hits: 0, misses: 0, writes: 0};
+  const cache = new Map<string, unknown>();
+  const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
 
   // Store original methods
   const originalGet = store.get.bind(store);
@@ -33,42 +41,46 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
   const originalClear = store.clear.bind(store);
 
   // Wrap get() with caching
-  (store as any).get = function(key: string, defaultValue?: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (store as any).get = function <Key extends keyof T>(key: Key, defaultValue?: T[Key]): T[Key] {
     // Check cache first
-    if (cache.has(key)) {
+    if (cache.has(key as string)) {
       stats.hits++;
-      log.debug(`[ConfigCache] Cache hit: ${key}`);
-      return cache.get(key);
+      log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
+      return cache.get(key as string) as T[Key];
     }
 
     // Cache miss - read from store
     stats.misses++;
     const value = originalGet(key, defaultValue);
-    cache.set(key, value);
-    log.debug(`[ConfigCache] Cache miss: ${key}, value cached`);
+    cache.set(key as string, value);
+    log.debug(`[ConfigCache] Cache miss: ${String(key)}, value cached`);
 
     return value;
   };
 
   // Wrap set() with cache invalidation
-  (store as any).set = function(key: string, value: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (store as any).set = function <Key extends keyof T>(key: Key, value: T[Key]): void {
     stats.writes++;
 
     // Invalidate cache for this key and parent paths
-    invalidateCacheForKey(key, cache);
+    invalidateCacheForKey(key as string, cache);
 
     // Write to store
     return originalSet(key, value);
   };
 
   // Wrap delete() with cache invalidation
-  (store as any).delete = function(key: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (store as any).delete = function (key: string): void {
     invalidateCacheForKey(key, cache);
     return originalDelete(key);
   };
 
   // Wrap clear() with full cache clear
-  (store as any).clear = function() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (store as any).clear = function (): void {
     cache.clear();
     stats.hits = 0;
     stats.misses = 0;
@@ -78,21 +90,23 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
   };
 
   // Add cache stats method
-  (store as any).getCacheStats = function(): CacheStats & {hitRate: string} {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (store as any).getCacheStats = function (): CacheStats & { hitRate: string } {
     const total = stats.hits + stats.misses;
     const hitRate = total > 0 ? ((stats.hits / total) * 100).toFixed(1) : '0.0';
-    return {...stats, hitRate: `${hitRate}%`};
+    return { ...stats, hitRate: `${hitRate}%` };
   };
 
   // Add manual cache clear method
-  (store as any).clearCache = function() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (store as any).clearCache = function (): void {
     const size = cache.size;
     cache.clear();
     log.info(`[ConfigCache] Manually cleared ${size} cached entries`);
   };
 
   log.info('[ConfigCache] Cache layer enabled for electron-store');
-  return store;
+  return store as CachedStore<T>;
 }
 
 /**
@@ -100,7 +114,7 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
  * @param key - Key to invalidate (e.g., 'app.hideMenuBar')
  * @param cache - Cache map
  */
-function invalidateCacheForKey(key: string, cache: Map<string, any>): void {
+function invalidateCacheForKey(key: string, cache: Map<string, unknown>): void {
   // Delete the exact key
   cache.delete(key);
 
@@ -118,7 +132,7 @@ function invalidateCacheForKey(key: string, cache: Map<string, any>): void {
  * Log cache statistics
  * @param store - Store with cache enabled
  */
-export function logCacheStats(store: any): void {
+export function logCacheStats<T extends Record<string, unknown>>(store: CachedStore<T>): void {
   if (typeof store.getCacheStats !== 'function') {
     log.warn('[ConfigCache] Store does not have cache enabled');
     return;

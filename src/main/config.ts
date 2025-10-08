@@ -1,7 +1,7 @@
 import Store from 'electron-store';
-import {app} from 'electron';
-import {createHash} from 'crypto';
-import type {StoreType} from '../shared/types';
+import { app } from 'electron';
+import { createHash } from 'crypto';
+import type { StoreType } from '../shared/types';
 
 /**
  * Generate encryption key from app-specific data
@@ -22,16 +22,16 @@ const schema = {
         type: 'object',
         properties: {
           x: {
-            type: 'number'
+            type: 'number',
           },
           y: {
-            type: 'number'
+            type: 'number',
           },
           width: {
-            type: 'number'
+            type: 'number',
           },
           height: {
-            type: 'number'
+            type: 'number',
           },
         },
         default: {
@@ -39,47 +39,47 @@ const schema = {
           y: null,
           width: 800,
           height: 600,
-        }
+        },
       },
       isMaximized: {
         type: 'boolean',
-        default: false
-      }
+        default: false,
+      },
     },
     default: {
-      bounds: {}
-    }
+      bounds: {},
+    },
   },
   app: {
     type: 'object',
     properties: {
       autoCheckForUpdates: {
         type: 'boolean',
-        default: true
+        default: true,
       },
       autoLaunchAtLogin: {
         type: 'boolean',
-        default: true
+        default: true,
       },
       startHidden: {
         type: 'boolean',
-        default: false
+        default: false,
       },
       hideMenuBar: {
         type: 'boolean',
-        default: false
+        default: false,
       },
       disableSpellChecker: {
         type: 'boolean',
-        default: false
+        default: false,
       },
       suppressPasskeyDialog: {
         type: 'boolean',
-        default: false
+        default: false,
       },
     },
-    default: {}
-  }
+    default: {},
+  },
 };
 
 /**
@@ -98,7 +98,7 @@ let store = new Store<StoreType>({
  *
  * Note: Disabled in test environment to preserve test spies
  */
-import {addCacheLayer} from './utils/configCache';
+import { addCacheLayer } from './utils/configCache';
 
 // Only enable cache layer if not in test environment
 if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {

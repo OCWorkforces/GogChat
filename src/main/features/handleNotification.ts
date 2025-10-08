@@ -1,13 +1,13 @@
-import {BrowserWindow, ipcMain, IpcMainEvent} from 'electron';
+import { BrowserWindow, ipcMain, IpcMainEvent } from 'electron';
 import log from 'electron-log';
-import {IPC_CHANNELS} from '../../shared/constants';
-import {getRateLimiter} from '../utils/rateLimiter';
+import { IPC_CHANNELS } from '../../shared/constants';
+import { getRateLimiter } from '../utils/rateLimiter';
 
 export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent notification spam
-  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, (event: IpcMainEvent) => {
+  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, (_event: IpcMainEvent) => {
     try {
       // Rate limit check (max 5 clicks per second)
       if (!rateLimiter.isAllowed(IPC_CHANNELS.NOTIFICATION_CLICKED, 5)) {

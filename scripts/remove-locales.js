@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Parse command line arguments
-const [,, platform, arch] = process.argv;
+const [, , platform, arch] = process.argv;
 
 if (!platform || !arch) {
   console.error('Usage: node remove-locales.js <platform> <arch>');
@@ -43,7 +43,7 @@ function getLocalesPath(platform, arch) {
           'A',
           'Resources'
         ),
-        isMacOS: true
+        isMacOS: true,
       };
     }
 
@@ -53,7 +53,7 @@ function getLocalesPath(platform, arch) {
       const appPath = path.join(distDir, 'GChat-win32-x64');
       return {
         path: path.join(appPath, 'locales'),
-        isMacOS: false
+        isMacOS: false,
       };
     }
 
@@ -61,7 +61,7 @@ function getLocalesPath(platform, arch) {
       const appPath = path.join(distDir, 'GChat-linux-x64');
       return {
         path: path.join(appPath, 'locales'),
-        isMacOS: false
+        isMacOS: false,
       };
     }
 
@@ -114,7 +114,7 @@ function removeUnusedLocales() {
   let removedCount = 0;
   let keptCount = 0;
 
-  items.forEach(item => {
+  items.forEach((item) => {
     const itemPath = path.join(localesPath, item);
     const stats = fs.statSync(itemPath);
 
@@ -164,7 +164,9 @@ function removeUnusedLocales() {
   console.log(`[Locale Cleanup] Kept: ${keptCount} locales`);
   console.log(`[Locale Cleanup] Space saved: ${(removedSize / 1024 / 1024).toFixed(2)} MB`);
   console.log(`[Locale Cleanup] Original size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-  console.log(`[Locale Cleanup] Final size: ${((totalSize - removedSize) / 1024 / 1024).toFixed(2)} MB`);
+  console.log(
+    `[Locale Cleanup] Final size: ${((totalSize - removedSize) / 1024 / 1024).toFixed(2)} MB`
+  );
   console.log('[Locale Cleanup] =============================\n');
 }
 

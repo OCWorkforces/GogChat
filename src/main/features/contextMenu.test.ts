@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 const contextMenuMock = vi.fn();
 
 vi.mock('electron-context-menu', () => ({
-  default: contextMenuMock
+  default: contextMenuMock,
 }));
 
 describe('Context Menu', () => {

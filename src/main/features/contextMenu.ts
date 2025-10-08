@@ -5,4 +5,4 @@ export default () => {
     showSaveImage: true,
     showCopyImageAddress: true,
   });
-}
+};

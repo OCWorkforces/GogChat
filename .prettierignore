@@ -1,0 +1,25 @@
+# Build output
+lib/
+dist/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Platform-specific build files
+.github/
+debian/
+mac/
+windows/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+
+# IDE
+.vscode/
+.idea/

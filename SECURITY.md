@@ -9,18 +9,21 @@ GChat implements multiple layers of security to protect users from common Electr
 ### 1. Process Isolation
 
 **Context Isolation** (`src/main/windowWrapper.ts:10`)
+
 - ✅ **Enabled**: `contextIsolation: true`
 - Prevents renderer process from directly accessing Node.js APIs
 - All communication goes through secure contextBridge API
 - Eliminates XSS → RCE attack vector
 
 **Sandbox Mode** (`src/main/windowWrapper.ts:12`)
+
 - ✅ **Enabled**: `sandbox: true`
 - Adds OS-level process isolation
 - Limits system resource access from renderer
 - Reduces impact of compromised renderer process
 
 **Node Integration** (`src/main/windowWrapper.ts:11`)
+
 - ✅ **Disabled**: `nodeIntegration: false`
 - Renderer process cannot require Node.js modules
 - Standard security best practice for Electron apps
@@ -28,6 +31,7 @@ GChat implements multiple layers of security to protect users from common Electr
 ### 2. Content Security Policy (CSP)
 
 **Implementation** (`src/main/windowWrapper.ts:28-56`)
+
 - ✅ **Balanced CSP** applied to main frame only
 - Allows Google Chat full functionality while blocking dangerous content
 - Applied selectively to prevent interference with Google Chat features
@@ -35,6 +39,7 @@ GChat implements multiple layers of security to protect users from common Electr
 - `base-uri 'self'` prevents base tag injection
 
 **Policy Details:**
+
 ```
 default-src: * (allows all sources for Google Chat functionality)
 script-src: * with unsafe-inline/eval (required by Google Chat)
@@ -48,12 +53,14 @@ base-uri: self (prevents base injection)
 ### 3. Input Validation & Sanitization
 
 **IPC Message Validation** (`src/shared/validators.ts`)
+
 - ✅ All IPC messages validated before processing
 - Type checking and bounds validation
 - URL sanitization with protocol whitelist
 - HTML entity encoding for string outputs
 
 **Validators:**
+
 - `validateUnreadCount()` - Numeric bounds [0-9999], NaN protection
 - `validateFaviconURL()` - Protocol check, length limit, URL parsing
 - `validateExternalURL()` - Protocol whitelist, credential stripping, dangerous pattern blocking
@@ -63,6 +70,7 @@ base-uri: self (prevents base injection)
 ### 4. Rate Limiting
 
 **IPC Rate Limiter** (`src/main/utils/rateLimiter.ts`)
+
 - ✅ Prevents IPC flooding and DoS attacks
 - Per-channel rate limits (configurable)
 - Default: 10 messages/second
@@ -76,6 +84,7 @@ base-uri: self (prevents base injection)
 ### 5. External Content Handling
 
 **URL Sanitization** (`src/main/features/externalLinks.ts`)
+
 - ✅ All external URLs validated before opening
 - Protocol whitelist: `http:`, `https:` only
 - Credential stripping (removes username/password)
@@ -88,6 +97,7 @@ base-uri: self (prevents base injection)
 - Domain whitelist for Google services
 
 **Shell Execution Protection:**
+
 - `shell.openExternal()` only called with sanitized URLs
 - Runs in `setImmediate()` to prevent blocking
 - Full error handling and logging
@@ -95,6 +105,7 @@ base-uri: self (prevents base injection)
 ### 6. Certificate Pinning
 
 **Implementation** (`src/main/features/certificatePinning.ts`)
+
 - ✅ Validates SSL certificates for Google domains
 - Prevents Man-in-the-Middle (MITM) attacks
 - Trusted certificate authorities:
@@ -104,6 +115,7 @@ base-uri: self (prevents base injection)
 - Applies to all Google-owned domains
 
 **Pinned Domains:**
+
 - `google.com` and all subdomains
 - `mail.google.com`
 - `chat.google.com`
@@ -115,12 +127,14 @@ base-uri: self (prevents base injection)
 ### 7. Data Encryption at Rest
 
 **Store Encryption** (`src/main/config.ts`)
+
 - ✅ All configuration data encrypted using AES-256-GCM
 - Encryption key derived from app-specific data
 - Protects user preferences and window state
 - electron-store handles encryption transparently
 
 **What's Encrypted:**
+
 - Window position and size
 - User preferences (auto-launch, auto-update, etc.)
 - Application state
@@ -128,6 +142,7 @@ base-uri: self (prevents base injection)
 ### 8. Permission Management
 
 **Permission Handler** (`src/main/windowWrapper.ts:56-67`)
+
 - ✅ Restrictive permission model
 - Only allowed permissions:
   - `notifications` - For message notifications
@@ -140,6 +155,7 @@ base-uri: self (prevents base injection)
 ### 9. Secure Communication
 
 **contextBridge API** (`src/preload/index.ts:16-64`)
+
 - ✅ Secure bridge between renderer and main process
 - No direct IPC access from renderer
 - Input validation at bridge layer
@@ -147,6 +163,7 @@ base-uri: self (prevents base injection)
 - Cleanup functions prevent memory leaks
 
 **Exposed API:**
+
 ```typescript
 window.gchat {
   sendUnreadCount(count: number)
@@ -161,12 +178,14 @@ window.gchat {
 ### 10. Error Handling & Logging
 
 **Comprehensive Error Boundaries:**
+
 - All features wrapped in try-catch blocks
 - Errors logged with electron-log
 - Sensitive data not included in logs
 - Graceful degradation on feature failures
 
 **Security Logging:**
+
 - Rate limit violations
 - Permission denials
 - Certificate validation failures
@@ -197,12 +216,14 @@ window.gchat {
 ## Known Limitations
 
 ### 1. Google Chat Requirements
+
 - **Permissive CSP**: Required to support Google Chat's complex web application
 - **`unsafe-inline` and `unsafe-eval`**: Required by Google Chat's JavaScript framework
 - CSP is balanced to allow functionality while blocking dangerous content (plugins, base injection)
 - Primary security relies on process isolation, sandbox mode, and input validation
 
 ### 2. Notification Override Removed
+
 - Native Electron notification handling used instead
 - Previous approach required `contextIsolation: false` (insecure)
 - Current approach is more secure but slightly less customizable
@@ -238,6 +259,7 @@ We will acknowledge receipt within 48 hours and provide a timeline for fixes.
 ## Security Contacts
 
 For security-related questions or concerns:
+
 - GitHub: Create a private security advisory
 - Repository: https://github.com/CCWorkforce/GChat
 

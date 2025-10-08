@@ -1,14 +1,13 @@
-import {BrowserWindow, app} from 'electron';
+import { BrowserWindow, app } from 'electron';
 import { platform } from '../utils/platform';
 
 let willQuit = false;
 
 export default (window: BrowserWindow) => {
-
   // Allow Mac users to exit from app via Dock context menu "Quit" item
   app.on('before-quit', () => {
-    willQuit = true
-  })
+    willQuit = true;
+  });
 
   window.on('close', (event) => {
     if (!willQuit) {
@@ -20,5 +19,5 @@ export default (window: BrowserWindow) => {
         window.hide();
       }
     }
-  })
-}
+  });
+};

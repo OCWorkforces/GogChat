@@ -1,4 +1,4 @@
-import {app, BrowserWindow} from 'electron';
+import { app, BrowserWindow } from 'electron';
 
 const enforceSingleInstance = (): boolean => {
   const gotTheLock = app.requestSingleInstanceLock();
@@ -9,18 +9,18 @@ const enforceSingleInstance = (): boolean => {
   }
 
   return gotTheLock;
-}
+};
 
 const restoreFirstInstance = (window: BrowserWindow) => {
   app.on('second-instance', () => {
     // Someone tried to run a second instance, we should focus our window.
     if (window) {
       if (window.isMinimized()) {
-        window.restore()
+        window.restore();
       }
-      window.show()
+      window.show();
     }
-  })
-}
+  });
+};
 
-export {restoreFirstInstance, enforceSingleInstance}
+export { restoreFirstInstance, enforceSingleInstance };

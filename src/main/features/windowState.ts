@@ -1,8 +1,8 @@
-import {throttle, debounce} from 'throttle-debounce';
-import {BrowserWindow} from 'electron';
+import { throttle, debounce } from 'throttle-debounce';
+import { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import store from '../config';
-import {TIMING} from '../../shared/constants';
+import { TIMING } from '../../shared/constants';
 
 export default (window: BrowserWindow) => {
   try {
@@ -15,7 +15,7 @@ export default (window: BrowserWindow) => {
           x: bounds.x,
           y: bounds.y,
           width: bounds.width,
-          height: bounds.height
+          height: bounds.height,
         });
         log.debug('[WindowState] Restored window bounds');
       }
@@ -36,7 +36,7 @@ export default (window: BrowserWindow) => {
           const bounds = window.getBounds();
           store.set('window', {
             bounds,
-            isMaximized: false
+            isMaximized: false,
           });
           log.debug('[WindowState] Saved window position');
         }
