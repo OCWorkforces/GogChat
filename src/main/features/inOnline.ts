@@ -1,8 +1,9 @@
-import {BrowserWindow, ipcMain, Notification, app, nativeImage, IpcMainEvent} from 'electron';
+import {BrowserWindow, ipcMain, Notification, app, IpcMainEvent} from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import {IPC_CHANNELS, TIMING} from '../../shared/constants';
 import {getRateLimiter} from '../utils/rateLimiter';
+import {getIconCache} from '../utils/iconCache';
 
 /**
  * Check internet connectivity using native fetch
@@ -36,7 +37,7 @@ const showOfflineNotification = (window: BrowserWindow) => {
     body: `You are offline.\nCheck your internet connection.`,
     silent: true,
     timeoutType: 'default',
-    icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/256.png'))
+    icon: getIconCache().getIcon('resources/icons/normal/256.png')
   });
 
   notification.on('click', () => {

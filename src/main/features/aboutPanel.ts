@@ -1,11 +1,12 @@
-import {app, dialog, nativeImage, clipboard, BrowserWindow} from 'electron';
-import path from 'path';
+import {app, dialog, clipboard, BrowserWindow} from 'electron';
 import os from 'os';
+import {getIconCache} from '../utils/iconCache';
+import {getPackageInfo} from '../utils/packageInfo';
 
 // The default Electron AboutWindow does not load app icon from asar
 // So let's create a custom dialog instead
 export default async (window: BrowserWindow) => {
-  const packageJson = require(path.join(app.getAppPath(), 'packageon'));
+  const packageJson = getPackageInfo();
   const detail = getDetails();
 
   detail.unshift(`Developed by - ${packageJson.author}\n`)
@@ -19,7 +20,7 @@ export default async (window: BrowserWindow) => {
     buttons: ['Copy', 'Ok'],
     cancelId: 1,
     defaultId: 1,
-    icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/64.png'))
+    icon: getIconCache().getIcon('resources/icons/normal/64.png')
   });
   if (response === 0) {
     clipboard.writeText(getDetails().join('\n'));

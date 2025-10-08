@@ -1,5 +1,6 @@
 import {app, BrowserWindow} from 'electron';
 import log from 'electron-log';
+import {perfMonitor} from './utils/performanceMonitor';
 
 import reportExceptions from './features/reportExceptions';
 import windowWrapper from './windowWrapper';
@@ -21,6 +22,7 @@ import handleNotification from './features/handleNotification';
 import setupCertificatePinning from './features/certificatePinning';
 import passkeySupport from './features/passkeySupport';
 import { enforceMacOSAppLocation } from './utils/platform';
+import {getIconCache} from './utils/iconCache';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -28,7 +30,9 @@ let mainWindow: BrowserWindow | null = null;
 let trayIcon = null;
 
 // Initialize certificate pinning early (before any network requests)
+perfMonitor.mark('app-start', 'App initialization started');
 setupCertificatePinning();
+perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
 
 // Features
 reportExceptions().catch(console.error);
@@ -36,9 +40,17 @@ reportExceptions().catch(console.error);
 if (enforceSingleInstance()) {
   app.whenReady()
     .then(() => {
+      perfMonitor.mark('app-ready', 'Electron app ready');
+
       // Critical path - Load essential features first
+
+      // Pre-load icons to improve startup performance
+      getIconCache().warmCache();
+      perfMonitor.mark('icons-cached', 'Icons pre-loaded');
+
       overrideUserAgent();
       mainWindow = windowWrapper(environment.appUrl);
+      perfMonitor.mark('window-created', 'Main window created');
       setupOfflineHandlers(mainWindow);
       checkForInternet(mainWindow);
 
@@ -57,6 +69,8 @@ if (enforceSingleInstance()) {
       badgeIcons(mainWindow, trayIcon);
       closeToTray(mainWindow);
 
+      perfMonitor.mark('features-loaded', 'Critical features initialized');
+
       // Defer non-critical features using setImmediate
       // These run after the main event loop tick, improving startup time
       setImmediate(() => {
@@ -74,7 +88,11 @@ if (enforceSingleInstance()) {
         logFirstLaunch();
         enforceMacOSAppLocation();
 
+        perfMonitor.mark('all-features-loaded', 'All features initialized');
         log.info('[Main] All features initialized');
+
+        // Log performance summary
+        perfMonitor.logSummary();
       });
     })
     .catch(error => {
