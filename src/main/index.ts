@@ -20,7 +20,7 @@ import logFirstLaunch from './features/firstLaunch';
 import handleNotification from './features/handleNotification';
 import setupCertificatePinning from './features/certificatePinning';
 import passkeySupport from './features/passkeySupport';
-import { enforceMacOSAppLocation } from 'electron-util/main';
+import { enforceMacOSAppLocation } from './utils/platform';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.

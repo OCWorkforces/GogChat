@@ -1,6 +1,6 @@
 import {ipcMain, app, nativeImage, BrowserWindow, Tray, NativeImage} from 'electron';
 import path from 'path';
-import {is} from "electron-util";
+import { platform } from '../utils/platform';
 import log from 'electron-log';
 import {IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES, BADGE} from '../../shared/constants';
 import {validateFaviconURL, validateUnreadCount} from '../../shared/validators';
@@ -65,7 +65,7 @@ const getBadgeOverlayIcon = (count: number): NativeImage | null => {
  * Update badge icon based on platform
  */
 const updateBadgeIcon = (window: BrowserWindow, count: number) => {
-  if (is.windows) {
+  if (platform.isWindows) {
     // Windows: Use overlay icon on taskbar
     const icon = getBadgeOverlayIcon(count);
     const description = count > 0 ? `${count} unread messages` : '';
@@ -96,7 +96,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
       const type = decideIcon(validatedHref);
 
       // Update tray icon
-      const size = is.macos ? 16 : 32;
+      const size = platform.isMac ? 16 : 32;
       const icon = nativeImage.createFromPath(
         path.join(app.getAppPath(), `resources/icons/${type}/${size}.png`)
       );
