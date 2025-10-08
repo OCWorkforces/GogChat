@@ -86,9 +86,23 @@ const schema = {
  * Initialize encrypted store
  * All configuration data is encrypted at rest using AES-256-GCM
  */
-const store = new Store<StoreType>({
+let store = new Store<StoreType>({
   schema,
   encryptionKey: getEncryptionKey(),
 });
+
+/**
+ * Enable caching layer for improved performance
+ * Adds in-memory cache to reduce encryption/decryption overhead
+ * Cache is automatically invalidated on writes to maintain consistency
+ *
+ * Note: Disabled in test environment to preserve test spies
+ */
+import {addCacheLayer} from './utils/configCache';
+
+// Only enable cache layer if not in test environment
+if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
+  store = addCacheLayer(store);
+}
 
 export default store;

@@ -1,5 +1,5 @@
 import {BrowserWindow, app} from 'electron';
-import {is} from "electron-util";
+import { platform } from '../utils/platform';
 
 let willQuit = false;
 
@@ -14,7 +14,7 @@ export default (window: BrowserWindow) => {
     if (!willQuit) {
       event.preventDefault();
 
-      if (is.macos) {
+      if (platform.isMac) {
         app.hide();
       } else {
         window.hide();

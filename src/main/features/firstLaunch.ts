@@ -1,8 +1,9 @@
 import log from "electron-log";
-import { isFirstAppLaunch } from 'electron-util/main';
+import { isFirstAppLaunch } from '../utils/platform';
+import store from '../config';
 
 export default () => {
-  if (isFirstAppLaunch()) {
+  if (isFirstAppLaunch(store)) {
     log.debug("First launch")
   }
 }

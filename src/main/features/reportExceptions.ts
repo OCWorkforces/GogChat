@@ -1,12 +1,10 @@
 import log from 'electron-log';
-import {openNewGitHubIssue} from 'electron-util';
-import path from 'path';
-import {app} from 'electron';
-import { debugInfo } from 'electron-util/main';
+import { openNewGitHubIssue, debugInfo } from '../utils/platform';
+import {getPackageInfo} from '../utils/packageInfo';
 
 export default async () => {
   const {default: unhandled} = await import('electron-unhandled');
-  const packageJson = require(path.join(app.getAppPath(), 'package.json'));
+  const packageJson = getPackageInfo();
 
   unhandled({
     logger: log.error,

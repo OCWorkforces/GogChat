@@ -1,10 +1,10 @@
-import {ipcMain, app, nativeImage, BrowserWindow, Tray, NativeImage} from 'electron';
-import path from 'path';
-import {is} from "electron-util";
+import {ipcMain, app, BrowserWindow, Tray, NativeImage} from 'electron';
+import { platform } from '../utils/platform';
 import log from 'electron-log';
 import {IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES, BADGE} from '../../shared/constants';
 import {validateFaviconURL, validateUnreadCount} from '../../shared/validators';
 import {getRateLimiter} from '../utils/rateLimiter';
+import {getIconCache} from '../utils/iconCache';
 import type {IconType} from '../../shared/types';
 
 /**
@@ -47,10 +47,9 @@ const getBadgeOverlayIcon = (count: number): NativeImage | null => {
 
   try {
     // Use badge icon from resources (16x16 for Windows overlay)
-    const iconPath = path.join(app.getAppPath(), 'resources/icons/badge/16.png');
-    const icon = nativeImage.createFromPath(iconPath);
+    const icon = getIconCache().getIcon('resources/icons/badge/16.png');
 
-    // Cache the icon
+    // Cache the icon in our local cache too
     badgeIconCache.set(cacheKey, icon);
     log.debug(`[BadgeIcon] Cached overlay icon: ${cacheKey}`);
 
@@ -65,7 +64,7 @@ const getBadgeOverlayIcon = (count: number): NativeImage | null => {
  * Update badge icon based on platform
  */
 const updateBadgeIcon = (window: BrowserWindow, count: number) => {
-  if (is.windows) {
+  if (platform.isWindows) {
     // Windows: Use overlay icon on taskbar
     const icon = getBadgeOverlayIcon(count);
     const description = count > 0 ? `${count} unread messages` : '';
@@ -79,6 +78,9 @@ const updateBadgeIcon = (window: BrowserWindow, count: number) => {
 
 export default (window: BrowserWindow, trayIcon: Tray) => {
   const rateLimiter = getRateLimiter();
+
+  // Track current tray icon type to avoid redundant updates
+  let currentTrayIconType: IconType = ICON_TYPES.OFFLINE;
 
   // Validate favicon URL and check rate limit
   ipcMain.on(IPC_CHANNELS.FAVICON_CHANGED, (evt, href) => {
@@ -95,14 +97,16 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
       // Determine icon type
       const type = decideIcon(validatedHref);
 
-      // Update tray icon
-      const size = is.macos ? 16 : 32;
-      const icon = nativeImage.createFromPath(
-        path.join(app.getAppPath(), `resources/icons/${type}/${size}.png`)
-      );
-      trayIcon.setImage(icon);
-
-      log.debug(`[BadgeIcon] Favicon changed to type: ${type}`);
+      // Only update tray icon if type changed (optimization)
+      if (type !== currentTrayIconType) {
+        currentTrayIconType = type;
+        const size = platform.isMac ? 16 : 32;
+        const icon = getIconCache().getIcon(`resources/icons/${type}/${size}.png`);
+        trayIcon.setImage(icon);
+        log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
+      } else {
+        log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
+      }
     } catch (error) {
       log.error('[BadgeIcon] Failed to process favicon change:', error);
     }

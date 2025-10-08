@@ -11,7 +11,7 @@
     "outDir": "./lib",
     "pretty": true,
     "skipLibCheck": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "strict": true,
     "target": "es2022",
     "typeRoots": [
@@ -19,10 +19,12 @@
     ]
   },
   "include": [
-    "./src/**/*", "src/main/config.ts"
+    "./src/**/*"
   ],
   "exclude": [
     "**/*.test.ts",
+    "**/*.spec.ts",
+    "coverage/**",
     "node_modules"
   ]
 }

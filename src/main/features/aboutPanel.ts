@@ -1,38 +1,17 @@
-import {app, dialog, nativeImage, clipboard, BrowserWindow} from 'electron';
-import path from 'path';
+import {app, BrowserWindow} from 'electron';
 import os from 'os';
+import {getPackageInfo} from '../utils/packageInfo';
 
-// The default Electron AboutWindow does not load app icon from asar
-// So let's create a custom dialog instead
 export default async (window: BrowserWindow) => {
-  const packageJson = require(path.join(app.getAppPath(), 'packageon'));
-  const detail = getDetails();
+  const packageJson = getPackageInfo();
+  const platform = [os.type(), os.release(), os.arch()].join(', ');
 
-  detail.unshift(`Developed by - ${packageJson.author}\n`)
-  detail.push(`\nLicensed under - ${packageJson.license}`)
-
-  const { response } = await dialog.showMessageBox(window, {
-    type: 'info',
-    title: 'About',
-    message: 'GChat',
-    detail: packageJson.description + "\n\n" + detail.join('\n'),
-    buttons: ['Copy', 'Ok'],
-    cancelId: 1,
-    defaultId: 1,
-    icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/64.png'))
+  app.setAboutPanelOptions({
+    applicationName: 'GChat',
+    applicationVersion: app.getVersion(),
+    copyright: `Developed by ${packageJson.author}`,
+    version: platform
   });
-  if (response === 0) {
-    clipboard.writeText(getDetails().join('\n'));
-  }
-}
 
-const getDetails = () => {
-  return [
-    'App Version: ' + app.getVersion(),
-    'Electron version: ' + process.versions.electron,
-    'Chrome version: ' + process.versions.chrome,
-    'Platform: ' + [os.type(), os.release(), os.arch()].join(', '),
-    'OS: ' + os.version(),
-    'Locale: ' + app.getLocale()
-  ]
+  app.showAboutPanel();
 }
