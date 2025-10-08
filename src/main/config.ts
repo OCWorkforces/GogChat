@@ -86,7 +86,9 @@ const schema = {
  * Initialize encrypted store
  * All configuration data is encrypted at rest using AES-256-GCM
  */
-let store = new Store<StoreType>({
+import { addCacheLayer, type CachedStore } from './utils/configCache';
+
+let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
   schema,
   encryptionKey: getEncryptionKey(),
 });
@@ -98,8 +100,6 @@ let store = new Store<StoreType>({
  *
  * Note: Disabled in test environment to preserve test spies
  */
-import { addCacheLayer } from './utils/configCache';
-
 // Only enable cache layer if not in test environment
 if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
   store = addCacheLayer(store);

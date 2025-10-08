@@ -19,7 +19,7 @@ interface CacheStats {
 /**
  * Extended store type with cache methods
  */
-interface CachedStore<T> extends Store<T> {
+export interface CachedStore<T extends Record<string, unknown>> extends Store<T> {
   getCacheStats(): CacheStats & { hitRate: string };
   clearCache(): void;
 }
@@ -52,6 +52,7 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
 
     // Cache miss - read from store
     stats.misses++;
+    // Call originalGet with proper typing - the bound method already has correct signature
     const value = originalGet(key, defaultValue);
     cache.set(key as string, value);
     log.debug(`[ConfigCache] Cache miss: ${String(key)}, value cached`);
@@ -75,6 +76,7 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   (store as any).delete = function (key: string): void {
     invalidateCacheForKey(key, cache);
+    // Call originalDelete with proper typing - the bound method already has correct signature
     return originalDelete(key);
   };
 
