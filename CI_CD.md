@@ -26,7 +26,7 @@ GChat uses **GitHub Actions** for automated building, testing, and releasing for
 Runs on Ubuntu (fastest for testing):
 
 - Checkout code
-- Install dependencies with pnpm
+- Install dependencies with npm
 - Run TypeScript compilation (`npm run ts`)
 - Run unit tests (`npm run test:run`)
 - Run security audit (`npm audit --production`)
@@ -104,21 +104,20 @@ Runs in parallel using matrix strategy for both macOS architectures:
 
 ### Package Manager
 
-- **Manager:** pnpm
-- **Version:** Controlled by `packageManager` field in package.json (10.18.1)
-- **Setup:** Uses `pnpm/action-setup@v4` (reads version from package.json)
-- **Caching:** pnpm store cached using `actions/cache@v4`
+- **Manager:** npm
+- **Setup:** Uses built-in npm from Node.js installation
+- **Caching:** npm cache cached using `actions/cache@v4`
 
 ### Caching Strategy
 
-**pnpm Store Caching:**
+**npm Cache:**
 
 ```yaml
 - uses: actions/cache@v4
   with:
-    path: ${{ pnpm store path }}
-    key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-    restore-keys: ${{ runner.os }}-pnpm-store-
+    path: ~/.npm
+    key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+    restore-keys: ${{ runner.os }}-npm-
 ```
 
 **Benefits:**
@@ -359,7 +358,7 @@ Future enhancements:
 ### Build Time Optimization
 
 - **Parallel builds:** macOS x64 and ARM64 build simultaneously
-- **Caching:** pnpm store cached across runs
+- **Caching:** npm cache stored across runs
 - **Matrix strategy:** Both architectures build in parallel
 
 ### Typical Build Times

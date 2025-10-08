@@ -25,7 +25,18 @@ import passkeySupport from './features/passkeySupport';
 import { enforceMacOSAppLocation } from './utils/platform';
 import { getIconCache } from './utils/iconCache';
 import store from './config';
-import { logCacheStats } from './utils/configCache';
+import { logCacheStats, type CachedStore } from './utils/configCache';
+import type { StoreType } from '../shared/types';
+import type Store from 'electron-store';
+
+/**
+ * Type guard to check if a store has cache enabled
+ * @param store - The store to check
+ * @returns True if the store has cache methods
+ */
+function isCachedStore(store: Store<StoreType>): store is CachedStore<StoreType> {
+  return typeof (store as CachedStore<StoreType>).getCacheStats === 'function';
+}
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -120,7 +131,7 @@ app.on('before-quit', () => {
     log.info(`[Main] Icon cache: ${iconStats.size} icons cached`);
 
     // Log config cache stats if available
-    if (typeof store.getCacheStats === 'function') {
+    if (isCachedStore(store)) {
       logCacheStats(store);
     }
   } catch (error) {

@@ -28,6 +28,7 @@
     "format:fix": "prettier --write \"src/**/*.{ts,js,json}\" \"scripts/**/*.js\" \"*.{json,md}\"",
     "lint:all": "bash ./scripts/lint.sh",
     "lint:all:fix": "bash ./scripts/lint.sh --fix",
+    "hooks:install": "bash ./scripts/install-hooks.sh",
     "prepack:windows": "npm run clean:dist && npm run build:prod",
     "pack:windows": "electron-packager . --platform=win32 --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/windows.ico --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea)$' --ignore='\\.md$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
     "postpack:windows": "node scripts/remove-locales.js windows x64",
@@ -79,9 +80,7 @@
     "electron-installer-debian": "^3.2.0"
   },
   "engineStrict": true,
-  "packageManager": "pnpm@10.18.1",
   "engines": {
-    "node": ">=22.0.0",
-    "pnpm": "^10.0.0"
+    "node": ">=22.0.0"
   }
 }
