@@ -11,7 +11,7 @@ import { openNewGitHubIssue } from 'electron-util';
 import { debugInfo } from 'electron-util/main';
 
 export default (window: BrowserWindow) => {
-  const pkg = require(path.join(app.getAppPath(), 'packageon'));
+  const pkg = require(path.join(app.getAppPath(), 'package.json'));
 
   const relaunchApp = () => {
     app.relaunch({
