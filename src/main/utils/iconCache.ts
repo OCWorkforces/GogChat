@@ -4,7 +4,7 @@
  * and improve startup performance
  */
 
-import {app, nativeImage, NativeImage} from 'electron';
+import { app, nativeImage, NativeImage } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 
@@ -35,7 +35,9 @@ class IconCacheManager {
       log.error(`[IconCache] Failed to load icon: ${relativePath}`);
     } else {
       this.cache.set(relativePath, icon);
-      log.debug(`[IconCache] Cached icon: ${relativePath} (size: ${icon.getSize().width}x${icon.getSize().height})`);
+      log.debug(
+        `[IconCache] Cached icon: ${relativePath} (size: ${icon.getSize().width}x${icon.getSize().height})`
+      );
     }
 
     return icon;
@@ -50,17 +52,17 @@ class IconCacheManager {
     log.debug('[IconCache] Warming icon cache...');
 
     const commonIcons = [
-      'resources/icons/normal/256.png',  // Main window icon
-      'resources/icons/normal/64.png',   // About panel icon
-      'resources/icons/normal/16.png',   // Tray icon (macOS)
-      'resources/icons/normal/32.png',   // Tray icon (Windows/Linux)
-      'resources/icons/offline/16.png',  // Offline tray icon (macOS)
-      'resources/icons/offline/32.png',  // Offline tray icon (Windows/Linux)
-      'resources/icons/badge/16.png',    // Badge overlay icon
+      'resources/icons/normal/256.png', // Main window icon
+      'resources/icons/normal/64.png', // About panel icon
+      'resources/icons/normal/16.png', // Tray icon (macOS)
+      'resources/icons/normal/32.png', // Tray icon (Windows/Linux)
+      'resources/icons/offline/16.png', // Offline tray icon (macOS)
+      'resources/icons/offline/32.png', // Offline tray icon (Windows/Linux)
+      'resources/icons/badge/16.png', // Badge overlay icon
     ];
 
     let loaded = 0;
-    commonIcons.forEach(iconPath => {
+    commonIcons.forEach((iconPath) => {
       const icon = this.getIcon(iconPath);
       if (!icon.isEmpty()) {
         loaded++;
@@ -83,7 +85,7 @@ class IconCacheManager {
    * Get cache statistics for monitoring
    * @returns Object with cache metrics
    */
-  getStats(): {size: number; icons: string[]} {
+  getStats(): { size: number; icons: string[] } {
     return {
       size: this.cache.size,
       icons: Array.from(this.cache.keys()),

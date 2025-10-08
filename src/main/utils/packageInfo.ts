@@ -4,7 +4,7 @@
  * Eliminates duplicate file reads and provides type safety
  */
 
-import {app} from 'electron';
+import { app } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 

@@ -26,7 +26,7 @@ export function profileConfigStoreReads(iterations: number = 100): number {
 
   // Perform sequential reads
   for (let i = 0; i < iterations; i++) {
-    keys.forEach(key => {
+    keys.forEach((key) => {
       store.get(key as any);
     });
   }

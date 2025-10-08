@@ -4,7 +4,7 @@
  */
 
 import log from 'electron-log';
-import type {ErrorLogEntry} from '../../shared/types';
+import type { ErrorLogEntry } from '../../shared/types';
 
 /**
  * Log levels
@@ -101,7 +101,7 @@ export function configureLogging(isDev: boolean): void {
     log.transports.file.level = 'info';
   }
 
-  log.info('[Logger] Logging configured', {isDev});
+  log.info('[Logger] Logging configured', { isDev });
 }
 
 /**

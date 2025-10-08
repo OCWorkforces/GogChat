@@ -3,7 +3,7 @@
  * Validates SSL certificates to prevent MITM attacks
  */
 
-import {app, Certificate} from 'electron';
+import { app, Certificate } from 'electron';
 import log from 'electron-log';
 
 /**
@@ -38,9 +38,7 @@ const PINNED_DOMAINS = [
  * Check if hostname matches pinned domains
  */
 function isPinnedDomain(hostname: string): boolean {
-  return PINNED_DOMAINS.some(domain =>
-    hostname === domain || hostname.endsWith(`.${domain}`)
-  );
+  return PINNED_DOMAINS.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
 }
 
 /**
@@ -53,7 +51,7 @@ function verifyCertificateIssuer(cert: Certificate): boolean {
   const issuerString = typeof issuerName === 'string' ? issuerName : issuerName.commonName || '';
 
   // Check if issuer matches any trusted Google CA
-  const isTrusted = TRUSTED_GOOGLE_ISSUERS.some(trustedIssuer =>
+  const isTrusted = TRUSTED_GOOGLE_ISSUERS.some((trustedIssuer) =>
     issuerString.includes(trustedIssuer)
   );
 
@@ -117,7 +115,7 @@ export default function setupCertificatePinning(): void {
         issuerValid,
         validityValid,
         issuer: certificate.issuerName || certificate.issuer,
-        error
+        error,
       });
       callback(false);
     }

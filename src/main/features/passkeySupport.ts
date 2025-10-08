@@ -3,11 +3,11 @@
  * Detects when passkey authentication fails and provides guidance to users on macOS
  */
 
-import {BrowserWindow, dialog, ipcMain, shell} from 'electron';
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import log from 'electron-log';
-import {IPC_CHANNELS} from '../../shared/constants';
-import type {PasskeyFailureData} from '../../shared/types';
-import {getRateLimiter} from '../utils/rateLimiter';
+import { IPC_CHANNELS } from '../../shared/constants';
+import type { PasskeyFailureData } from '../../shared/types';
+import { getRateLimiter } from '../utils/rateLimiter';
 import store from '../config';
 
 export default (window: BrowserWindow) => {
@@ -49,7 +49,7 @@ export default (window: BrowserWindow) => {
           '   • Input Monitoring\n' +
           '4. Restart GChat and try again\n\n' +
           'Alternatively, you can use password-based authentication.',
-        buttons: ['Open System Settings', 'Use Password Instead', 'Don\'t Show Again'],
+        buttons: ['Open System Settings', 'Use Password Instead', "Don't Show Again"],
         defaultId: 0,
         cancelId: 1,
         noLink: true,
@@ -81,7 +81,6 @@ export default (window: BrowserWindow) => {
         log.info('[Passkey Support] User suppressed future dialogs');
       }
       // response === 1 means "Use Password Instead" - just close the dialog
-
     } catch (error) {
       log.error('[Passkey Support] Error handling passkey failure:', error);
     }

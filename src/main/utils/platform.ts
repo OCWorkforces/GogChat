@@ -93,7 +93,9 @@ export function debugInfo(): string {
   // Memory information
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
-  info.push(`Memory: ${(freeMem / 1024 / 1024 / 1024).toFixed(2)}GB free / ${(totalMem / 1024 / 1024 / 1024).toFixed(2)}GB total`);
+  info.push(
+    `Memory: ${(freeMem / 1024 / 1024 / 1024).toFixed(2)}GB free / ${(totalMem / 1024 / 1024 / 1024).toFixed(2)}GB total`
+  );
 
   return info.join('\n');
 }

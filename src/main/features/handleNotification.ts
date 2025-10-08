@@ -1,7 +1,7 @@
-import {BrowserWindow, ipcMain, IpcMainEvent} from 'electron';
+import { BrowserWindow, ipcMain, IpcMainEvent } from 'electron';
 import log from 'electron-log';
-import {IPC_CHANNELS} from '../../shared/constants';
-import {getRateLimiter} from '../utils/rateLimiter';
+import { IPC_CHANNELS } from '../../shared/constants';
+import { getRateLimiter } from '../utils/rateLimiter';
 
 export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();

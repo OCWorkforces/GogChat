@@ -3,7 +3,7 @@
  * These validators prevent injection attacks and ensure data integrity
  */
 
-import {BADGE, WHITELISTED_HOSTS} from './constants';
+import { BADGE, WHITELISTED_HOSTS } from './constants';
 
 /**
  * Validates and sanitizes unread count values
@@ -116,13 +116,7 @@ export function validateExternalURL(url: unknown): string {
   parsed.password = '';
 
   // Check for dangerous patterns
-  const dangerous = [
-    'javascript:',
-    'data:',
-    'vbscript:',
-    'file:',
-    'about:',
-  ];
+  const dangerous = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:'];
 
   const urlLower = url.toLowerCase();
   for (const pattern of dangerous) {
@@ -237,7 +231,10 @@ export function sanitizeHTML(html: string): string {
  * @returns Validated PasskeyFailureData object
  * @throws Error if data is invalid
  */
-export function validatePasskeyFailureData(errorType: unknown): {errorType: string; timestamp: number} {
+export function validatePasskeyFailureData(errorType: unknown): {
+  errorType: string;
+  timestamp: number;
+} {
   // Validate error type
   const validatedErrorType = validateString(errorType, 100);
 

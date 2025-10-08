@@ -100,7 +100,7 @@ async function build() {
 
       if (result.warnings.length > 0) {
         console.warn(`[Build] ⚠️  ${result.warnings.length} warnings`);
-        result.warnings.forEach(warning => console.warn(warning));
+        result.warnings.forEach((warning) => console.warn(warning));
       }
 
       // Calculate size savings

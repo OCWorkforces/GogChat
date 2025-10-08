@@ -47,7 +47,9 @@ function monitorWebAuthn(): void {
   const originalGet = navigator.credentials.get.bind(navigator.credentials);
 
   // Wrap navigator.credentials.create()
-  navigator.credentials.create = async function (options?: CredentialCreationOptions): Promise<Credential | null> {
+  navigator.credentials.create = async function (
+    options?: CredentialCreationOptions
+  ): Promise<Credential | null> {
     try {
       const result = await originalCreate(options);
       return result;
@@ -62,7 +64,9 @@ function monitorWebAuthn(): void {
   };
 
   // Wrap navigator.credentials.get()
-  navigator.credentials.get = async function (options?: CredentialRequestOptions): Promise<Credential | null> {
+  navigator.credentials.get = async function (
+    options?: CredentialRequestOptions
+  ): Promise<Credential | null> {
     try {
       const result = await originalGet(options);
       return result;

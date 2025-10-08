@@ -24,7 +24,7 @@ interface CacheStats {
 export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): Store<T> {
   // In-memory cache
   const cache = new Map<string, any>();
-  const stats: CacheStats = {hits: 0, misses: 0, writes: 0};
+  const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
 
   // Store original methods
   const originalGet = store.get.bind(store);
@@ -33,7 +33,7 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
   const originalClear = store.clear.bind(store);
 
   // Wrap get() with caching
-  (store as any).get = function(key: string, defaultValue?: any) {
+  (store as any).get = function (key: string, defaultValue?: any) {
     // Check cache first
     if (cache.has(key)) {
       stats.hits++;
@@ -51,7 +51,7 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
   };
 
   // Wrap set() with cache invalidation
-  (store as any).set = function(key: string, value: any) {
+  (store as any).set = function (key: string, value: any) {
     stats.writes++;
 
     // Invalidate cache for this key and parent paths
@@ -62,13 +62,13 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
   };
 
   // Wrap delete() with cache invalidation
-  (store as any).delete = function(key: string) {
+  (store as any).delete = function (key: string) {
     invalidateCacheForKey(key, cache);
     return originalDelete(key);
   };
 
   // Wrap clear() with full cache clear
-  (store as any).clear = function() {
+  (store as any).clear = function () {
     cache.clear();
     stats.hits = 0;
     stats.misses = 0;
@@ -78,14 +78,14 @@ export function addCacheLayer<T extends Record<string, any>>(store: Store<T>): S
   };
 
   // Add cache stats method
-  (store as any).getCacheStats = function(): CacheStats & {hitRate: string} {
+  (store as any).getCacheStats = function (): CacheStats & { hitRate: string } {
     const total = stats.hits + stats.misses;
     const hitRate = total > 0 ? ((stats.hits / total) * 100).toFixed(1) : '0.0';
-    return {...stats, hitRate: `${hitRate}%`};
+    return { ...stats, hitRate: `${hitRate}%` };
   };
 
   // Add manual cache clear method
-  (store as any).clearCache = function() {
+  (store as any).clearCache = function () {
     const size = cache.size;
     cache.clear();
     log.info(`[ConfigCache] Manually cleared ${size} cached entries`);

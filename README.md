@@ -12,6 +12,7 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 ## Features
 
 ✨ **Native Desktop Experience**
+
 - System tray integration
 - Native notifications
 - Auto-launch on startup
@@ -19,6 +20,7 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 - Keyboard shortcuts
 
 🔒 **Enterprise-Grade Security**
+
 - Process isolation & sandboxing
 - AES-256-GCM data encryption
 - Certificate pinning (MITM prevention)
@@ -27,6 +29,7 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 - Zero production vulnerabilities
 
 ⚡ **Performance Optimized**
+
 - Lazy loading for faster startup
 - MutationObserver (90% CPU reduction)
 - Icon caching
@@ -35,16 +38,19 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 ## Download
 
 Get the latest release for your platform:
+
 - **macOS Intel (x64)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
 - **macOS ARM (Apple Silicon)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
 
 ## Development
 
 ### Prerequisites
+
 - Node.js >= 22.0.0
 - pnpm >= 10.0.0
 
 ### Setup
+
 ```bash
 # Install dependencies
 pnpm install
@@ -61,6 +67,7 @@ npm run pack:mac-arm  # macOS ARM (Apple Silicon)
 ```
 
 ### Testing
+
 ```bash
 # Run unit tests
 npm run test:run
@@ -73,6 +80,7 @@ npm test
 ```
 
 ### Building Installers
+
 ```bash
 # macOS Intel (x64)
 npm run build:mac-zip
@@ -106,6 +114,7 @@ git push origin v3.0.7
 ## Security
 
 This application implements multiple layers of security:
+
 - Context isolation & sandbox mode
 - AES-256-GCM encryption for config data
 - SSL certificate pinning

@@ -8,8 +8,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('electron', () => ({
   app: {
     getName: () => 'gchat',
-    getPath: (name: string) => `/fake/path/${name}`
-  }
+    getPath: (name: string) => `/fake/path/${name}`,
+  },
 }));
 
 // Mock electron-store
@@ -23,7 +23,7 @@ const mockStore = {
 };
 
 vi.mock('electron-store', () => ({
-  default: vi.fn(() => mockStore)
+  default: vi.fn(() => mockStore),
 }));
 
 describe('Config Store', () => {

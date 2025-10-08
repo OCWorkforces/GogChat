@@ -1,6 +1,6 @@
-import {app, BrowserWindow} from 'electron';
+import { app, BrowserWindow } from 'electron';
 import os from 'os';
-import {getPackageInfo} from '../utils/packageInfo';
+import { getPackageInfo } from '../utils/packageInfo';
 
 export default async (window: BrowserWindow) => {
   const packageJson = getPackageInfo();
@@ -10,8 +10,8 @@ export default async (window: BrowserWindow) => {
     applicationName: 'GChat',
     applicationVersion: app.getVersion(),
     copyright: `Developed by ${packageJson.author}`,
-    version: platform
+    version: platform,
   });
 
   app.showAboutPanel();
-}
+};

@@ -13,7 +13,7 @@ import {
   RATE_LIMITS,
   BADGE,
   WHITELISTED_HOSTS,
-  URL_PATTERNS
+  URL_PATTERNS,
 } from './constants';
 
 describe('IPC_CHANNELS', () => {
@@ -42,7 +42,7 @@ describe('SELECTORS', () => {
   });
 
   it('should use valid CSS selector syntax', () => {
-    Object.values(SELECTORS).forEach(selector => {
+    Object.values(SELECTORS).forEach((selector) => {
       expect(selector).toMatch(/^[a-z\[\]=":\-,\s]+$/i);
     });
   });
@@ -63,7 +63,7 @@ describe('TIMING', () => {
   });
 
   it('should have positive values', () => {
-    Object.values(TIMING).forEach(value => {
+    Object.values(TIMING).forEach((value) => {
       expect(value).toBeGreaterThan(0);
     });
   });
@@ -115,7 +115,7 @@ describe('RATE_LIMITS', () => {
   });
 
   it('should have positive values', () => {
-    Object.values(RATE_LIMITS).forEach(value => {
+    Object.values(RATE_LIMITS).forEach((value) => {
       expect(value).toBeGreaterThan(0);
     });
   });
@@ -153,13 +153,13 @@ describe('WHITELISTED_HOSTS', () => {
   });
 
   it('should contain valid domain names', () => {
-    WHITELISTED_HOSTS.forEach(host => {
+    WHITELISTED_HOSTS.forEach((host) => {
       expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/);
     });
   });
 
   it('should only contain Google domains', () => {
-    WHITELISTED_HOSTS.forEach(host => {
+    WHITELISTED_HOSTS.forEach((host) => {
       expect(host).toMatch(/google|youtube/i);
     });
   });
@@ -173,13 +173,13 @@ describe('URL_PATTERNS', () => {
   });
 
   it('should use HTTPS URLs', () => {
-    Object.values(URL_PATTERNS).forEach(url => {
+    Object.values(URL_PATTERNS).forEach((url) => {
       expect(url).toMatch(/^https:\/\//);
     });
   });
 
   it('should contain Google domain URLs', () => {
-    Object.values(URL_PATTERNS).forEach(url => {
+    Object.values(URL_PATTERNS).forEach((url) => {
       expect(url).toMatch(/google\.com/);
     });
   });

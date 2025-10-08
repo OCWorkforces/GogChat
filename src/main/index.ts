@@ -1,12 +1,12 @@
-import {app, BrowserWindow} from 'electron';
+import { app, BrowserWindow } from 'electron';
 import log from 'electron-log';
-import {perfMonitor} from './utils/performanceMonitor';
-import {compareStorePerformance} from './utils/configProfiler';
+import { perfMonitor } from './utils/performanceMonitor';
+import { compareStorePerformance } from './utils/configProfiler';
 
 import reportExceptions from './features/reportExceptions';
 import windowWrapper from './windowWrapper';
-import {enforceSingleInstance, restoreFirstInstance} from './features/singleInstance';
-import environment from "../environment";
+import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance';
+import environment from '../environment';
 import enableContextMenu from './features/contextMenu';
 import runAtLogin from './features/openAtLogin';
 import updateNotifier from './features/appUpdates';
@@ -17,13 +17,13 @@ import badgeIcons from './features/badgeIcon';
 import closeToTray from './features/closeToTray';
 import setAppMenu from './features/appMenu';
 import overrideUserAgent from './features/userAgent';
-import setupOfflineHandlers, {checkForInternet} from './features/inOnline';
+import setupOfflineHandlers, { checkForInternet } from './features/inOnline';
 import logFirstLaunch from './features/firstLaunch';
 import handleNotification from './features/handleNotification';
 import setupCertificatePinning from './features/certificatePinning';
 import passkeySupport from './features/passkeySupport';
 import { enforceMacOSAppLocation } from './utils/platform';
-import {getIconCache} from './utils/iconCache';
+import { getIconCache } from './utils/iconCache';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -39,7 +39,8 @@ perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
 reportExceptions().catch(console.error);
 
 if (enforceSingleInstance()) {
-  app.whenReady()
+  app
+    .whenReady()
     .then(() => {
       perfMonitor.mark('app-ready', 'Electron app ready');
 
@@ -102,7 +103,7 @@ if (enforceSingleInstance()) {
         }
       });
     })
-    .catch(error => {
+    .catch((error) => {
       log.error('[Main] Failed to initialize application:', error);
       app.quit();
     });
@@ -119,7 +120,7 @@ app.on('before-quit', () => {
     // Log config cache stats if available
     const store = require('./config').default;
     if (typeof store.getCacheStats === 'function') {
-      const {default: logCacheStats} = require('./utils/configCache');
+      const { default: logCacheStats } = require('./utils/configCache');
       logCacheStats(store);
     }
   } catch (error) {

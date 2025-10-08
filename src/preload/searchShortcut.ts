@@ -3,7 +3,7 @@
  * Focuses the Google Chat search input when triggered from main process
  */
 
-import {SELECTORS} from '../shared/constants';
+import { SELECTORS } from '../shared/constants';
 
 const getSearchElement = (): HTMLElement | null => {
   return document.querySelector(SELECTORS.SEARCH_INPUT);
@@ -42,4 +42,3 @@ window.addEventListener('beforeunload', () => {
     unsubscribe = null;
   }
 });
-

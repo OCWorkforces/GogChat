@@ -12,7 +12,7 @@ import {
   validateString,
   sanitizeHTML,
   isWhitelistedHost,
-  isSafeObject
+  isSafeObject,
 } from './validators';
 
 describe('validateUnreadCount', () => {
@@ -78,9 +78,15 @@ describe('validateFaviconURL', () => {
   });
 
   it('should reject URLs with unsafe protocols', () => {
-    expect(() => validateFaviconURL('javascript:alert(1)')).toThrow('Favicon URL must use http, https, or data protocol');
-    expect(() => validateFaviconURL('file:///etc/passwd')).toThrow('Favicon URL must use http, https, or data protocol');
-    expect(() => validateFaviconURL('vbscript:msgbox(1)')).toThrow('Favicon URL must use http, https, or data protocol');
+    expect(() => validateFaviconURL('javascript:alert(1)')).toThrow(
+      'Favicon URL must use http, https, or data protocol'
+    );
+    expect(() => validateFaviconURL('file:///etc/passwd')).toThrow(
+      'Favicon URL must use http, https, or data protocol'
+    );
+    expect(() => validateFaviconURL('vbscript:msgbox(1)')).toThrow(
+      'Favicon URL must use http, https, or data protocol'
+    );
   });
 
   it('should reject invalid URLs', () => {
@@ -113,25 +119,37 @@ describe('validateExternalURL', () => {
   });
 
   it('should strip credentials from URLs', () => {
-    expect(validateExternalURL('https://user:pass@example.com/path'))
-      .toBe('https://example.com/path');
-    expect(validateExternalURL('http://admin:secret@site.com'))
-      .toBe('http://site.com/');
+    expect(validateExternalURL('https://user:pass@example.com/path')).toBe(
+      'https://example.com/path'
+    );
+    expect(validateExternalURL('http://admin:secret@site.com')).toBe('http://site.com/');
   });
 
   it('should reject unsafe protocols', () => {
     expect(() => validateExternalURL('javascript:alert(1)')).toThrow('Unsafe protocol');
-    expect(() => validateExternalURL('data:text/html,<script>alert(1)</script>')).toThrow('Unsafe protocol');
+    expect(() => validateExternalURL('data:text/html,<script>alert(1)</script>')).toThrow(
+      'Unsafe protocol'
+    );
     expect(() => validateExternalURL('file:///etc/passwd')).toThrow('Unsafe protocol');
     expect(() => validateExternalURL('vbscript:msgbox(1)')).toThrow('Unsafe protocol');
   });
 
   it('should reject URLs containing dangerous patterns in path', () => {
-    expect(() => validateExternalURL('https://example.com/javascript:alert(1)')).toThrow('dangerous pattern');
-    expect(() => validateExternalURL('https://example.com/path?data:text')).toThrow('dangerous pattern');
-    expect(() => validateExternalURL('https://example.com/vbscript:void')).toThrow('dangerous pattern');
-    expect(() => validateExternalURL('https://example.com/file:///path')).toThrow('dangerous pattern');
-    expect(() => validateExternalURL('https://example.com/about:blank')).toThrow('dangerous pattern');
+    expect(() => validateExternalURL('https://example.com/javascript:alert(1)')).toThrow(
+      'dangerous pattern'
+    );
+    expect(() => validateExternalURL('https://example.com/path?data:text')).toThrow(
+      'dangerous pattern'
+    );
+    expect(() => validateExternalURL('https://example.com/vbscript:void')).toThrow(
+      'dangerous pattern'
+    );
+    expect(() => validateExternalURL('https://example.com/file:///path')).toThrow(
+      'dangerous pattern'
+    );
+    expect(() => validateExternalURL('https://example.com/about:blank')).toThrow(
+      'dangerous pattern'
+    );
   });
 
   it('should reject invalid URL formats', () => {
@@ -264,8 +282,9 @@ describe('sanitizeHTML', () => {
   });
 
   it('should handle mixed content', () => {
-    expect(sanitizeHTML('<a href="javascript:alert(\'XSS\')">Click</a>'))
-      .toBe('&lt;a href=&quot;javascript:alert(&#x27;XSS&#x27;)&quot;&gt;Click&lt;&#x2F;a&gt;');
+    expect(sanitizeHTML('<a href="javascript:alert(\'XSS\')">Click</a>')).toBe(
+      '&lt;a href=&quot;javascript:alert(&#x27;XSS&#x27;)&quot;&gt;Click&lt;&#x2F;a&gt;'
+    );
   });
 
   it('should handle empty string', () => {
@@ -278,8 +297,7 @@ describe('sanitizeHTML', () => {
   });
 
   it('should handle all HTML entities together', () => {
-    expect(sanitizeHTML('<>&"\'/'))
-      .toBe('&lt;&gt;&amp;&quot;&#x27;&#x2F;');
+    expect(sanitizeHTML('<>&"\'/')).toBe('&lt;&gt;&amp;&quot;&#x27;&#x2F;');
   });
 });
 
@@ -306,7 +324,7 @@ describe('isWhitelistedHost', () => {
 describe('isSafeObject', () => {
   it('should return true for plain objects', () => {
     expect(isSafeObject({})).toBe(true);
-    expect(isSafeObject({key: 'value'})).toBe(true);
+    expect(isSafeObject({ key: 'value' })).toBe(true);
   });
 
   it('should return false for null', () => {
@@ -342,7 +360,9 @@ describe('Security integration tests', () => {
   });
 
   it('should protect against javascript: URLs in favicon', () => {
-    expect(() => validateFaviconURL('javascript:void(0)')).toThrow('Favicon URL must use http, https, or data protocol');
+    expect(() => validateFaviconURL('javascript:void(0)')).toThrow(
+      'Favicon URL must use http, https, or data protocol'
+    );
   });
 
   it('should protect against credential theft in external URLs', () => {

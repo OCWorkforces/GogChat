@@ -7,8 +7,9 @@ Quick reference guide for GChat's performance optimization and caching utilities
 **File:** `src/main/utils/iconCache.ts`
 
 ### Import
+
 ```typescript
-import {getIconCache, destroyIconCache} from './utils/iconCache';
+import { getIconCache, destroyIconCache } from './utils/iconCache';
 ```
 
 ### API
@@ -60,8 +61,9 @@ console.log(`${getIconCache().getCacheSize()} icons cached`);
 **File:** `src/main/utils/packageInfo.ts`
 
 ### Import
+
 ```typescript
-import {getPackageInfo, clearPackageInfoCache, isPackageInfoLoaded} from './utils/packageInfo';
+import { getPackageInfo, clearPackageInfoCache, isPackageInfoLoaded } from './utils/packageInfo';
 ```
 
 ### API
@@ -83,16 +85,16 @@ clearPackageInfoCache();
 
 ```typescript
 interface PackageInfo {
-  name: string
-  productName: string
-  version: string
-  description: string
-  repository: string
-  homepage: string
-  author: string
-  license?: string
-  main?: string
-  [key: string]: unknown
+  name: string;
+  productName: string;
+  version: string;
+  description: string;
+  repository: string;
+  homepage: string;
+  author: string;
+  license?: string;
+  main?: string;
+  [key: string]: unknown;
 }
 ```
 
@@ -116,8 +118,13 @@ const repo = getPackageInfo().repository;
 **File:** `src/main/utils/performanceMonitor.ts`
 
 ### Import
+
 ```typescript
-import {getPerformanceMonitor, destroyPerformanceMonitor, perfMonitor} from './utils/performanceMonitor';
+import {
+  getPerformanceMonitor,
+  destroyPerformanceMonitor,
+  perfMonitor,
+} from './utils/performanceMonitor';
 ```
 
 ### API
@@ -180,11 +187,12 @@ perfMonitor.logSummary();
 **File:** `src/main/utils/configProfiler.ts`
 
 ### Import
+
 ```typescript
 import {
   profileConfigStoreReads,
   profileSingleKeyRead,
-  compareStorePerformance
+  compareStorePerformance,
 } from './utils/configProfiler';
 ```
 
@@ -222,15 +230,16 @@ compareStorePerformance();
 **File:** `src/main/utils/configCache.ts`
 
 ### Import
+
 ```typescript
-import {addCacheLayer, logCacheStats} from './utils/configCache';
+import { addCacheLayer, logCacheStats } from './utils/configCache';
 ```
 
 ### API
 
 ```typescript
 // Add cache layer to electron-store
-let store = new Store({schema, encryptionKey});
+let store = new Store({ schema, encryptionKey });
 store = addCacheLayer(store);
 // Returns: Store<T> (with caching)
 
@@ -259,7 +268,7 @@ if (typeof store.clearCache === 'function') {
 
 ```typescript
 // Enable caching (already done in src/main/config.ts)
-import {addCacheLayer} from './utils/configCache';
+import { addCacheLayer } from './utils/configCache';
 store = addCacheLayer(store);
 
 // Use store normally - caching is automatic
@@ -277,8 +286,8 @@ logCacheStats(store);
 ### Pattern 1: Startup Optimization
 
 ```typescript
-import {perfMonitor} from './utils/performanceMonitor';
-import {getIconCache} from './utils/iconCache';
+import { perfMonitor } from './utils/performanceMonitor';
+import { getIconCache } from './utils/iconCache';
 
 // Mark startup
 perfMonitor.mark('app-start', 'App starting');
@@ -296,7 +305,7 @@ perfMonitor.logSummary();
 ### Pattern 2: Feature Initialization
 
 ```typescript
-import {perfMonitor} from './utils/performanceMonitor';
+import { perfMonitor } from './utils/performanceMonitor';
 
 export default function myFeature() {
   perfMonitor.mark('my-feature-start');
@@ -316,10 +325,12 @@ export default function myFeature() {
 ### Pattern 3: Icon Loading
 
 ```typescript
-import {getIconCache} from './utils/iconCache';
+import { getIconCache } from './utils/iconCache';
 
 // Bad: Direct file loading
-const icon = nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/256.png'));
+const icon = nativeImage.createFromPath(
+  path.join(app.getAppPath(), 'resources/icons/normal/256.png')
+);
 
 // Good: Using cache
 const icon = getIconCache().getIcon('resources/icons/normal/256.png');
@@ -328,7 +339,7 @@ const icon = getIconCache().getIcon('resources/icons/normal/256.png');
 ### Pattern 4: Package Info Access
 
 ```typescript
-import {getPackageInfo} from './utils/packageInfo';
+import { getPackageInfo } from './utils/packageInfo';
 
 // Bad: Requiring package.json directly
 const pkg = require('../../package.json');
@@ -341,7 +352,7 @@ console.log(`Version: ${pkg.version}`);
 ### Pattern 5: Performance Monitoring
 
 ```typescript
-import {perfMonitor} from './utils/performanceMonitor';
+import { perfMonitor } from './utils/performanceMonitor';
 
 // Measure expensive operation
 perfMonitor.mark('db-query-start');
@@ -358,15 +369,15 @@ log.info(`Query took ${duration}ms`);
 
 Current performance markers used in app:
 
-| Marker | Location | Description |
-|--------|----------|-------------|
-| `app-start` | main/index.ts | App initialization started |
-| `cert-pinning-done` | main/index.ts | Certificate pinning complete |
-| `app-ready` | main/index.ts | Electron app ready event |
-| `icons-cached` | main/index.ts | Icons pre-loaded |
-| `window-created` | main/index.ts | Main window created |
-| `features-loaded` | main/index.ts | Critical features initialized |
-| `all-features-loaded` | main/index.ts | All features initialized |
+| Marker                | Location      | Description                   |
+| --------------------- | ------------- | ----------------------------- |
+| `app-start`           | main/index.ts | App initialization started    |
+| `cert-pinning-done`   | main/index.ts | Certificate pinning complete  |
+| `app-ready`           | main/index.ts | Electron app ready event      |
+| `icons-cached`        | main/index.ts | Icons pre-loaded              |
+| `window-created`      | main/index.ts | Main window created           |
+| `features-loaded`     | main/index.ts | Critical features initialized |
+| `all-features-loaded` | main/index.ts | All features initialized      |
 
 ---
 
@@ -391,7 +402,7 @@ console.log('Paths:', stats.icons);
 ### Config Cache Stats
 
 ```typescript
-import {logCacheStats} from './utils/configCache';
+import { logCacheStats } from './utils/configCache';
 
 logCacheStats(store);
 
@@ -427,9 +438,9 @@ perfMonitor.logSummary();
 Recommended initialization in `main/index.ts`:
 
 ```typescript
-import {perfMonitor} from './utils/performanceMonitor';
-import {getIconCache} from './utils/iconCache';
-import {compareStorePerformance} from './utils/configProfiler';
+import { perfMonitor } from './utils/performanceMonitor';
+import { getIconCache } from './utils/iconCache';
+import { compareStorePerformance } from './utils/configProfiler';
 
 // 1. Mark app start
 perfMonitor.mark('app-start', 'App starting');
@@ -483,95 +494,95 @@ app.on('before-quit', () => {
 
 ```typescript
 class IconCacheManager {
-  getIcon(relativePath: string): NativeImage
-  warmCache(): number
-  getCacheSize(): number
-  getStats(): {size: number; icons: string[]}
-  clear(): void
+  getIcon(relativePath: string): NativeImage;
+  warmCache(): number;
+  getCacheSize(): number;
+  getStats(): { size: number; icons: string[] };
+  clear(): void;
 }
 
-function getIconCache(): IconCacheManager
-function destroyIconCache(): void
+function getIconCache(): IconCacheManager;
+function destroyIconCache(): void;
 ```
 
 ### Package Info
 
 ```typescript
 interface PackageInfo {
-  name: string
-  productName: string
-  version: string
-  description: string
-  repository: string
-  homepage: string
-  author: string
-  license?: string
-  main?: string
-  [key: string]: unknown
+  name: string;
+  productName: string;
+  version: string;
+  description: string;
+  repository: string;
+  homepage: string;
+  author: string;
+  license?: string;
+  main?: string;
+  [key: string]: unknown;
 }
 
-function getPackageInfo(): Readonly<PackageInfo>
-function clearPackageInfoCache(): void
-function isPackageInfoLoaded(): boolean
+function getPackageInfo(): Readonly<PackageInfo>;
+function clearPackageInfoCache(): void;
+function isPackageInfoLoaded(): boolean;
 ```
 
 ### Performance Monitor
 
 ```typescript
 class PerformanceMonitor {
-  mark(name: string, logMessage?: string): void
-  measure(startMarker: string, endMarker: string): number | null
-  getMetrics(): Record<string, number>
-  getTotalElapsed(): number
-  logSummary(): void
-  setEnabled(enabled: boolean): void
-  reset(): void
+  mark(name: string, logMessage?: string): void;
+  measure(startMarker: string, endMarker: string): number | null;
+  getMetrics(): Record<string, number>;
+  getTotalElapsed(): number;
+  logSummary(): void;
+  setEnabled(enabled: boolean): void;
+  reset(): void;
 }
 
-function getPerformanceMonitor(): PerformanceMonitor
-function destroyPerformanceMonitor(): void
-const perfMonitor: PerformanceMonitor
+function getPerformanceMonitor(): PerformanceMonitor;
+function destroyPerformanceMonitor(): void;
+const perfMonitor: PerformanceMonitor;
 ```
 
 ### Config Profiler
 
 ```typescript
-function profileConfigStoreReads(iterations?: number): number
-function profileSingleKeyRead(key: string, iterations?: number): number
+function profileConfigStoreReads(iterations?: number): number;
+function profileSingleKeyRead(key: string, iterations?: number): number;
 function compareStorePerformance(): {
-  noCacheTime: number
-  potentialSavings: number
-  recommendation: string
-}
+  noCacheTime: number;
+  potentialSavings: number;
+  recommendation: string;
+};
 ```
 
 ### Config Cache
 
 ```typescript
 interface CacheStats {
-  hits: number
-  misses: number
-  writes: number
-  hitRate: number
+  hits: number;
+  misses: number;
+  writes: number;
+  hitRate: number;
 }
 
-function addCacheLayer<T>(store: Store<T>): Store<T>
-function logCacheStats(store: any): void
+function addCacheLayer<T>(store: Store<T>): Store<T>;
+function logCacheStats(store: any): void;
 ```
 
 ---
 
 ## Performance Targets
 
-| Metric | Target | Actual |
-|--------|--------|--------|
-| Total startup time | <2000ms | ~1500ms |
-| Icon cache savings | 10-20ms | ✅ |
-| Package info savings | 2-5ms | ✅ |
-| Config cache savings | 2-5ms | ✅ |
-| Total memory overhead | <1MB | ~115KB ✅ |
-| Icon cache hit rate | >90% | ~95% |
-| Config cache hit rate | >70% | ~80% |
+| Metric                | Target  | Actual    |
+| --------------------- | ------- | --------- |
+| Total startup time    | <2000ms | ~1500ms   |
+| Icon cache savings    | 10-20ms | ✅        |
+| Package info savings  | 2-5ms   | ✅        |
+| Config cache savings  | 2-5ms   | ✅        |
+| Total memory overhead | <1MB    | ~115KB ✅ |
+| Icon cache hit rate   | >90%    | ~95%      |
+| Config cache hit rate | >70%    | ~80%      |
 
 ---
 

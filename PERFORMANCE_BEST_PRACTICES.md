@@ -34,12 +34,14 @@ Is the resource...
 ### Icon Cache
 
 **When to use:**
+
 - Loading icons for windows, tray, notifications, overlays
 - Any static image resource used multiple times
 
 **Usage:**
+
 ```typescript
-import {getIconCache} from './utils/iconCache';
+import { getIconCache } from './utils/iconCache';
 
 // Basic usage - automatic caching
 const icon = getIconCache().getIcon('resources/icons/normal/256.png');
@@ -51,11 +53,13 @@ getIconCache().warmCache();
 
 **Best practices:**
 ✅ **DO:**
+
 - Use for all icon loading (consistency)
 - Add new common icons to `warmCache()`
 - Use relative paths from app root
 
 ❌ **DON'T:**
+
 - Call `nativeImage.createFromPath()` directly
 - Cache dynamic/generated images
 - Cache large images (>100KB)
@@ -63,12 +67,14 @@ getIconCache().warmCache();
 ### Package Info Cache
 
 **When to use:**
+
 - Accessing app version, name, description, author
 - Any metadata from package.json
 
 **Usage:**
+
 ```typescript
-import {getPackageInfo} from './utils/packageInfo';
+import { getPackageInfo } from './utils/packageInfo';
 
 const pkg = getPackageInfo();
 console.log(`Version: ${pkg.version}`);
@@ -77,11 +83,13 @@ console.log(`Name: ${pkg.productName}`);
 
 **Best practices:**
 ✅ **DO:**
+
 - Use instead of `require('package.json')`
 - Trust the frozen object (immutable)
 - Access via TypeScript interface (type-safe)
 
 ❌ **DON'T:**
+
 - Try to modify the returned object (it's frozen)
 - Require package.json directly
 - Cache package.json yourself
@@ -89,13 +97,15 @@ console.log(`Name: ${pkg.productName}`);
 ### Config Cache
 
 **When to use:**
+
 - Already enabled by default for electron-store
 - No action needed for existing code
 
 **Monitoring:**
+
 ```typescript
 // Check cache effectiveness (in development)
-import {logCacheStats} from './utils/configCache';
+import { logCacheStats } from './utils/configCache';
 
 logCacheStats(store);
 // [ConfigCache] Cache hits: 45
@@ -105,11 +115,13 @@ logCacheStats(store);
 
 **Best practices:**
 ✅ **DO:**
+
 - Use `store.get()` and `store.set()` normally
 - Trust automatic invalidation
 - Monitor hit rate in development
 
 ❌ **DON'T:**
+
 - Manually clear cache
 - Bypass cache with direct store access
 - Assume cached values are always fresh (writes invalidate)
@@ -117,13 +129,15 @@ logCacheStats(store);
 ### Performance Monitor
 
 **When to use:**
+
 - Measuring feature initialization time
 - Identifying startup bottlenecks
 - Tracking expensive operations
 
 **Usage:**
+
 ```typescript
-import {perfMonitor} from './utils/performanceMonitor';
+import { perfMonitor } from './utils/performanceMonitor';
 
 // Mark start of operation
 perfMonitor.mark('my-feature-start', 'My feature initializing');
@@ -142,12 +156,14 @@ if (duration > 50) {
 
 **Best practices:**
 ✅ **DO:**
+
 - Add markers at key milestones
 - Use descriptive marker names
 - Measure critical paths
 - Log summary in development
 
 ❌ **DON'T:**
+
 - Add markers in hot loops (overhead)
 - Leave enabled in production builds (unless debugging)
 - Add too many markers (creates noise)
@@ -160,7 +176,7 @@ Use when you have a resource that should be loaded once on first access.
 
 ```typescript
 // utils/myCache.ts
-import {app} from 'electron';
+import { app } from 'electron';
 import path from 'path';
 
 class MyResourceCache {
@@ -208,9 +224,12 @@ class MyMapCache {
 
   constructor() {
     // Clean up stale entries every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanup();
+      },
+      5 * 60 * 1000
+    );
   }
 
   get(key: string): CachedItem | null {
@@ -289,6 +308,7 @@ class InvalidatableCache {
 ### ❌ Anti-Pattern 1: Caching Everything
 
 **Problem:**
+
 ```typescript
 // BAD: Caching data that's only used once
 const cache = new Map();
@@ -305,6 +325,7 @@ const user = loadUserData('123');
 ```
 
 **Solution:**
+
 ```typescript
 // GOOD: Don't cache if only used once
 function loadUserData(userId: string) {
@@ -315,6 +336,7 @@ function loadUserData(userId: string) {
 ### ❌ Anti-Pattern 2: Caching Without Invalidation
 
 **Problem:**
+
 ```typescript
 // BAD: Caching mutable data without invalidation
 class ConfigCache {
@@ -335,6 +357,7 @@ class ConfigCache {
 ```
 
 **Solution:**
+
 ```typescript
 // GOOD: Invalidate cache on writes
 class ConfigCache {
@@ -348,7 +371,7 @@ class ConfigCache {
   }
 
   set(key: string, value: any) {
-    this.invalidate(key);  // Invalidate first
+    this.invalidate(key); // Invalidate first
     store.set(key, value);
   }
 
@@ -362,6 +385,7 @@ class ConfigCache {
 ### ❌ Anti-Pattern 3: Memory Leaks from Unbounded Caches
 
 **Problem:**
+
 ```typescript
 // BAD: Cache grows without bounds
 class ImageCache {
@@ -378,10 +402,11 @@ class ImageCache {
 ```
 
 **Solution:**
+
 ```typescript
 // GOOD: Implement LRU eviction or periodic cleanup
 class ImageCache {
-  private cache = new Map<string, {data: Buffer; lastAccess: number}>();
+  private cache = new Map<string, { data: Buffer; lastAccess: number }>();
   private maxSize = 50; // Max 50 images
 
   getImage(url: string): Buffer {
@@ -392,7 +417,7 @@ class ImageCache {
     }
 
     const data = downloadImage(url);
-    this.cache.set(url, {data, lastAccess: Date.now()});
+    this.cache.set(url, { data, lastAccess: Date.now() });
 
     // Evict oldest if over limit
     if (this.cache.size > this.maxSize) {
@@ -423,10 +448,11 @@ class ImageCache {
 ### ❌ Anti-Pattern 4: Caching Sensitive Data
 
 **Problem:**
+
 ```typescript
 // BAD: Caching credentials in memory
 class AuthCache {
-  private cache = new Map<string, {password: string; token: string}>();
+  private cache = new Map<string, { password: string; token: string }>();
 
   getCredentials(userId: string) {
     if (!this.cache.has(userId)) {
@@ -439,6 +465,7 @@ class AuthCache {
 ```
 
 **Solution:**
+
 ```typescript
 // GOOD: Don't cache sensitive data, use secure storage
 class AuthManager {
@@ -456,8 +483,8 @@ class AuthManager {
 
 ```typescript
 // myCache.test.ts
-import {describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {getMyCache, destroyMyCache} from './myCache';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { getMyCache, destroyMyCache } from './myCache';
 
 describe('MyCache', () => {
   afterEach(() => {
@@ -497,9 +524,9 @@ For code that uses config cache, disable it in tests to preserve spies:
 
 ```typescript
 // config.ts
-import {addCacheLayer} from './utils/configCache';
+import { addCacheLayer } from './utils/configCache';
 
-let store = new Store({schema, encryptionKey});
+let store = new Store({ schema, encryptionKey });
 
 // Disable cache in test environment
 if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
@@ -513,8 +540,8 @@ export default store;
 
 ```typescript
 // integration.test.ts
-import {app} from 'electron';
-import {getIconCache} from './utils/iconCache';
+import { app } from 'electron';
+import { getIconCache } from './utils/iconCache';
 
 describe('Icon Cache Integration', () => {
   it('should warm cache on startup', () => {
@@ -550,7 +577,7 @@ describe('Icon Cache Integration', () => {
 
 ```typescript
 // In development mode
-import {logCacheStats} from './utils/configCache';
+import { logCacheStats } from './utils/configCache';
 
 // On app exit or periodically
 app.on('before-quit', () => {
@@ -567,6 +594,7 @@ app.on('before-quit', () => {
 ```
 
 **Interpreting results:**
+
 - **Hit rate >70%**: Cache is effective
 - **Hit rate 30-70%**: Moderate benefit
 - **Hit rate <30%**: Consider if cache is needed
@@ -574,7 +602,7 @@ app.on('before-quit', () => {
 ### Measure Performance Impact
 
 ```typescript
-import {perfMonitor} from './utils/performanceMonitor';
+import { perfMonitor } from './utils/performanceMonitor';
 
 // Before optimization
 perfMonitor.mark('before-optimization');
@@ -588,7 +616,7 @@ console.log(`Operation took: ${duration}ms`);
 ### Profile Config Store
 
 ```typescript
-import {compareStorePerformance} from './utils/configProfiler';
+import { compareStorePerformance } from './utils/configProfiler';
 
 // Run in development
 if (process.env.NODE_ENV === 'development') {
@@ -619,6 +647,7 @@ if (duration > 10) {
 ### Step 2: Evaluate Caching Benefit
 
 Ask:
+
 - Is it called multiple times? (if no, don't cache)
 - Is it expensive? (>1ms, file I/O, network) (if no, don't cache)
 - Is the data static? (if no, need invalidation strategy)
@@ -627,6 +656,7 @@ Ask:
 ### Step 3: Implement Cache
 
 Use appropriate pattern:
+
 - Singleton for single resource
 - Map for multiple resources
 - LRU for bounded cache
@@ -635,6 +665,7 @@ Use appropriate pattern:
 ### Step 4: Test
 
 Write unit tests:
+
 - Cache hits return same value
 - Cache invalidation works
 - Memory is cleaned up
@@ -643,6 +674,7 @@ Write unit tests:
 ### Step 5: Measure
 
 Profile before and after:
+
 - Measure time saved
 - Check memory impact
 - Verify hit rate >50%
@@ -650,6 +682,7 @@ Profile before and after:
 ### Step 6: Document
 
 Update documentation:
+
 - Add to PERFORMANCE_UTILITIES.md
 - Update PERFORMANCE_OPTIMIZATIONS.md
 - Add usage examples
@@ -692,10 +725,12 @@ Update documentation:
 ### Cache Not Working
 
 **Symptoms:**
+
 - No performance improvement
 - Low hit rates (<30%)
 
 **Debugging:**
+
 ```typescript
 // Add logging
 const cache = getIconCache();
@@ -710,6 +745,7 @@ if (typeof store.getCacheStats === 'function') {
 ```
 
 **Common causes:**
+
 - Cache not enabled (check environment variables)
 - Cache invalidation too aggressive
 - Not enough repeated reads
@@ -717,10 +753,12 @@ if (typeof store.getCacheStats === 'function') {
 ### Memory Leaks
 
 **Symptoms:**
+
 - Memory usage grows over time
 - App becomes sluggish
 
 **Debugging:**
+
 ```typescript
 // Monitor cache size
 setInterval(() => {
@@ -730,6 +768,7 @@ setInterval(() => {
 ```
 
 **Solutions:**
+
 - Implement LRU eviction
 - Add periodic cleanup
 - Set max cache size
@@ -737,10 +776,12 @@ setInterval(() => {
 ### Stale Data
 
 **Symptoms:**
+
 - UI shows outdated information
 - Config changes not reflected
 
 **Debugging:**
+
 ```typescript
 // Check invalidation
 store.set('key', 'new-value');
@@ -749,6 +790,7 @@ console.log('Is stale?', cached !== 'new-value');
 ```
 
 **Solutions:**
+
 - Implement proper invalidation
 - Invalidate parent keys
 - Clear cache on writes
@@ -763,6 +805,7 @@ console.log('Is stale?', cached !== 'new-value');
 ## Summary
 
 **Key Takeaways:**
+
 1. ✅ Cache static, expensive, frequently-accessed resources
 2. ✅ Always invalidate caches when data changes
 3. ✅ Monitor hit rates to verify effectiveness
@@ -773,6 +816,7 @@ console.log('Is stale?', cached !== 'new-value');
 8. ❌ Don't cache unbounded data
 
 **When in doubt:**
+
 - Measure first, optimize second
 - Profile to verify improvement
 - Test thoroughly

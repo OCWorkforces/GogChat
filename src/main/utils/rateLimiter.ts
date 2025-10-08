@@ -4,8 +4,8 @@
  */
 
 import log from 'electron-log';
-import {RATE_LIMITS} from '../../shared/constants';
-import type {RateLimitEntry} from '../../shared/types';
+import { RATE_LIMITS } from '../../shared/constants';
+import type { RateLimitEntry } from '../../shared/types';
 
 /**
  * Rate limiter for IPC channels
@@ -35,13 +35,13 @@ export class IPCRateLimiter {
     // Get or create entry for this channel
     let entry = this.counters.get(channel);
     if (!entry) {
-      entry = {timestamps: [], blocked: 0};
+      entry = { timestamps: [], blocked: 0 };
       this.counters.set(channel, entry);
     }
 
     // Filter to only recent timestamps (within last second)
     const oneSecondAgo = now - 1000;
-    entry.timestamps = entry.timestamps.filter(t => t > oneSecondAgo);
+    entry.timestamps = entry.timestamps.filter((t) => t > oneSecondAgo);
 
     // Check if limit exceeded
     if (entry.timestamps.length >= limit) {
@@ -86,11 +86,13 @@ export class IPCRateLimiter {
 
     for (const [channel, entry] of this.counters.entries()) {
       // Remove channels with no recent activity
-      const hasRecentActivity = entry.timestamps.some(t => t > fiveMinutesAgo);
+      const hasRecentActivity = entry.timestamps.some((t) => t > fiveMinutesAgo);
 
       if (!hasRecentActivity) {
         if (entry.blocked > 0) {
-          log.debug(`[RateLimiter] Removing inactive channel "${channel}" (blocked ${entry.blocked} times)`);
+          log.debug(
+            `[RateLimiter] Removing inactive channel "${channel}" (blocked ${entry.blocked} times)`
+          );
         }
         this.counters.delete(channel);
       }
@@ -102,13 +104,13 @@ export class IPCRateLimiter {
    * @param channel - IPC channel name
    * @returns Statistics object or undefined if channel not found
    */
-  getStats(channel: string): {messagesLastSecond: number; totalBlocked: number} | undefined {
+  getStats(channel: string): { messagesLastSecond: number; totalBlocked: number } | undefined {
     const entry = this.counters.get(channel);
     if (!entry) return undefined;
 
     const now = Date.now();
     const oneSecondAgo = now - 1000;
-    const recentCount = entry.timestamps.filter(t => t > oneSecondAgo).length;
+    const recentCount = entry.timestamps.filter((t) => t > oneSecondAgo).length;
 
     return {
       messagesLastSecond: recentCount,
@@ -137,13 +139,13 @@ export class IPCRateLimiter {
    * Get all channel statistics
    * @returns Map of channel names to statistics
    */
-  getAllStats(): Map<string, {messagesLastSecond: number; totalBlocked: number}> {
+  getAllStats(): Map<string, { messagesLastSecond: number; totalBlocked: number }> {
     const stats = new Map();
 
     for (const [channel, entry] of this.counters.entries()) {
       const now = Date.now();
       const oneSecondAgo = now - 1000;
-      const recentCount = entry.timestamps.filter(t => t > oneSecondAgo).length;
+      const recentCount = entry.timestamps.filter((t) => t > oneSecondAgo).length;
 
       stats.set(channel, {
         messagesLastSecond: recentCount,
