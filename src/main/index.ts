@@ -1,6 +1,7 @@
 import {app, BrowserWindow} from 'electron';
 import log from 'electron-log';
 import {perfMonitor} from './utils/performanceMonitor';
+import {compareStorePerformance} from './utils/configProfiler';
 
 import reportExceptions from './features/reportExceptions';
 import windowWrapper from './windowWrapper';
@@ -93,6 +94,12 @@ if (enforceSingleInstance()) {
 
         // Log performance summary
         perfMonitor.logSummary();
+
+        // Profile config store performance (development only)
+        if (environment.isDev) {
+          log.info('[Main] Running config store performance analysis...');
+          compareStorePerformance();
+        }
       });
     })
     .catch(error => {
@@ -100,6 +107,25 @@ if (enforceSingleInstance()) {
       app.quit();
     });
 }
+
+// Log cache statistics before app quits
+app.on('before-quit', () => {
+  try {
+    // Log icon cache stats
+    const iconCache = getIconCache();
+    const iconStats = iconCache.getStats();
+    log.info(`[Main] Icon cache: ${iconStats.size} icons cached`);
+
+    // Log config cache stats if available
+    const store = require('./config').default;
+    if (typeof store.getCacheStats === 'function') {
+      const {default: logCacheStats} = require('./utils/configCache');
+      logCacheStats(store);
+    }
+  } catch (error) {
+    log.debug('[Main] Error logging cache stats on quit:', error);
+  }
+});
 
 app.setAppUserModelId('com.electron.google-chat');
 

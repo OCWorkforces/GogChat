@@ -79,6 +79,9 @@ const updateBadgeIcon = (window: BrowserWindow, count: number) => {
 export default (window: BrowserWindow, trayIcon: Tray) => {
   const rateLimiter = getRateLimiter();
 
+  // Track current tray icon type to avoid redundant updates
+  let currentTrayIconType: IconType = ICON_TYPES.OFFLINE;
+
   // Validate favicon URL and check rate limit
   ipcMain.on(IPC_CHANNELS.FAVICON_CHANGED, (evt, href) => {
     try {
@@ -94,12 +97,16 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
       // Determine icon type
       const type = decideIcon(validatedHref);
 
-      // Update tray icon
-      const size = platform.isMac ? 16 : 32;
-      const icon = getIconCache().getIcon(`resources/icons/${type}/${size}.png`);
-      trayIcon.setImage(icon);
-
-      log.debug(`[BadgeIcon] Favicon changed to type: ${type}`);
+      // Only update tray icon if type changed (optimization)
+      if (type !== currentTrayIconType) {
+        currentTrayIconType = type;
+        const size = platform.isMac ? 16 : 32;
+        const icon = getIconCache().getIcon(`resources/icons/${type}/${size}.png`);
+        trayIcon.setImage(icon);
+        log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
+      } else {
+        log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
+      }
     } catch (error) {
       log.error('[BadgeIcon] Failed to process favicon change:', error);
     }
