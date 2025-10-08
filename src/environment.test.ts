@@ -43,6 +43,7 @@ describe('Environment', () => {
     const environment = await import('./environment');
 
     expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (environment.default as any).newProperty = 'value';
     }).toThrow();
   });

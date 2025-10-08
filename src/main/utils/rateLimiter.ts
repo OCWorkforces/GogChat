@@ -153,6 +153,7 @@ export class IPCRateLimiter {
       });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return stats;
   }
 

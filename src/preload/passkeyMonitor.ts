@@ -53,9 +53,15 @@ function monitorWebAuthn(): void {
     try {
       const result = await originalCreate(options);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       // Check if this is a passkey-related error
-      if (error && error.name && PASSKEY_ERROR_TYPES.includes(error.name)) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        typeof error.name === 'string' &&
+        PASSKEY_ERROR_TYPES.includes(error.name)
+      ) {
         console.debug('[Passkey Monitor] create() failed:', error.name);
         reportPasskeyFailure(error.name);
       }
@@ -70,9 +76,15 @@ function monitorWebAuthn(): void {
     try {
       const result = await originalGet(options);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       // Check if this is a passkey-related error
-      if (error && error.name && PASSKEY_ERROR_TYPES.includes(error.name)) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        typeof error.name === 'string' &&
+        PASSKEY_ERROR_TYPES.includes(error.name)
+      ) {
         console.debug('[Passkey Monitor] get() failed:', error.name);
         reportPasskeyFailure(error.name);
       }

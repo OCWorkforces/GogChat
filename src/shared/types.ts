@@ -81,6 +81,7 @@ export interface PasskeyFailureData {
 /**
  * IPC event handler type
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IPCHandler<T = any> = (event: Electron.IpcMainEvent, data: T) => void | Promise<void>;
 
 /**

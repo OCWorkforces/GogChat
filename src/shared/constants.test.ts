@@ -43,7 +43,7 @@ describe('SELECTORS', () => {
 
   it('should use valid CSS selector syntax', () => {
     Object.values(SELECTORS).forEach((selector) => {
-      expect(selector).toMatch(/^[a-z\[\]=":\-,\s]+$/i);
+      expect(selector).toMatch(/^[a-z[\]=":\-,\s]+$/i);
     });
   });
 

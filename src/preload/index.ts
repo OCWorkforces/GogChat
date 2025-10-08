@@ -66,6 +66,7 @@ const api: GChatBridgeAPI = {
   },
 
   onOnlineStatus: (callback: (online: boolean) => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const listener = (_event: any, online: boolean) => callback(online);
     ipcRenderer.on(IPC_CHANNELS.ONLINE_STATUS, listener);
 

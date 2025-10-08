@@ -22,6 +22,7 @@ describe('URLs', () => {
 
   it('should not allow modifications', () => {
     expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (urls as any).appUrl = 'https://evil.com';
     }).toThrow();
   });

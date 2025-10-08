@@ -34,6 +34,7 @@ describe('LogLevel', () => {
 
 describe('ScopedLogger', () => {
   let scopedLogger: ScopedLogger;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let electronLog: any;
 
   beforeEach(async () => {
@@ -174,6 +175,7 @@ describe('ScopedLogger', () => {
 });
 
 describe('Pre-configured loggers', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let electronLog: any;
 
   beforeEach(async () => {
@@ -227,6 +229,7 @@ describe('Pre-configured loggers', () => {
 });
 
 describe('configureLogging', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let electronLog: any;
 
   beforeEach(async () => {

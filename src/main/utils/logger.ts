@@ -26,28 +26,36 @@ export class ScopedLogger {
   /**
    * Log error message
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error(message: string, ...args: any[]): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     log.error(`[${this.scope}] ${message}`, ...args);
   }
 
   /**
    * Log warning message
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   warn(message: string, ...args: any[]): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     log.warn(`[${this.scope}] ${message}`, ...args);
   }
 
   /**
    * Log info message
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   info(message: string, ...args: any[]): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     log.info(`[${this.scope}] ${message}`, ...args);
   }
 
   /**
    * Log debug message
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debug(message: string, ...args: any[]): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     log.debug(`[${this.scope}] ${message}`, ...args);
   }
 

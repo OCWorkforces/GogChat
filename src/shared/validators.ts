@@ -102,7 +102,7 @@ export function validateExternalURL(url: unknown): string {
   let parsed: URL;
   try {
     parsed = new URL(url);
-  } catch (_error) {
+  } catch {
     throw new Error('Invalid URL format');
   }
 
@@ -145,8 +145,9 @@ export function isWhitelistedHost(url: string, currentHost: string): boolean {
     }
 
     // Check against whitelist
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     return WHITELISTED_HOSTS.includes(hostname as any);
-  } catch (_error) {
+  } catch {
     return false;
   }
 }
