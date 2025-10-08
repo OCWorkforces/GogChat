@@ -1,7 +1,7 @@
 import { ipcMain, app, BrowserWindow, Tray, NativeImage } from 'electron';
 import { platform } from '../utils/platform';
 import log from 'electron-log';
-import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES, BADGE } from '../../shared/constants';
+import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants';
 import { validateFaviconURL, validateUnreadCount } from '../../shared/validators';
 import { getRateLimiter } from '../utils/rateLimiter';
 import { getIconCache } from '../utils/iconCache';

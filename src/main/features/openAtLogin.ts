@@ -27,7 +27,7 @@ export default (window: BrowserWindow) => {
   autoLaunchInstance = autoLaunch();
 
   if (!store.get('app.autoLaunchAtLogin')) {
-    autoLaunchInstance.disable();
+    void autoLaunchInstance.disable();
     return;
   }
 
@@ -35,9 +35,9 @@ export default (window: BrowserWindow) => {
     window.hide();
   }
 
-  autoLaunchInstance.isEnabled().then((isEnabled) => {
+  void autoLaunchInstance.isEnabled().then((isEnabled) => {
     if (!isEnabled) {
-      autoLaunchInstance.enable();
+      void autoLaunchInstance.enable();
     }
   });
 };

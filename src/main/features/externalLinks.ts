@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog, HandlerDetails, shell } from 'electron';
 import log from 'electron-log';
-import { WHITELISTED_HOSTS, URL_PATTERNS, TIMING } from '../../shared/constants';
+import { URL_PATTERNS, TIMING } from '../../shared/constants';
 import { validateExternalURL, isWhitelistedHost } from '../../shared/validators';
 
 let guardAgainstExternalLinks = true;
@@ -21,7 +21,7 @@ const ACTION_ALLOWED = {
 function extractHostname(url: string): string {
   try {
     return new URL(url).hostname;
-  } catch (error) {
+  } catch {
     log.warn('[ExternalLinks] Failed to parse URL hostname:', url);
     return '';
   }
@@ -34,7 +34,7 @@ function isValidHttpURL(input: string): boolean {
   try {
     const url = new URL(input);
     return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -92,7 +92,7 @@ export default (window: BrowserWindow) => {
           try {
             // Sanitize URL before opening
             const sanitizedURL = validateExternalURL(url);
-            shell.openExternal(sanitizedURL);
+            void shell.openExternal(sanitizedURL);
             log.info('[ExternalLinks] Opened external URL:', sanitizedURL);
           } catch (error) {
             log.error('[ExternalLinks] Failed to open external URL:', error);
@@ -117,7 +117,7 @@ export default (window: BrowserWindow) => {
 const toggleExternalLinksGuard = (window: BrowserWindow) => {
   const actionLabel = guardAgainstExternalLinks ? 'Disable' : 'Enable';
 
-  dialog
+  void dialog
     .showMessageBox(window, {
       type: 'warning',
       title: 'Confirm',

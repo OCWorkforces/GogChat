@@ -7,7 +7,7 @@ export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent notification spam
-  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, (event: IpcMainEvent) => {
+  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, (_event: IpcMainEvent) => {
     try {
       // Rate limit check (max 5 clicks per second)
       if (!rateLimiter.isAllowed(IPC_CHANNELS.NOTIFICATION_CLICKED, 5)) {

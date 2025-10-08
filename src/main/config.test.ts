@@ -61,9 +61,10 @@ describe('Config Store', () => {
   });
 });
 
+import crypto from 'crypto';
+
 describe('Encryption Key Generation', () => {
   it('should use app-specific data for encryption key', () => {
-    const crypto = require('crypto');
     const hash = crypto.createHash('sha256');
     hash.update('gchat-/fake/path/userData');
     const expectedKey = hash.digest('hex');

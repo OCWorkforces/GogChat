@@ -1,4 +1,4 @@
-import { Menu, app, shell, clipboard, BrowserWindow, dialog, session } from 'electron';
+import { Menu, app, shell, clipboard, BrowserWindow, dialog } from 'electron';
 import { checkForUpdates } from 'electron-update-notifier';
 import path from 'path';
 import log from 'electron-log';
@@ -53,7 +53,7 @@ export default (window: BrowserWindow) => {
         {
           label: 'Sign Out',
           click: () => {
-            window.loadURL(environment.logoutUrl);
+            void window.loadURL(environment.logoutUrl);
           },
         },
         {
@@ -138,7 +138,7 @@ export default (window: BrowserWindow) => {
           label: 'Navigate to Home',
           accelerator: 'Alt+Home',
           click: () => {
-            window.loadURL(environment.appUrl);
+            void window.loadURL(environment.appUrl);
           },
         },
       ],
@@ -159,21 +159,23 @@ export default (window: BrowserWindow) => {
           label: 'Auto Launch at Login',
           type: 'checkbox',
           checked: store.get('app.autoLaunchAtLogin'),
-          click: async (menuItem) => {
-            if (menuItem.checked) {
-              await autoLaunch().enable();
-            } else {
-              await autoLaunch().disable();
-            }
+          click: (menuItem) => {
+            void (async () => {
+              if (menuItem.checked) {
+                await autoLaunch().enable();
+              } else {
+                await autoLaunch().disable();
+              }
 
-            store.set('app.autoLaunchAtLogin', menuItem.checked);
+              store.set('app.autoLaunchAtLogin', menuItem.checked);
+            })();
           },
         },
         {
           label: 'Start Hidden',
           type: 'checkbox',
           checked: store.get('app.startHidden'),
-          click: async (menuItem) => {
+          click: (menuItem) => {
             store.set('app.startHidden', menuItem.checked);
           },
         },
@@ -182,7 +184,7 @@ export default (window: BrowserWindow) => {
           type: 'checkbox',
           enabled: process.platform !== 'darwin',
           checked: store.get('app.hideMenuBar'),
-          click: async (menuItem) => {
+          click: (menuItem) => {
             window.setMenuBarVisibility(!menuItem.checked);
             window.setAutoHideMenuBar(menuItem.checked);
             store.set('app.hideMenuBar', menuItem.checked);
@@ -192,7 +194,7 @@ export default (window: BrowserWindow) => {
           label: 'Disable Spell Checker',
           type: 'checkbox',
           checked: store.get('app.disableSpellChecker'),
-          click: async (menuItem) => {
+          click: (menuItem) => {
             window.webContents.session.setSpellCheckerEnabled(!menuItem.checked);
             store.set('app.disableSpellChecker', menuItem.checked);
           },
@@ -206,7 +208,7 @@ export default (window: BrowserWindow) => {
           label: 'Say Thanks to Developer',
           click: () => {
             setImmediate(() => {
-              shell.openExternal(pkg.homepage);
+              void shell.openExternal(pkg.homepage);
             });
           },
         },
@@ -214,7 +216,7 @@ export default (window: BrowserWindow) => {
           label: 'Check For Updates',
           enabled: true,
           click: () => {
-            checkForUpdates({
+            void checkForUpdates({
               silent: false,
             });
           },
@@ -259,7 +261,7 @@ export default (window: BrowserWindow) => {
             {
               label: 'Reset and Relaunch App',
               click: () => {
-                dialog
+                void dialog
                   .showMessageBox(window, {
                     type: 'warning',
                     title: 'Confirm',
@@ -271,7 +273,7 @@ export default (window: BrowserWindow) => {
                   })
                   .then(({ response }) => {
                     if (response === 0) {
-                      resetAppAndRestart();
+                      void resetAppAndRestart();
                     }
                   });
               },
@@ -281,7 +283,7 @@ export default (window: BrowserWindow) => {
         {
           label: 'About',
           click: () => {
-            aboutPanel(window);
+            void aboutPanel(window);
           },
         },
         {

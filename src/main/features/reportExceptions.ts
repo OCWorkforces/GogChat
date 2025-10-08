@@ -7,7 +7,7 @@ export default async () => {
   const packageJson = getPackageInfo();
 
   unhandled({
-    logger: log.error,
+    logger: (...args) => log.error(...args),
     reportButton: (error) => {
       openNewGitHubIssue({
         repoUrl: packageJson.repository,

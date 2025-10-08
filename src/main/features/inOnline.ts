@@ -74,30 +74,33 @@ const checkForInternet = async (window: BrowserWindow) => {
 /**
  * Setup IPC handlers for connectivity checks
  */
-export default (window: BrowserWindow) => {
+export default (_window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent connectivity check spam
-  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, async (event: IpcMainEvent) => {
-    try {
-      // Rate limit check (allow 1 check per second max)
-      if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
-        log.warn('[Connectivity] Check if online rate limited');
-        return;
-      }
-
-      log.debug('[Connectivity] Checking online status...');
-      const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
-
-      // Reply with online status
-      event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
-
-      log.debug(`[Connectivity] Online status: ${online}`);
-    } catch (error) {
-      log.error('[Connectivity] Failed to handle checkIfOnline:', error);
-      // Reply with false on error
-      event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, (event: IpcMainEvent) => {
+    // Rate limit check (allow 1 check per second max)
+    if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
+      log.warn('[Connectivity] Check if online rate limited');
+      return;
     }
+
+    // Handle async operation without making handler async
+    void (async () => {
+      try {
+        log.debug('[Connectivity] Checking online status...');
+        const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
+
+        // Reply with online status
+        event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
+
+        log.debug(`[Connectivity] Online status: ${online}`);
+      } catch (error) {
+        log.error('[Connectivity] Failed to handle checkIfOnline:', error);
+        // Reply with false on error
+        event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+      }
+    })();
   });
 };
 

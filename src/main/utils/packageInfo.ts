@@ -38,6 +38,7 @@ export function getPackageInfo(): Readonly<PackageInfo> {
   if (!packageInfo) {
     try {
       const pkgPath = path.join(app.getAppPath(), 'package.json');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       packageInfo = require(pkgPath) as PackageInfo;
       log.debug('[PackageInfo] Loaded package.json');
     } catch (error) {
@@ -56,7 +57,7 @@ export function getPackageInfo(): Readonly<PackageInfo> {
   }
 
   // Return frozen object to prevent mutations
-  return Object.freeze(packageInfo) as Readonly<PackageInfo>;
+  return Object.freeze(packageInfo);
 }
 
 /**

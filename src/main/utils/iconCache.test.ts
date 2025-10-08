@@ -2,7 +2,7 @@
  * Tests for Icon Cache Manager
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { getIconCache, destroyIconCache } from './iconCache';
 
 describe('IconCacheManager', () => {

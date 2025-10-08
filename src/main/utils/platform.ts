@@ -5,7 +5,8 @@
 
 import { app, shell } from 'electron';
 import os from 'os';
-import path from 'path';
+import type Store from 'electron-store';
+import type { StoreType } from '../../shared/types';
 
 /**
  * Platform detection
@@ -33,8 +34,8 @@ export function enforceMacOSAppLocation(): void {
     const message = 'This app needs to be in your Applications folder to work correctly.';
 
     // Show dialog in renderer if available, otherwise log
-    import('electron').then(({ dialog }) => {
-      dialog.showMessageBox({
+    void import('electron').then(({ dialog }) => {
+      void dialog.showMessageBox({
         type: 'error',
         message,
         detail: 'Please move the app to your Applications folder and reopen it.',
@@ -68,7 +69,7 @@ export function openNewGitHubIssue(options: {
 
   const issueUrl = `${baseUrl}?${params.toString()}`;
 
-  shell.openExternal(issueUrl);
+  void shell.openExternal(issueUrl);
 }
 
 /**
@@ -106,7 +107,7 @@ export function debugInfo(): string {
  * @param store - electron-store instance
  * @returns true if first launch
  */
-export function isFirstAppLaunch(store: any): boolean {
+export function isFirstAppLaunch(store: Store<StoreType>): boolean {
   const key = 'firstLaunchComplete';
 
   if (store.get(key)) {

@@ -1,5 +1,5 @@
 import path from 'path';
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import store from './config';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache';
@@ -80,7 +80,7 @@ export default (url: string): BrowserWindow => {
   // Install CSP before loading URL
   installCSP();
 
-  window.loadURL(url);
+  void window.loadURL(url);
 
   return window;
 };

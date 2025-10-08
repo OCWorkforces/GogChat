@@ -24,6 +24,8 @@ import setupCertificatePinning from './features/certificatePinning';
 import passkeySupport from './features/passkeySupport';
 import { enforceMacOSAppLocation } from './utils/platform';
 import { getIconCache } from './utils/iconCache';
+import store from './config';
+import { logCacheStats } from './utils/configCache';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -54,7 +56,7 @@ if (enforceSingleInstance()) {
       mainWindow = windowWrapper(environment.appUrl);
       perfMonitor.mark('window-created', 'Main window created');
       setupOfflineHandlers(mainWindow);
-      checkForInternet(mainWindow);
+      void checkForInternet(mainWindow);
 
       // Critical UI features
       trayIcon = setupTrayIcon(mainWindow);
@@ -118,9 +120,7 @@ app.on('before-quit', () => {
     log.info(`[Main] Icon cache: ${iconStats.size} icons cached`);
 
     // Log config cache stats if available
-    const store = require('./config').default;
     if (typeof store.getCacheStats === 'function') {
-      const { default: logCacheStats } = require('./utils/configCache');
       logCacheStats(store);
     }
   } catch (error) {
