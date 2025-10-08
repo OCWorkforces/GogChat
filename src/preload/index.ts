@@ -4,10 +4,14 @@
  * main and renderer processes using Electron's contextBridge API
  */
 
-import {contextBridge, ipcRenderer} from 'electron';
-import type {GChatBridgeAPI} from '../shared/types';
-import {IPC_CHANNELS} from '../shared/constants';
-import {validateUnreadCount, validateFaviconURL, validatePasskeyFailureData} from '../shared/validators';
+import { contextBridge, ipcRenderer } from 'electron';
+import type { GChatBridgeAPI } from '../shared/types';
+import { IPC_CHANNELS } from '../shared/constants';
+import {
+  validateUnreadCount,
+  validateFaviconURL,
+  validatePasskeyFailureData,
+} from '../shared/validators';
 
 /**
  * Expose secure API to renderer process via window.gchat
@@ -62,6 +66,7 @@ const api: GChatBridgeAPI = {
   },
 
   onOnlineStatus: (callback: (online: boolean) => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const listener = (_event: any, online: boolean) => callback(online);
     ipcRenderer.on(IPC_CHANNELS.ONLINE_STATUS, listener);
 

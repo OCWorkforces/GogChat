@@ -1,15 +1,17 @@
-import {BrowserWindow, ipcMain, Notification, app, IpcMainEvent} from 'electron';
+import { BrowserWindow, ipcMain, Notification, app, IpcMainEvent } from 'electron';
 import path from 'path';
 import log from 'electron-log';
-import {IPC_CHANNELS, TIMING} from '../../shared/constants';
-import {getRateLimiter} from '../utils/rateLimiter';
-import {getIconCache} from '../utils/iconCache';
+import { IPC_CHANNELS, TIMING } from '../../shared/constants';
+import { getRateLimiter } from '../utils/rateLimiter';
+import { getIconCache } from '../utils/iconCache';
 
 /**
  * Check internet connectivity using native fetch
  * Uses Google's generate_204 endpoint which is designed for connectivity checks
  */
-const checkIfOnline = async (timeout: number = TIMING.CONNECTIVITY_CHECK_FAST): Promise<boolean> => {
+const checkIfOnline = async (
+  timeout: number = TIMING.CONNECTIVITY_CHECK_FAST
+): Promise<boolean> => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -23,7 +25,10 @@ const checkIfOnline = async (timeout: number = TIMING.CONNECTIVITY_CHECK_FAST): 
     clearTimeout(timeoutId);
     return response.ok;
   } catch (error) {
-    log.debug('[Connectivity] Offline or fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+    log.debug(
+      '[Connectivity] Offline or fetch failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     return false;
   }
 };
@@ -37,7 +42,7 @@ const showOfflineNotification = (window: BrowserWindow) => {
     body: `You are offline.\nCheck your internet connection.`,
     silent: true,
     timeoutType: 'default',
-    icon: getIconCache().getIcon('resources/icons/normal/256.png')
+    icon: getIconCache().getIcon('resources/icons/normal/256.png'),
   });
 
   notification.on('click', () => {
@@ -69,31 +74,34 @@ const checkForInternet = async (window: BrowserWindow) => {
 /**
  * Setup IPC handlers for connectivity checks
  */
-export default (window: BrowserWindow) => {
+export default (_window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent connectivity check spam
-  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, async (event: IpcMainEvent) => {
-    try {
-      // Rate limit check (allow 1 check per second max)
-      if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
-        log.warn('[Connectivity] Check if online rate limited');
-        return;
-      }
-
-      log.debug('[Connectivity] Checking online status...');
-      const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
-
-      // Reply with online status
-      event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
-
-      log.debug(`[Connectivity] Online status: ${online}`);
-    } catch (error) {
-      log.error('[Connectivity] Failed to handle checkIfOnline:', error);
-      // Reply with false on error
-      event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, (event: IpcMainEvent) => {
+    // Rate limit check (allow 1 check per second max)
+    if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
+      log.warn('[Connectivity] Check if online rate limited');
+      return;
     }
+
+    // Handle async operation without making handler async
+    void (async () => {
+      try {
+        log.debug('[Connectivity] Checking online status...');
+        const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
+
+        // Reply with online status
+        event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
+
+        log.debug(`[Connectivity] Online status: ${online}`);
+      } catch (error) {
+        log.error('[Connectivity] Failed to handle checkIfOnline:', error);
+        // Reply with false on error
+        event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+      }
+    })();
   });
 };
 
-export {checkForInternet};
+export { checkForInternet };

@@ -3,7 +3,7 @@
  * Monitors Google Chat sidebar for unread message counts
  */
 
-import {SELECTORS} from '../shared/constants';
+import { SELECTORS } from '../shared/constants';
 
 let previousCount = -1;
 let observer: MutationObserver | null = null;
@@ -15,7 +15,9 @@ const getMessageCount = (): number => {
   let counter = 0;
 
   // Find Chat and Spaces groups
-  const targets = document.body.querySelectorAll([SELECTORS.CHAT_GROUP, SELECTORS.SPACES_GROUP].join(','));
+  const targets = document.body.querySelectorAll(
+    [SELECTORS.CHAT_GROUP, SELECTORS.SPACES_GROUP].join(',')
+  );
 
   targets.forEach((target) => {
     // Find the unread count span (next sibling of heading)
@@ -73,8 +75,8 @@ const initObserver = () => {
   // Observe changes to body
   if (document.body) {
     observer.observe(document.body, {
-      childList: true,   // Watch for added/removed nodes
-      subtree: true,      // Watch all descendants
+      childList: true, // Watch for added/removed nodes
+      subtree: true, // Watch all descendants
       characterData: true, // Watch for text changes (count updates)
     });
   }
@@ -95,4 +97,3 @@ window.addEventListener('DOMContentLoaded', initObserver);
 
 // Clean up observer when page unloads
 window.addEventListener('beforeunload', cleanup);
-

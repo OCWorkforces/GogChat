@@ -3,7 +3,7 @@
  * Replaces polling with reactive DOM observation
  */
 
-import {SELECTORS} from '../shared/constants';
+import { SELECTORS } from '../shared/constants';
 
 let previousHref: string = '';
 let observer: MutationObserver | null = null;
@@ -29,8 +29,9 @@ const emitFaviconChanged = (href: string) => {
  */
 const getCurrentFavicon = (): string => {
   // Try shortcut icon first, then regular icon
-  const favicon = document.querySelector(SELECTORS.FAVICON_SHORTCUT) as HTMLLinkElement ||
-                  document.querySelector(SELECTORS.FAVICON_ICON) as HTMLLinkElement;
+  const favicon =
+    (document.querySelector(SELECTORS.FAVICON_SHORTCUT) as HTMLLinkElement) ||
+    (document.querySelector(SELECTORS.FAVICON_ICON) as HTMLLinkElement);
 
   return favicon?.href || '';
 };
@@ -69,9 +70,9 @@ const initObserver = () => {
   const head = document.head;
   if (head) {
     observer.observe(head, {
-      childList: true,    // Watch for added/removed nodes
-      subtree: true,       // Watch descendants
-      attributes: true,    // Watch for attribute changes
+      childList: true, // Watch for added/removed nodes
+      subtree: true, // Watch descendants
+      attributes: true, // Watch for attribute changes
       attributeFilter: ['href', 'rel'], // Only watch relevant attributes
     });
   }

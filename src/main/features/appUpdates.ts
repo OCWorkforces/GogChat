@@ -1,6 +1,5 @@
-import {setUpdateNotification, checkForUpdates} from 'electron-update-notifier';
-import environment from "../../environment";
-import store from '../config'
+import { setUpdateNotification, checkForUpdates } from 'electron-update-notifier';
+import store from '../config';
 
 let interval: NodeJS.Timeout;
 
@@ -9,18 +8,21 @@ export default () => {
 
   const shouldCheckForUpdates = () => {
     return store.get('app.autoCheckForUpdates');
-  }
+  };
 
   // Runs once at startup
   setTimeout(() => {
     if (shouldCheckForUpdates()) {
       setUpdateNotification();
     }
-  }, 5000)
+  }, 5000);
 
-  interval = setInterval(() => {
-    if (shouldCheckForUpdates()) {
-      checkForUpdates()
-    }
-  }, 1000 * 60 * 60 * 24);
-}
+  interval = setInterval(
+    () => {
+      if (shouldCheckForUpdates()) {
+        void checkForUpdates();
+      }
+    },
+    1000 * 60 * 60 * 24
+  );
+};

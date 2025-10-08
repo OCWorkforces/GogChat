@@ -79,8 +79,7 @@ class PerformanceMonitor {
     log.info('[Performance] ========== Performance Summary ==========');
     log.info(`[Performance] Total startup time: ${this.getTotalElapsed()}ms`);
 
-    const sortedMarkers = Array.from(this.markers.entries())
-      .sort((a, b) => a[1] - b[1]);
+    const sortedMarkers = Array.from(this.markers.entries()).sort((a, b) => a[1] - b[1]);
 
     sortedMarkers.forEach(([name, time]) => {
       log.info(`[Performance]   ${name}: ${time}ms`);

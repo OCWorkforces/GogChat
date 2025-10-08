@@ -2,8 +2,8 @@
  * Tests for Package Info Cache
  */
 
-import {describe, it, expect, beforeEach} from 'vitest';
-import {getPackageInfo, clearPackageInfoCache, isPackageInfoLoaded} from './packageInfo';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { getPackageInfo, clearPackageInfoCache, isPackageInfoLoaded } from './packageInfo';
 
 describe('PackageInfo', () => {
   beforeEach(() => {
