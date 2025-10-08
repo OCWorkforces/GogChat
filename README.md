@@ -100,6 +100,7 @@ npm run lint:all:fix
 ```
 
 **How it works:**
+
 - Pre-push hook runs `npm run lint:all` before every push
 - If linting passes ✅, push proceeds
 - If linting fails ❌, push is blocked and you'll see specific errors
