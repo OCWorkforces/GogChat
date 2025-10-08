@@ -46,9 +46,9 @@ export function getPackageInfo(): Readonly<PackageInfo> {
       // Return minimal fallback to prevent crashes
       packageInfo = {
         name: 'gchat',
-        productName: 'GChat',
+        productName: 'Google Chat',
         version: '0.0.0',
-        description: 'GChat',
+        description: 'Google Chat',
         repository: '',
         homepage: '',
         author: '',
