@@ -32,11 +32,9 @@ Runs automated tests and checks on every commit.
 
 **Steps:**
 1. Checkout code
-2. Setup Node.js (version 22.x)
-3. Setup pnpm package manager
-4. Cache pnpm store (speeds up subsequent runs)
-5. Install dependencies with `pnpm install`
-6. **Run TypeScript compiler** (`npm run ts`)
+2. Setup Node.js (version 22.x) with npm cache enabled
+3. Install dependencies with `npm ci`
+4. **Run TypeScript compiler** (`npm run ts`)
    - Compiles `src/` to `lib/`
    - Catches type errors and syntax issues
 7. **Run unit tests** (`npm run test:run`)
@@ -47,8 +45,8 @@ Runs automated tests and checks on every commit.
    - Continues on error (informational only, doesn't block build)
 
 **Performance optimizations:**
-- Uses pnpm for faster installs
-- Caches pnpm store between runs
+- Uses npm ci for clean, reproducible installs
+- Caches npm packages between runs
 - Parallel job execution
 
 #### 2. build-macos (macos-latest)
@@ -59,9 +57,8 @@ Builds macOS application packages for both Intel and ARM architectures.
 
 **Steps:**
 1. Checkout code
-2. Setup Node.js (version 22.x)
-3. Setup pnpm
-4. Install dependencies
+2. Setup Node.js (version 22.x) with npm cache enabled
+3. Install dependencies with `npm ci`
 5. Build TypeScript
 6. **Package macOS app**:
    - Intel: `npm run pack:mac` (calls electron-packager)
@@ -153,9 +150,8 @@ Builds and uploads macOS installers to the release.
 
 **Steps:**
 1. Checkout code
-2. Setup Node.js
-3. Setup pnpm
-4. Install dependencies
+2. Setup Node.js with npm cache enabled
+3. Install dependencies with `npm ci`
 5. Build TypeScript
 6. **Run tests** (ensures release quality)
 7. **Package macOS app**:
@@ -257,10 +253,10 @@ Summarizes release results.
 
 ## Caching Strategy
 
-**pnpm cache:**
-- Key: `${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}`
-- Restore keys: `${{ runner.os }}-pnpm-store-`
-- Invalidates when `pnpm-lock.yaml` changes
+**npm cache:**
+- Key: Based on package-lock.json hash
+- Managed automatically by actions/setup-node with `cache: 'npm'`
+- Invalidates when `package-lock.json` changes
 - Speeds up dependency installation (2-3x faster)
 
 ## Platform Support

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 GChat is an Electron-based desktop application that wraps Google Chat (https://mail.google.com/chat/u/0) with native OS integrations and features. The app is built with TypeScript and targets Windows, macOS (Intel and ARM), and Linux (Debian) platforms.
 
-**Package Manager:** This project uses `pnpm` (specified version ^10.0.0). Use `pnpm install` for dependencies.
+**Package Manager:** This project uses `npm`. Use `npm install` for dependencies.
 
 **Runtime Environment:**
 
@@ -19,7 +19,7 @@ GChat is an Electron-based desktop application that wraps Google Chat (https://m
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Build TypeScript (compiles src/ to lib/)
 npm run ts

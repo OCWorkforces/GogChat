@@ -19,7 +19,6 @@ export default [
       '*.log',
       '*.tmp',
       'package-lock.json',
-      'pnpm-lock.yaml',
       '.vscode/',
       '.idea/',
       '*.js', // Ignore JS files in root and elsewhere except scripts/

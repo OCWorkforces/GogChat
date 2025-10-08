@@ -47,13 +47,12 @@ Get the latest release for your platform:
 ### Prerequisites
 
 - Node.js >= 22.0.0
-- pnpm >= 10.0.0
 
 ### Setup
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Install git hooks (pre-push linting)
 npm run hooks:install
