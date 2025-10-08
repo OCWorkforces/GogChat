@@ -267,7 +267,9 @@ export class MessageDatabase {
       LIMIT ?
     `);
 
-    const rows = stmt.all(conversationId, limit) as (Omit<MessageRecord, 'isOutgoing'> & { isOutgoing: number })[];
+    const rows = stmt.all(conversationId, limit) as (Omit<MessageRecord, 'isOutgoing'> & {
+      isOutgoing: number;
+    })[];
     return rows.map((row) => ({
       ...row,
       isOutgoing: row.isOutgoing === 1,
@@ -312,7 +314,9 @@ export class MessageDatabase {
       ORDER BY count DESC
       LIMIT 1
     `);
-    const mostActive = mostActiveStmt.get(start, end) as { name: string; count: number } | undefined;
+    const mostActive = mostActiveStmt.get(start, end) as
+      | { name: string; count: number }
+      | undefined;
 
     // Messages per day (last 30 days)
     const perDayStmt = this.db.prepare(`
@@ -390,7 +394,9 @@ export class MessageDatabase {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.db.prepare("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()");
+    const stmt = this.db.prepare(
+      'SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()'
+    );
     const result = stmt.get() as { size: number };
     return result.size;
   }

@@ -73,8 +73,9 @@ function extractMessageData(messageElement: Element): MessageData | null {
 
     // Determine if outgoing (TODO: improve detection)
     // Check for class indicating sent message
-    const isOutgoing = messageElement.classList.contains('outgoing') ||
-                       messageElement.closest('.sent-message') !== null;
+    const isOutgoing =
+      messageElement.classList.contains('outgoing') ||
+      messageElement.closest('.sent-message') !== null;
 
     const messageData: MessageData = {
       messageId,

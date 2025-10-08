@@ -155,7 +155,11 @@ export default function setupMessageLogger(_mainWindow: BrowserWindow): void {
 
       // Add to queue
       messageQueue.push(validated);
-      log.debug('[MessageLogger] Message queued:', validated.messageId, `(queue size: ${messageQueue.length})`);
+      log.debug(
+        '[MessageLogger] Message queued:',
+        validated.messageId,
+        `(queue size: ${messageQueue.length})`
+      );
 
       // Schedule flush
       scheduleFlush();

@@ -44,30 +44,30 @@ describe('MessageDatabase', () => {
     });
 
     it('should create messages table', () => {
-      const result = db['db']?.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='messages'"
-      ).get() as { name: string } | undefined;
+      const result = db['db']
+        ?.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='messages'")
+        .get() as { name: string } | undefined;
       expect(result?.name).toBe('messages');
     });
 
     it('should create conversations table', () => {
-      const result = db['db']?.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='conversations'"
-      ).get() as { name: string } | undefined;
+      const result = db['db']
+        ?.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversations'")
+        .get() as { name: string } | undefined;
       expect(result?.name).toBe('conversations');
     });
 
     it('should create metadata table', () => {
-      const result = db['db']?.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='_metadata'"
-      ).get() as { name: string } | undefined;
+      const result = db['db']
+        ?.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='_metadata'")
+        .get() as { name: string } | undefined;
       expect(result?.name).toBe('_metadata');
     });
 
     it('should set schema version', () => {
-      const result = db['db']?.prepare(
-        "SELECT value FROM _metadata WHERE key='schema_version'"
-      ).get() as { value: string } | undefined;
+      const result = db['db']
+        ?.prepare("SELECT value FROM _metadata WHERE key='schema_version'")
+        .get() as { value: string } | undefined;
       expect(result?.value).toBe('1');
     });
 
@@ -107,9 +107,9 @@ describe('MessageDatabase', () => {
     it('should store message with correct fields', () => {
       db.upsertMessage(sampleMessage);
 
-      const result = db['db']?.prepare('SELECT * FROM messages WHERE messageId = ?').get(
-        sampleMessage.messageId
-      ) as Record<string, unknown>;
+      const result = db['db']
+        ?.prepare('SELECT * FROM messages WHERE messageId = ?')
+        .get(sampleMessage.messageId) as Record<string, unknown>;
 
       expect(result.messageId).toBe(sampleMessage.messageId);
       expect(result.content).toBe(sampleMessage.content);
@@ -127,9 +127,9 @@ describe('MessageDatabase', () => {
       };
       db.upsertMessage(updatedMessage);
 
-      const result = db['db']?.prepare('SELECT content FROM messages WHERE messageId = ?').get(
-        sampleMessage.messageId
-      ) as { content: string };
+      const result = db['db']
+        ?.prepare('SELECT content FROM messages WHERE messageId = ?')
+        .get(sampleMessage.messageId) as { content: string };
 
       expect(result.content).toBe('Updated content');
     });
@@ -137,9 +137,9 @@ describe('MessageDatabase', () => {
     it('should create conversation on message insert', () => {
       db.upsertMessage(sampleMessage);
 
-      const result = db['db']?.prepare('SELECT * FROM conversations WHERE id = ?').get(
-        sampleMessage.conversationId
-      ) as Record<string, unknown>;
+      const result = db['db']
+        ?.prepare('SELECT * FROM conversations WHERE id = ?')
+        .get(sampleMessage.conversationId) as Record<string, unknown>;
 
       expect(result.name).toBe(sampleMessage.conversationName);
       expect(result.type).toBe(sampleMessage.conversationType);
@@ -216,9 +216,9 @@ describe('MessageDatabase', () => {
 
       db.upsertMessage(messageWithOptional);
 
-      const result = db['db']?.prepare('SELECT * FROM messages WHERE messageId = ?').get(
-        'msg-optional'
-      ) as Record<string, unknown>;
+      const result = db['db']
+        ?.prepare('SELECT * FROM messages WHERE messageId = ?')
+        .get('msg-optional') as Record<string, unknown>;
 
       expect(result.attachmentUrl).toBe('https://example.com/file.pdf');
       expect(result.attachmentName).toBe('document.pdf');
@@ -502,9 +502,9 @@ describe('MessageDatabase', () => {
         content: 'Updated',
       });
 
-      const result = db['db']?.prepare('SELECT content, COUNT(*) as count FROM messages WHERE messageId = ?').get(
-        'dup-msg'
-      ) as { content: string; count: number };
+      const result = db['db']
+        ?.prepare('SELECT content, COUNT(*) as count FROM messages WHERE messageId = ?')
+        .get('dup-msg') as { content: string; count: number };
 
       expect(result.count).toBe(1);
       expect(result.content).toBe('Updated');

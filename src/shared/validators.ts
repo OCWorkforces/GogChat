@@ -272,7 +272,9 @@ export function validatePasskeyFailureData(errorType: unknown): {
  * @returns Validated message type
  * @throws Error if invalid
  */
-export function validateMessageType(type: unknown): 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown' {
+export function validateMessageType(
+  type: unknown
+): 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown' {
   const validTypes = ['text', 'image', 'file', 'reaction', 'system', 'unknown'];
 
   if (typeof type !== 'string') {
@@ -333,7 +335,7 @@ export function validateTimestamp(timestamp: unknown): string {
     throw new Error('Timestamp is too far in the future');
   }
 
-  if (timestampMs < now - (10 * oneYearMs)) {
+  if (timestampMs < now - 10 * oneYearMs) {
     throw new Error('Timestamp is too far in the past');
   }
 
@@ -368,15 +370,15 @@ export function validateMessageData(data: unknown): {
   }
 
   // Validate required fields
-  const messageId = validateString(data.messageId as unknown, 500);
-  const content = validateString(data.content as unknown, 50000); // 50KB max
-  const sender = validateString(data.sender as unknown, 500);
+  const messageId = validateString(data.messageId, 500);
+  const content = validateString(data.content, 50000); // 50KB max
+  const sender = validateString(data.sender, 500);
   const timestamp = validateTimestamp(data.timestamp);
-  const conversationId = validateString(data.conversationId as unknown, 500);
-  const conversationName = validateString(data.conversationName as unknown, 500);
+  const conversationId = validateString(data.conversationId, 500);
+  const conversationName = validateString(data.conversationName, 500);
   const conversationType = validateConversationType(data.conversationType);
   const messageType = validateMessageType(data.messageType);
-  const isOutgoing = validateBoolean(data.isOutgoing as unknown);
+  const isOutgoing = validateBoolean(data.isOutgoing);
 
   // Validate optional fields
   const result: {
