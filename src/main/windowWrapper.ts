@@ -1,7 +1,8 @@
 import path from 'path';
-import {app, BrowserWindow, nativeImage, session} from 'electron';
+import {app, BrowserWindow, session} from 'electron';
 import store from './config';
 import log from 'electron-log';
+import {getIconCache} from './utils/iconCache';
 
 export default (url: string): BrowserWindow => {
   const window = new BrowserWindow({
@@ -15,7 +16,7 @@ export default (url: string): BrowserWindow => {
       disableBlinkFeatures: 'Auxclick', // Prevent Auxclick exploits
       preload: path.join(app.getAppPath(), 'lib/preload/index'),
     },
-    icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/256.png')),
+    icon: getIconCache().getIcon('resources/icons/normal/256.png'),
     show: false,
     minHeight: 570,
     minWidth: 480,

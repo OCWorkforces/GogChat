@@ -7,11 +7,11 @@ import aboutPanel from './aboutPanel';
 import store from '../config';
 import {toggleExternalLinksGuard} from "./externalLinks";
 import environment from "../../environment";
-import { openNewGitHubIssue } from 'electron-util';
-import { debugInfo } from 'electron-util/main';
+import { openNewGitHubIssue, debugInfo } from '../utils/platform';
+import {getPackageInfo} from '../utils/packageInfo';
 
 export default (window: BrowserWindow) => {
-  const pkg = require(path.join(app.getAppPath(), 'package.json'));
+  const pkg = getPackageInfo();
 
   const relaunchApp = () => {
     app.relaunch({

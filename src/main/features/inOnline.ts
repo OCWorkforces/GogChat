@@ -1,18 +1,29 @@
-import isOnline from 'is-online';
-import {BrowserWindow, ipcMain, Notification, app, nativeImage, IpcMainEvent} from 'electron';
+import {BrowserWindow, ipcMain, Notification, app, IpcMainEvent} from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import {IPC_CHANNELS, TIMING} from '../../shared/constants';
 import {getRateLimiter} from '../utils/rateLimiter';
+import {getIconCache} from '../utils/iconCache';
 
 /**
- * Check internet connectivity
+ * Check internet connectivity using native fetch
+ * Uses Google's generate_204 endpoint which is designed for connectivity checks
  */
 const checkIfOnline = async (timeout: number = TIMING.CONNECTIVITY_CHECK_FAST): Promise<boolean> => {
   try {
-    return await isOnline({timeout});
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch('https://www.google.com/generate_204', {
+      method: 'HEAD',
+      signal: controller.signal,
+      cache: 'no-cache',
+    });
+
+    clearTimeout(timeoutId);
+    return response.ok;
   } catch (error) {
-    log.error('[Connectivity] Failed to check online status:', error);
+    log.debug('[Connectivity] Offline or fetch failed:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 };
@@ -26,7 +37,7 @@ const showOfflineNotification = (window: BrowserWindow) => {
     body: `You are offline.\nCheck your internet connection.`,
     silent: true,
     timeoutType: 'default',
-    icon: nativeImage.createFromPath(path.join(app.getAppPath(), 'resources/icons/normal/256.png'))
+    icon: getIconCache().getIcon('resources/icons/normal/256.png')
   });
 
   notification.on('click', () => {
