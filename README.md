@@ -47,13 +47,15 @@ Get the latest release for your platform:
 ### Prerequisites
 
 - Node.js >= 22.0.0
-- pnpm >= 10.0.0
 
 ### Setup
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
+
+# Install git hooks (pre-push linting)
+npm run hooks:install
 
 # Run in development mode
 npm start
@@ -78,6 +80,30 @@ npm run test:coverage
 # Run tests in watch mode
 npm test
 ```
+
+### Git Hooks
+
+The project includes a pre-push hook that runs linting checks before allowing code to be pushed. This ensures code quality and consistency across the team.
+
+```bash
+# Install git hooks
+npm run hooks:install
+
+# The pre-push hook will automatically run:
+# - ESLint checks
+# - Prettier formatting checks
+
+# If linting fails, the push will be blocked
+# Fix issues manually or run:
+npm run lint:all:fix
+```
+
+**How it works:**
+
+- Pre-push hook runs `npm run lint:all` before every push
+- If linting passes ✅, push proceeds
+- If linting fails ❌, push is blocked and you'll see specific errors
+- Hooks are stored in `scripts/hooks/` and can be version controlled
 
 ### Building Installers
 
