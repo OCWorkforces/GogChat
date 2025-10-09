@@ -36,6 +36,33 @@ print_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+# Parse required --environment argument
+ENVIRONMENT=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --environment)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        *)
+            print_error "Unknown argument: $1"
+            echo "Usage: $0 --environment <environment>"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate environment argument
+if [ -z "$ENVIRONMENT" ]; then
+    print_error "Missing required argument: --environment"
+    echo "Usage: $0 --environment <environment>"
+    echo "Example: $0 --environment develop"
+    exit 1
+fi
+
+print_success "Environment: ${ENVIRONMENT}"
+echo ""
+
 # Extract version from package.json
 print_step "Extracting version from package.json..."
 PACKAGE_VERSION=$(cat ./package.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
@@ -52,10 +79,10 @@ PLATFORM="darwin"
 SOURCE_DIR="./dist/Google Chat-${PLATFORM}-${ARCH}/"
 APP_NAME="Google Chat.app"
 OUT_DIR="./dist/"
-DMG_NAME="Google-Chat-v${PACKAGE_VERSION}-macOS-x64.dmg"
+DMG_NAME="Google-Chat-v${PACKAGE_VERSION}-macOS-x64-${ENVIRONMENT}.dmg"
 OUT_FILE_PATH="${OUT_DIR}${DMG_NAME}"
-TEMP_DMG="${OUT_DIR}Google-Chat-v${PACKAGE_VERSION}-x64-temp.dmg"
-VOLUME_NAME="Google Chat ${PACKAGE_VERSION}"
+TEMP_DMG="${OUT_DIR}Google-Chat-v${PACKAGE_VERSION}-x64-${ENVIRONMENT}-temp.dmg"
+VOLUME_NAME="Google Chat ${PACKAGE_VERSION} (${ENVIRONMENT})"
 
 # Step 1: Clean previous builds
 print_step "Step 1/5: Cleaning previous builds..."
