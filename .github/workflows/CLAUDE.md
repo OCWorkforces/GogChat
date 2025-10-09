@@ -63,15 +63,15 @@ Builds macOS application packages for both Intel and ARM architectures.
 6. **Package macOS app**:
    - Intel: `npm run pack:mac` (calls electron-packager)
    - ARM: `npm run pack:mac-arm`
-7. **Build ZIP installer**:
-   - Intel: `npm run build:mac-zip`
-   - ARM: `npm run build:mac-arm-zip`
+7. **Build DMG installer**:
+   - Intel: `npm run build:mac-dmg`
+   - ARM: `npm run build:mac-arm-dmg`
 8. **Upload artifacts**:
    - Intel: `gchat-macos-x64`
    - ARM: `gchat-macos-arm64`
    - Retention: 30 days
 
-**Artifacts location**: `dist/installers/*.zip`
+**Artifacts location**: `dist/*.dmg`
 
 **Why matrix build?**
 - Creates both Intel (x64) and ARM (Apple Silicon) builds in parallel
@@ -157,13 +157,13 @@ Builds and uploads macOS installers to the release.
 7. **Package macOS app**:
    - Intel: `npm run pack:mac`
    - ARM: `npm run pack:mac-arm`
-8. **Build ZIP installer**:
-   - Intel: `npm run build:mac-zip`
-   - ARM: `npm run build:mac-arm-zip`
-9. **Get installer filename** (from `dist/installers/*.zip`)
+8. **Build DMG installer**:
+   - Intel: `npm run build:mac-dmg`
+   - ARM: `npm run build:mac-arm-dmg`
+9. **Get installer filename** (from `dist/*.dmg`)
 10. **Upload to GitHub release**:
     - Uses upload URL from `create-release` job
-    - Asset type: `application/zip`
+    - Asset type: `application/x-apple-diskimage`
 
 **Why run tests in release?**
 - Additional safety check
