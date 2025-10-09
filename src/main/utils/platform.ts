@@ -232,7 +232,7 @@ export class PlatformUtils {
   /**
    * Clear dock badge
    */
-  clearBadge(window: BrowserWindow): void {
+  clearBadge(_window: BrowserWindow): void {
     try {
       app.dock?.setBadge('');
       this.log.debug('Dock badge cleared');

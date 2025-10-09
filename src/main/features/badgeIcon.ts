@@ -1,5 +1,4 @@
-import { ipcMain, app, BrowserWindow, Tray, NativeImage } from 'electron';
-import { platform } from '../utils/platform';
+import { ipcMain, app, BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants';
 import { validateFaviconURL, validateUnreadCount } from '../../shared/validators';
@@ -56,8 +55,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
       // Only update tray icon if type changed (optimization)
       if (type !== currentTrayIconType) {
         currentTrayIconType = type;
-        const size = platform.isMac ? 16 : 32;
-        const icon = getIconCache().getIcon(`resources/icons/${type}/${size}.png`);
+        // macOS uses 16px tray icons
+        const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
         trayIcon.setImage(icon);
         log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
       } else {

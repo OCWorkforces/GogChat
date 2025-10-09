@@ -71,7 +71,6 @@ function getDirectorySize(dirPath) {
 function removeUnusedLocales() {
   const localesInfo = getLocalesPath(platform, arch);
   const localesPath = localesInfo.path;
-  const isMacOS = localesInfo.isMacOS;
 
   console.log(`[Locale Cleanup] Platform: ${platform}, Arch: ${arch}`);
   console.log(`[Locale Cleanup] Locales path: ${localesPath}`);

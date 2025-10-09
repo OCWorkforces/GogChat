@@ -1,4 +1,5 @@
 // Enable V8 compile cache (must be first)
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('v8-compile-cache');
 
 import { app, BrowserWindow } from 'electron';

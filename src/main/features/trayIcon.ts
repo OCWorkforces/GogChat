@@ -1,5 +1,4 @@
 import { app, BrowserWindow, Menu, Tray } from 'electron';
-import { platform } from '../utils/platform';
 import { getIconCache } from '../utils/iconCache';
 
 export default (window: BrowserWindow) => {

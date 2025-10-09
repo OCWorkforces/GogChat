@@ -16,6 +16,7 @@ function getEncryptionKey(): string {
 
 // Cast to any to avoid TypeScript schema validation issues with electron-store v8
 // The schema is still validated at runtime by electron-store
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const schema: any = {
   window: {
     type: 'object',
@@ -126,6 +127,7 @@ const schema: any = {
 import { addCacheLayer, type CachedStore } from './utils/configCache';
 
 let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   schema,
   encryptionKey: getEncryptionKey(),
 });
