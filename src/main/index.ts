@@ -1,3 +1,6 @@
+// Enable V8 compile cache (must be first)
+require('v8-compile-cache');
+
 import { app, BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { perfMonitor } from './utils/performanceMonitor';

@@ -18,56 +18,32 @@ if (!platform || !arch) {
   process.exit(1);
 }
 
-// Locales to keep
-const KEEP_LOCALES = ['en-US.pak'];
-// macOS uses .lproj directories instead of .pak files
+// macOS locales to keep (.lproj directories)
 const KEEP_LPROJ = ['en.lproj', 'en-US.lproj', 'en_US.lproj'];
 
-// Get the locales directory path based on platform
+// Get the locales directory path for macOS
 function getLocalesPath(platform, arch) {
   const distDir = path.join(__dirname, '..', 'dist');
 
-  switch (platform) {
-    case 'mac':
-    case 'darwin': {
-      const archSuffix = arch === 'arm64' ? 'arm64' : 'x64';
-      const appPath = path.join(distDir, `Google Chat-darwin-${archSuffix}`, 'Google Chat.app');
-      // On macOS, locale files are in .lproj directories in Resources
-      return {
-        path: path.join(
-          appPath,
-          'Contents',
-          'Frameworks',
-          'Electron Framework.framework',
-          'Versions',
-          'A',
-          'Resources'
-        ),
-        isMacOS: true,
-      };
-    }
-
-    case 'win':
-    case 'win32':
-    case 'windows': {
-      const appPath = path.join(distDir, 'GChat-win32-x64');
-      return {
-        path: path.join(appPath, 'locales'),
-        isMacOS: false,
-      };
-    }
-
-    case 'linux': {
-      const appPath = path.join(distDir, 'GChat-linux-x64');
-      return {
-        path: path.join(appPath, 'locales'),
-        isMacOS: false,
-      };
-    }
-
-    default:
-      throw new Error(`Unknown platform: ${platform}`);
+  if (platform === 'mac' || platform === 'darwin') {
+    const archSuffix = arch === 'arm64' ? 'arm64' : 'x64';
+    const appPath = path.join(distDir, `Google Chat-darwin-${archSuffix}`, 'Google Chat.app');
+    // On macOS, locale files are in .lproj directories in Resources
+    return {
+      path: path.join(
+        appPath,
+        'Contents',
+        'Frameworks',
+        'Electron Framework.framework',
+        'Versions',
+        'A',
+        'Resources'
+      ),
+      isMacOS: true,
+    };
   }
+
+  throw new Error(`Unsupported platform: ${platform}. This script only supports macOS.`);
 }
 
 // Helper function to get directory size
@@ -119,7 +95,7 @@ function removeUnusedLocales() {
     const stats = fs.statSync(itemPath);
 
     // macOS uses .lproj directories
-    if (isMacOS && item.endsWith('.lproj')) {
+    if (item.endsWith('.lproj')) {
       const itemSize = stats.isDirectory() ? getDirectorySize(itemPath) : stats.size;
       totalSize += itemSize;
 
@@ -135,24 +111,6 @@ function removeUnusedLocales() {
       } else {
         keptCount++;
         console.log(`[Locale Cleanup] Kept: ${item} (${(itemSize / 1024).toFixed(1)} KB)`);
-      }
-    }
-    // Windows/Linux use .pak files
-    else if (!isMacOS && item.endsWith('.pak')) {
-      totalSize += stats.size;
-
-      if (!KEEP_LOCALES.includes(item)) {
-        try {
-          fs.unlinkSync(itemPath);
-          removedSize += stats.size;
-          removedCount++;
-          console.log(`[Locale Cleanup] Removed: ${item} (${(stats.size / 1024).toFixed(1)} KB)`);
-        } catch (error) {
-          console.error(`[Locale Cleanup] Failed to remove ${item}: ${error.message}`);
-        }
-      } else {
-        keptCount++;
-        console.log(`[Locale Cleanup] Kept: ${item} (${(stats.size / 1024).toFixed(1)} KB)`);
       }
     }
   });
