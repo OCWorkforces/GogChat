@@ -55,12 +55,23 @@ export interface AppConfig {
 }
 
 /**
+ * Store metadata for cache versioning and tracking
+ * ⚡ OPTIMIZATION: Used for cache invalidation on app updates
+ */
+export interface StoreMetadata {
+  cacheVersion?: string;
+  lastAppVersion?: string;
+  lastUpdated?: number;
+}
+
+/**
  * Complete electron-store type definition
  */
 export interface StoreType extends Record<string, unknown> {
   window: WindowState;
   app: AppConfig;
   messageLogging: MessageLogConfig;
+  _meta?: StoreMetadata;
 }
 
 /**

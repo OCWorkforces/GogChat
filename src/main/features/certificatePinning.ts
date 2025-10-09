@@ -83,12 +83,24 @@ function verifyCertificateValidity(cert: Certificate): boolean {
   return true;
 }
 
+// Store handler for cleanup
+let certificateErrorHandler:
+  | ((
+      event: Electron.Event,
+      webContents: Electron.WebContents,
+      url: string,
+      error: string,
+      certificate: Electron.Certificate,
+      callback: (isTrusted: boolean) => void
+    ) => void)
+  | null = null;
+
 /**
  * Initialize certificate pinning
  * Prevents MITM attacks on Google domains
  */
 export default function setupCertificatePinning(): void {
-  app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  certificateErrorHandler = (event, webContents, url, error, certificate, callback) => {
     // Prevent default behavior
     event.preventDefault();
 
@@ -119,7 +131,27 @@ export default function setupCertificatePinning(): void {
       });
       callback(false);
     }
-  });
+  };
+
+  app.on('certificate-error', certificateErrorHandler);
 
   log.info('[CertPinning] Certificate pinning initialized for Google domains');
+}
+
+/**
+ * Cleanup function for certificate pinning
+ */
+export function cleanupCertificatePinning(): void {
+  try {
+    log.debug('[CertPinning] Cleaning up certificate pinning handler');
+
+    if (certificateErrorHandler) {
+      app.removeListener('certificate-error', certificateErrorHandler);
+      certificateErrorHandler = null;
+    }
+
+    log.info('[CertPinning] Certificate pinning cleaned up');
+  } catch (error) {
+    log.error('[CertPinning] Failed to cleanup certificate pinning:', error);
+  }
 }

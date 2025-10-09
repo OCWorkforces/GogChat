@@ -78,7 +78,7 @@ export default (_window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent connectivity check spam
-  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, (event: IpcMainEvent) => {
+  const checkIfOnlineHandler = (event: IpcMainEvent) => {
     // Rate limit check (allow 1 check per second max)
     if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
       log.warn('[Connectivity] Check if online rate limited');
@@ -101,7 +101,22 @@ export default (_window: BrowserWindow) => {
         event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
       }
     })();
-  });
+  };
+
+  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, checkIfOnlineHandler);
 };
+
+/**
+ * Cleanup function for connectivity handler
+ */
+export function cleanupConnectivityHandler(): void {
+  try {
+    log.debug('[Connectivity] Cleaning up connectivity handler');
+    ipcMain.removeAllListeners(IPC_CHANNELS.CHECK_IF_ONLINE);
+    log.info('[Connectivity] Connectivity handler cleaned up');
+  } catch (error) {
+    log.error('[Connectivity] Failed to cleanup connectivity handler:', error);
+  }
+}
 
 export { checkForInternet };

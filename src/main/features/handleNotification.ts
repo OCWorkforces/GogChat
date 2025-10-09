@@ -7,7 +7,7 @@ export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent notification spam
-  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, (_event: IpcMainEvent) => {
+  const notificationClickedHandler = (_event: IpcMainEvent) => {
     try {
       // Rate limit check (max 5 clicks per second)
       if (!rateLimiter.isAllowed(IPC_CHANNELS.NOTIFICATION_CLICKED, 5)) {
@@ -23,5 +23,20 @@ export default (window: BrowserWindow) => {
     } catch (error) {
       log.error('[Notification] Failed to handle notification click:', error);
     }
-  });
+  };
+
+  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, notificationClickedHandler);
 };
+
+/**
+ * Cleanup function for notification handler
+ */
+export function cleanupNotificationHandler(): void {
+  try {
+    log.debug('[Notification] Cleaning up notification handler');
+    ipcMain.removeAllListeners(IPC_CHANNELS.NOTIFICATION_CLICKED);
+    log.info('[Notification] Notification handler cleaned up');
+  } catch (error) {
+    log.error('[Notification] Failed to cleanup notification handler:', error);
+  }
+}
