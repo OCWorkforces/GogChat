@@ -205,14 +205,6 @@ export default (window: BrowserWindow) => {
       label: 'Help',
       submenu: [
         {
-          label: 'Say Thanks to Developer',
-          click: () => {
-            setImmediate(() => {
-              void shell.openExternal(pkg.homepage);
-            });
-          },
-        },
-        {
           label: 'Check For Updates',
           enabled: true,
           click: () => {
