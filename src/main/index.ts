@@ -53,7 +53,7 @@ setupCertificatePinning();
 perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
 
 // Features
-reportExceptions().catch(console.error);
+reportExceptions();
 
 if (enforceSingleInstance()) {
   app

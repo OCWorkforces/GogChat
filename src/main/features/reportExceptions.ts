@@ -1,9 +1,9 @@
 import log from 'electron-log';
+import unhandled from 'electron-unhandled';
 import { openNewGitHubIssue, debugInfo } from '../utils/platform';
 import { getPackageInfo } from '../utils/packageInfo';
 
-export default async () => {
-  const { default: unhandled } = await import('electron-unhandled');
+export default () => {
   const packageJson = getPackageInfo();
 
   unhandled({

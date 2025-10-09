@@ -187,11 +187,7 @@ export class FeatureManager {
       managed.initTime = Date.now() - startTime;
 
       perfMonitor.mark(`feature-${config.name}-end`);
-      perfMonitor.measure(
-        `feature-${config.name}`,
-        `feature-${config.name}-start`,
-        `feature-${config.name}-end`
-      );
+      perfMonitor.measure(`feature-${config.name}-start`, `feature-${config.name}-end`);
 
       // Register cleanup handler
       if (config.cleanup) {

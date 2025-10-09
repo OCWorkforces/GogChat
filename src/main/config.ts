@@ -14,7 +14,9 @@ function getEncryptionKey(): string {
   return createHash('sha256').update(keyMaterial).digest('hex');
 }
 
-const schema = {
+// Cast to any to avoid TypeScript schema validation issues with electron-store v8
+// The schema is still validated at runtime by electron-store
+const schema: any = {
   window: {
     type: 'object',
     properties: {

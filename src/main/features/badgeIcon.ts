@@ -23,57 +23,13 @@ const decideIcon = (href: string): IconType => {
 };
 
 /**
- * Badge icon cache for Windows
- * Caches overlay icon instances to avoid repeated file I/O
- */
-const badgeIconCache = new Map<string, NativeImage>();
-
-/**
- * Get or create a badge overlay icon for Windows taskbar
- * For now, uses a generic badge icon from resources
- * TODO: Future enhancement - render count on icon using canvas package
- */
-const getBadgeOverlayIcon = (count: number): NativeImage | null => {
-  if (count <= 0) {
-    return null; // No badge needed
-  }
-
-  const cacheKey = count > 0 ? 'badge' : 'none';
-
-  // Check cache first
-  if (badgeIconCache.has(cacheKey)) {
-    return badgeIconCache.get(cacheKey)!;
-  }
-
-  try {
-    // Use badge icon from resources (16x16 for Windows overlay)
-    const icon = getIconCache().getIcon('resources/icons/badge/16.png');
-
-    // Cache the icon in our local cache too
-    badgeIconCache.set(cacheKey, icon);
-    log.debug(`[BadgeIcon] Cached overlay icon: ${cacheKey}`);
-
-    return icon;
-  } catch (error) {
-    log.error('[BadgeIcon] Failed to load badge overlay icon:', error);
-    return null;
-  }
-};
-
-/**
- * Update badge icon based on platform
+ * Update badge icon for macOS
+ * Uses dock badge to display unread count
  */
 const updateBadgeIcon = (window: BrowserWindow, count: number) => {
-  if (platform.isWindows) {
-    // Windows: Use overlay icon on taskbar
-    const icon = getBadgeOverlayIcon(count);
-    const description = count > 0 ? `${count} unread messages` : '';
-    window.setOverlayIcon(icon, description);
-    log.debug(`[BadgeIcon] Windows overlay icon updated: ${count}`);
-  }
-
-  // All platforms: Update badge count (dock on macOS, app icon on Linux)
+  // macOS: Use dock badge
   app.setBadgeCount(count);
+  log.debug(`[BadgeIcon] Dock badge updated: ${count}`);
 };
 
 export default (window: BrowserWindow, trayIcon: Tray) => {
