@@ -287,6 +287,377 @@ window: {
 }
 ```
 
+## Feature Management System
+
+### featureManager.ts
+Centralized feature lifecycle manager for organizing feature initialization, dependencies, and cleanup.
+
+**Purpose**: Provides structured feature management with:
+- Priority-based initialization (critical features first)
+- Dependency resolution (ensures features initialize in correct order)
+- State tracking (initialized, failed, disabled)
+- Performance monitoring (tracks initialization time)
+- Cleanup coordination (reverse-order cleanup)
+
+#### Key Exports
+
+**FeatureManager class:**
+```typescript
+export class FeatureManager {
+  register(config: FeatureConfig): void
+  registerAll(configs: FeatureConfig[]): void
+  setContext(context: FeatureContext): void
+  async initialize(priority?: FeaturePriority): Promise<void>
+  async initializeCritical(): Promise<void>
+  initializeDeferred(): void
+  async enableFeature(name: string): Promise<void>
+  async disableFeature(name: string): Promise<void>
+  getFeatureState(name: string): FeatureState | undefined
+  isInitialized(name: string): boolean
+  getStatus(): Record<string, {...}>
+  getStatistics(): { total, initialized, failed, disabled, totalInitTime }
+  async cleanup(): Promise<void>
+  reset(): void
+}
+
+export function getFeatureManager(): FeatureManager
+```
+
+**Feature priority levels:**
+```typescript
+export enum FeaturePriority {
+  CRITICAL = 0,   // Security and core functionality (blocks app ready)
+  HIGH = 1,       // User-facing critical features (blocks app ready)
+  MEDIUM = 2,     // Standard features (blocks app ready)
+  LOW = 3,        // Nice-to-have features (blocks app ready)
+  DEFERRED = 4,   // Loaded asynchronously after app ready
+}
+```
+
+**Feature states:**
+```typescript
+export enum FeatureState {
+  UNINITIALIZED = 'uninitialized',
+  INITIALIZING = 'initializing',
+  INITIALIZED = 'initialized',
+  FAILED = 'failed',
+  DISABLED = 'disabled',
+}
+```
+
+**Feature configuration:**
+```typescript
+export interface FeatureConfig {
+  name: string;
+  description?: string;
+  priority: FeaturePriority;
+  enabled?: boolean;
+  dependencies?: string[];  // Other feature names
+  initialize: (context: FeatureContext) => Promise<void> | void;
+  cleanup?: () => Promise<void> | void;
+  onError?: (error: Error) => void;
+}
+
+export interface FeatureContext {
+  mainWindow: BrowserWindow | null;
+  trayIcon: Tray | null;
+  isFirstLaunch?: boolean;
+  isDevelopment?: boolean;
+}
+```
+
+**Helper functions:**
+```typescript
+export function createFeature(
+  name: string,
+  priority: FeaturePriority,
+  initialize: (context: FeatureContext) => Promise<void> | void,
+  options?: {...}
+): FeatureConfig
+
+export function setupFeatureLifecycle(manager?: FeatureManager): void
+```
+
+#### Usage Examples
+
+**Basic setup:**
+```typescript
+import { getFeatureManager, FeaturePriority, createFeature } from './features/featureManager';
+
+const manager = getFeatureManager();
+
+// Register features
+manager.registerAll([
+  createFeature('certificate-pinning', FeaturePriority.CRITICAL, async (ctx) => {
+    await setupCertificatePinning();
+  }),
+
+  createFeature('tray-icon', FeaturePriority.HIGH, (ctx) => {
+    ctx.trayIcon = createTrayIcon();
+  }),
+
+  createFeature('auto-updates', FeaturePriority.DEFERRED, async (ctx) => {
+    await checkForUpdates();
+  }, {
+    description: 'Check for application updates',
+    dependencies: ['tray-icon'],  // Requires tray icon
+    cleanup: async () => {
+      await cancelUpdateCheck();
+    },
+  }),
+]);
+
+// Set context
+manager.setContext({
+  mainWindow: window,
+  trayIcon: null,
+  isFirstLaunch: true,
+  isDevelopment: !app.isPackaged,
+});
+
+// Initialize critical features (blocking)
+await manager.initializeCritical();
+
+// Initialize deferred features (non-blocking)
+manager.initializeDeferred();
+
+// Setup lifecycle hooks
+setupFeatureLifecycle(manager);
+```
+
+**Priority-based initialization:**
+```typescript
+// Initialize only critical features (security, core)
+await manager.initialize(FeaturePriority.CRITICAL);
+
+// Initialize all features up to a priority level
+for (let priority = FeaturePriority.CRITICAL; priority <= FeaturePriority.MEDIUM; priority++) {
+  await manager.initialize(priority);
+}
+```
+
+**Feature with dependencies:**
+```typescript
+manager.register({
+  name: 'badge-icon',
+  priority: FeaturePriority.HIGH,
+  dependencies: ['tray-icon'],  // Requires tray icon to be initialized first
+  initialize: async (ctx) => {
+    if (ctx.trayIcon) {
+      setupBadgeIcon(ctx.mainWindow, ctx.trayIcon);
+    }
+  },
+});
+```
+
+**Monitoring feature status:**
+```typescript
+// Check individual feature
+if (manager.isInitialized('certificate-pinning')) {
+  console.log('Certificate pinning is active');
+}
+
+// Get all feature states
+const status = manager.getStatus();
+console.log(status);
+// {
+//   'certificate-pinning': { state: 'initialized', priority: 'CRITICAL', initTime: 15 },
+//   'tray-icon': { state: 'initialized', priority: 'HIGH', initTime: 8 },
+//   'auto-updates': { state: 'failed', error: 'Network error', priority: 'DEFERRED' }
+// }
+
+// Get statistics
+const stats = manager.getStatistics();
+console.log(`${stats.initialized}/${stats.total} features initialized in ${stats.totalInitTime}ms`);
+```
+
+**Dynamic feature management:**
+```typescript
+// Disable a feature at runtime
+await manager.disableFeature('auto-updates');
+
+// Re-enable a feature
+await manager.enableFeature('auto-updates');
+```
+
+**Custom error handling:**
+```typescript
+manager.register({
+  name: 'analytics',
+  priority: FeaturePriority.LOW,
+  initialize: async (ctx) => {
+    await initAnalytics();
+  },
+  onError: (error) => {
+    // Custom error handling
+    console.error('Analytics failed, continuing without it:', error);
+    // Could send to error tracking service
+  },
+});
+```
+
+#### Benefits
+
+**Organized initialization:**
+- Features load in priority order (critical → deferred)
+- Dependencies automatically resolved
+- Clear initialization sequence
+
+**Error resilience:**
+- Non-critical feature failures don't crash the app
+- Failed features logged with details
+- Custom error handlers for recovery
+
+**Performance tracking:**
+- Initialization time measured per feature
+- Total startup time calculated
+- Slow features identified
+
+**Easy testing:**
+- Enable/disable features dynamically
+- Mock context for unit tests
+- Reset manager between tests
+
+**Maintainability:**
+- Centralized feature registry
+- Self-documenting dependencies
+- Consistent initialization pattern
+
+#### Migration Guide
+
+**Before (manual initialization):**
+```typescript
+app.whenReady().then(() => {
+  try {
+    setupCertificatePinning();
+    const tray = createTrayIcon();
+    setupBadgeIcon(window, tray);
+
+    setImmediate(() => {
+      checkForUpdates();
+      setupContextMenu();
+    });
+  } catch (error) {
+    console.error('Failed to initialize:', error);
+  }
+});
+```
+
+**After (using FeatureManager):**
+```typescript
+import { getFeatureManager, FeaturePriority, createFeature, setupFeatureLifecycle } from './features/featureManager';
+
+const manager = getFeatureManager();
+
+manager.registerAll([
+  createFeature('certificate-pinning', FeaturePriority.CRITICAL, () => setupCertificatePinning()),
+  createFeature('tray-icon', FeaturePriority.HIGH, (ctx) => { ctx.trayIcon = createTrayIcon(); }),
+  createFeature('badge-icon', FeaturePriority.HIGH, (ctx) => setupBadgeIcon(ctx.mainWindow, ctx.trayIcon), {
+    dependencies: ['tray-icon'],
+  }),
+  createFeature('auto-updates', FeaturePriority.DEFERRED, () => checkForUpdates()),
+  createFeature('context-menu', FeaturePriority.DEFERRED, () => setupContextMenu()),
+]);
+
+app.whenReady().then(async () => {
+  manager.setContext({ mainWindow: window, trayIcon: null });
+
+  await manager.initializeCritical();
+  manager.initializeDeferred();
+
+  setupFeatureLifecycle(manager);
+});
+```
+
+#### Best Practices
+
+**Assign correct priorities:**
+- **CRITICAL**: Certificate pinning, security features, core IPC handlers
+- **HIGH**: Tray icon, menu, window state, user-facing features
+- **MEDIUM**: Badge icons, notifications, external links
+- **LOW**: Context menu, spell checker, keyboard shortcuts
+- **DEFERRED**: Auto-updates, first launch logging, analytics
+
+**Declare dependencies:**
+```typescript
+// Good: Explicit dependency
+createFeature('badge-icon', FeaturePriority.HIGH, (ctx) => {
+  setupBadgeIcon(ctx.trayIcon);
+}, {
+  dependencies: ['tray-icon'],  // Wait for tray icon
+});
+
+// Bad: Hidden dependency (might fail if tray not ready)
+createFeature('badge-icon', FeaturePriority.HIGH, (ctx) => {
+  setupBadgeIcon(ctx.trayIcon);  // ctx.trayIcon might be null!
+});
+```
+
+**Provide cleanup handlers:**
+```typescript
+createFeature('polling-service', FeaturePriority.MEDIUM, () => {
+  const interval = setInterval(poll, 1000);
+}, {
+  cleanup: () => {
+    clearInterval(interval);  // Cleanup on app quit
+  },
+});
+```
+
+**Use context for shared state:**
+```typescript
+// Share tray icon via context
+createFeature('tray-icon', FeaturePriority.HIGH, (ctx) => {
+  ctx.trayIcon = createTrayIcon();  // Store in context
+});
+
+createFeature('badge-icon', FeaturePriority.HIGH, (ctx) => {
+  if (ctx.trayIcon) {  // Access from context
+    setupBadgeIcon(ctx.trayIcon);
+  }
+}, {
+  dependencies: ['tray-icon'],
+});
+```
+
+**Handle errors gracefully:**
+```typescript
+createFeature('optional-analytics', FeaturePriority.DEFERRED, async () => {
+  await initAnalytics();
+}, {
+  onError: (error) => {
+    // Log but don't block app
+    console.warn('Analytics unavailable:', error.message);
+  },
+});
+```
+
+#### Integration with Existing Code
+
+The feature manager can be adopted incrementally:
+
+1. **Start with critical features**: Migrate security features first
+2. **Add high-priority features**: Window, tray, menu
+3. **Migrate deferred features**: Updates, analytics
+4. **Remove manual initialization**: Delete old app.whenReady() code
+5. **Add lifecycle hooks**: Use setupFeatureLifecycle()
+
+**Coexistence pattern:**
+```typescript
+// Old features (still manual)
+app.whenReady().then(() => {
+  setupLegacyFeature();
+
+  // New features (using manager)
+  const manager = getFeatureManager();
+  manager.register(...);
+  manager.setContext(...);
+  await manager.initialize();
+});
+```
+
+---
+
 ## Adding a New Feature
 
 1. Create `myFeature.ts` in this directory

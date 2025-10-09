@@ -204,6 +204,814 @@ This utility wraps `electron-log` which provides:
 - Object pretty-printing
 - Remote logging support (disabled by default)
 
+### ipcHelper.ts
+Factory functions for creating secure, validated IPC handlers with consistent security patterns.
+
+#### Key Exports
+
+**Handler configuration interfaces:**
+```typescript
+export interface IPCHandlerConfig<T> {
+  channel: string;
+  validator: (data: unknown) => T;
+  handler: (data: T, event: IpcMainEvent | IpcMainInvokeEvent) => void | Promise<void>;
+  rateLimit?: number;
+  onError?: (error: Error, event: IpcMainEvent | IpcMainInvokeEvent) => void;
+  silent?: boolean;
+  description?: string;
+}
+
+export interface IPCReplyHandlerConfig<T, R> extends Omit<IPCHandlerConfig<T>, 'handler'> {
+  handler: (data: T, event: IpcMainEvent) => R | Promise<R>;
+  replyChannel?: string;
+}
+
+export interface IPCInvokeHandlerConfig<T, R> extends Omit<IPCHandlerConfig<T>, 'handler'> {
+  handler: (data: T, event: IpcMainInvokeEvent) => R | Promise<R>;
+}
+```
+
+**Factory functions:**
+```typescript
+// One-way communication (renderer -> main)
+export function createSecureIPCHandler<T>(config: IPCHandlerConfig<T>): () => void
+
+// Request/response with event.reply()
+export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, R>): () => void
+
+// Promise-based request/response with ipcRenderer.invoke()
+export function createSecureInvokeHandler<T, R>(config: IPCInvokeHandlerConfig<T, R>): () => void
+
+// Broadcast to all windows
+export function createBroadcastHandler<T>(config: {
+  channel: string;
+  validator: (data: unknown) => T;
+  filter?: (window: BrowserWindow, data: T) => boolean;
+}): (data: unknown) => void
+
+// Send to specific window
+export function sendToWindow<T>(
+  window: BrowserWindow | null,
+  channel: string,
+  data: T,
+  validator?: (data: T) => T
+): boolean
+```
+
+**Handler manager:**
+```typescript
+export class IPCHandlerManager {
+  register<T>(config: IPCHandlerConfig<T>): void
+  registerReply<T, R>(config: IPCReplyHandlerConfig<T, R>): void
+  registerInvoke<T, R>(config: IPCInvokeHandlerConfig<T, R>): void
+  cleanup(): void
+}
+
+export function getIPCManager(): IPCHandlerManager
+export function cleanupGlobalHandlers(): void
+```
+
+**Common validators:**
+```typescript
+export const commonValidators = {
+  isObject: (data: unknown): Record<string, unknown>
+  isString: (data: unknown): string
+  isNumber: (data: unknown): number
+  isBoolean: (data: unknown): boolean
+  passthrough: <T>(data: unknown): T
+}
+```
+
+#### Usage Examples
+
+**Creating a secure IPC handler:**
+```typescript
+import { createSecureIPCHandler, commonValidators } from '../utils/ipcHelper';
+import { IPC_CHANNELS } from '../../shared/constants';
+
+const cleanup = createSecureIPCHandler({
+  channel: IPC_CHANNELS.UNREAD_COUNT,
+  validator: commonValidators.isNumber,
+  handler: (count, event) => {
+    updateBadge(count);
+  },
+  rateLimit: 5,
+  description: 'Update unread count badge',
+});
+
+// Later, to cleanup:
+cleanup();
+```
+
+**Using invoke handler for async responses:**
+```typescript
+import { createSecureInvokeHandler } from '../utils/ipcHelper';
+
+const cleanup = createSecureInvokeHandler({
+  channel: 'get-app-version',
+  validator: commonValidators.passthrough,
+  handler: async (data, event) => {
+    return app.getVersion();
+  },
+  rateLimit: 10,
+});
+```
+
+**Using handler manager:**
+```typescript
+import { getIPCManager, commonValidators } from '../utils/ipcHelper';
+
+const manager = getIPCManager();
+
+manager.register({
+  channel: 'channel-1',
+  validator: commonValidators.isString,
+  handler: (data) => console.log(data),
+});
+
+manager.registerInvoke({
+  channel: 'channel-2',
+  validator: commonValidators.isNumber,
+  handler: async (data) => data * 2,
+});
+
+// Cleanup all handlers at once
+manager.cleanup();
+```
+
+**Broadcasting to all windows:**
+```typescript
+import { createBroadcastHandler } from '../utils/ipcHelper';
+
+const broadcast = createBroadcastHandler({
+  channel: 'settings-changed',
+  validator: commonValidators.isObject,
+  filter: (window, data) => !window.isDestroyed(),
+});
+
+broadcast({ theme: 'dark' });
+```
+
+#### Benefits
+
+**Reduces boilerplate:**
+- No need to manually implement rate limiting in every handler
+- Validation logic centralized and reusable
+- Consistent error handling across all IPC handlers
+
+**Security by default:**
+- All handlers include rate limiting
+- All inputs validated before processing
+- All errors caught and logged
+- Type-safe validators prevent runtime errors
+
+**Easy cleanup:**
+- Each factory returns a cleanup function
+- Handler manager allows batch cleanup
+- Prevents memory leaks from orphaned listeners
+
+---
+
+### ipcDeduplicator.ts
+Prevents duplicate IPC requests from being processed in quick succession. Useful for debouncing rapid state changes and preventing redundant work.
+
+#### Key Exports
+
+**IPCDeduplicator class:**
+```typescript
+export class IPCDeduplicator {
+  constructor(config?: DeduplicationConfig)
+
+  // Deduplicate a request by key
+  async deduplicate<T>(key: string, fn: () => Promise<T>, windowMs?: number): Promise<T>
+
+  // Deduplicate with custom key generation
+  async deduplicateWithKey<T, A extends unknown[]>(
+    keyFn: (...args: A) => string,
+    fn: (...args: A) => Promise<T>,
+    ...args: A
+  ): Promise<T>
+
+  // Create a deduplicated version of a function
+  createDeduplicated<T, A extends unknown[]>(
+    fn: (...args: A) => Promise<T>,
+    keyFn: (...args: A) => string,
+    windowMs?: number
+  ): (...args: A) => Promise<T>
+
+  // Cache management
+  clear(key: string): void
+  clearAll(): void
+  getStats(): { deduplicatedCount: number; cacheHits: number; cacheMisses: number }
+  getCacheSize(): number
+  destroy(): void
+}
+```
+
+**Configuration:**
+```typescript
+export interface DeduplicationConfig {
+  windowMs?: number;        // Time window (default: 100ms)
+  maxCacheSize?: number;    // Max cached keys (default: 100)
+  debug?: boolean;          // Enable debug logging (default: false)
+}
+```
+
+**Singleton helpers:**
+```typescript
+export function getDeduplicator(): IPCDeduplicator
+export function destroyDeduplicator(): void
+```
+
+**Common patterns:**
+```typescript
+export const deduplicationPatterns = {
+  byChannel: (channel: string) => channel,
+  byChannelAndData: (channel: string, data: unknown) => string,
+  byChannelAndFirstArg: (channel: string, arg: unknown) => string,
+  byWindowOperation: (operation: string, windowId?: number) => string,
+  byFileOperation: (operation: string, path: string) => string,
+}
+```
+
+**Helper functions:**
+```typescript
+export function createDeduplicatedHandler<T>(
+  channel: string,
+  handler: () => Promise<T>,
+  windowMs?: number
+): () => Promise<T>
+
+export function withDeduplication<T, A extends unknown[]>(
+  fn: (...args: A) => Promise<T>,
+  keyFn: (...args: A) => string,
+  windowMs?: number
+): (...args: A) => Promise<T>
+```
+
+#### How It Works
+
+**Deduplication algorithm:**
+1. When a request comes in, check if there's a pending request with the same key
+2. If found within the time window, return the existing promise (cache hit)
+3. Otherwise, execute the function and cache the promise (cache miss)
+4. Multiple requests with the same key share the same promise
+5. Cache entries expire after the time window
+
+**Memory management:**
+- Automatic cleanup every 1 second
+- Removes entries older than 2x the time window
+- Prevents unbounded memory growth
+
+**Statistics tracking:**
+- Counts cache hits (deduplicated requests)
+- Counts cache misses (new requests)
+- Total deduplicated count
+
+#### Usage Examples
+
+**Basic deduplication:**
+```typescript
+import { getDeduplicator } from '../utils/ipcDeduplicator';
+
+const deduplicator = getDeduplicator();
+
+async function fetchUserData(userId: string) {
+  return deduplicator.deduplicate(
+    `fetch-user-${userId}`,
+    async () => {
+      // Expensive operation
+      return await database.getUser(userId);
+    },
+    200 // 200ms window
+  );
+}
+
+// Multiple calls within 200ms share the same promise:
+const user1 = fetchUserData('123'); // Executes
+const user2 = fetchUserData('123'); // Returns same promise (deduplicated)
+const user3 = fetchUserData('123'); // Returns same promise (deduplicated)
+```
+
+**Creating a deduplicated function:**
+```typescript
+import { withDeduplication } from '../utils/ipcDeduplicator';
+
+const saveSettings = withDeduplication(
+  async (settings: Settings) => {
+    await store.set('settings', settings);
+  },
+  (settings) => 'save-settings', // All calls use same key
+  300 // 300ms window
+);
+
+// Rapid calls are deduplicated:
+saveSettings({ theme: 'dark' });
+saveSettings({ theme: 'light' }); // Deduplicated
+saveSettings({ theme: 'auto' });  // Deduplicated
+```
+
+**Custom key generation:**
+```typescript
+import { getDeduplicator, deduplicationPatterns } from '../utils/ipcDeduplicator';
+
+const deduplicator = getDeduplicator();
+
+async function updateWindowBounds(windowId: number, bounds: Rectangle) {
+  return deduplicator.deduplicateWithKey(
+    deduplicationPatterns.byWindowOperation,
+    async (op: string, id: number) => {
+      await saveBoundsToStore(id, bounds);
+    },
+    'update-bounds',
+    windowId
+  );
+}
+```
+
+**Monitoring statistics:**
+```typescript
+import { getDeduplicator } from '../utils/ipcDeduplicator';
+
+const deduplicator = getDeduplicator();
+const stats = deduplicator.getStats();
+
+console.log(`Deduplicated: ${stats.deduplicatedCount} requests`);
+console.log(`Cache hits: ${stats.cacheHits}`);
+console.log(`Cache misses: ${stats.cacheMisses}`);
+console.log(`Hit rate: ${(stats.cacheHits / (stats.cacheHits + stats.cacheMisses) * 100).toFixed(1)}%`);
+```
+
+#### Use Cases
+
+**Window state saving:**
+- User resizes window rapidly → multiple resize events
+- Deduplication ensures only last resize is saved
+- Reduces disk I/O operations
+
+**Badge count updates:**
+- Google Chat sends rapid unread count changes
+- Deduplication batches updates automatically
+- Prevents excessive badge icon rendering
+
+**Configuration changes:**
+- Settings UI triggers rapid updates (e.g., slider movements)
+- Deduplication saves only final value
+- Improves UI responsiveness
+
+**Search queries:**
+- User types rapidly in search box
+- Each keystroke triggers search
+- Deduplication ensures only final query executes
+
+#### Performance Characteristics
+
+**Time complexity:**
+- `deduplicate()`: O(1) hash map lookup
+- `cleanup()`: O(n) where n = cached entries
+- Very fast for typical use cases
+
+**Memory usage:**
+- ~200 bytes per cached promise
+- Default max: 100 entries = ~20KB
+- Auto-cleanup prevents growth
+
+**Best practices:**
+- Use short time windows (50-300ms) for UI operations
+- Use longer windows (500-1000ms) for expensive operations
+- Monitor statistics to tune window sizes
+- Clear cache when feature is disabled/destroyed
+
+---
+
+### platform.ts
+Platform detection and utilities for cross-platform functionality.
+
+#### Key Exports
+
+**Platform detection:**
+```typescript
+export type Platform = 'darwin' | 'win32' | 'linux';
+
+export const platform = {
+  isMac: boolean,
+  isWindows: boolean,
+  isLinux: boolean,
+  name: Platform,
+  config: PlatformConfig,
+}
+
+export interface PlatformConfig {
+  supportsOverlayIcon: boolean;
+  supportsDockBadge: boolean;
+  supportsTaskbarBadge: boolean;
+  supportsTrayIcon: boolean;
+  supportsAutoLaunch: boolean;
+  supportsSpellChecker: boolean;
+  defaultIconFormat: 'ico' | 'icns' | 'png';
+  trayIconSize: { width: number; height: number };
+}
+```
+
+**PlatformUtils class:**
+```typescript
+export class PlatformUtils {
+  getAppIconPath(): string
+  getTrayIconPath(): string
+  createTrayIcon(): Tray
+  setBadge(window: BrowserWindow, count: number): void
+  clearBadge(window: BrowserWindow): void
+  getShortcuts(): Record<string, string>
+  applyWindowOptions(options: Electron.BrowserWindowConstructorOptions): void
+  isFeatureSupported(feature: keyof PlatformConfig): boolean
+  getPlatformInfo(): Record<string, unknown>
+}
+
+export function getPlatformUtils(): PlatformUtils
+```
+
+**Utility functions:**
+```typescript
+export function enforceMacOSAppLocation(): void
+export function openNewGitHubIssue(options: {
+  repoUrl: string;
+  body?: string;
+  title?: string;
+  labels?: string[];
+}): void
+export function debugInfo(): string
+export function isFirstAppLaunch(store: Store<StoreType>): boolean
+export function getAppPath(): string
+export function isPackaged(): boolean
+export function isDevelopment(): boolean
+```
+
+**Feature support checks:**
+```typescript
+export const supports = {
+  overlayIcon: () => boolean,
+  dockBadge: () => boolean,
+  taskbarBadge: () => boolean,
+  trayIcon: () => boolean,
+  autoLaunch: () => boolean,
+  spellChecker: () => boolean,
+}
+```
+
+#### Usage Examples
+
+**Platform-specific badge handling:**
+```typescript
+import { getPlatformUtils } from '../utils/platform';
+
+const platformUtils = getPlatformUtils();
+
+// Set badge count (automatically handles platform differences)
+platformUtils.setBadge(mainWindow, 5);
+
+// Clear badge
+platformUtils.clearBadge(mainWindow);
+```
+
+**Creating tray icon:**
+```typescript
+import { getPlatformUtils } from '../utils/platform';
+
+const platformUtils = getPlatformUtils();
+const tray = platformUtils.createTrayIcon();
+
+// Tray is automatically configured for the current platform
+```
+
+**Platform-specific keyboard shortcuts:**
+```typescript
+import { getPlatformUtils } from '../utils/platform';
+
+const platformUtils = getPlatformUtils();
+const shortcuts = platformUtils.getShortcuts();
+
+console.log(shortcuts.quit);        // 'Cmd+Q' on macOS, 'Ctrl+Q' elsewhere
+console.log(shortcuts.preferences); // 'Cmd+,' on macOS, 'Ctrl+,' elsewhere
+```
+
+**Applying platform-specific window options:**
+```typescript
+import { getPlatformUtils } from '../utils/platform';
+
+const platformUtils = getPlatformUtils();
+const options: BrowserWindowConstructorOptions = {
+  width: 800,
+  height: 600,
+};
+
+platformUtils.applyWindowOptions(options);
+// macOS: Adds titleBarStyle, trafficLightPosition
+// Windows: Adds autoHideMenuBar
+// Linux: Adds icon
+```
+
+**Checking feature support:**
+```typescript
+import { supports } from '../utils/platform';
+
+if (supports.dockBadge()) {
+  // Use dock badge (macOS only)
+  app.dock.setBadge('5');
+} else if (supports.overlayIcon()) {
+  // Use overlay icon (Windows only)
+  window.setOverlayIcon(icon, 'description');
+}
+```
+
+**Getting debug information:**
+```typescript
+import { debugInfo } from '../utils/platform';
+
+const info = debugInfo();
+// Returns formatted string with:
+// - App name and version
+// - Electron/Chrome/Node/V8 versions
+// - Platform and architecture
+// - Memory usage
+```
+
+#### Platform Differences
+
+**Badge/Overlay Icons:**
+- **macOS**: Uses `app.dock.setBadge()` for dock badge
+- **Windows**: Uses `window.setOverlayIcon()` for taskbar overlay
+- **Linux**: Limited support, attempts `app.setBadgeCount()`
+
+**Tray Icons:**
+- **macOS**: 16x16 template PNG (auto-adapts to dark/light mode)
+- **Windows**: 16x16 ICO format
+- **Linux**: 16x16 PNG format
+
+**Window Decorations:**
+- **macOS**: Hidden inset title bar with custom traffic light position
+- **Windows**: Auto-hide menu bar enabled by default
+- **Linux**: Custom icon path required
+
+**Keyboard Shortcuts:**
+- **macOS**: Uses `Cmd` modifier
+- **Windows/Linux**: Uses `Ctrl` modifier
+
+---
+
+### resourceCleanup.ts
+Manages cleanup of resources when windows close or the app quits. Prevents memory leaks and ensures graceful shutdown.
+
+#### Key Exports
+
+**ResourceCleanupManager class:**
+```typescript
+export class ResourceCleanupManager {
+  registerTask(task: CleanupTask): void
+  registerTasks(tasks: CleanupTask[]): void
+  trackInterval(interval: NodeJS.Timeout): void
+  trackTimeout(timeout: NodeJS.Timeout): void
+  trackListener(target: EventTarget, event: string, handler: EventHandler): void
+  async cleanup(config?: CleanupConfig): Promise<void>
+  reset(): void
+}
+
+export interface CleanupTask {
+  name: string;
+  cleanup: () => void | Promise<void>;
+  critical?: boolean;
+}
+
+export interface CleanupConfig {
+  window?: BrowserWindow;
+  includeGlobalResources?: boolean;
+  logDetails?: boolean;
+}
+```
+
+**Singleton helpers:**
+```typescript
+export function getCleanupManager(): ResourceCleanupManager
+export function setupWindowCleanup(window: BrowserWindow): void
+export function setupAppCleanup(): void
+```
+
+**Tracked resource helpers:**
+```typescript
+export function createTrackedInterval(
+  callback: () => void,
+  delay: number,
+  name?: string
+): NodeJS.Timeout
+
+export function createTrackedTimeout(
+  callback: () => void,
+  delay: number,
+  name?: string
+): NodeJS.Timeout
+
+export function addTrackedListener(
+  target: EventTarget,
+  event: string,
+  handler: EventHandler,
+  name?: string
+): void
+
+export function registerCleanupTask(
+  name: string,
+  cleanup: () => void | Promise<void>,
+  critical?: boolean
+): void
+```
+
+#### How It Works
+
+**Resource tracking:**
+- Maintains sets/arrays of intervals, timeouts, and event listeners
+- Each resource is tracked when created
+- All tracked resources are cleaned up together
+
+**Cleanup phases:**
+1. **Intervals**: Clear all tracked intervals
+2. **Timeouts**: Clear all tracked timeouts
+3. **Event listeners**: Remove all tracked listeners
+4. **Registered tasks**: Execute custom cleanup functions
+5. **Global resources** (optional): IPC handlers, rate limiter, caches, etc.
+
+**Cleanup triggers:**
+- **Window close**: Cleanup window-specific resources
+- **App quit**: Cleanup all resources including global ones
+- **Manual**: Via `cleanup()` method
+
+**Concurrent cleanup protection:**
+- Prevents multiple concurrent cleanup operations
+- Returns existing promise if cleanup is already in progress
+
+#### Usage Examples
+
+**Setting up window cleanup:**
+```typescript
+import { setupWindowCleanup } from '../utils/resourceCleanup';
+
+const mainWindow = new BrowserWindow({ ... });
+setupWindowCleanup(mainWindow);
+
+// Cleanup happens automatically when window closes
+```
+
+**Setting up app-level cleanup:**
+```typescript
+import { setupAppCleanup } from '../utils/resourceCleanup';
+
+app.whenReady().then(() => {
+  setupAppCleanup();
+  // Cleanup happens automatically on app quit
+});
+```
+
+**Tracking intervals:**
+```typescript
+import { createTrackedInterval } from '../utils/resourceCleanup';
+
+// Instead of setInterval:
+const interval = createTrackedInterval(
+  () => console.log('Polling...'),
+  1000,
+  'Polling interval'
+);
+
+// Automatically cleaned up on window close or app quit
+```
+
+**Tracking event listeners:**
+```typescript
+import { addTrackedListener } from '../utils/resourceCleanup';
+
+// Instead of window.on:
+addTrackedListener(
+  mainWindow,
+  'resize',
+  handleResize,
+  'Window resize handler'
+);
+
+// Automatically removed on cleanup
+```
+
+**Registering custom cleanup tasks:**
+```typescript
+import { registerCleanupTask } from '../utils/resourceCleanup';
+
+registerCleanupTask(
+  'Close database connection',
+  async () => {
+    await database.close();
+  },
+  true // critical task
+);
+```
+
+**Using the manager directly:**
+```typescript
+import { getCleanupManager } from '../utils/resourceCleanup';
+
+const manager = getCleanupManager();
+
+// Register multiple tasks
+manager.registerTasks([
+  {
+    name: 'Task 1',
+    cleanup: () => console.log('Cleanup 1'),
+  },
+  {
+    name: 'Task 2',
+    cleanup: async () => {
+      await asyncCleanup();
+    },
+    critical: true,
+  },
+]);
+
+// Manual cleanup
+await manager.cleanup({
+  includeGlobalResources: true,
+  logDetails: true,
+});
+```
+
+#### What Gets Cleaned Up
+
+**Window-specific resources:**
+- IPC listeners (all channels)
+- Web contents session cache
+- Web contents storage data (cookies, localStorage, sessionStorage)
+- Tracked intervals/timeouts
+- Tracked event listeners
+- Custom cleanup tasks
+
+**Global resources** (when `includeGlobalResources: true`):
+- IPC handlers (via `cleanupGlobalHandlers()`)
+- Rate limiter (via `destroyRateLimiter()`)
+- Deduplicator (via `destroyDeduplicator()`)
+- Icon cache (via `getIconCache().clear()`)
+- Config cache (via `clearConfigCache()`)
+
+#### Best Practices
+
+**Use tracked resource helpers:**
+```typescript
+// Good:
+createTrackedInterval(callback, 1000, 'My interval');
+
+// Avoid:
+setInterval(callback, 1000); // Won't be cleaned up
+```
+
+**Register cleanup for external resources:**
+```typescript
+registerCleanupTask('Database', async () => {
+  await db.close();
+}, true);
+```
+
+**Mark critical tasks:**
+```typescript
+{
+  name: 'Save user data',
+  cleanup: async () => await saveData(),
+  critical: true, // Errors logged as errors, not debug
+}
+```
+
+**Setup early:**
+```typescript
+app.whenReady().then(() => {
+  const window = createWindow();
+  setupWindowCleanup(window); // Setup immediately after window creation
+  setupAppCleanup();          // Setup once per app
+});
+```
+
+#### Performance Characteristics
+
+**Cleanup time:**
+- Synchronous cleanup: < 10ms for typical resources
+- Async cleanup: Depends on task complexity
+- All cleanup tasks run in parallel
+
+**Memory leak prevention:**
+- Intervals/timeouts: Cleared to prevent background execution
+- Event listeners: Removed to prevent memory retention
+- IPC handlers: Removed to prevent orphaned listeners
+- Caches: Cleared to release memory
+
+**Graceful shutdown:**
+- `before-quit` event prevented until cleanup completes
+- All async tasks awaited
+- Errors logged but don't block shutdown
+- `app.exit()` called after cleanup
+
+---
+
 ### rateLimiter.ts
 IPC rate limiter to prevent flooding, DoS attacks, and abuse of IPC channels.
 
