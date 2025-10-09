@@ -4,8 +4,8 @@
  */
 
 import log from 'electron-log';
-import { RATE_LIMITS } from '../../shared/constants';
-import type { RateLimitEntry } from '../../shared/types';
+import { RATE_LIMITS } from '../../shared/constants.js';
+import type { RateLimitEntry } from '../../shared/types.js';
 
 /**
  * Rate limiter for IPC channels

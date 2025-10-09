@@ -4,7 +4,7 @@
  * Useful for debouncing rapid state changes and preventing redundant work
  */
 
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 /**
  * Deduplication configuration

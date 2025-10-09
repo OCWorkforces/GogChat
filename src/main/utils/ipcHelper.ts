@@ -5,8 +5,8 @@
  */
 
 import { ipcMain, IpcMainEvent, BrowserWindow, IpcMainInvokeEvent } from 'electron';
-import { getRateLimiter } from './rateLimiter';
-import { logger } from './logger';
+import { getRateLimiter } from './rateLimiter.js';
+import { logger } from './logger.js';
 
 /**
  * Configuration for creating a secure IPC handler

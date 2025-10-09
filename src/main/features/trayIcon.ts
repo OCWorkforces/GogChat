@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, Tray } from 'electron';
-import { getIconCache } from '../utils/iconCache';
+import { getIconCache } from '../utils/iconCache.js';
 
 export default (window: BrowserWindow) => {
   // macOS uses 16px tray icons

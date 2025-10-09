@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import os from 'os';
-import { getPackageInfo } from '../utils/packageInfo';
+import { getPackageInfo } from '../utils/packageInfo.js';
 
 export default (_window: BrowserWindow) => {
   const packageJson = getPackageInfo();

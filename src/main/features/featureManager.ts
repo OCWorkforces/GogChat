@@ -4,8 +4,8 @@
  */
 
 import { BrowserWindow, Tray, app } from 'electron';
-import { logger } from '../utils/logger';
-import { perfMonitor } from '../utils/performanceMonitor';
+import { logger } from '../utils/logger.js';
+import { perfMonitor } from '../utils/performanceMonitor.js';
 
 /**
  * Feature priority levels

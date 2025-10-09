@@ -6,12 +6,12 @@
 
 import { ipcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
-import { IPC_CHANNELS, RATE_LIMITS, MESSAGE_LOGGING } from '../../shared/constants';
-import { validateMessageData } from '../../shared/validators';
-import { getMessageDatabase, closeMessageDatabase } from '../database/messageDatabase';
-import { getRateLimiter } from '../utils/rateLimiter';
-import { logger } from '../utils/logger';
-import store from '../config';
+import { IPC_CHANNELS, RATE_LIMITS, MESSAGE_LOGGING } from '../../shared/constants.js';
+import { validateMessageData } from '../../shared/validators.js';
+import { getMessageDatabase, closeMessageDatabase } from '../database/messageDatabase.js';
+import { getRateLimiter } from '../utils/rateLimiter.js';
+import { logger } from '../utils/logger.js';
+import store from '../config.js';
 
 const log = logger.feature('MessageLogger');
 const rateLimiter = getRateLimiter();

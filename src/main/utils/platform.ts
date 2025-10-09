@@ -4,11 +4,16 @@
  */
 
 import { app, shell, nativeImage, Tray, BrowserWindow } from 'electron';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import os from 'os';
 import type Store from 'electron-store';
-import type { StoreType } from '../../shared/types';
-import { logger } from './logger';
+import type { StoreType } from '../../shared/types.js';
+import { logger } from './logger.js';
+
+// ESM __dirname replacement
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * macOS Platform configuration

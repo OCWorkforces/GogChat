@@ -1,10 +1,10 @@
 import { ipcMain, app, BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
-import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants';
-import { validateFaviconURL, validateUnreadCount } from '../../shared/validators';
-import { getRateLimiter } from '../utils/rateLimiter';
-import { getIconCache } from '../utils/iconCache';
-import type { IconType } from '../../shared/types';
+import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants.js';
+import { validateFaviconURL, validateUnreadCount } from '../../shared/validators.js';
+import { getRateLimiter } from '../utils/rateLimiter.js';
+import { getIconCache } from '../utils/iconCache.js';
+import type { IconType } from '../../shared/types.js';
 
 /**
  * Decide app icon based on favicon URL

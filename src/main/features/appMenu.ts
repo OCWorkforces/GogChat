@@ -2,13 +2,13 @@ import { Menu, app, shell, clipboard, BrowserWindow, dialog } from 'electron';
 import { checkForUpdates } from 'electron-update-notifier';
 import path from 'path';
 import log from 'electron-log';
-import { autoLaunch } from './openAtLogin';
-import aboutPanel from './aboutPanel';
-import store from '../config';
-import { toggleExternalLinksGuard } from './externalLinks';
-import environment from '../../environment';
-import { openNewGitHubIssue, debugInfo } from '../utils/platform';
-import { getPackageInfo } from '../utils/packageInfo';
+import { autoLaunch } from './openAtLogin.js';
+import aboutPanel from './aboutPanel.js';
+import store from '../config.js';
+import { toggleExternalLinksGuard } from './externalLinks.js';
+import environment from '../../environment.js';
+import { openNewGitHubIssue, debugInfo } from '../utils/platform.js';
+import { getPackageInfo } from '../utils/packageInfo.js';
 
 export default (window: BrowserWindow) => {
   const pkg = getPackageInfo();

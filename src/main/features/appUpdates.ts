@@ -1,5 +1,5 @@
 import { setUpdateNotification, checkForUpdates } from 'electron-update-notifier';
-import store from '../config';
+import store from '../config.js';
 
 let interval: NodeJS.Timeout;
 

@@ -50,8 +50,8 @@ function getEntryPoints() {
 const entryPoints = getEntryPoints();
 console.log(`[Build] Found ${entryPoints.length} TypeScript files to compile`);
 
-// Native modules that must be external
-const nativeModules = ['better-sqlite3'];
+// Native modules that must be external (none currently)
+const nativeModules = [];
 
 // Electron built-in modules that must be external
 const electronModules = [
@@ -62,7 +62,6 @@ const electronModules = [
   'electron-update-notifier',
   'electron-context-menu',
   'auto-launch',
-  'v8-compile-cache',
 ];
 
 // esbuild configuration
