@@ -13,7 +13,7 @@ vi.mock('electron', () => ({
     getPath: (name: string) => `/fake/path/${name}`,
   },
   nativeImage: {
-    createFromPath: (path: string) => ({
+    createFromPath: (_path: string) => ({
       isEmpty: () => false,
       getSize: () => ({ width: 16, height: 16 }),
     }),

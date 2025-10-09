@@ -66,9 +66,7 @@ describe('Config Store', () => {
   it('should throw error if accessed before initialization', async () => {
     const { default: config } = await import('./config');
 
-    expect(() => config.get('app.autoCheckForUpdates')).toThrow(
-      'Store not initialized'
-    );
+    expect(() => config.get('app.autoCheckForUpdates')).toThrow('Store not initialized');
   });
 });
 
