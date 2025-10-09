@@ -241,7 +241,7 @@ export default [
     files: ['scripts/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'commonjs',
+      sourceType: 'module',
       globals: {
         console: 'readonly',
         process: 'readonly',

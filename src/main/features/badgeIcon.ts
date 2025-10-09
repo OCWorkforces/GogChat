@@ -1,11 +1,10 @@
-import { ipcMain, app, BrowserWindow, Tray, NativeImage } from 'electron';
-import { platform } from '../utils/platform';
+import { ipcMain, app, BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
-import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants';
-import { validateFaviconURL, validateUnreadCount } from '../../shared/validators';
-import { getRateLimiter } from '../utils/rateLimiter';
-import { getIconCache } from '../utils/iconCache';
-import type { IconType } from '../../shared/types';
+import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants.js';
+import { validateFaviconURL, validateUnreadCount } from '../../shared/validators.js';
+import { getRateLimiter } from '../utils/rateLimiter.js';
+import { getIconCache } from '../utils/iconCache.js';
+import type { IconType } from '../../shared/types.js';
 
 /**
  * Decide app icon based on favicon URL
@@ -23,57 +22,13 @@ const decideIcon = (href: string): IconType => {
 };
 
 /**
- * Badge icon cache for Windows
- * Caches overlay icon instances to avoid repeated file I/O
- */
-const badgeIconCache = new Map<string, NativeImage>();
-
-/**
- * Get or create a badge overlay icon for Windows taskbar
- * For now, uses a generic badge icon from resources
- * TODO: Future enhancement - render count on icon using canvas package
- */
-const getBadgeOverlayIcon = (count: number): NativeImage | null => {
-  if (count <= 0) {
-    return null; // No badge needed
-  }
-
-  const cacheKey = count > 0 ? 'badge' : 'none';
-
-  // Check cache first
-  if (badgeIconCache.has(cacheKey)) {
-    return badgeIconCache.get(cacheKey)!;
-  }
-
-  try {
-    // Use badge icon from resources (16x16 for Windows overlay)
-    const icon = getIconCache().getIcon('resources/icons/badge/16.png');
-
-    // Cache the icon in our local cache too
-    badgeIconCache.set(cacheKey, icon);
-    log.debug(`[BadgeIcon] Cached overlay icon: ${cacheKey}`);
-
-    return icon;
-  } catch (error) {
-    log.error('[BadgeIcon] Failed to load badge overlay icon:', error);
-    return null;
-  }
-};
-
-/**
- * Update badge icon based on platform
+ * Update badge icon for macOS
+ * Uses dock badge to display unread count
  */
 const updateBadgeIcon = (window: BrowserWindow, count: number) => {
-  if (platform.isWindows) {
-    // Windows: Use overlay icon on taskbar
-    const icon = getBadgeOverlayIcon(count);
-    const description = count > 0 ? `${count} unread messages` : '';
-    window.setOverlayIcon(icon, description);
-    log.debug(`[BadgeIcon] Windows overlay icon updated: ${count}`);
-  }
-
-  // All platforms: Update badge count (dock on macOS, app icon on Linux)
+  // macOS: Use dock badge
   app.setBadgeCount(count);
+  log.debug(`[BadgeIcon] Dock badge updated: ${count}`);
 };
 
 export default (window: BrowserWindow, trayIcon: Tray) => {
@@ -100,8 +55,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
       // Only update tray icon if type changed (optimization)
       if (type !== currentTrayIconType) {
         currentTrayIconType = type;
-        const size = platform.isMac ? 16 : 32;
-        const icon = getIconCache().getIcon(`resources/icons/${type}/${size}.png`);
+        // macOS uses 16px tray icons
+        const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
         trayIcon.setImage(icon);
         log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
       } else {

@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, HandlerDetails, shell } from 'electron';
 import log from 'electron-log';
-import { URL_PATTERNS, TIMING } from '../../shared/constants';
-import { validateExternalURL, isWhitelistedHost } from '../../shared/validators';
+import { URL_PATTERNS, TIMING } from '../../shared/constants.js';
+import { validateExternalURL, isWhitelistedHost } from '../../shared/validators.js';
 
 let guardAgainstExternalLinks = true;
 const RE_GUARD_IN_MINUTES = TIMING.EXTERNAL_LINKS_REGUARD / (60 * 1000);

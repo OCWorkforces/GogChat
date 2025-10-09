@@ -4,7 +4,7 @@
  */
 
 import log from 'electron-log';
-import store from '../config';
+import store from '../config.js';
 
 /**
  * Profile config store read performance

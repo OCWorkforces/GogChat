@@ -7,8 +7,8 @@
  * See DOM_RESEARCH_GUIDE.md for instructions
  */
 
-import { SELECTORS } from '../shared/constants';
-import type { MessageData } from '../shared/types';
+import { SELECTORS } from '../shared/constants.js';
+import type { MessageData } from '../shared/types.js';
 
 let observer: MutationObserver | null = null;
 const processedMessages = new Set<string>(); // Deduplication cache

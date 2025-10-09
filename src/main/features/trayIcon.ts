@@ -1,22 +1,17 @@
 import { app, BrowserWindow, Menu, Tray } from 'electron';
-import { platform } from '../utils/platform';
-import { getIconCache } from '../utils/iconCache';
+import { getIconCache } from '../utils/iconCache.js';
 
 export default (window: BrowserWindow) => {
-  const size = platform.isMac ? 16 : 32;
+  // macOS uses 16px tray icons
+  const size = 16;
   const trayIcon = new Tray(getIconCache().getIcon(`resources/icons/offline/${size}.png`));
 
   const handleIconClick = () => {
-    const shouldHide = platform.isWindows
-      ? window.isVisible() || window.isFocused()
-      : window.isVisible() && window.isFocused();
+    // macOS: Hide only if visible AND focused (stricter condition)
+    const shouldHide = window.isVisible() && window.isFocused();
 
     if (shouldHide) {
-      if (platform.isMac) {
-        app.hide();
-      } else {
-        window.hide();
-      }
+      app.hide();
     } else {
       window.show();
     }
@@ -44,9 +39,7 @@ export default (window: BrowserWindow) => {
 
   trayIcon.setToolTip('Google Chat');
 
-  if (platform.isWindows) {
-    trayIcon.on('click', handleIconClick);
-  }
+  // macOS: Click events handled by context menu only (OS convention)
 
   return trayIcon;
 };

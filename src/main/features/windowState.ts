@@ -1,8 +1,8 @@
 import { throttle, debounce } from 'throttle-debounce';
 import { BrowserWindow } from 'electron';
 import log from 'electron-log';
-import store from '../config';
-import { TIMING } from '../../shared/constants';
+import store from '../config.js';
+import { TIMING } from '../../shared/constants.js';
 
 export default (window: BrowserWindow) => {
   try {
@@ -10,14 +10,27 @@ export default (window: BrowserWindow) => {
     if (store.has('window')) {
       const windowState = store.get('window');
       const bounds = windowState.bounds;
-      if (bounds && bounds.x !== null && bounds.y !== null) {
+      // Validate bounds have all required properties as numbers
+      if (
+        bounds &&
+        typeof bounds.x === 'number' &&
+        typeof bounds.y === 'number' &&
+        typeof bounds.width === 'number' &&
+        typeof bounds.height === 'number' &&
+        !isNaN(bounds.x) &&
+        !isNaN(bounds.y) &&
+        !isNaN(bounds.width) &&
+        !isNaN(bounds.height)
+      ) {
         window.setBounds({
-          x: bounds.x,
-          y: bounds.y,
-          width: bounds.width,
-          height: bounds.height,
+          x: Math.round(bounds.x),
+          y: Math.round(bounds.y),
+          width: Math.round(bounds.width),
+          height: Math.round(bounds.height),
         });
         log.debug('[WindowState] Restored window bounds');
+      } else if (bounds) {
+        log.warn('[WindowState] Invalid bounds data, skipping restore:', bounds);
       }
     }
 

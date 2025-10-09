@@ -3,7 +3,7 @@
  * Monitors Google Chat sidebar for unread message counts
  */
 
-import { SELECTORS } from '../shared/constants';
+import { SELECTORS } from '../shared/constants.js';
 
 let previousCount = -1;
 let observer: MutationObserver | null = null;

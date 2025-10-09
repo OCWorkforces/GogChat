@@ -3,7 +3,7 @@
  * These validators prevent injection attacks and ensure data integrity
  */
 
-import { BADGE, WHITELISTED_HOSTS } from './constants';
+import { BADGE, WHITELISTED_HOSTS } from './constants.js';
 
 /**
  * Validates and sanitizes unread count values

@@ -1,33 +1,33 @@
 import { app, BrowserWindow } from 'electron';
 import log from 'electron-log';
-import { perfMonitor } from './utils/performanceMonitor';
-import { compareStorePerformance } from './utils/configProfiler';
+import { perfMonitor } from './utils/performanceMonitor.js';
+import { compareStorePerformance } from './utils/configProfiler.js';
 
-import reportExceptions from './features/reportExceptions';
-import windowWrapper from './windowWrapper';
-import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance';
-import environment from '../environment';
-import enableContextMenu from './features/contextMenu';
-import runAtLogin from './features/openAtLogin';
-import updateNotifier from './features/appUpdates';
-import setupTrayIcon from './features/trayIcon';
-import keepWindowState from './features/windowState';
-import externalLinks from './features/externalLinks';
-import badgeIcons from './features/badgeIcon';
-import closeToTray from './features/closeToTray';
-import setAppMenu from './features/appMenu';
-import overrideUserAgent from './features/userAgent';
-import setupOfflineHandlers, { checkForInternet } from './features/inOnline';
-import logFirstLaunch from './features/firstLaunch';
-import handleNotification from './features/handleNotification';
-import setupCertificatePinning from './features/certificatePinning';
-import passkeySupport from './features/passkeySupport';
-import setupMessageLogger, { cleanupMessageLogger } from './features/messageLogger';
-import { enforceMacOSAppLocation } from './utils/platform';
-import { getIconCache } from './utils/iconCache';
-import store from './config';
-import { logCacheStats, type CachedStore } from './utils/configCache';
-import type { StoreType } from '../shared/types';
+import reportExceptions from './features/reportExceptions.js';
+import windowWrapper from './windowWrapper.js';
+import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
+import environment from '../environment.js';
+import enableContextMenu from './features/contextMenu.js';
+import runAtLogin from './features/openAtLogin.js';
+import updateNotifier from './features/appUpdates.js';
+import setupTrayIcon from './features/trayIcon.js';
+import keepWindowState from './features/windowState.js';
+import externalLinks from './features/externalLinks.js';
+import badgeIcons from './features/badgeIcon.js';
+import closeToTray from './features/closeToTray.js';
+import setAppMenu from './features/appMenu.js';
+import overrideUserAgent from './features/userAgent.js';
+import setupOfflineHandlers, { checkForInternet } from './features/inOnline.js';
+import logFirstLaunch from './features/firstLaunch.js';
+import handleNotification from './features/handleNotification.js';
+import setupCertificatePinning from './features/certificatePinning.js';
+import passkeySupport from './features/passkeySupport.js';
+import setupMessageLogger, { cleanupMessageLogger } from './features/messageLogger.js';
+import { enforceMacOSAppLocation } from './utils/platform.js';
+import { getIconCache } from './utils/iconCache.js';
+import { initializeStore, getStore } from './config.js';
+import { logCacheStats, type CachedStore } from './utils/configCache.js';
+import type { StoreType } from '../shared/types.js';
 import type Store from 'electron-store';
 
 /**
@@ -44,13 +44,24 @@ function isCachedStore(store: Store<StoreType>): store is CachedStore<StoreType>
 let mainWindow: BrowserWindow | null = null;
 let trayIcon = null;
 
-// Initialize certificate pinning early (before any network requests)
+// Initialize performance monitoring
 perfMonitor.mark('app-start', 'App initialization started');
-setupCertificatePinning();
-perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
 
-// Features
-reportExceptions().catch(console.error);
+// Initialize store early (must happen before any code that uses the store)
+try {
+  initializeStore();
+  perfMonitor.mark('store-initialized', 'Config store initialized');
+
+  // Initialize certificate pinning early (before any network requests)
+  setupCertificatePinning();
+  perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
+
+  // Setup exception reporting
+  reportExceptions();
+  perfMonitor.mark('exception-reporting-done', 'Exception reporting initialized');
+} catch (error) {
+  log.error('[Main] Failed to initialize store or exception reporting:', error);
+}
 
 if (enforceSingleInstance()) {
   app
@@ -138,8 +149,13 @@ app.on('before-quit', () => {
     log.info(`[Main] Icon cache: ${iconStats.size} icons cached`);
 
     // Log config cache stats if available
-    if (isCachedStore(store)) {
-      logCacheStats(store);
+    try {
+      const storeInstance = getStore();
+      if (isCachedStore(storeInstance)) {
+        logCacheStats(storeInstance);
+      }
+    } catch {
+      log.debug('[Main] Store not initialized, skipping cache stats');
     }
   } catch (error) {
     log.debug('[Main] Error logging cache stats on quit:', error);

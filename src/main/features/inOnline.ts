@@ -1,9 +1,9 @@
 import { BrowserWindow, ipcMain, Notification, app, IpcMainEvent } from 'electron';
 import path from 'path';
 import log from 'electron-log';
-import { IPC_CHANNELS, TIMING } from '../../shared/constants';
-import { getRateLimiter } from '../utils/rateLimiter';
-import { getIconCache } from '../utils/iconCache';
+import { IPC_CHANNELS, TIMING } from '../../shared/constants.js';
+import { getRateLimiter } from '../utils/rateLimiter.js';
+import { getIconCache } from '../utils/iconCache.js';
 
 /**
  * Check internet connectivity using native fetch

@@ -1,7 +1,8 @@
-import Store from 'electron-store';
 import { app } from 'electron';
 import { createHash } from 'crypto';
-import type { StoreType } from '../shared/types';
+import type { StoreType } from '../shared/types.js';
+import Store from 'electron-store';
+import { addCacheLayer, type CachedStore } from './utils/configCache.js';
 
 /**
  * Generate encryption key from app-specific data
@@ -14,7 +15,9 @@ function getEncryptionKey(): string {
   return createHash('sha256').update(keyMaterial).digest('hex');
 }
 
-const schema = {
+// Schema definition for electron-store
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const schema: any = {
   window: {
     type: 'object',
     properties: {
@@ -121,23 +124,79 @@ const schema = {
  * Initialize encrypted store
  * All configuration data is encrypted at rest using AES-256-GCM
  */
-import { addCacheLayer, type CachedStore } from './utils/configCache';
-
-let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
-  schema,
-  encryptionKey: getEncryptionKey(),
-});
+let storeInstance: Store<StoreType> | CachedStore<StoreType> | null = null;
 
 /**
- * Enable caching layer for improved performance
- * Adds in-memory cache to reduce encryption/decryption overhead
- * Cache is automatically invalidated on writes to maintain consistency
- *
- * Note: Disabled in test environment to preserve test spies
+ * Initialize the electron-store instance
+ * Now uses static import with ESM
  */
-// Only enable cache layer if not in test environment
-if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
-  store = addCacheLayer(store);
+export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
+  if (storeInstance) {
+    return storeInstance;
+  }
+
+  // Create store with encryption
+  let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    schema,
+    encryptionKey: getEncryptionKey(),
+  });
+
+  /**
+   * Enable caching layer for improved performance
+   * Adds in-memory cache to reduce encryption/decryption overhead
+   * Cache is automatically invalidated on writes to maintain consistency
+   *
+   * Note: Disabled in test environment to preserve test spies
+   */
+  // Only enable cache layer if not in test environment
+  if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
+    store = addCacheLayer(store);
+  }
+
+  storeInstance = store;
+  return store;
 }
 
-export default store;
+/**
+ * Get the store instance (synchronous)
+ * WARNING: Only use this after initializeStore() has been called
+ * Throws an error if store hasn't been initialized
+ */
+export function getStore(): Store<StoreType> | CachedStore<StoreType> {
+  if (!storeInstance) {
+    throw new Error('Store not initialized. Call initializeStore() before using the store.');
+  }
+  return storeInstance;
+}
+
+// Create a proxy object that lazy-loads the store
+// This maintains backward compatibility with existing code
+const storeProxy = new Proxy({} as Store<StoreType> | CachedStore<StoreType>, {
+  get(_target, prop) {
+    const store = getStore();
+    const value = store[prop as keyof typeof store];
+    // Bind methods to the actual store instance to preserve 'this' context
+    if (typeof value === 'function') {
+      return value.bind(store);
+    }
+    return value;
+  },
+  set(_target, prop, value) {
+    // @ts-expect-error - Dynamic property access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    getStore()[prop] = value;
+    return true;
+  },
+  has(_target, prop) {
+    return prop in getStore();
+  },
+  ownKeys(_target) {
+    return Reflect.ownKeys(getStore());
+  },
+  getOwnPropertyDescriptor(_target, prop) {
+    return Reflect.getOwnPropertyDescriptor(getStore(), prop);
+  },
+});
+
+export default storeProxy;

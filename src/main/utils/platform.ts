@@ -1,23 +1,22 @@
 /**
- * Platform detection and utilities
- * Replaces electron-util to reduce bundle size
- * Centralizes platform-specific logic and provides unified API for cross-platform features
+ * macOS Platform utilities
+ * Centralized macOS-specific logic and provides unified API for macOS features
  */
 
 import { app, shell, nativeImage, Tray, BrowserWindow } from 'electron';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import os from 'os';
 import type Store from 'electron-store';
-import type { StoreType } from '../../shared/types';
-import { logger } from './logger';
+import type { StoreType } from '../../shared/types.js';
+import { logger } from './logger.js';
+
+// ESM __dirname replacement
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
- * Supported platforms
- */
-export type Platform = 'darwin' | 'win32' | 'linux';
-
-/**
- * Platform-specific configuration
+ * macOS Platform configuration
  */
 interface PlatformConfig {
   supportsOverlayIcon: boolean;
@@ -31,50 +30,26 @@ interface PlatformConfig {
 }
 
 /**
- * Platform configurations
+ * macOS configuration
  */
-const PLATFORM_CONFIGS: Record<Platform, PlatformConfig> = {
-  darwin: {
-    supportsOverlayIcon: false,
-    supportsDockBadge: true,
-    supportsTaskbarBadge: false,
-    supportsTrayIcon: true,
-    supportsAutoLaunch: true,
-    supportsSpellChecker: true,
-    defaultIconFormat: 'icns',
-    trayIconSize: { width: 16, height: 16 },
-  },
-  win32: {
-    supportsOverlayIcon: true,
-    supportsDockBadge: false,
-    supportsTaskbarBadge: true,
-    supportsTrayIcon: true,
-    supportsAutoLaunch: true,
-    supportsSpellChecker: true,
-    defaultIconFormat: 'ico',
-    trayIconSize: { width: 16, height: 16 },
-  },
-  linux: {
-    supportsOverlayIcon: false,
-    supportsDockBadge: false,
-    supportsTaskbarBadge: false,
-    supportsTrayIcon: true,
-    supportsAutoLaunch: true,
-    supportsSpellChecker: true,
-    defaultIconFormat: 'png',
-    trayIconSize: { width: 16, height: 16 },
-  },
+const MACOS_CONFIG: PlatformConfig = {
+  supportsOverlayIcon: false,
+  supportsDockBadge: true,
+  supportsTaskbarBadge: false,
+  supportsTrayIcon: true,
+  supportsAutoLaunch: true,
+  supportsSpellChecker: true,
+  defaultIconFormat: 'icns',
+  trayIconSize: { width: 16, height: 16 },
 };
 
 /**
- * Platform detection
+ * Platform detection (macOS only)
  */
 export const platform = {
-  isMac: process.platform === 'darwin',
-  isWindows: process.platform === 'win32',
-  isLinux: process.platform === 'linux',
-  name: process.platform as Platform,
-  config: PLATFORM_CONFIGS[process.platform as Platform] || PLATFORM_CONFIGS.linux,
+  isMac: true,
+  name: 'darwin' as const,
+  config: MACOS_CONFIG,
 };
 
 /**
@@ -82,7 +57,7 @@ export const platform = {
  * Ensures the app is running from /Applications on macOS
  */
 export function enforceMacOSAppLocation(): void {
-  if (!platform.isMac || app.isPackaged === false) {
+  if (app.isPackaged === false) {
     return;
   }
 
@@ -202,69 +177,46 @@ export function isDevelopment(): boolean {
 }
 
 /**
- * Platform-specific utilities class
+ * macOS Platform utilities class
  */
 export class PlatformUtils {
   private readonly log = logger.feature('Platform');
 
   /**
-   * Get the appropriate app icon path for the current platform
+   * Get the macOS app icon path
    */
   getAppIconPath(): string {
-    const iconDir = join(__dirname, '../../../resources/icons/normal');
-
-    switch (platform.name) {
-      case 'darwin':
-        return join(iconDir, 'mac.icns');
-      case 'win32':
-        return join(iconDir, 'windows.ico');
-      default:
-        return join(iconDir, 'linux.png');
-    }
+    return join(__dirname, '../../../resources/icons/normal/mac.icns');
   }
 
   /**
-   * Get the appropriate tray icon path for the current platform
+   * Get the macOS tray icon path
+   * Uses Template for automatic dark/light mode adaptation
    */
   getTrayIconPath(): string {
-    const iconDir = join(__dirname, '../../../resources/icons/normal');
-
-    switch (platform.name) {
-      case 'darwin':
-        return join(iconDir, 'trayTemplate.png'); // Template for dark/light mode
-      case 'win32':
-        return join(iconDir, 'tray.ico');
-      default:
-        return join(iconDir, 'tray.png');
-    }
+    return join(__dirname, '../../../resources/icons/normal/trayTemplate.png');
   }
 
   /**
-   * Create a tray icon with platform-specific configuration
+   * Create a tray icon with macOS-specific configuration
    */
   createTrayIcon(): Tray {
     const iconPath = this.getTrayIconPath();
     const icon = nativeImage.createFromPath(iconPath);
 
-    // Resize icon based on platform requirements
-    const resizedIcon = icon.resize(platform.config.trayIconSize);
+    // Resize icon for macOS tray
+    const resizedIcon = icon.resize({ width: 16, height: 16 });
 
     const tray = new Tray(resizedIcon);
 
-    // Platform-specific tray configuration
-    if (platform.isMac) {
-      // macOS specific settings
-      tray.setIgnoreDoubleClickEvents(true);
-    } else if (platform.isWindows) {
-      // Windows specific settings
-      tray.setToolTip(app.getName());
-    }
+    // macOS specific: Ignore double-click events
+    tray.setIgnoreDoubleClickEvents(true);
 
     return tray;
   }
 
   /**
-   * Set badge/overlay icon based on platform
+   * Set dock badge on macOS
    */
   setBadge(window: BrowserWindow, count: number): void {
     try {
@@ -273,95 +225,72 @@ export class PlatformUtils {
         return;
       }
 
-      if (platform.isMac) {
-        // macOS: Use dock badge
-        app.dock?.setBadge(count > 99 ? '99+' : count.toString());
-      } else if (platform.isWindows) {
-        // Windows: Use overlay icon (simplified - actual implementation would generate icon)
-        const description = `${count} unread message${count === 1 ? '' : 's'}`;
-        // For now, just clear the overlay - in production, you'd create a proper overlay icon
-        window.setOverlayIcon(null, description);
-      }
-      // Linux: No native badge support
+      // macOS: Use dock badge
+      app.dock?.setBadge(count > 99 ? '99+' : count.toString());
 
-      this.log.debug(`Badge set to ${count} on ${platform.name}`);
+      this.log.debug(`Dock badge set to ${count}`);
     } catch (error) {
-      this.log.error(`Failed to set badge on ${platform.name}:`, error);
+      this.log.error('Failed to set dock badge:', error);
     }
   }
 
   /**
-   * Clear badge/overlay icon
+   * Clear dock badge
    */
-  clearBadge(window: BrowserWindow): void {
+  clearBadge(_window: BrowserWindow): void {
     try {
-      if (platform.isMac) {
-        app.dock?.setBadge('');
-      } else if (platform.isWindows) {
-        window.setOverlayIcon(null, '');
-      }
-
-      this.log.debug(`Badge cleared on ${platform.name}`);
+      app.dock?.setBadge('');
+      this.log.debug('Dock badge cleared');
     } catch (error) {
-      this.log.error(`Failed to clear badge on ${platform.name}:`, error);
+      this.log.error('Failed to clear dock badge:', error);
     }
   }
 
   /**
-   * Get platform-specific keyboard shortcuts
+   * Get macOS keyboard shortcuts
    */
   getShortcuts(): Record<string, string> {
-    const modifier = platform.isMac ? 'Cmd' : 'Ctrl';
-
     return {
-      quit: platform.isMac ? 'Cmd+Q' : 'Ctrl+Q',
-      preferences: platform.isMac ? 'Cmd+,' : 'Ctrl+,',
-      reload: `${modifier}+R`,
-      forceReload: `${modifier}+Shift+R`,
-      toggleDevTools: platform.isMac ? 'Cmd+Option+I' : 'Ctrl+Shift+I',
-      zoomIn: `${modifier}+Plus`,
-      zoomOut: `${modifier}+-`,
-      zoomReset: `${modifier}+0`,
-      find: `${modifier}+F`,
-      selectAll: `${modifier}+A`,
-      copy: `${modifier}+C`,
-      paste: `${modifier}+V`,
-      cut: `${modifier}+X`,
-      undo: `${modifier}+Z`,
-      redo: platform.isMac ? 'Cmd+Shift+Z' : 'Ctrl+Y',
+      quit: 'Cmd+Q',
+      preferences: 'Cmd+,',
+      reload: 'Cmd+R',
+      forceReload: 'Cmd+Shift+R',
+      toggleDevTools: 'Cmd+Option+I',
+      zoomIn: 'Cmd+Plus',
+      zoomOut: 'Cmd+-',
+      zoomReset: 'Cmd+0',
+      find: 'Cmd+F',
+      selectAll: 'Cmd+A',
+      copy: 'Cmd+C',
+      paste: 'Cmd+V',
+      cut: 'Cmd+X',
+      undo: 'Cmd+Z',
+      redo: 'Cmd+Shift+Z',
     };
   }
 
   /**
-   * Apply platform-specific window options
+   * Apply macOS-specific window options
    */
   applyWindowOptions(options: Electron.BrowserWindowConstructorOptions): void {
-    if (platform.isMac) {
-      // macOS specific window options
-      options.titleBarStyle = 'hiddenInset';
-      options.trafficLightPosition = { x: 16, y: 16 };
-    } else if (platform.isWindows) {
-      // Windows specific window options
-      options.autoHideMenuBar = true;
-    } else if (platform.isLinux) {
-      // Linux specific window options
-      options.icon = nativeImage.createFromPath(this.getAppIconPath());
-    }
+    // macOS specific window options
+    options.titleBarStyle = 'hiddenInset';
+    options.trafficLightPosition = { x: 16, y: 16 };
   }
 
   /**
-   * Check if a feature is supported on the current platform
+   * Check if a feature is supported on macOS
    */
   isFeatureSupported(feature: keyof PlatformConfig): boolean {
-    return Boolean(platform.config[feature]);
+    return Boolean(MACOS_CONFIG[feature]);
   }
 
   /**
-   * Get platform information for debugging
+   * Get macOS platform information for debugging
    */
   getPlatformInfo(): Record<string, unknown> {
     return {
-      platform: platform.name,
+      platform: 'darwin',
       arch: process.arch,
       version: process.getSystemVersion(),
       nodeVersion: process.version,
@@ -370,7 +299,7 @@ export class PlatformUtils {
       v8Version: process.versions.v8,
       locale: app.getLocale(),
       appVersion: app.getVersion(),
-      ...platform.config,
+      ...MACOS_CONFIG,
     };
   }
 }
@@ -391,13 +320,13 @@ export function getPlatformUtils(): PlatformUtils {
 }
 
 /**
- * Export feature support checks
+ * Export feature support checks (macOS-specific)
  */
 export const supports = {
-  overlayIcon: () => platform.config.supportsOverlayIcon,
-  dockBadge: () => platform.config.supportsDockBadge,
-  taskbarBadge: () => platform.config.supportsTaskbarBadge,
-  trayIcon: () => platform.config.supportsTrayIcon,
-  autoLaunch: () => platform.config.supportsAutoLaunch,
-  spellChecker: () => platform.config.supportsSpellChecker,
+  overlayIcon: () => false,
+  dockBadge: () => true,
+  taskbarBadge: () => false,
+  trayIcon: () => true,
+  autoLaunch: () => true,
+  spellChecker: () => true,
 };

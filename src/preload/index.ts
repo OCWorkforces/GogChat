@@ -5,14 +5,14 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { GChatBridgeAPI } from '../shared/types';
-import { IPC_CHANNELS } from '../shared/constants';
+import type { GChatBridgeAPI } from '../shared/types.js';
+import { IPC_CHANNELS } from '../shared/constants.js';
 import {
   validateUnreadCount,
   validateFaviconURL,
   validatePasskeyFailureData,
   validateMessageData,
-} from '../shared/validators';
+} from '../shared/validators.js';
 
 /**
  * Expose secure API to renderer process via window.gchat
@@ -55,7 +55,7 @@ const api: GChatBridgeAPI = {
     }
   },
 
-  sendMessageData: (messageData) => {
+  sendMessageData: (messageData: unknown) => {
     try {
       const validated = validateMessageData(messageData);
       ipcRenderer.send(IPC_CHANNELS.MESSAGE_CAPTURED, validated);
@@ -92,10 +92,10 @@ contextBridge.exposeInMainWorld('gchat', api);
 
 // Now load feature-specific preload scripts
 // These will use the window.gchat API we just exposed
-import './faviconChanged';
-import './offline';
-import './passkeyMonitor';
-import './searchShortcut';
-import './unreadCount';
-import './messageObserver';
+import './faviconChanged.js';
+import './offline.js';
+import './passkeyMonitor.js';
+import './searchShortcut.js';
+import './unreadCount.js';
+import './messageObserver.js';
 // Note: overrideNotifications needs special handling - loaded separately

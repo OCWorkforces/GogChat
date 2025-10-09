@@ -5,12 +5,12 @@
  */
 
 import { BrowserWindow, ipcMain, app } from 'electron';
-import { logger } from './logger';
-import { destroyRateLimiter } from './rateLimiter';
-import { destroyDeduplicator } from './ipcDeduplicator';
-import { cleanupGlobalHandlers } from './ipcHelper';
-import { getIconCache } from './iconCache';
-import { clearConfigCache } from './configCache';
+import { logger } from './logger.js';
+import { destroyRateLimiter } from './rateLimiter.js';
+import { destroyDeduplicator } from './ipcDeduplicator.js';
+import { cleanupGlobalHandlers } from './ipcHelper.js';
+import { getIconCache } from './iconCache.js';
+import { clearConfigCache } from './configCache.js';
 
 /**
  * Type for event handler functions
@@ -303,7 +303,7 @@ export function setupWindowCleanup(window: BrowserWindow): void {
       cleanup: async () => {
         if (!window.isDestroyed()) {
           await window.webContents.session.clearStorageData({
-            storages: ['cookies', 'localstorage', 'sessionstorage'],
+            storages: ['cookies', 'localstorage'],
           });
         }
       },
@@ -366,19 +366,6 @@ export function setupAppCleanup(): void {
         app.exit();
       }
     })();
-  });
-
-  // Handle will-quit event (last chance cleanup)
-  app.on('will-quit', (_event) => {
-    log.debug('App will quit event');
-    // Synchronous cleanup only
-    try {
-      manager.cleanupIntervals();
-      manager.cleanupTimeouts();
-      manager.cleanupListeners();
-    } catch (error) {
-      log.debug('Will-quit cleanup failed:', error);
-    }
   });
 }
 

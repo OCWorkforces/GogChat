@@ -39,8 +39,8 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 
 Get the latest release for your platform:
 
-- **macOS Intel (x64)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
-- **macOS ARM (Apple Silicon)**: [Download .zip](https://github.com/CCWorkforce/GChat/releases/latest)
+- **macOS Intel (x64)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
+- **macOS ARM (Apple Silicon)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
 
 ## Development
 
@@ -109,10 +109,10 @@ npm run lint:all:fix
 
 ```bash
 # macOS Intel (x64)
-npm run build:mac-zip
+npm run build:mac-dmg
 
 # macOS ARM (Apple Silicon)
-npm run build:mac-arm-zip
+npm run build:mac-arm-dmg
 ```
 
 ## CI/CD

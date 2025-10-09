@@ -3,7 +3,7 @@
  * Replaces polling with reactive DOM observation
  */
 
-import { SELECTORS } from '../shared/constants';
+import { SELECTORS } from '../shared/constants.js';
 
 let previousHref: string = '';
 let observer: MutationObserver | null = null;

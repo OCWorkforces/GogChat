@@ -4,6 +4,15 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['**/*.test.ts'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/lib/**',
+      // Exclude Playwright-dependent tests (use Playwright test runner instead)
+      'tests/integration/**',
+      'tests/e2e/**',
+      'tests/performance/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

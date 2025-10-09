@@ -4,8 +4,8 @@
  */
 
 import { BrowserWindow, Tray, app } from 'electron';
-import { logger } from '../utils/logger';
-import { perfMonitor } from '../utils/performanceMonitor';
+import { logger } from '../utils/logger.js';
+import { perfMonitor } from '../utils/performanceMonitor.js';
 
 /**
  * Feature priority levels
@@ -187,11 +187,7 @@ export class FeatureManager {
       managed.initTime = Date.now() - startTime;
 
       perfMonitor.mark(`feature-${config.name}-end`);
-      perfMonitor.measure(
-        `feature-${config.name}`,
-        `feature-${config.name}-start`,
-        `feature-${config.name}-end`
-      );
+      perfMonitor.measure(`feature-${config.name}-start`, `feature-${config.name}-end`);
 
       // Register cleanup handler
       if (config.cleanup) {
