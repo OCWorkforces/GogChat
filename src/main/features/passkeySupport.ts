@@ -19,7 +19,7 @@ export default (window: BrowserWindow) => {
     return;
   }
 
-  ipcMain.on(IPC_CHANNELS.PASSKEY_AUTH_FAILED, (event, data: PasskeyFailureData) => {
+  const passkeyFailedHandler = (event: Electron.IpcMainEvent, data: PasskeyFailureData) => {
     // Rate limiting - max 1 dialog per 30 seconds to avoid spam
     if (!rateLimiter.isAllowed(IPC_CHANNELS.PASSKEY_AUTH_FAILED, 1 / 30)) {
       log.warn('[Passkey Support] Rate limited');
@@ -87,7 +87,22 @@ export default (window: BrowserWindow) => {
         log.error('[Passkey Support] Error handling passkey failure:', error);
       }
     })();
-  });
+  };
+
+  ipcMain.on(IPC_CHANNELS.PASSKEY_AUTH_FAILED, passkeyFailedHandler);
 
   log.info('[Passkey Support] Feature initialized');
 };
+
+/**
+ * Cleanup function for passkey support
+ */
+export function cleanupPasskeySupport(): void {
+  try {
+    log.debug('[Passkey Support] Cleaning up passkey support handler');
+    ipcMain.removeAllListeners(IPC_CHANNELS.PASSKEY_AUTH_FAILED);
+    log.info('[Passkey Support] Passkey support cleaned up');
+  } catch (error) {
+    log.error('[Passkey Support] Failed to cleanup passkey support:', error);
+  }
+}

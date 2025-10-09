@@ -4,6 +4,14 @@ import log from 'electron-log';
 import store from '../config.js';
 import { TIMING } from '../../shared/constants.js';
 
+// Store handlers for cleanup
+let debouncedSaveHandler: ReturnType<typeof debounce<() => void>> | null = null;
+let throttledResizeHandler: ReturnType<typeof throttle<() => void>> | null = null;
+let throttledMoveHandler: ReturnType<typeof throttle<() => void>> | null = null;
+let readyToShowHandler: (() => void) | null = null;
+let maximizeHandler: (() => void) | null = null;
+let unmaximizeHandler: (() => void) | null = null;
+
 export default (window: BrowserWindow) => {
   try {
     // Restore previous window state
@@ -35,12 +43,13 @@ export default (window: BrowserWindow) => {
     }
 
     // Restore maximized state
-    window.on('ready-to-show', () => {
+    readyToShowHandler = () => {
       if (store.get('window.isMaximized')) {
         window.maximize();
         log.debug('[WindowState] Window maximized from saved state');
       }
-    });
+    };
+    window.on('ready-to-show', readyToShowHandler);
 
     // Debounced save function to reduce disk writes
     const saveWindowPosition = () => {
@@ -59,34 +68,93 @@ export default (window: BrowserWindow) => {
     };
 
     // Debounced version for close event to avoid immediate write
-    const debouncedSave = debounce(100, saveWindowPosition);
+    debouncedSaveHandler = debounce(100, saveWindowPosition);
+    throttledResizeHandler = throttle(TIMING.WINDOW_STATE_SAVE, saveWindowPosition);
+    throttledMoveHandler = throttle(TIMING.WINDOW_STATE_SAVE, saveWindowPosition);
 
     // Use debounce on close, throttle on resize/move
-    window.on('close', debouncedSave);
-    window.on('resize', throttle(TIMING.WINDOW_STATE_SAVE, saveWindowPosition));
-    window.on('move', throttle(TIMING.WINDOW_STATE_SAVE, saveWindowPosition));
+    window.on('close', debouncedSaveHandler);
+    window.on('resize', throttledResizeHandler);
+    window.on('move', throttledMoveHandler);
 
     // Save maximized/unmaximized state immediately
-    window.on('maximize', () => {
+    maximizeHandler = () => {
       try {
         store.set('window.isMaximized', true);
         log.debug('[WindowState] Window maximized');
       } catch (error) {
         log.error('[WindowState] Failed to save maximized state:', error);
       }
-    });
+    };
 
-    window.on('unmaximize', () => {
+    unmaximizeHandler = () => {
       try {
         store.set('window.isMaximized', false);
         log.debug('[WindowState] Window unmaximized');
       } catch (error) {
         log.error('[WindowState] Failed to save unmaximized state:', error);
       }
-    });
+    };
+
+    window.on('maximize', maximizeHandler);
+    window.on('unmaximize', unmaximizeHandler);
 
     log.info('[WindowState] Window state persistence initialized');
   } catch (error) {
     log.error('[WindowState] Failed to initialize window state:', error);
   }
 };
+
+/**
+ * Cleanup function for window state feature
+ */
+export function cleanupWindowState(window: BrowserWindow): void {
+  try {
+    log.debug('[WindowState] Cleaning up window state listeners');
+
+    // Cancel any pending throttled/debounced calls
+    if (debouncedSaveHandler) {
+      debouncedSaveHandler.cancel();
+    }
+    if (throttledResizeHandler) {
+      throttledResizeHandler.cancel();
+    }
+    if (throttledMoveHandler) {
+      throttledMoveHandler.cancel();
+    }
+
+    // Remove event listeners
+    if (!window.isDestroyed()) {
+      if (readyToShowHandler) {
+        window.removeListener('ready-to-show', readyToShowHandler);
+      }
+      if (debouncedSaveHandler) {
+        window.removeListener('close', debouncedSaveHandler);
+      }
+      if (throttledResizeHandler) {
+        window.removeListener('resize', throttledResizeHandler);
+      }
+      if (throttledMoveHandler) {
+        window.removeListener('move', throttledMoveHandler);
+      }
+      if (maximizeHandler) {
+        window.removeListener('maximize', maximizeHandler);
+      }
+      if (unmaximizeHandler) {
+        window.removeListener('unmaximize', unmaximizeHandler);
+      }
+    }
+
+    // Clear handler references
+    debouncedSaveHandler = null;
+    throttledResizeHandler = null;
+    throttledMoveHandler = null;
+    readyToShowHandler = null;
+    maximizeHandler = null;
+    unmaximizeHandler = null;
+
+    log.info('[WindowState] Window state cleaned up');
+  } catch (error) {
+    log.error('[WindowState] Failed to cleanup window state:', error);
+  }
+}
