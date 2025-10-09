@@ -29,35 +29,46 @@ vi.mock('electron-store', () => ({
 describe('Config Store', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset the module to clear singleton state
+    vi.resetModules();
   });
 
   it('should export a store instance', async () => {
-    const config = await import('./config');
-    expect(config.default).toBeDefined();
+    const { initializeStore, default: config } = await import('./config');
+    initializeStore();
+    expect(config).toBeDefined();
   });
 
   it('should be callable with get/set methods', async () => {
-    const config = await import('./config');
-    const store = config.default;
+    const { initializeStore, default: config } = await import('./config');
+    initializeStore();
 
-    expect(store.get).toBeDefined();
-    expect(store.set).toBeDefined();
+    expect(config.get).toBeDefined();
+    expect(config.set).toBeDefined();
   });
 
   it('should support window bounds configuration', async () => {
-    const config = await import('./config');
-    const store = config.default;
+    const { initializeStore, default: config } = await import('./config');
+    initializeStore();
 
-    store.get('window.bounds');
+    config.get('window.bounds');
     expect(mockStore.get).toHaveBeenCalledWith('window.bounds');
   });
 
   it('should support app configuration', async () => {
-    const config = await import('./config');
-    const store = config.default;
+    const { initializeStore, default: config } = await import('./config');
+    initializeStore();
 
-    store.get('app.autoCheckForUpdates');
+    config.get('app.autoCheckForUpdates');
     expect(mockStore.get).toHaveBeenCalled();
+  });
+
+  it('should throw error if accessed before initialization', async () => {
+    const { default: config } = await import('./config');
+
+    expect(() => config.get('app.autoCheckForUpdates')).toThrow(
+      'Store not initialized'
+    );
   });
 });
 

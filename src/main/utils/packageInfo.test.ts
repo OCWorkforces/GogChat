@@ -2,7 +2,28 @@
  * Tests for Package Info Cache
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import path from 'path';
+
+// Mock Electron before importing packageInfo
+vi.mock('electron', () => ({
+  app: {
+    getAppPath: () => path.join(__dirname, '../../..'),
+    getName: () => 'gchat',
+    getPath: (name: string) => `/fake/path/${name}`,
+  },
+}));
+
+// Mock electron-log
+vi.mock('electron-log', () => ({
+  default: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 import { getPackageInfo, clearPackageInfoCache, isPackageInfoLoaded } from './packageInfo';
 
 describe('PackageInfo', () => {

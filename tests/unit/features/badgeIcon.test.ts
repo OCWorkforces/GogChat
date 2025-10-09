@@ -113,7 +113,7 @@ describe('Badge Icon Feature', () => {
     const setBadgeSpy = vi.spyOn(app.dock!, 'setBadge');
 
     // Initialize feature
-    badgeIconFeature = require('./mockBadgeFeature').default(mainWindow, trayIcon);
+    badgeIconFeature = mockBadgeFeature.default(mainWindow, trayIcon);
 
     // Send unread count
     ipcMain.emit('unreadCount', {}, 5);
@@ -126,6 +126,9 @@ describe('Badge Icon Feature', () => {
     const { ipcMain, app } = electronMock;
     const setBadgeSpy = vi.spyOn(app.dock!, 'setBadge');
 
+    // Initialize feature
+    badgeIconFeature = mockBadgeFeature.default(mainWindow, trayIcon);
+
     // Send zero count
     ipcMain.emit('unreadCount', {}, 0);
 
@@ -137,6 +140,9 @@ describe('Badge Icon Feature', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
 
     const setOverlaySpy = vi.spyOn(mainWindow, 'setOverlayIcon');
+
+    // Initialize feature
+    badgeIconFeature = mockBadgeFeature.default(mainWindow, trayIcon);
 
     // Send unread count
     electronMock.ipcMain.emit('unreadCount', {}, 3);
@@ -161,6 +167,9 @@ describe('Badge Icon Feature', () => {
   it('should update tray tooltip', () => {
     const setTooltipSpy = vi.spyOn(trayIcon, 'setToolTip');
 
+    // Initialize feature
+    badgeIconFeature = mockBadgeFeature.default(mainWindow, trayIcon);
+
     // Send unread count
     electronMock.ipcMain.emit('unreadCount', {}, 7);
 
@@ -171,6 +180,9 @@ describe('Badge Icon Feature', () => {
   it('should handle large badge counts', () => {
     const { ipcMain, app } = electronMock;
     const setBadgeSpy = vi.spyOn(app.dock!, 'setBadge');
+
+    // Initialize feature
+    badgeIconFeature = mockBadgeFeature.default(mainWindow, trayIcon);
 
     // Send large count
     ipcMain.emit('unreadCount', {}, 999);
