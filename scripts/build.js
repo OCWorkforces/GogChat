@@ -75,14 +75,23 @@ const buildOptions = {
   outbase: 'src',
   platform: 'node',
   target: 'node22',
-  format: 'cjs',
+  format: 'esm',
 
-  // Bundling strategy (production: bundle dependencies, dev: compile only)
-  bundle: !isDev,
+  // Bundling strategy: Selective bundling
+  // - Bundle utility packages (like throttle-debounce) and convert to ESM
+  // - Keep Electron and native modules external (they resolve at runtime)
+  // This allows bundling CommonJS packages while keeping Electron external
+  bundle: true,
   splitting: false,
 
-  // External modules (Electron built-ins and native modules)
-  external: isDev ? [] : [...electronModules, ...nativeModules],
+  // External modules: Only Electron and native Node.js modules
+  // Everything else (including throttle-debounce) will be bundled
+  external: [
+    'electron',
+    'electron/*',
+    'node:*',
+    ...electronModules,
+  ],
 
   // Minification (production only)
   minify: !isDev,
