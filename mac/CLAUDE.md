@@ -8,32 +8,10 @@ macOS builds support two architectures:
 - **x64**: Intel processors
 - **arm64**: Apple Silicon (M1/M2/M3+)
 
-Two installer formats:
-- **ZIP**: Simple compressed archive of `.app` bundle
-- **DMG**: Disk image with drag-to-Applications interface (preferred for distribution)
+Installer format:
+- **DMG**: Disk image with drag-to-Applications interface (standard macOS distribution format)
 
 ## Scripts
-
-### installer-zip.sh
-Creates a ZIP archive for Intel Macs.
-
-**Process:**
-1. Extracts version from `package.json`
-2. Navigates to `dist/GChat-darwin-x64/`
-3. Creates ZIP of entire directory with maximum compression
-4. Output: `../installers/GChat-{version}-darwin-x64.zip`
-
-**Usage:**
-```bash
-npm run build:mac-zip
-```
-
-**Flags:**
-- `-r`: Recursive (include all subdirectories)
-- `--symlinks`: Preserve symbolic links
-- `-9`: Maximum compression
-- `-T`: Test integrity after creation
-- `-q`: Quiet mode (minimal output)
 
 ### installer-dmg.sh
 Creates a DMG disk image for Intel Macs.
@@ -46,7 +24,7 @@ Creates a DMG disk image for Intel Macs.
 5. Unmounts temporary DMG
 6. Converts to compressed DMG with maximum compression
 7. Cleans up temporary DMG
-8. Output: `dist/GChat-v{version}.dmg`
+8. Output: `dist/Google Chat-v{version}.dmg`
 
 **Usage:**
 ```bash
@@ -67,26 +45,13 @@ npm run build:mac-dmg
   - `-format UDZO`: Compressed read-only format
   - `-imagekey zlib-level=9`: Maximum zlib compression
 
-### installer-arm-zip.sh
-Creates a ZIP archive for Apple Silicon Macs.
-
-**Process:**
-Identical to `installer-zip.sh` but uses:
-- Source: `dist/GChat-darwin-arm64/`
-- Output: `../installers/GChat-{version}-darwin-arm64.zip`
-
-**Usage:**
-```bash
-npm run build:mac-arm-zip
-```
-
 ### installer-arm-dmg.sh
 Creates a DMG disk image for Apple Silicon Macs.
 
 **Process:**
 Identical to `installer-dmg.sh` but uses:
-- Source: `dist/GChat-darwin-arm64/`
-- Output: `dist/GChat-v{version}-arm64.dmg`
+- Source: `dist/Google Chat-darwin-arm64/`
+- Output: `dist/Google Chat-v{version}-arm64.dmg`
 
 **Usage:**
 ```bash
@@ -109,7 +74,6 @@ Before running these scripts:
 
 2. **macOS tools:**
    - `hdiutil`: Built into macOS (for DMG creation)
-   - `zip`: Built into macOS (for ZIP creation)
    - Bash shell (default on macOS)
 
 ## Build Workflow
@@ -117,24 +81,22 @@ Before running these scripts:
 ### Complete Intel build:
 ```bash
 npm run pack:mac        # Creates .app bundle
-npm run build:mac-zip   # Creates ZIP
-npm run build:mac-dmg   # Creates DMG
+npm run build:mac-dmg   # Creates DMG installer
 ```
 
 ### Complete Apple Silicon build:
 ```bash
 npm run pack:mac-arm        # Creates .app bundle
-npm run build:mac-arm-zip   # Creates ZIP
-npm run build:mac-arm-dmg   # Creates DMG
+npm run build:mac-arm-dmg   # Creates DMG installer
 ```
 
-### All formats:
+### All installers:
 ```bash
 # Intel
-npm run pack:mac && npm run build:mac-zip && npm run build:mac-dmg
+npm run pack:mac && npm run build:mac-dmg
 
 # ARM
-npm run pack:mac-arm && npm run build:mac-arm-zip && npm run build:mac-arm-dmg
+npm run pack:mac-arm && npm run build:mac-arm-dmg
 ```
 
 ## Output Locations
@@ -143,20 +105,13 @@ After successful build:
 
 ```
 dist/
-├── GChat-darwin-x64/          # Packaged app (Intel)
-│   └── GChat.app
-├── GChat-darwin-arm64/        # Packaged app (ARM)
-│   └── GChat.app
-├── GChat-v{version}.dmg       # Intel DMG installer
-├── GChat-v{version}-arm64.dmg # ARM DMG installer
-└── installers/
-    ├── GChat-{version}-darwin-x64.zip    # Intel ZIP
-    └── GChat-{version}-darwin-arm64.zip  # ARM ZIP
+├── Google Chat-darwin-x64/              # Packaged app (Intel)
+│   └── Google Chat.app
+├── Google Chat-darwin-arm64/            # Packaged app (ARM)
+│   └── Google Chat.app
+├── Google Chat-v{version}.dmg           # Intel DMG installer
+└── Google Chat-v{version}-arm64.dmg     # ARM DMG installer
 ```
-
-Note the inconsistency:
-- DMG files go to `dist/`
-- ZIP files go to `dist/installers/` (via `../installers/` relative path)
 
 ## DMG Disk Image Details
 
@@ -182,7 +137,7 @@ This is the standard macOS installation UX for drag-to-install apps.
 ## Troubleshooting
 
 ### Script fails at "Creating temporary DMG":
-- Check that source directory exists: `dist/GChat-darwin-{arch}/GChat.app`
+- Check that source directory exists: `dist/Google Chat-darwin-{arch}/Google Chat.app`
 - Run `npm run pack:mac` or `npm run pack:mac-arm` first
 
 ### "Resource busy" error during unmount:
@@ -197,23 +152,19 @@ This is the standard macOS installation UX for drag-to-install apps.
 ### Permission denied:
 - Make scripts executable: `chmod +x mac/*.sh`
 
-### "no such file or directory" at ../installers/:
-- ZIP scripts use relative path `../installers/`
-- Ensure `dist/installers/` directory exists or script will create it
-
 ## Distribution Considerations
 
 ### Code Signing (not implemented):
 These scripts do NOT sign the app. For public distribution, you should:
 ```bash
-codesign --deep --force --verify --verbose --sign "Developer ID Application: Your Name" GChat.app
+codesign --deep --force --verify --verbose --sign "Developer ID Application: Your Name" "Google Chat.app"
 ```
 
 ### Notarization (not implemented):
 For macOS 10.15+, apps should be notarized:
 ```bash
-xcrun notarytool submit GChat.dmg --apple-id your@email.com --password app-specific-password --team-id TEAMID
-xcrun stapler staple GChat.dmg
+xcrun notarytool submit "Google Chat.dmg" --apple-id your@email.com --password app-specific-password --team-id TEAMID
+xcrun stapler staple "Google Chat.dmg"
 ```
 
 ### Universal binary (not implemented):

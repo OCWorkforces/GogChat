@@ -3,7 +3,7 @@
  * Manages connectivity checks and page reload when coming back online
  */
 
-import urls from '../urls';
+import urls from '../urls.js';
 
 let unsubscribe: (() => void) | null = null;
 

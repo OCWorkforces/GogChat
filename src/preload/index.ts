@@ -5,13 +5,14 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { GChatBridgeAPI } from '../shared/types';
-import { IPC_CHANNELS } from '../shared/constants';
+import type { GChatBridgeAPI } from '../shared/types.js';
+import { IPC_CHANNELS } from '../shared/constants.js';
 import {
   validateUnreadCount,
   validateFaviconURL,
   validatePasskeyFailureData,
-} from '../shared/validators';
+  validateMessageData,
+} from '../shared/validators.js';
 
 /**
  * Expose secure API to renderer process via window.gchat
@@ -24,7 +25,7 @@ const api: GChatBridgeAPI = {
       const validated = validateUnreadCount(count);
       ipcRenderer.send(IPC_CHANNELS.UNREAD_COUNT, validated);
     } catch (error) {
-      console.error('[GChat API] Invalid unread count:', error);
+      console.error('[Google Chat API] Invalid unread count:', error);
     }
   },
 
@@ -33,7 +34,7 @@ const api: GChatBridgeAPI = {
       const validated = validateFaviconURL(href);
       ipcRenderer.send(IPC_CHANNELS.FAVICON_CHANGED, validated);
     } catch (error) {
-      console.error('[GChat API] Invalid favicon URL:', error);
+      console.error('[Google Chat API] Invalid favicon URL:', error);
     }
   },
 
@@ -50,7 +51,16 @@ const api: GChatBridgeAPI = {
       const validated = validatePasskeyFailureData(errorType);
       ipcRenderer.send(IPC_CHANNELS.PASSKEY_AUTH_FAILED, validated);
     } catch (error) {
-      console.error('[GChat API] Invalid passkey failure data:', error);
+      console.error('[Google Chat API] Invalid passkey failure data:', error);
+    }
+  },
+
+  sendMessageData: (messageData: unknown) => {
+    try {
+      const validated = validateMessageData(messageData);
+      ipcRenderer.send(IPC_CHANNELS.MESSAGE_CAPTURED, validated);
+    } catch (error) {
+      console.error('[Google Chat API] Invalid message data:', error);
     }
   },
 
@@ -82,9 +92,10 @@ contextBridge.exposeInMainWorld('gchat', api);
 
 // Now load feature-specific preload scripts
 // These will use the window.gchat API we just exposed
-import './faviconChanged';
-import './offline';
-import './passkeyMonitor';
-import './searchShortcut';
-import './unreadCount';
+import './faviconChanged.js';
+import './offline.js';
+import './passkeyMonitor.js';
+import './searchShortcut.js';
+import './unreadCount.js';
+import './messageObserver.js';
 // Note: overrideNotifications needs special handling - loaded separately

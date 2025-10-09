@@ -1,12 +1,13 @@
 {
   "name": "gchat",
-  "productName": "GChat",
-  "version": "3.1.1",
-  "description": "GChat",
+  "productName": "Google Chat",
+  "version": "3.1.5",
+  "description": "Google Chat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
   "homepage": "https://github.com/CCWorkforce/GChat",
   "author": "CCWorkforce",
+  "type": "module",
   "main": "lib/main/index.js",
   "scripts": {
     "prestart": "npm run ts",
@@ -29,24 +30,13 @@
     "lint:all": "bash ./scripts/lint.sh",
     "lint:all:fix": "bash ./scripts/lint.sh --fix",
     "hooks:install": "bash ./scripts/install-hooks.sh",
-    "prepack:windows": "npm run clean:dist && npm run build:prod",
-    "pack:windows": "electron-packager . --platform=win32 --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/windows.ico --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea)$' --ignore='\\.md$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
-    "postpack:windows": "node scripts/remove-locales.js windows x64",
-    "build:windows": "node ./windows/installer.js",
     "prepack:mac": "npm run clean:dist && npm run build:prod",
-    "pack:mac": "electron-packager . --platform=darwin --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea)$' --ignore='\\.md$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
+    "pack:mac": "electron-packager . --platform=darwin --arch=x64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea|tests|scripts)$' --ignore='\\.md$' --ignore='\\.map$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|playwright\\.config\\.ts|eslint\\.config\\.js|\\.prettierrc\\.json|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
     "postpack:mac": "node scripts/remove-locales.js mac x64",
-    "pack:mac-arm": "electron-packager . --platform=darwin --arch=arm64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea)$' --ignore='\\.md$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
+    "pack:mac-arm": "electron-packager . --platform=darwin --arch=arm64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea|tests|scripts)$' --ignore='\\.md$' --ignore='\\.map$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|playwright\\.config\\.ts|eslint\\.config\\.js|\\.prettierrc\\.json|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
     "postpack:mac-arm": "node scripts/remove-locales.js mac arm64",
-    "build:mac-zip": "bash ./mac/installer-zip.sh",
     "build:mac-dmg": "bash ./mac/installer-dmg.sh",
-    "build:mac-arm-zip": "bash ./mac/installer-arm-zip.sh",
-    "build:mac-arm-dmg": "bash ./mac/installer-arm-dmg.sh",
-    "prepack:linux": "npm run clean:dist && npm run build:prod",
-    "pack:linux": "electron-packager . --platform=linux --arch=x64 --asar --overwrite --out=./dist/ --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea)$' --ignore='\\.md$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
-    "postpack:linux": "node scripts/remove-locales.js linux x64",
-    "build:deb": "electron-installer-debian --config=./debian/config.json --arch=amd64",
-    "build:deb-checksum": "cd ./dist/installers && sha512sum *.deb > GChat-deb-SHA512.txt"
+    "build:mac-arm-dmg": "bash ./mac/installer-arm-dmg.sh"
   },
   "devDependencies": {
     "@electron/osx-sign": "^2.2.0",
@@ -75,9 +65,6 @@
     "electron-update-notifier": "^1.7.0",
     "esbuild": "^0.25.10",
     "throttle-debounce": "^5.0.2"
-  },
-  "optionalDependencies": {
-    "electron-installer-debian": "^3.2.0"
   },
   "engineStrict": true,
   "engines": {

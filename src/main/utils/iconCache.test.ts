@@ -2,7 +2,34 @@
  * Tests for Icon Cache Manager
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import path from 'path';
+
+// Mock Electron before importing iconCache
+vi.mock('electron', () => ({
+  app: {
+    getAppPath: () => path.join(__dirname, '../../..'),
+    getName: () => 'gchat',
+    getPath: (name: string) => `/fake/path/${name}`,
+  },
+  nativeImage: {
+    createFromPath: (_path: string) => ({
+      isEmpty: () => false,
+      getSize: () => ({ width: 16, height: 16 }),
+    }),
+  },
+}));
+
+// Mock electron-log
+vi.mock('electron-log', () => ({
+  default: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 import { getIconCache, destroyIconCache } from './iconCache';
 
 describe('IconCacheManager', () => {

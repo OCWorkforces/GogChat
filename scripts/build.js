@@ -5,9 +5,13 @@
  * Provides significant size reduction compared to tsc
  */
 
-const esbuild = require('esbuild');
-const fs = require('fs');
-const path = require('path');
+import esbuild from 'esbuild';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isDev = process.argv.includes('--dev');
 const isWatch = process.argv.includes('--watch');
@@ -50,6 +54,17 @@ function getEntryPoints() {
 const entryPoints = getEntryPoints();
 console.log(`[Build] Found ${entryPoints.length} TypeScript files to compile`);
 
+// Electron built-in modules that must be external
+const electronModules = [
+  'electron',
+  'electron-log',
+  'electron-store',
+  'electron-unhandled',
+  'electron-update-notifier',
+  'electron-context-menu',
+  'auto-launch',
+];
+
 // esbuild configuration
 const buildOptions = {
   entryPoints,
@@ -57,7 +72,18 @@ const buildOptions = {
   outbase: 'src',
   platform: 'node',
   target: 'node22',
-  format: 'cjs',
+  format: 'esm',
+
+  // Bundling strategy: Selective bundling
+  // - Bundle utility packages (like throttle-debounce) and convert to ESM
+  // - Keep Electron and native modules external (they resolve at runtime)
+  // This allows bundling CommonJS packages while keeping Electron external
+  bundle: true,
+  splitting: false,
+
+  // External modules: Only Electron and native Node.js modules
+  // Everything else (including throttle-debounce) will be bundled
+  external: ['electron', 'electron/*', 'node:*', ...electronModules],
 
   // Minification (production only)
   minify: !isDev,
@@ -67,10 +93,6 @@ const buildOptions = {
 
   // Source maps (development only)
   sourcemap: isDev,
-
-  // Keep file structure (don't bundle, compile each file separately)
-  splitting: false,
-  bundle: false,
 
   // Advanced optimizations
   treeShaking: true,
@@ -103,10 +125,65 @@ async function build() {
         result.warnings.forEach((warning) => console.warn(warning));
       }
 
-      // Calculate size savings
+      // Calculate size and track bundle metrics
       if (!isDev) {
         const libSize = getDirectorySize(libDir);
-        console.log(`[Build] Output size: ${(libSize / 1024 / 1024).toFixed(2)} MB`);
+        const libSizeMB = (libSize / 1024 / 1024).toFixed(2);
+        console.log(`[Build] Output size: ${libSizeMB} MB (${libSize.toLocaleString()} bytes)`);
+
+        // Log top 10 largest files
+        console.log('[Build] Top 10 largest files:');
+        const files = getAllFiles(libDir);
+        const fileSizes = files
+          .map((file) => ({
+            path: file.replace(libDir + '/', ''),
+            size: fs.statSync(file).size,
+          }))
+          .sort((a, b) => b.size - a.size)
+          .slice(0, 10);
+
+        fileSizes.forEach((file, index) => {
+          const sizeKB = (file.size / 1024).toFixed(1);
+          console.log(`[Build]   ${index + 1}. ${file.path} (${sizeKB} KB)`);
+        });
+
+        // Track bundle size history
+        const historyFile = path.join(__dirname, '../.build-history.json');
+        let history = [];
+        if (fs.existsSync(historyFile)) {
+          history = JSON.parse(fs.readFileSync(historyFile, 'utf-8'));
+        }
+
+        history.push({
+          timestamp: new Date().toISOString(),
+          size: libSize,
+          sizeMB: parseFloat(libSizeMB),
+          fileCount: files.length,
+        });
+
+        // Keep only last 20 builds
+        if (history.length > 20) {
+          history = history.slice(-20);
+        }
+
+        fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
+
+        // Show size trend if we have history
+        if (history.length > 1) {
+          const previousSize = history[history.length - 2].sizeMB;
+          const diff = parseFloat(libSizeMB) - previousSize;
+          const diffPercent = ((diff / previousSize) * 100).toFixed(1);
+
+          if (diff > 0) {
+            console.log(`[Build] Size increased by ${diff.toFixed(2)} MB (+${diffPercent}%)`);
+          } else if (diff < 0) {
+            console.log(
+              `[Build] Size decreased by ${Math.abs(diff).toFixed(2)} MB (${diffPercent}%)`
+            );
+          } else {
+            console.log(`[Build] Size unchanged`);
+          }
+        }
       }
     }
   } catch (error) {
@@ -141,6 +218,34 @@ function getDirectorySize(dirPath) {
   }
 
   return totalSize;
+}
+
+/**
+ * Get all files in directory recursively
+ */
+function getAllFiles(dirPath) {
+  const allFiles = [];
+
+  function scanDir(dir) {
+    const files = fs.readdirSync(dir);
+
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat.isDirectory()) {
+        scanDir(filePath);
+      } else {
+        allFiles.push(filePath);
+      }
+    }
+  }
+
+  if (fs.existsSync(dirPath)) {
+    scanDir(dirPath);
+  }
+
+  return allFiles;
 }
 
 // Run build

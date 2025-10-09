@@ -1,6 +1,6 @@
 import log from 'electron-log';
-import { isFirstAppLaunch } from '../utils/platform';
-import store from '../config';
+import { isFirstAppLaunch } from '../utils/platform.js';
+import store from '../config.js';
 
 export default () => {
   if (isFirstAppLaunch(store)) {

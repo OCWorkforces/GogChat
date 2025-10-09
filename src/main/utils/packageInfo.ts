@@ -6,6 +6,7 @@
 
 import { app } from 'electron';
 import path from 'path';
+import { readFileSync } from 'fs';
 import log from 'electron-log';
 
 /**
@@ -38,17 +39,17 @@ export function getPackageInfo(): Readonly<PackageInfo> {
   if (!packageInfo) {
     try {
       const pkgPath = path.join(app.getAppPath(), 'package.json');
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      packageInfo = require(pkgPath) as PackageInfo;
+      const pkgContent = readFileSync(pkgPath, 'utf-8');
+      packageInfo = JSON.parse(pkgContent) as PackageInfo;
       log.debug('[PackageInfo] Loaded package.json');
     } catch (error) {
       log.error('[PackageInfo] Failed to load package.json:', error);
       // Return minimal fallback to prevent crashes
       packageInfo = {
         name: 'gchat',
-        productName: 'GChat',
+        productName: 'Google Chat',
         version: '0.0.0',
-        description: 'GChat',
+        description: 'Google Chat',
         repository: '',
         homepage: '',
         author: '',

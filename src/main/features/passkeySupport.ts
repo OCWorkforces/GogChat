@@ -5,10 +5,10 @@
 
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import log from 'electron-log';
-import { IPC_CHANNELS } from '../../shared/constants';
-import type { PasskeyFailureData } from '../../shared/types';
-import { getRateLimiter } from '../utils/rateLimiter';
-import store from '../config';
+import { IPC_CHANNELS } from '../../shared/constants.js';
+import type { PasskeyFailureData } from '../../shared/types.js';
+import { getRateLimiter } from '../utils/rateLimiter.js';
+import store from '../config.js';
 
 export default (window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();

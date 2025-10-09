@@ -1,8 +1,8 @@
 import path from 'path';
 import { app, BrowserWindow } from 'electron';
-import store from './config';
+import store from './config.js';
 import log from 'electron-log';
-import { getIconCache } from './utils/iconCache';
+import { getIconCache } from './utils/iconCache.js';
 
 export default (url: string): BrowserWindow => {
   const window = new BrowserWindow({
@@ -23,7 +23,7 @@ export default (url: string): BrowserWindow => {
     center: true,
     title: 'Google Chat',
     backgroundColor: '#E8EAED',
-    autoHideMenuBar: store.get('app.hideMenuBar'),
+    autoHideMenuBar: store.get('app.hideMenuBar') as boolean,
   });
 
   // Implement Content Security Policy

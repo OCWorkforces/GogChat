@@ -13,6 +13,10 @@ import {
   sanitizeHTML,
   isWhitelistedHost,
   isSafeObject,
+  validateMessageType,
+  validateConversationType,
+  validateTimestamp,
+  validateMessageData,
 } from './validators';
 
 describe('validateUnreadCount', () => {
@@ -379,5 +383,297 @@ describe('Security integration tests', () => {
     // The word 'onerror' will still be present but safe (no angle brackets)
     expect(escaped).not.toContain('<');
     expect(escaped).not.toContain('>');
+  });
+});
+
+/**
+ * Message Logging Validators Tests
+ */
+
+describe('validateMessageType', () => {
+  it('should accept valid message types', () => {
+    expect(validateMessageType('text')).toBe('text');
+    expect(validateMessageType('image')).toBe('image');
+    expect(validateMessageType('file')).toBe('file');
+    expect(validateMessageType('reaction')).toBe('reaction');
+    expect(validateMessageType('system')).toBe('system');
+    expect(validateMessageType('unknown')).toBe('unknown');
+  });
+
+  it('should reject invalid message types', () => {
+    expect(() => validateMessageType('invalid')).toThrow('Invalid message type: invalid');
+    expect(() => validateMessageType('video')).toThrow('Invalid message type: video');
+    expect(() => validateMessageType('')).toThrow('Invalid message type: ');
+  });
+
+  it('should reject non-string inputs', () => {
+    expect(() => validateMessageType(null)).toThrow('Message type must be a string');
+    expect(() => validateMessageType(undefined)).toThrow('Message type must be a string');
+    expect(() => validateMessageType(123)).toThrow('Message type must be a string');
+    expect(() => validateMessageType({})).toThrow('Message type must be a string');
+  });
+});
+
+describe('validateConversationType', () => {
+  it('should accept valid conversation types', () => {
+    expect(validateConversationType('direct')).toBe('direct');
+    expect(validateConversationType('group')).toBe('group');
+    expect(validateConversationType('space')).toBe('space');
+  });
+
+  it('should reject invalid conversation types', () => {
+    expect(() => validateConversationType('invalid')).toThrow('Invalid conversation type: invalid');
+    expect(() => validateConversationType('channel')).toThrow('Invalid conversation type: channel');
+    expect(() => validateConversationType('')).toThrow('Invalid conversation type: ');
+  });
+
+  it('should reject non-string inputs', () => {
+    expect(() => validateConversationType(null)).toThrow('Conversation type must be a string');
+    expect(() => validateConversationType(undefined)).toThrow('Conversation type must be a string');
+    expect(() => validateConversationType(42)).toThrow('Conversation type must be a string');
+  });
+});
+
+describe('validateTimestamp', () => {
+  it('should accept valid ISO 8601 timestamps', () => {
+    const now = new Date().toISOString();
+    expect(validateTimestamp(now)).toBe(now);
+
+    const past = new Date('2024-01-01T00:00:00.000Z').toISOString();
+    expect(validateTimestamp(past)).toBe(past);
+
+    const future = new Date(Date.now() + 1000 * 60 * 60).toISOString(); // 1 hour from now
+    expect(validateTimestamp(future)).toBe(future);
+  });
+
+  it('should accept timestamps with milliseconds', () => {
+    const timestamp = '2024-12-25T12:30:45.123Z';
+    expect(validateTimestamp(timestamp)).toBe(timestamp);
+  });
+
+  it('should reject timestamps too far in the future', () => {
+    const farFuture = new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
+    expect(() => validateTimestamp(farFuture)).toThrow('Timestamp is too far in the future');
+  });
+
+  it('should reject timestamps too far in the past', () => {
+    const farPast = new Date(Date.now() - 11 * 365 * 24 * 60 * 60 * 1000).toISOString();
+    expect(() => validateTimestamp(farPast)).toThrow('Timestamp is too far in the past');
+  });
+
+  it('should reject invalid timestamp formats', () => {
+    expect(() => validateTimestamp('invalid')).toThrow('Invalid timestamp format');
+    expect(() => validateTimestamp('2024-13-45')).toThrow('Invalid timestamp format');
+    expect(() => validateTimestamp('not-a-date')).toThrow('Invalid timestamp format');
+  });
+
+  it('should reject non-string inputs', () => {
+    expect(() => validateTimestamp(null)).toThrow('Timestamp must be a string');
+    expect(() => validateTimestamp(undefined)).toThrow('Timestamp must be a string');
+    expect(() => validateTimestamp(1234567890)).toThrow('Timestamp must be a string');
+  });
+
+  it('should accept timestamps within 10 year range', () => {
+    const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    const oneYearFromNow = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 - 1000).toISOString();
+
+    expect(validateTimestamp(oneYearAgo)).toBe(oneYearAgo);
+    expect(validateTimestamp(oneYearFromNow)).toBe(oneYearFromNow);
+  });
+});
+
+describe('validateMessageData', () => {
+  const validMessageData = {
+    messageId: 'msg-123',
+    content: 'Hello, world!',
+    sender: 'John Doe',
+    timestamp: new Date().toISOString(),
+    conversationId: 'conv-456',
+    conversationName: 'Team Chat',
+    conversationType: 'group' as const,
+    messageType: 'text' as const,
+    isOutgoing: false,
+  };
+
+  it('should accept valid message data', () => {
+    const result = validateMessageData(validMessageData);
+    expect(result.messageId).toBe('msg-123');
+    expect(result.sender).toBe('John Doe');
+    expect(result.messageType).toBe('text');
+    expect(result.conversationType).toBe('group');
+    expect(result.isOutgoing).toBe(false);
+  });
+
+  it('should sanitize HTML in content', () => {
+    const data = {
+      ...validMessageData,
+      content: '<script>alert("XSS")</script>',
+    };
+    const result = validateMessageData(data);
+    expect(result.content).not.toContain('<script>');
+    expect(result.content).toContain('&lt;script&gt;');
+  });
+
+  it('should sanitize HTML in sender name', () => {
+    const data = {
+      ...validMessageData,
+      sender: '<b>Evil User</b>',
+    };
+    const result = validateMessageData(data);
+    expect(result.sender).not.toContain('<b>');
+    expect(result.sender).toContain('&lt;b&gt;');
+  });
+
+  it('should sanitize HTML in conversation name', () => {
+    const data = {
+      ...validMessageData,
+      conversationName: '<img src=x onerror=alert(1)>',
+    };
+    const result = validateMessageData(data);
+    expect(result.conversationName).not.toContain('<img');
+    expect(result.conversationName).toContain('&lt;img');
+  });
+
+  it('should reject message data that is not an object', () => {
+    expect(() => validateMessageData(null)).toThrow('Message data must be a plain object');
+    expect(() => validateMessageData([])).toThrow('Message data must be a plain object');
+    expect(() => validateMessageData('string')).toThrow('Message data must be a plain object');
+  });
+
+  it('should reject missing required fields', () => {
+    const incomplete = { messageId: 'msg-123' };
+    expect(() => validateMessageData(incomplete)).toThrow();
+  });
+
+  it('should enforce content size limit', () => {
+    const data = {
+      ...validMessageData,
+      content: 'x'.repeat(60000), // Exceeds 50KB limit
+    };
+    expect(() => validateMessageData(data)).toThrow('String exceeds maximum length');
+  });
+
+  it('should accept content at size limit', () => {
+    const data = {
+      ...validMessageData,
+      content: 'x'.repeat(49999), // Just under 50KB limit
+    };
+    const result = validateMessageData(data);
+    expect(result.content.length).toBe(49999);
+  });
+
+  it('should handle optional fields', () => {
+    const dataWithOptional = {
+      ...validMessageData,
+      receiverName: 'Jane Doe',
+      participants: ['John', 'Jane', 'Bob'],
+      attachmentUrl: 'https://example.com/file.pdf',
+      attachmentName: 'document.pdf',
+      reactionType: '👍',
+    };
+
+    const result = validateMessageData(dataWithOptional);
+    expect(result.receiverName).toBe('Jane Doe');
+    expect(result.participants).toEqual(['John', 'Jane', 'Bob']);
+    expect(result.attachmentUrl).toBe('https://example.com/file.pdf');
+    expect(result.attachmentName).toBe('document.pdf');
+    expect(result.reactionType).toBe('👍');
+  });
+
+  it('should sanitize participant names', () => {
+    const data = {
+      ...validMessageData,
+      participants: ['<script>alert(1)</script>', 'Normal User'],
+    };
+    const result = validateMessageData(data);
+    expect(result.participants?.[0]).toContain('&lt;script&gt;');
+    expect(result.participants?.[1]).toBe('Normal User');
+  });
+
+  it('should validate attachment URLs', () => {
+    const data = {
+      ...validMessageData,
+      attachmentUrl: 'javascript:alert(1)',
+    };
+    expect(() => validateMessageData(data)).toThrow('Unsafe protocol');
+  });
+
+  it('should reject invalid participants array', () => {
+    const data = {
+      ...validMessageData,
+      participants: 'not an array',
+    };
+    expect(() => validateMessageData(data)).toThrow('Participants must be an array');
+  });
+
+  it('should reject invalid message type in data', () => {
+    const data = {
+      ...validMessageData,
+      messageType: 'invalid',
+    };
+    expect(() => validateMessageData(data)).toThrow('Invalid message type');
+  });
+
+  it('should reject invalid conversation type in data', () => {
+    const data = {
+      ...validMessageData,
+      conversationType: 'invalid',
+    };
+    expect(() => validateMessageData(data)).toThrow('Invalid conversation type');
+  });
+
+  it('should reject invalid timestamp in data', () => {
+    const data = {
+      ...validMessageData,
+      timestamp: 'not-a-timestamp',
+    };
+    expect(() => validateMessageData(data)).toThrow('Invalid timestamp format');
+  });
+
+  it('should handle all message types', () => {
+    const types: Array<'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown'> = [
+      'text',
+      'image',
+      'file',
+      'reaction',
+      'system',
+      'unknown',
+    ];
+
+    types.forEach((type) => {
+      const data = {
+        ...validMessageData,
+        messageType: type,
+      };
+      const result = validateMessageData(data);
+      expect(result.messageType).toBe(type);
+    });
+  });
+
+  it('should handle all conversation types', () => {
+    const types: Array<'direct' | 'group' | 'space'> = ['direct', 'group', 'space'];
+
+    types.forEach((type) => {
+      const data = {
+        ...validMessageData,
+        conversationType: type,
+      };
+      const result = validateMessageData(data);
+      expect(result.conversationType).toBe(type);
+    });
+  });
+
+  it('should handle isOutgoing boolean conversion', () => {
+    const data1 = { ...validMessageData, isOutgoing: true };
+    expect(validateMessageData(data1).isOutgoing).toBe(true);
+
+    const data2 = { ...validMessageData, isOutgoing: false };
+    expect(validateMessageData(data2).isOutgoing).toBe(false);
+
+    const data3 = { ...validMessageData, isOutgoing: 1 as unknown as boolean };
+    expect(validateMessageData(data3).isOutgoing).toBe(true);
+
+    const data4 = { ...validMessageData, isOutgoing: 0 as unknown as boolean };
+    expect(validateMessageData(data4).isOutgoing).toBe(false);
   });
 });

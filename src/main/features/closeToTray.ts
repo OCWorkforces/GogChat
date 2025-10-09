@@ -1,5 +1,5 @@
 import { BrowserWindow, app } from 'electron';
-import { platform } from '../utils/platform';
+import { platform } from '../utils/platform.js';
 
 let willQuit = false;
 
