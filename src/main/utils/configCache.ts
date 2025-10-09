@@ -151,3 +151,10 @@ export function logCacheStats<T extends Record<string, unknown>>(store: CachedSt
   log.info(`[ConfigCache] Hit rate: ${stats.hitRate}`);
   log.info('[ConfigCache] =========================================');
 }
+
+/**
+ * Clear config cache - placeholder for compatibility
+ */
+export function clearConfigCache(): void {
+  log.debug('[ConfigCache] Clear config cache called');
+}
