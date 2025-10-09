@@ -70,7 +70,7 @@ describe('PackageInfo', () => {
 
       // Verify it's loading real data, not fallback
       expect(pkg.name).toBe('gchat');
-      expect(pkg.productName).toBe('GChat');
+      expect(pkg.productName).toBe('Google Chat');
       expect(pkg.version).toMatch(/^\d+\.\d+\.\d+/); // Semver format
     });
   });

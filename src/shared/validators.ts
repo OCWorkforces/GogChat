@@ -261,3 +261,178 @@ export function validatePasskeyFailureData(errorType: unknown): {
     timestamp: Date.now(),
   };
 }
+
+/**
+ * Message logging validators
+ */
+
+/**
+ * Validates message type
+ * @param type - Message type to validate
+ * @returns Validated message type
+ * @throws Error if invalid
+ */
+export function validateMessageType(
+  type: unknown
+): 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown' {
+  const validTypes = ['text', 'image', 'file', 'reaction', 'system', 'unknown'];
+
+  if (typeof type !== 'string') {
+    throw new Error('Message type must be a string');
+  }
+
+  if (!validTypes.includes(type)) {
+    throw new Error(`Invalid message type: ${type}`);
+  }
+
+  return type as 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown';
+}
+
+/**
+ * Validates conversation type
+ * @param type - Conversation type to validate
+ * @returns Validated conversation type
+ * @throws Error if invalid
+ */
+export function validateConversationType(type: unknown): 'direct' | 'group' | 'space' {
+  const validTypes = ['direct', 'group', 'space'];
+
+  if (typeof type !== 'string') {
+    throw new Error('Conversation type must be a string');
+  }
+
+  if (!validTypes.includes(type)) {
+    throw new Error(`Invalid conversation type: ${type}`);
+  }
+
+  return type as 'direct' | 'group' | 'space';
+}
+
+/**
+ * Validates ISO 8601 timestamp string
+ * @param timestamp - Timestamp to validate
+ * @returns Validated timestamp string
+ * @throws Error if invalid
+ */
+export function validateTimestamp(timestamp: unknown): string {
+  if (typeof timestamp !== 'string') {
+    throw new Error('Timestamp must be a string');
+  }
+
+  // Try parsing as ISO 8601
+  const date = new Date(timestamp);
+
+  if (isNaN(date.getTime())) {
+    throw new Error('Invalid timestamp format (must be ISO 8601)');
+  }
+
+  // Check if timestamp is in reasonable range (not in far future or past)
+  const now = Date.now();
+  const timestampMs = date.getTime();
+  const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+
+  if (timestampMs > now + oneYearMs) {
+    throw new Error('Timestamp is too far in the future');
+  }
+
+  if (timestampMs < now - 10 * oneYearMs) {
+    throw new Error('Timestamp is too far in the past');
+  }
+
+  return timestamp;
+}
+
+/**
+ * Validates message data from renderer
+ * @param data - Message data to validate
+ * @returns Validated message data
+ * @throws Error if data is invalid
+ */
+export function validateMessageData(data: unknown): {
+  messageId: string;
+  content: string;
+  sender: string;
+  timestamp: string;
+  conversationId: string;
+  conversationName: string;
+  conversationType: 'direct' | 'group' | 'space';
+  messageType: 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown';
+  isOutgoing: boolean;
+  receiverName?: string;
+  participants?: string[];
+  attachmentUrl?: string;
+  attachmentName?: string;
+  reactionType?: string;
+} {
+  // Type check
+  if (!isSafeObject(data)) {
+    throw new Error('Message data must be a plain object');
+  }
+
+  // Validate required fields
+  const messageId = validateString(data.messageId, 500);
+  const content = validateString(data.content, 50000); // 50KB max
+  const sender = validateString(data.sender, 500);
+  const timestamp = validateTimestamp(data.timestamp);
+  const conversationId = validateString(data.conversationId, 500);
+  const conversationName = validateString(data.conversationName, 500);
+  const conversationType = validateConversationType(data.conversationType);
+  const messageType = validateMessageType(data.messageType);
+  const isOutgoing = validateBoolean(data.isOutgoing);
+
+  // Validate optional fields
+  const result: {
+    messageId: string;
+    content: string;
+    sender: string;
+    timestamp: string;
+    conversationId: string;
+    conversationName: string;
+    conversationType: 'direct' | 'group' | 'space';
+    messageType: 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown';
+    isOutgoing: boolean;
+    receiverName?: string;
+    participants?: string[];
+    attachmentUrl?: string;
+    attachmentName?: string;
+    reactionType?: string;
+  } = {
+    messageId,
+    content: sanitizeHTML(content), // Sanitize content to prevent XSS
+    sender: sanitizeHTML(sender),
+    timestamp,
+    conversationId,
+    conversationName: sanitizeHTML(conversationName),
+    conversationType,
+    messageType,
+    isOutgoing,
+  };
+
+  // Optional fields
+  if (data.receiverName !== undefined && data.receiverName !== null) {
+    result.receiverName = sanitizeHTML(validateString(data.receiverName as unknown, 500));
+  }
+
+  if (data.participants !== undefined && data.participants !== null) {
+    if (!Array.isArray(data.participants)) {
+      throw new Error('Participants must be an array');
+    }
+    result.participants = (data.participants as unknown[]).map((p) =>
+      sanitizeHTML(validateString(p, 500))
+    );
+  }
+
+  if (data.attachmentUrl !== undefined && data.attachmentUrl !== null) {
+    result.attachmentUrl = validateExternalURL(data.attachmentUrl as unknown);
+  }
+
+  if (data.attachmentName !== undefined && data.attachmentName !== null) {
+    result.attachmentName = sanitizeHTML(validateString(data.attachmentName as unknown, 500));
+  }
+
+  if (data.reactionType !== undefined && data.reactionType !== null) {
+    result.reactionType = validateString(data.reactionType as unknown, 100);
+  }
+
+  return result;
+}

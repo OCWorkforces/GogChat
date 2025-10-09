@@ -8,7 +8,7 @@
 set -e  # Exit on error
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  GChat - macOS ARM64 (Apple Silicon) DMG Build Script"
+echo "  Google Chat - macOS ARM64 (Apple Silicon) DMG Build Script"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
@@ -49,13 +49,13 @@ echo ""
 # Define paths
 ARCH="arm64"
 PLATFORM="darwin"
-SOURCE_DIR="./dist/GChat-${PLATFORM}-${ARCH}/"
-APP_NAME="GChat.app"
+SOURCE_DIR="./dist/Google Chat-${PLATFORM}-${ARCH}/"
+APP_NAME="Google Chat.app"
 OUT_DIR="./dist/"
-DMG_NAME="GChat-v${PACKAGE_VERSION}-macOS-arm64.dmg"
+DMG_NAME="Google-Chat-v${PACKAGE_VERSION}-macOS-arm64.dmg"
 OUT_FILE_PATH="${OUT_DIR}${DMG_NAME}"
-TEMP_DMG="${OUT_DIR}GChat-v${PACKAGE_VERSION}-arm64-temp.dmg"
-VOLUME_NAME="GChat ${PACKAGE_VERSION}"
+TEMP_DMG="${OUT_DIR}Google-Chat-v${PACKAGE_VERSION}-arm64-temp.dmg"
+VOLUME_NAME="Google Chat ${PACKAGE_VERSION}"
 
 # Step 1: Clean previous builds
 print_step "Step 1/5: Cleaning previous builds..."
