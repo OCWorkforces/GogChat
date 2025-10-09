@@ -5,7 +5,7 @@ import { validateExternalURL, isWhitelistedHost } from '../../shared/validators.
 
 let guardAgainstExternalLinks = true;
 const RE_GUARD_IN_MINUTES = TIMING.EXTERNAL_LINKS_REGUARD / (60 * 1000);
-let interval: NodeJS.Timeout;
+let interval: NodeJS.Timeout | null = null;
 
 const ACTION_DENIED = {
   action: 'deny' as const,
@@ -147,7 +147,10 @@ const logGuardStatus = () => {
 };
 
 const stopReGuardTimer = () => {
-  clearInterval(interval);
+  if (interval) {
+    clearInterval(interval);
+    interval = null;
+  }
 };
 
 const startReGuardTimer = () => {
@@ -159,5 +162,19 @@ const startReGuardTimer = () => {
     1000 * 60 * RE_GUARD_IN_MINUTES
   );
 };
+
+/**
+ * Cleanup function for external links feature
+ */
+export function cleanupExternalLinks(): void {
+  try {
+    log.debug('[ExternalLinks] Cleaning up external links handler');
+    stopReGuardTimer();
+    guardAgainstExternalLinks = true;
+    log.info('[ExternalLinks] External links handler cleaned up');
+  } catch (error) {
+    log.error('[ExternalLinks] Failed to cleanup external links:', error);
+  }
+}
 
 export { toggleExternalLinksGuard };

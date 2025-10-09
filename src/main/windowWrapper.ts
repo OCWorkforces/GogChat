@@ -26,34 +26,46 @@ export default (url: string): BrowserWindow => {
     autoHideMenuBar: store.get('app.hideMenuBar') as boolean,
   });
 
-  // Implement Content Security Policy
+  // Implement Content Security Policy and fix Google authentication blocking
   // Note: CSP is relaxed to allow Google Chat full functionality while still blocking malicious content
   const installCSP = () => {
     const ses = window.webContents.session;
 
     ses.webRequest.onHeadersReceived((details, callback) => {
-      // Only apply CSP to main frame, not to Google's internal resources
-      // This prevents blocking Google Chat's settings and other interactive features
-      if (details.resourceType === 'mainFrame') {
-        callback({
-          responseHeaders: {
-            ...details.responseHeaders,
-            'Content-Security-Policy': [
-              "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " +
-                "object-src 'none'; " +
-                "base-uri 'self';",
-            ],
-          },
-        });
-      } else {
-        // Pass through other resources without modification
-        callback({
-          responseHeaders: details.responseHeaders,
-        });
+      const responseHeaders = { ...details.responseHeaders };
+
+      // Strip problematic COEP/COOP headers for Google domains that block embedded content
+      // This fixes ERR_BLOCKED_BY_RESPONSE for RotateCookiesPage and widget authentication
+      const url = details.url.toLowerCase();
+      const isGoogleDomain =
+        url.includes('google.com') ||
+        url.includes('gstatic.com') ||
+        url.includes('googleapis.com') ||
+        url.includes('googleusercontent.com');
+
+      if (isGoogleDomain) {
+        // Remove headers that block cross-origin embedding
+        delete responseHeaders['cross-origin-embedder-policy'];
+        delete responseHeaders['cross-origin-opener-policy'];
+        delete responseHeaders['Cross-Origin-Embedder-Policy'];
+        delete responseHeaders['Cross-Origin-Opener-Policy'];
+
+        log.debug(`[Security] Stripped COEP/COOP headers for: ${details.url.substring(0, 80)}`);
       }
+
+      // Apply CSP to main frame only
+      if (details.resourceType === 'mainFrame') {
+        responseHeaders['Content-Security-Policy'] = [
+          "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+            "object-src 'none'; " +
+            "base-uri 'self';",
+        ];
+      }
+
+      callback({ responseHeaders });
     });
 
-    log.debug('[Security] Content Security Policy installed');
+    log.debug('[Security] Content Security Policy installed with COEP/COOP fix');
   };
 
   // Set permission request handler

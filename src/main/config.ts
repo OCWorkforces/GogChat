@@ -3,6 +3,11 @@ import { createHash } from 'crypto';
 import type { StoreType } from '../shared/types.js';
 import Store from 'electron-store';
 import { addCacheLayer, type CachedStore } from './utils/configCache.js';
+import log from 'electron-log';
+import { getPackageInfo } from './utils/packageInfo.js';
+
+// ⚡ OPTIMIZATION: Cache version for invalidation on app updates
+const CACHE_VERSION = '1.0.0';
 
 /**
  * Generate encryption key from app-specific data
@@ -118,6 +123,28 @@ const schema: any = {
       maxMessageSize: 50000,
     },
   },
+  _meta: {
+    type: 'object',
+    properties: {
+      cacheVersion: {
+        type: 'string',
+        default: CACHE_VERSION,
+      },
+      lastAppVersion: {
+        type: 'string',
+        default: '',
+      },
+      lastUpdated: {
+        type: 'number',
+        default: 0,
+      },
+    },
+    default: {
+      cacheVersion: CACHE_VERSION,
+      lastAppVersion: '',
+      lastUpdated: Date.now(),
+    },
+  },
 };
 
 /**
@@ -154,8 +181,55 @@ export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
     store = addCacheLayer(store);
   }
 
+  // ⚡ OPTIMIZATION: Check and update cache version
+  validateAndUpdateCacheVersion(store);
+
   storeInstance = store;
   return store;
+}
+
+/**
+ * Validate cache version and clear if outdated
+ * ⚡ OPTIMIZATION: Prevents stale data after app updates
+ */
+function validateAndUpdateCacheVersion(store: Store<StoreType> | CachedStore<StoreType>): void {
+  try {
+    const meta = store.get('_meta');
+    const currentAppVersion = getPackageInfo().version;
+    const storedCacheVersion = meta?.cacheVersion;
+    const storedAppVersion = meta?.lastAppVersion;
+
+    // Check if cache version or app version changed
+    const cacheVersionChanged = storedCacheVersion !== CACHE_VERSION;
+    const appVersionChanged = storedAppVersion !== currentAppVersion;
+
+    if (cacheVersionChanged || appVersionChanged) {
+      log.info(
+        `[Config] Cache invalidation triggered - Cache version: ${storedCacheVersion} → ${CACHE_VERSION}, App version: ${storedAppVersion} → ${currentAppVersion}`
+      );
+
+      // Clear cache if it has the clearCache method (CachedStore)
+      if (typeof (store as CachedStore<StoreType>).clearCache === 'function') {
+        (store as CachedStore<StoreType>).clearCache();
+        log.info('[Config] In-memory cache cleared');
+      }
+
+      // Update metadata
+      store.set('_meta', {
+        cacheVersion: CACHE_VERSION,
+        lastAppVersion: currentAppVersion,
+        lastUpdated: Date.now(),
+      });
+
+      log.info('[Config] Cache version and metadata updated');
+    } else {
+      log.debug(
+        `[Config] Cache version valid (${CACHE_VERSION}), app version: ${currentAppVersion}`
+      );
+    }
+  } catch (error) {
+    log.error('[Config] Failed to validate cache version:', error);
+  }
 }
 
 /**
