@@ -34,9 +34,7 @@
     "postpack:mac": "node scripts/remove-locales.js mac x64",
     "pack:mac-arm": "electron-packager . --platform=darwin --arch=arm64 --asar --overwrite --out=./dist/ --icon=./resources/icons/normal/mac.icns --ignore='^/(src|.github|coverage|debian|mac|windows|.git|.vscode|.idea|tests|scripts)$' --ignore='^/node_modules/(?!(electron|electron-log|electron-store|electron-unhandled|electron-update-notifier|electron-context-menu|auto-launch|better-sqlite3|v8-compile-cache)(/|$))' --ignore='\\.md$' --ignore='\\.map$' --ignore='\\.test\\.(ts|js)$' --ignore='(tsconfig\\.json|vitest\\.config\\.ts|playwright\\.config\\.ts|eslint\\.config\\.js|\\.prettierrc\\.json|\\.editorconfig|\\.npmrc|\\.gitignore|\\.gitattributes|\\.DS_Store|package-lock\\.json|entitlements\\.mac.*\\.plist)$'",
     "postpack:mac-arm": "node scripts/remove-locales.js mac arm64",
-    "build:mac-zip": "bash ./mac/installer-zip.sh",
     "build:mac-dmg": "bash ./mac/installer-dmg.sh",
-    "build:mac-arm-zip": "bash ./mac/installer-arm-zip.sh",
     "build:mac-arm-dmg": "bash ./mac/installer-arm-dmg.sh"
   },
   "devDependencies": {

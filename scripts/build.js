@@ -173,7 +173,9 @@ async function build() {
           if (diff > 0) {
             console.log(`[Build] Size increased by ${diff.toFixed(2)} MB (+${diffPercent}%)`);
           } else if (diff < 0) {
-            console.log(`[Build] Size decreased by ${Math.abs(diff).toFixed(2)} MB (${diffPercent}%)`);
+            console.log(
+              `[Build] Size decreased by ${Math.abs(diff).toFixed(2)} MB (${diffPercent}%)`
+            );
           } else {
             console.log(`[Build] Size unchanged`);
           }

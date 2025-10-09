@@ -45,7 +45,6 @@ npm run build:windows     # Create Windows installer (uses windows/installer.js)
 
 ```bash
 npm run pack:mac          # Package for macOS Intel
-npm run build:mac-zip     # Create ZIP installer
 npm run build:mac-dmg     # Create DMG installer
 ```
 
@@ -53,7 +52,6 @@ npm run build:mac-dmg     # Create DMG installer
 
 ```bash
 npm run pack:mac-arm      # Package for macOS ARM
-npm run build:mac-arm-zip # Create ARM ZIP installer
 npm run build:mac-arm-dmg # Create ARM DMG installer
 ```
 
