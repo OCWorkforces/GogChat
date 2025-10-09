@@ -54,9 +54,6 @@ function getEntryPoints() {
 const entryPoints = getEntryPoints();
 console.log(`[Build] Found ${entryPoints.length} TypeScript files to compile`);
 
-// Native modules that must be external (none currently)
-const nativeModules = [];
-
 // Electron built-in modules that must be external
 const electronModules = [
   'electron',
@@ -86,12 +83,7 @@ const buildOptions = {
 
   // External modules: Only Electron and native Node.js modules
   // Everything else (including throttle-debounce) will be bundled
-  external: [
-    'electron',
-    'electron/*',
-    'node:*',
-    ...electronModules,
-  ],
+  external: ['electron', 'electron/*', 'node:*', ...electronModules],
 
   // Minification (production only)
   minify: !isDev,
