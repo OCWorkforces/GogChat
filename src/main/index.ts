@@ -304,16 +304,11 @@ if (enforceSingleInstance()) {
       perfMonitor.mark('app-ready', 'Electron app ready');
 
       // ===== INITIALIZE ERROR HANDLER =====
-      // Initialize error handler with store configuration
+      // Initialize error handler
       try {
-        const store = getStore();
-        await initializeErrorHandler(
-          {
-            gracefulShutdown: true,
-            enableSentry: false, // Disabled by default
-          },
-          store
-        );
+        initializeErrorHandler({
+          gracefulShutdown: true,
+        });
         log.info('[Main] Centralized error handler initialized');
       } catch (error) {
         log.error('[Main] Failed to initialize error handler:', error);

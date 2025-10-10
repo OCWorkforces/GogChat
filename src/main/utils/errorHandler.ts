@@ -4,7 +4,6 @@
  * This module provides:
  * - Global error handlers for unhandled rejections and exceptions
  * - Error context tracking (feature name, initialization phase)
- * - Optional Sentry integration (disabled by default)
  * - Graceful shutdown on critical errors
  *
  * @module errorHandler
@@ -29,9 +28,6 @@ export interface ErrorContext {
  * Error handler configuration
  */
 export interface ErrorHandlerConfig {
-  enableSentry?: boolean; // Enable Sentry integration (requires @sentry/electron package)
-  sentryDsn?: string; // Sentry DSN (data source name)
-  environment?: string; // Environment name (development, production)
   gracefulShutdown?: boolean; // Whether to gracefully shutdown on critical errors
 }
 
@@ -42,16 +38,10 @@ class ErrorHandler {
   private config: ErrorHandlerConfig;
   private errorContextStack: ErrorContext[] = [];
   private isInitialized = false;
-  private isSentryEnabled = false;
-  private Sentry?: {
-    captureException: (error: unknown, context?: Record<string, unknown>) => void;
-  }; // Sentry SDK (optional dependency)
 
   constructor(config: ErrorHandlerConfig = {}) {
     this.config = {
-      enableSentry: false,
       gracefulShutdown: true,
-      environment: process.env.NODE_ENV || 'production',
       ...config,
     };
   }
@@ -60,7 +50,7 @@ class ErrorHandler {
    * Initialize the error handler
    * Sets up global handlers for unhandledRejection and uncaughtException
    */
-  async initialize(store?: Store<StoreType>): Promise<void> {
+  initialize(_store?: Store<StoreType>): void {
     if (this.isInitialized) {
       log.warn('[ErrorHandler] Already initialized');
       return;
@@ -68,74 +58,11 @@ class ErrorHandler {
 
     log.info('[ErrorHandler] Initializing centralized error handler');
 
-    // Load Sentry config from store if available
-    if (store) {
-      const enableSentry = store.get('app.enableSentry', false);
-      const sentryDsn = store.get('app.sentryDsn', undefined);
-
-      if (enableSentry && sentryDsn) {
-        this.config.enableSentry = true;
-        this.config.sentryDsn = sentryDsn;
-      }
-    }
-
-    // Initialize Sentry if enabled
-    if (this.config.enableSentry && this.config.sentryDsn) {
-      await this.initializeSentry();
-    }
-
     // Register global error handlers
     this.registerGlobalHandlers();
 
     this.isInitialized = true;
     log.info('[ErrorHandler] Centralized error handler initialized');
-  }
-
-  /**
-   * Initialize Sentry integration
-   */
-  private async initializeSentry(): Promise<void> {
-    try {
-      // Dynamic import to avoid requiring @sentry/electron as a dependency
-      // Users can install it if they want Sentry integration
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const sentryModule = await import('@sentry/electron');
-
-      // Initialize Sentry with config
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if ('init' in sentryModule && typeof sentryModule.init === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        sentryModule.init({
-          dsn: this.config.sentryDsn,
-          environment: this.config.environment,
-          // Enable automatic breadcrumbs
-          integrations: [],
-          // Sample rate (1.0 = 100% of errors)
-          sampleRate: 1.0,
-        });
-      }
-
-      // Store the Sentry module for later use (only captureException method)
-      if (
-        'captureException' in sentryModule &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        typeof sentryModule.captureException === 'function'
-      ) {
-        this.Sentry = {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          captureException: sentryModule.captureException as (
-            error: unknown,
-            context?: Record<string, unknown>
-          ) => void,
-        };
-        this.isSentryEnabled = true;
-        log.info('[ErrorHandler] Sentry integration enabled');
-      }
-    } catch (error) {
-      log.error('[ErrorHandler] Failed to initialize Sentry:', error);
-      log.warn('[ErrorHandler] Install @sentry/electron to enable Sentry integration');
-      this.isSentryEnabled = false;
-    }
   }
 
   /**
@@ -169,20 +96,6 @@ class ErrorHandler {
       context,
     });
 
-    // Report to Sentry if enabled
-    if (this.isSentryEnabled && this.Sentry) {
-      this.Sentry.captureException(reason, {
-        tags: {
-          type: 'unhandledRejection',
-          feature: context.feature,
-          phase: context.phase,
-        },
-        extra: {
-          context,
-        },
-      });
-    }
-
     // Don't quit on unhandled rejections, just log them
     // The app should continue running
   }
@@ -199,25 +112,11 @@ class ErrorHandler {
       context,
     });
 
-    // Report to Sentry if enabled
-    if (this.isSentryEnabled && this.Sentry) {
-      this.Sentry.captureException(error, {
-        tags: {
-          type: 'uncaughtException',
-          feature: context.feature,
-          phase: context.phase,
-        },
-        extra: {
-          context,
-        },
-      });
-    }
-
     // Graceful shutdown on critical errors
     if (this.config.gracefulShutdown) {
       log.error('[ErrorHandler] Critical error, initiating graceful shutdown');
 
-      // Give time for logs to flush and Sentry to send error
+      // Give time for logs to flush
       setTimeout(() => {
         app.quit();
       }, 1000);
@@ -256,7 +155,7 @@ class ErrorHandler {
 
   /**
    * Handle a feature initialization error
-   * Logs the error with context and reports to Sentry if enabled
+   * Logs the error with context
    *
    * @param feature - Feature name
    * @param error - Error that occurred
@@ -270,17 +169,6 @@ class ErrorHandler {
       message: errorMessage,
       stack,
     });
-
-    // Report to Sentry if enabled
-    if (this.isSentryEnabled && this.Sentry) {
-      this.Sentry.captureException(error, {
-        tags: {
-          type: 'featureError',
-          feature,
-          phase,
-        },
-      });
-    }
   }
 
   /**
@@ -324,24 +212,6 @@ class ErrorHandler {
       throw error;
     }
   }
-
-  /**
-   * Check if Sentry is enabled and initialized
-   */
-  isSentryActive(): boolean {
-    return this.isSentryEnabled;
-  }
-
-  /**
-   * Get Sentry SDK instance (if available)
-   */
-  getSentry():
-    | {
-        captureException: (error: unknown, context?: Record<string, unknown>) => void;
-      }
-    | undefined {
-    return this.Sentry;
-  }
 }
 
 // Export singleton instance
@@ -361,12 +231,12 @@ export function getErrorHandler(config?: ErrorHandlerConfig): ErrorHandler {
  * Initialize the global error handler
  * Should be called early in the application lifecycle
  */
-export async function initializeErrorHandler(
+export function initializeErrorHandler(
   config?: ErrorHandlerConfig,
   store?: Store<StoreType>
-): Promise<void> {
+): void {
   const handler = getErrorHandler(config);
-  await handler.initialize(store);
+  handler.initialize(store);
 }
 
 /**
