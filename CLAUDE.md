@@ -111,6 +111,7 @@ The build script provides:
 5. **Watch mode**: Automatic rebuilds on file changes
 
 **Entry point discovery**:
+
 ```javascript
 // Scans src/ directory recursively
 // Includes: *.ts files (except *.test.ts and *.spec.ts)
@@ -132,6 +133,7 @@ The build script provides:
   - Suitable for distribution
 
 **Watch mode** (`--watch`):
+
 - Monitors file changes
 - Incremental rebuilds
 - Faster than full rebuilds (30-40% improvement)
@@ -139,6 +141,7 @@ The build script provides:
 ### Build Output
 
 **Directory structure**:
+
 ```
 lib/
 ├── main/
@@ -166,6 +169,7 @@ lib/
 ```
 
 **Bundle sizes** (typical production build):
+
 - Total output: ~1.04 MB
 - JavaScript: ~187 KB
 - Source maps: ~857 KB (not included in distribution)
@@ -173,6 +177,7 @@ lib/
 ### Build History
 
 Build statistics are stored in `.build-history.json`:
+
 ```json
 {
   "builds": [
@@ -189,6 +194,7 @@ Build statistics are stored in `.build-history.json`:
 ```
 
 **Tracked metrics**:
+
 - Total bundle size (bytes)
 - Number of files compiled
 - Build duration (milliseconds)
@@ -198,11 +204,13 @@ Build statistics are stored in `.build-history.json`:
 ### Adding New Source Files
 
 No configuration changes needed. The build system automatically:
+
 1. Discovers new `.ts` files in `src/`
 2. Compiles them to corresponding `.js` files in `lib/`
 3. Maintains directory structure
 
 **Example**:
+
 ```
 src/main/features/myNewFeature.ts  →  lib/main/features/myNewFeature.js
 ```
@@ -210,11 +218,13 @@ src/main/features/myNewFeature.ts  →  lib/main/features/myNewFeature.js
 ### Migrating from esbuild
 
 The project has fully migrated from esbuild to Rsbuild. Legacy esbuild scripts are kept as backup:
+
 - `npm run build:esbuild:dev` - Old dev build (do not use)
 - `npm run build:esbuild:prod` - Old prod build (do not use)
 - `npm run build:esbuild:watch` - Old watch mode (do not use)
 
 **Use Rsbuild scripts instead**:
+
 - `npm run build:dev`
 - `npm run build:prod`
 - `npm run build:watch`

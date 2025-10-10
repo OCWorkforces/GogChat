@@ -48,11 +48,7 @@ function getEntryPoints() {
 
       if (stat.isDirectory()) {
         scanDirectory(fullPath, path.join(relativePath, file));
-      } else if (
-        file.endsWith('.ts') &&
-        !file.endsWith('.test.ts') &&
-        !file.endsWith('.spec.ts')
-      ) {
+      } else if (file.endsWith('.ts') && !file.endsWith('.test.ts') && !file.endsWith('.spec.ts')) {
         // Generate entry name: 'main/index' for 'src/main/index.ts'
         const entryName = path.join(relativePath, file.replace(/\.ts$/, ''));
         entries[entryName] = fullPath;
@@ -148,7 +144,7 @@ function trackBuildHistory(libDir) {
     try {
       history = JSON.parse(fs.readFileSync(historyFile, 'utf-8'));
     } catch (error) {
-      console.warn('[Build] Warning: Could not parse build history file');
+      console.warn('[Build] Warning: Could not parse build history file', error);
       history = [];
     }
   }
