@@ -1,5 +1,6 @@
 import { defineConfig } from '@rsbuild/core';
 import type { RsbuildConfig } from '@rsbuild/core';
+import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 /**
  * Rsbuild configuration for GChat Electron application
@@ -15,6 +16,7 @@ import type { RsbuildConfig } from '@rsbuild/core';
 // Environment detection
 const isDev = process.env.NODE_ENV === 'development';
 const isProduction = process.env.NODE_ENV === 'production';
+const shouldAnalyze = process.env.ANALYZE === 'true';
 
 export default defineConfig({
   // Source configuration
@@ -121,6 +123,21 @@ export default defineConfig({
       // No code splitting for Node.js bundles
       config.optimization.splitChunks = false;
       config.optimization.runtimeChunk = false;
+
+      // Bundle analyzer plugin (only when ANALYZE=true)
+      if (shouldAnalyze) {
+        config.plugins = config.plugins || [];
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            reportFilename: 'bundle-analysis.html',
+            openAnalyzer: true,
+            generateStatsFile: true,
+            statsFilename: 'bundle-stats.json',
+            logLevel: 'info',
+          })
+        );
+      }
 
       return config;
     },

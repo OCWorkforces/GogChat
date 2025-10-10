@@ -3,13 +3,11 @@ import log from 'electron-log';
 import { perfMonitor } from './utils/performanceMonitor.js';
 import { compareStorePerformance } from './utils/configProfiler.js';
 
+import path from 'path';
 import reportExceptions from './features/reportExceptions.js';
 import windowWrapper from './windowWrapper.js';
 import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
 import environment from '../environment.js';
-import enableContextMenu from './features/contextMenu.js';
-import runAtLogin from './features/openAtLogin.js';
-import updateNotifier from './features/appUpdates.js';
 import badgeIcons, { cleanupBadgeIcon } from './features/badgeIcon.js';
 import closeToTray, { cleanupCloseToTray } from './features/closeToTray.js';
 import setAppMenu from './features/appMenu.js';
@@ -18,7 +16,6 @@ import setupOfflineHandlers, {
   checkForInternet,
   cleanupConnectivityHandler,
 } from './features/inOnline.js';
-import logFirstLaunch from './features/firstLaunch.js';
 import handleNotification, { cleanupNotificationHandler } from './features/handleNotification.js';
 import setupCertificatePinning, {
   cleanupCertificatePinning,
@@ -27,7 +24,6 @@ import passkeySupport, { cleanupPasskeySupport } from './features/passkeySupport
 import setupTrayIcon, { cleanupTrayIcon } from './features/trayIcon.js';
 import keepWindowState, { cleanupWindowState } from './features/windowState.js';
 import externalLinks, { cleanupExternalLinks } from './features/externalLinks.js';
-import { enforceMacOSAppLocation } from './utils/platform.js';
 import { getIconCache } from './utils/iconCache.js';
 import { initializeStore, getStore } from './config.js';
 import type { CachedStore } from './utils/configCache.js';
@@ -139,6 +135,7 @@ if (enforceSingleInstance()) {
 
       // Defer non-critical features using setImmediate
       // These run after the main event loop tick, improving startup time
+      // ⚡ OPTIMIZATION: Use dynamic imports for code splitting and faster startup
       setImmediate(() => {
         void (async () => {
           if (!mainWindow) {
@@ -146,30 +143,38 @@ if (enforceSingleInstance()) {
             return;
           }
 
-          log.debug('[Main] Loading non-critical features');
+          log.debug('[Main] Loading non-critical features with dynamic imports');
 
-          // ⚡ OPTIMIZATION: Initialize deferred features in parallel as well
           // Type assertion: mainWindow is guaranteed to be non-null at this point
           const window = mainWindow;
 
+          perfMonitor.mark('deferred-features-start', 'Starting deferred feature loading');
+
+          // ⚡ OPTIMIZATION: Use true dynamic imports for code splitting
+          // Benefits: Smaller initial bundle, faster module graph evaluation, better caching
           await Promise.all([
-            Promise.resolve().then(() => runAtLogin(window)),
-            Promise.resolve().then(() => updateNotifier()),
-            Promise.resolve().then(() => enableContextMenu()),
-            Promise.resolve().then(() => logFirstLaunch()),
-            Promise.resolve().then(() => enforceMacOSAppLocation()),
+            import('./features/openAtLogin.js').then((m) => m.default(window)),
+            import('./features/appUpdates.js').then((m) => m.default()),
+            import('./features/contextMenu.js').then((m) => m.default()),
+            import('./features/firstLaunch.js').then((m) => m.default()),
+            import('./utils/platform.js').then((m) => m.enforceMacOSAppLocation()),
           ]);
 
-          perfMonitor.mark('all-features-loaded', 'All features initialized');
+          perfMonitor.mark('all-features-loaded', 'All features initialized', true);
           log.info('[Main] All features initialized');
 
           // Log performance summary
           perfMonitor.logSummary();
 
-          // Profile config store performance (development only)
+          // Export metrics in development
           if (environment.isDev) {
             log.info('[Main] Running config store performance analysis...');
             compareStorePerformance();
+
+            // Export performance metrics to JSON
+            perfMonitor.exportToJSON(
+              path.join(app.getPath('userData'), 'performance-metrics.json')
+            );
           }
 
           // ⚡ OPTIMIZATION: Warm caches on idle (after all features loaded)
