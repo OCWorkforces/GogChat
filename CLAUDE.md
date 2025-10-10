@@ -59,6 +59,7 @@ The application uses **Rsbuild** (powered by Rspack) as the build tool. Rsbuild 
 - **Fast builds**: 0.25s for development builds, 0.31s for production builds
 - **Incremental builds**: 30-40% faster rebuilds in watch mode
 - **Tree shaking**: Dead code elimination for smaller bundles
+- **Code splitting**: Dynamic imports create separate chunks for on-demand loading (see `CODE_SPLITTING.md`)
 - **TypeScript**: Native TypeScript support with type checking
 - **Source maps**: Full source map support for debugging
 - **Dynamic entry points**: Automatically discovers all TypeScript files
@@ -164,6 +165,10 @@ lib/
 │   ├── constants.js
 │   ├── validators.js
 │   └── types.js
+├── chunks/                  (Async chunks from dynamic imports)
+│   ├── 65.js               (contextMenu feature)
+│   ├── 705.js              (firstLaunch feature)
+│   └── 879.js              (appUpdates feature)
 └── offline/
     └── ...
 ```
@@ -228,6 +233,29 @@ The project has fully migrated from esbuild to Rsbuild. Legacy esbuild scripts a
 - `npm run build:dev`
 - `npm run build:prod`
 - `npm run build:watch`
+
+### Code Splitting
+
+The build system supports **code splitting via dynamic imports** to improve startup performance. Non-critical features are lazy-loaded using `import()` syntax:
+
+```typescript
+// Deferred features loaded on-demand
+await Promise.all([
+  import('./features/openAtLogin.js').then((m) => m.default(window)),
+  import('./features/appUpdates.js').then((m) => m.default()),
+  import('./features/contextMenu.js').then((m) => m.default()),
+  // ...
+]);
+```
+
+**Benefits:**
+- Smaller initial bundle (~51KB vs ~54KB)
+- Faster app startup (UI ready before all features loaded)
+- Better caching (chunks cached independently)
+
+**Output:** Async chunks are placed in `lib/chunks/` directory and automatically included in packaged apps (asar archives).
+
+**For detailed information**, see `CODE_SPLITTING.md`
 
 ## Architecture
 
