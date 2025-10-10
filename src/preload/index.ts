@@ -11,7 +11,6 @@ import {
   validateUnreadCount,
   validateFaviconURL,
   validatePasskeyFailureData,
-  validateMessageData,
 } from '../shared/validators.js';
 
 /**
@@ -55,15 +54,6 @@ const api: GChatBridgeAPI = {
     }
   },
 
-  sendMessageData: (messageData: unknown) => {
-    try {
-      const validated = validateMessageData(messageData);
-      ipcRenderer.send(IPC_CHANNELS.MESSAGE_CAPTURED, validated);
-    } catch (error) {
-      console.error('[Google Chat API] Invalid message data:', error);
-    }
-  },
-
   // Receive messages from main process (returns unsubscribe function)
   onSearchShortcut: (callback: () => void) => {
     const listener = () => callback();
@@ -97,5 +87,4 @@ import './offline.js';
 import './passkeyMonitor.js';
 import './searchShortcut.js';
 import './unreadCount.js';
-import './messageObserver.js';
 // Note: overrideNotifications needs special handling - loaded separately

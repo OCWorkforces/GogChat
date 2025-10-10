@@ -14,7 +14,6 @@ export const IPC_CHANNELS = {
   NOTIFICATION_CLICKED: 'notificationClicked',
   CHECK_IF_ONLINE: 'checkIfOnline',
   PASSKEY_AUTH_FAILED: 'passkeyAuthFailed',
-  MESSAGE_CAPTURED: 'messageCaptured',
 
   // From main to renderer
   SEARCH_SHORTCUT: 'searchShortcut',
@@ -37,16 +36,6 @@ export const SELECTORS = {
   // Favicon tracking
   FAVICON_ICON: 'link[rel="icon"]',
   FAVICON_SHORTCUT: 'link[rel="shortcut icon"]',
-
-  // Message logging (TODO: Update after DOM inspection with npm start)
-  MESSAGE_CONTAINER: 'TODO_INSPECT_DOM', // Main message list container
-  MESSAGE_ITEM: 'TODO_INSPECT_DOM', // Individual message element
-  MESSAGE_ID_ATTR: 'data-message-id', // Attribute name for message ID (tentative)
-  MESSAGE_CONTENT: 'TODO_INSPECT_DOM', // Message text content
-  MESSAGE_SENDER: 'TODO_INSPECT_DOM', // Sender name
-  MESSAGE_TIMESTAMP: 'TODO_INSPECT_DOM', // Message timestamp
-  CONVERSATION_NAME: 'TODO_INSPECT_DOM', // Conversation/group name
-  CONVERSATION_ID_ATTR: 'data-conversation-id', // Attribute for conversation ID (tentative)
 } as const;
 
 /**
@@ -94,7 +83,6 @@ export const RATE_LIMITS = {
   IPC_UNREAD_COUNT: 5,
   IPC_FAVICON: 5,
   IPC_NOTIFICATION: 5, // Limit notification creation
-  IPC_MESSAGE_CAPTURED: 100, // Higher limit for message capture (rapid conversations)
 } as const;
 
 /**
@@ -122,15 +110,4 @@ export const URL_PATTERNS = {
   DOWNLOAD: 'https://chat.google.com/u/0/api/get_attachment_url',
   GMAIL_PREFIX: 'https://mail.google.com/',
   CHAT_PREFIX: 'https://mail.google.com/chat',
-} as const;
-
-/**
- * Message logging configuration defaults
- */
-export const MESSAGE_LOGGING = {
-  DEFAULT_RETENTION_DAYS: 30,
-  MAX_MESSAGE_SIZE: 50000, // 50KB
-  MAX_CONVERSATION_NAME_LENGTH: 500,
-  MAX_SENDER_NAME_LENGTH: 500,
-  BATCH_WRITE_DELAY: 100, // Debounce delay in ms for batching DB writes
 } as const;
