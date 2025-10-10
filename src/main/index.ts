@@ -3,13 +3,10 @@ import log from 'electron-log';
 import { perfMonitor } from './utils/performanceMonitor.js';
 import { compareStorePerformance } from './utils/configProfiler.js';
 
-import reportExceptions from './features/reportExceptions.js';
+import path from 'path';
 import windowWrapper from './windowWrapper.js';
 import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
 import environment from '../environment.js';
-import enableContextMenu from './features/contextMenu.js';
-import runAtLogin from './features/openAtLogin.js';
-import updateNotifier from './features/appUpdates.js';
 import badgeIcons, { cleanupBadgeIcon } from './features/badgeIcon.js';
 import closeToTray, { cleanupCloseToTray } from './features/closeToTray.js';
 import setAppMenu from './features/appMenu.js';
@@ -18,7 +15,6 @@ import setupOfflineHandlers, {
   checkForInternet,
   cleanupConnectivityHandler,
 } from './features/inOnline.js';
-import logFirstLaunch from './features/firstLaunch.js';
 import handleNotification, { cleanupNotificationHandler } from './features/handleNotification.js';
 import setupCertificatePinning, {
   cleanupCertificatePinning,
@@ -27,7 +23,6 @@ import passkeySupport, { cleanupPasskeySupport } from './features/passkeySupport
 import setupTrayIcon, { cleanupTrayIcon } from './features/trayIcon.js';
 import keepWindowState, { cleanupWindowState } from './features/windowState.js';
 import externalLinks, { cleanupExternalLinks } from './features/externalLinks.js';
-import { enforceMacOSAppLocation } from './utils/platform.js';
 import { getIconCache } from './utils/iconCache.js';
 import { initializeStore, getStore } from './config.js';
 import type { CachedStore } from './utils/configCache.js';
@@ -35,6 +30,10 @@ import { getDeduplicator } from './utils/ipcDeduplicator.js';
 import { getRateLimiter } from './utils/rateLimiter.js';
 import type { StoreType } from '../shared/types.js';
 import type Store from 'electron-store';
+import reportExceptions from './features/reportExceptions.js';
+
+import { getFeatureManager, createFeature, createLazyFeature } from './utils/featureManager.js';
+import { initializeErrorHandler } from './utils/errorHandler.js';
 
 /**
  * Type guard to check if a store has cache enabled
@@ -53,21 +52,250 @@ let trayIcon: Electron.Tray | null = null;
 // Initialize performance monitoring
 perfMonitor.mark('app-start', 'App initialization started');
 
-// Initialize store early (must happen before any code that uses the store)
+// ===== Initialize Error Handler and Store =====
+// Synchronous initialization at module level
 try {
+  // Initialize store first
   initializeStore();
   perfMonitor.mark('store-initialized', 'Config store initialized');
-
-  // Initialize certificate pinning early (before any network requests)
-  setupCertificatePinning();
-  perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
-
-  // Setup exception reporting
-  reportExceptions();
-  perfMonitor.mark('exception-reporting-done', 'Exception reporting initialized');
+  log.info('[Main] Config store initialized');
 } catch (error) {
-  log.error('[Main] Failed to initialize store or exception reporting:', error);
+  log.error('[Main] Failed to initialize store:', error);
 }
+
+// Error handler will be initialized asynchronously in app.whenReady
+
+// ===== Feature Registration =====
+const featureManager = getFeatureManager();
+
+// Register all features with dependencies and priorities
+featureManager.registerAll([
+  // ===== SECURITY PHASE =====
+  // These are initialized BEFORE app.whenReady() for security
+  createFeature(
+    'certificatePinning',
+    'security',
+    () => {
+      setupCertificatePinning();
+      perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
+    },
+    {
+      cleanup: () => {
+        cleanupCertificatePinning();
+      },
+      description: 'SSL certificate validation for Google domains',
+      required: true,
+    }
+  ),
+
+  createFeature('reportExceptions', 'security', () => reportExceptions(), {
+    description: 'Unhandled exception reporting',
+    required: true,
+  }),
+
+  // ===== CRITICAL PHASE =====
+  // Core features that must be initialized during app.whenReady (sequential)
+  createFeature('userAgent', 'critical', () => overrideUserAgent(), {
+    description: 'Custom User-Agent override',
+  }),
+
+  createFeature(
+    'offlineHandlers',
+    'critical',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        setupOfflineHandlers(mainWindow);
+        void checkForInternet(mainWindow);
+      }
+    },
+    {
+      cleanup: () => {
+        cleanupConnectivityHandler();
+      },
+      description: 'Internet connectivity monitoring',
+    }
+  ),
+
+  // ===== UI PHASE =====
+  // UI features initialized in parallel for performance
+  createFeature(
+    'trayIcon',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        trayIcon = setupTrayIcon(mainWindow);
+        // Update feature context with trayIcon
+        featureManager.updateContext({ trayIcon });
+      }
+    },
+    {
+      cleanup: () => {
+        cleanupTrayIcon();
+      },
+      description: 'System tray icon',
+    }
+  ),
+
+  createFeature(
+    'appMenu',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        setAppMenu(mainWindow);
+      }
+    },
+    {
+      description: 'Application menu',
+    }
+  ),
+
+  createFeature(
+    'singleInstance',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        restoreFirstInstance(mainWindow);
+      }
+    },
+    {
+      description: 'Single instance restoration handler',
+    }
+  ),
+
+  createFeature(
+    'windowState',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        keepWindowState(mainWindow);
+      }
+    },
+    {
+      cleanup: ({ mainWindow }) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          cleanupWindowState(mainWindow);
+        }
+      },
+      description: 'Window state persistence',
+    }
+  ),
+
+  createFeature(
+    'externalLinks',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        externalLinks(mainWindow);
+      }
+    },
+    {
+      cleanup: () => {
+        cleanupExternalLinks();
+      },
+      description: 'External links handler',
+    }
+  ),
+
+  createFeature(
+    'handleNotification',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        handleNotification(mainWindow);
+      }
+    },
+    {
+      cleanup: () => {
+        cleanupNotificationHandler();
+      },
+      description: 'Native notification handler',
+    }
+  ),
+
+  createFeature(
+    'passkeySupport',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        passkeySupport(mainWindow);
+      }
+    },
+    {
+      cleanup: () => {
+        cleanupPasskeySupport();
+      },
+      description: 'Passkey/WebAuthn support',
+    }
+  ),
+
+  createFeature(
+    'closeToTray',
+    'ui',
+    ({ mainWindow }) => {
+      if (mainWindow) {
+        closeToTray(mainWindow);
+      }
+    },
+    {
+      cleanup: ({ mainWindow }) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          cleanupCloseToTray(mainWindow);
+        }
+      },
+      description: 'Close to tray behavior',
+    }
+  ),
+
+  // badgeIcons depends on trayIcon
+  createFeature(
+    'badgeIcons',
+    'ui',
+    ({ mainWindow, trayIcon }) => {
+      if (mainWindow && trayIcon) {
+        badgeIcons(mainWindow, trayIcon);
+      }
+    },
+    {
+      dependencies: ['trayIcon'],
+      cleanup: () => {
+        cleanupBadgeIcon();
+      },
+      description: 'Badge/overlay icon for unread count',
+    }
+  ),
+
+  // ===== DEFERRED PHASE =====
+  // Non-critical features loaded asynchronously with dynamic imports
+  createLazyFeature('openAtLogin', 'deferred', () => import('./features/openAtLogin.js'), {
+    description: 'Auto-launch on system startup',
+  }),
+
+  createLazyFeature('appUpdates', 'deferred', () => import('./features/appUpdates.js'), {
+    description: 'Update notification system',
+  }),
+
+  createLazyFeature('contextMenu', 'deferred', () => import('./features/contextMenu.js'), {
+    description: 'Right-click context menu',
+  }),
+
+  createLazyFeature('firstLaunch', 'deferred', () => import('./features/firstLaunch.js'), {
+    description: 'First launch logging',
+  }),
+
+  createLazyFeature(
+    'enforceMacOSAppLocation',
+    'deferred',
+    async () => {
+      const module = await import('./utils/platform.js');
+      return {
+        default: () => module.enforceMacOSAppLocation(),
+      };
+    },
+    {
+      description: 'macOS app location enforcement',
+    }
+  ),
+]);
 
 if (enforceSingleInstance()) {
   app
@@ -75,68 +303,45 @@ if (enforceSingleInstance()) {
     .then(async () => {
       perfMonitor.mark('app-ready', 'Electron app ready');
 
-      // Critical path - Load essential features first
+      // ===== INITIALIZE ERROR HANDLER =====
+      // Initialize error handler
+      try {
+        initializeErrorHandler({
+          gracefulShutdown: true,
+        });
+        log.info('[Main] Centralized error handler initialized');
+      } catch (error) {
+        log.error('[Main] Failed to initialize error handler:', error);
+      }
 
+      // ===== PRE-INITIALIZATION =====
       // Pre-load icons to improve startup performance
       getIconCache().warmCache();
       perfMonitor.mark('icons-cached', 'Icons pre-loaded');
 
-      overrideUserAgent();
+      // ===== SECURITY PHASE =====
+      // Initialize security features first (sequential)
+      await featureManager.initializePhase('security');
+
+      // ===== CRITICAL PHASE =====
+      // Initialize critical features (sequential)
+      await featureManager.initializePhase('critical');
+
+      // Create main window (not a feature, core app functionality)
       mainWindow = windowWrapper(environment.appUrl);
       perfMonitor.mark('window-created', 'Main window created');
-      setupOfflineHandlers(mainWindow);
-      void checkForInternet(mainWindow);
 
-      // ⚡ OPTIMIZATION: Initialize independent features in parallel
-      // This reduces startup time by 20-50ms by running non-blocking operations concurrently
-      // Type assertion: mainWindow is guaranteed to be non-null at this point
-      const window = mainWindow;
+      // Update feature context with mainWindow
+      featureManager.updateContext({ mainWindow });
 
-      await Promise.all([
-        // Critical UI features (can run in parallel)
-        Promise.resolve().then(() => {
-          trayIcon = setupTrayIcon(window);
-          log.debug('[Main] Tray icon initialized');
-        }),
-        Promise.resolve().then(() => {
-          setAppMenu(window);
-          log.debug('[Main] App menu initialized');
-        }),
-        Promise.resolve().then(() => {
-          restoreFirstInstance(window);
-          log.debug('[Main] Single instance handler initialized');
-        }),
-        Promise.resolve().then(() => {
-          keepWindowState(window);
-          log.debug('[Main] Window state persistence initialized');
-        }),
-        // Security features (can run in parallel)
-        Promise.resolve().then(() => {
-          externalLinks(window);
-          log.debug('[Main] External links handler initialized');
-        }),
-        Promise.resolve().then(() => {
-          handleNotification(window);
-          log.debug('[Main] Notification handler initialized');
-        }),
-        Promise.resolve().then(() => {
-          passkeySupport(window);
-          log.debug('[Main] Passkey support initialized');
-        }),
-        Promise.resolve().then(() => {
-          closeToTray(window);
-          log.debug('[Main] Close to tray handler initialized');
-        }),
-      ]);
-
-      // Badge/notification system (needs trayIcon, so must wait for parallel init to complete)
-      if (trayIcon) {
-        badgeIcons(window, trayIcon);
-      }
+      // ===== UI PHASE =====
+      // Initialize UI features (parallel for performance)
+      await featureManager.initializePhase('ui');
 
       perfMonitor.mark('features-loaded', 'Critical features initialized');
-      log.info('[Main] Critical features initialized in parallel');
+      log.info('[Main] Critical features initialized');
 
+      // ===== DEFERRED PHASE =====
       // Defer non-critical features using setImmediate
       // These run after the main event loop tick, improving startup time
       setImmediate(() => {
@@ -146,30 +351,27 @@ if (enforceSingleInstance()) {
             return;
           }
 
-          log.debug('[Main] Loading non-critical features');
+          log.debug('[Main] Loading non-critical features with dynamic imports');
+          perfMonitor.mark('deferred-features-start', 'Starting deferred feature loading');
 
-          // ⚡ OPTIMIZATION: Initialize deferred features in parallel as well
-          // Type assertion: mainWindow is guaranteed to be non-null at this point
-          const window = mainWindow;
+          // Initialize deferred features (parallel with dynamic imports)
+          await featureManager.initializePhase('deferred');
 
-          await Promise.all([
-            Promise.resolve().then(() => runAtLogin(window)),
-            Promise.resolve().then(() => updateNotifier()),
-            Promise.resolve().then(() => enableContextMenu()),
-            Promise.resolve().then(() => logFirstLaunch()),
-            Promise.resolve().then(() => enforceMacOSAppLocation()),
-          ]);
-
-          perfMonitor.mark('all-features-loaded', 'All features initialized');
+          perfMonitor.mark('all-features-loaded', 'All features initialized', true);
           log.info('[Main] All features initialized');
 
           // Log performance summary
           perfMonitor.logSummary();
 
-          // Profile config store performance (development only)
+          // Export metrics in development
           if (environment.isDev) {
             log.info('[Main] Running config store performance analysis...');
             compareStorePerformance();
+
+            // Export performance metrics to JSON
+            perfMonitor.exportToJSON(
+              path.join(app.getPath('userData'), 'performance-metrics.json')
+            );
           }
 
           // ⚡ OPTIMIZATION: Warm caches on idle (after all features loaded)
@@ -232,29 +434,11 @@ app.on('before-quit', () => {
   try {
     log.info('[Main] ========== Application Shutdown ==========');
 
-    // Cleanup all features in reverse order of initialization
+    // ===== Use FeatureManager for coordinated cleanup =====
     log.info('[Main] Cleaning up feature resources...');
 
-    // Cleanup IPC handlers
-    cleanupPasskeySupport();
-    cleanupNotificationHandler();
-    cleanupConnectivityHandler();
-    cleanupBadgeIcon();
-
-    // Cleanup window event listeners
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      cleanupWindowState(mainWindow);
-      cleanupCloseToTray(mainWindow);
-    }
-
-    // Cleanup timers
-    cleanupExternalLinks();
-
-    // Cleanup system resources
-    cleanupTrayIcon();
-
-    // Cleanup app event listeners (should be last)
-    cleanupCertificatePinning();
+    // FeatureManager handles cleanup in reverse initialization order
+    void featureManager.cleanup();
 
     log.info('[Main] Feature cleanup completed');
 
@@ -344,6 +528,15 @@ function logComprehensiveCacheStatistics(): void {
     } catch (error) {
       log.debug('[Main] Rate limiter not available:', error);
     }
+
+    // ===== NEW: Feature Manager Statistics =====
+    const summary = featureManager.getSummary();
+    log.info('[Main] --- Feature Manager Statistics ---');
+    log.info(`[Main]   Total features: ${summary.total}`);
+    log.info(`[Main]   Initialized: ${summary.initialized}`);
+    log.info(`[Main]   Failed: ${summary.failed}`);
+    log.info(`[Main]   Pending: ${summary.pending}`);
+    log.info(`[Main]   Total init time: ${summary.totalTime}ms`);
   } catch (error) {
     log.error('[Main] Failed to log comprehensive cache statistics:', error);
   }
