@@ -133,6 +133,7 @@ lib/
 ### Chunk Naming
 
 Chunks are numbered based on Rspack's internal module IDs:
+
 - **65.js**: `electron-context-menu` module
 - **705.js**: `firstLaunch` feature
 - **879.js**: `appUpdates` feature
@@ -190,6 +191,7 @@ Both build scripts support code splitting without modifications:
 ```
 
 **Steps:**
+
 1. Clean previous builds (`lib/` and `dist/`)
 2. Build production code (`npm run build:prod`)
    - Creates `lib/` with chunks
@@ -226,6 +228,7 @@ Identical to ARM64 build, but uses `--arch=x64` instead of `--arch=arm64`.
 To add a new feature with dynamic imports:
 
 1. **Create the feature module**:
+
    ```typescript
    // src/main/features/myFeature.ts
    export default function myFeature() {
@@ -234,6 +237,7 @@ To add a new feature with dynamic imports:
    ```
 
 2. **Add dynamic import in index.ts**:
+
    ```typescript
    setImmediate(() => {
      void (async () => {
@@ -246,6 +250,7 @@ To add a new feature with dynamic imports:
    ```
 
 3. **Build and verify**:
+
    ```bash
    npm run build:prod
    ls -lh lib/chunks/  # Verify new chunk created
@@ -304,6 +309,7 @@ log.debug('[Main] Loading non-critical features with dynamic imports');
 **Symptom**: All code bundled into main file, no chunks created
 
 **Solution**: Check `rsbuild.config.ts`:
+
 - Ensure `config.optimization.splitChunks.chunks = 'async'`
 - Ensure `performance.chunkSplit.strategy = 'split-by-experience'`
 - Verify dynamic imports use `import()` syntax, not `require()`
@@ -313,6 +319,7 @@ log.debug('[Main] Loading non-critical features with dynamic imports');
 **Symptom**: Build succeeds but chunks missing from asar
 
 **Solution**: Check `package.json`:
+
 - Ensure `lib/` is NOT in electron-packager `--ignore` patterns
 - Verify `prepack:mac` runs `npm run build:prod` before packaging
 
@@ -321,6 +328,7 @@ log.debug('[Main] Loading non-critical features with dynamic imports');
 **Symptom**: App crashes with "Cannot find module" errors
 
 **Solution**:
+
 - Ensure chunk paths are relative: `import('./features/...')`
 - Verify chunks use `.js` extension in import statements
 - Check asar archive includes chunks: `npx asar list app.asar | grep chunks`
@@ -335,6 +343,7 @@ log.debug('[Main] Loading non-critical features with dynamic imports');
 ## Changelog
 
 ### 2025-10-10
+
 - Initial implementation of code splitting
 - Configured Rsbuild for async chunk splitting
 - Updated DMG build scripts to support chunks

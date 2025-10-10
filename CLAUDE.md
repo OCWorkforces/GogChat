@@ -249,6 +249,7 @@ await Promise.all([
 ```
 
 **Benefits:**
+
 - Smaller initial bundle (~51KB vs ~54KB)
 - Faster app startup (UI ready before all features loaded)
 - Better caching (chunks cached independently)
