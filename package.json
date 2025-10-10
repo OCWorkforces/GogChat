@@ -1,7 +1,7 @@
 {
   "name": "gchat",
   "productName": "Google Chat",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Google Chat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
@@ -17,6 +17,7 @@
     "build:dev": "node scripts/build-rsbuild.js --dev",
     "build:prod": "node scripts/build-rsbuild.js",
     "build:watch": "node scripts/build-rsbuild.js --dev --watch",
+    "build:analyze": "cross-env ANALYZE=true NODE_ENV=production node scripts/build-rsbuild.js",
     "prets": "npm run clean:lib",
     "ts": "tsc",
     "test": "vitest",
@@ -40,12 +41,15 @@
   },
   "devDependencies": {
     "@electron/osx-sign": "^2.2.0",
+    "@rsbuild/core": "^1.5.16",
+    "@rspack/core": "^1.5.8",
     "@types/auto-launch": "^5.0.5",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
+    "cross-env": "^10.1.0",
     "electron": "^38.2.2",
     "electron-packager": "^17.1.2",
     "esbuild": "^0.25.10",
@@ -55,11 +59,10 @@
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "webpack-bundle-analyzer": "^4.10.2"
   },
   "dependencies": {
-    "@rsbuild/core": "^1.5.16",
-    "@rspack/core": "^1.5.8",
     "auto-launch": "^5.0.6",
     "electron-context-menu": "^4.1.1",
     "electron-log": "^5.4.3",

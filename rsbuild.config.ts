@@ -1,5 +1,6 @@
 import { defineConfig } from '@rsbuild/core';
 import type { RsbuildConfig } from '@rsbuild/core';
+import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 /**
  * Rsbuild configuration for GChat Electron application
@@ -10,11 +11,13 @@ import type { RsbuildConfig } from '@rsbuild/core';
  * - Format: ESM modules
  * - Bundling: Bundle dependencies except Electron modules
  * - Output: lib/ directory maintaining src/ structure
+ * - Code Splitting: Enabled for dynamic imports (see CODE_SPLITTING.md)
  */
 
 // Environment detection
 const isDev = process.env.NODE_ENV === 'development';
 const isProduction = process.env.NODE_ENV === 'production';
+const shouldAnalyze = process.env.ANALYZE === 'true';
 
 export default defineConfig({
   // Source configuration
@@ -33,12 +36,13 @@ export default defineConfig({
     distPath: {
       root: 'lib',      // Output to lib/ directory
       js: '',           // Flat structure, no subdirectories
-      jsAsync: '',      // No separate async chunks directory
+      jsAsync: 'chunks', // Async chunks go to lib/chunks/ directory
     },
 
     // File naming - no hashing to maintain predictable imports
     filename: {
       js: '[name].js',
+      asyncJs: '[name].js', // Async chunks use predictable names (no hash)
     },
 
     // Enable ES modules output
@@ -118,9 +122,38 @@ export default defineConfig({
       config.optimization.usedExports = true;
       config.optimization.sideEffects = true;
 
-      // No code splitting for Node.js bundles
-      config.optimization.splitChunks = false;
-      config.optimization.runtimeChunk = false;
+      // Enable code splitting for dynamic imports
+      // This allows deferred features to load on-demand for faster startup
+      config.optimization.splitChunks = {
+        chunks: 'async', // Only split async chunks (dynamic imports)
+        minSize: 0, // Split even small chunks (important for Electron)
+        cacheGroups: {
+          default: false, // Disable default cache groups
+          vendors: false, // Disable vendor splitting
+          // Each dynamic import gets its own chunk
+          asyncChunks: {
+            chunks: 'async',
+            minChunks: 1,
+            priority: 10,
+          },
+        },
+      };
+      config.optimization.runtimeChunk = false; // No separate runtime chunk
+
+      // Bundle analyzer plugin (only when ANALYZE=true)
+      if (shouldAnalyze) {
+        config.plugins = config.plugins || [];
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            reportFilename: 'bundle-analysis.html',
+            openAnalyzer: true,
+            generateStatsFile: true,
+            statsFilename: 'bundle-stats.json',
+            logLevel: 'info',
+          })
+        );
+      }
 
       return config;
     },
@@ -130,7 +163,12 @@ export default defineConfig({
   performance: {
     // Bundle size warnings
     chunkSplit: {
-      strategy: 'all-in-one', // Single bundle per entry
+      strategy: 'split-by-experience', // Allow async chunks for dynamic imports
+      override: {
+        chunks: {
+          async: 'async', // Split async chunks (dynamic imports)
+        },
+      },
     },
 
     // Print file sizes after build
