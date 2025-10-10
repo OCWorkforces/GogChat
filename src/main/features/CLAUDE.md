@@ -206,6 +206,52 @@ Configures the app to launch automatically on system startup.
 - On auto-launch, app starts with `--hidden` flag if `startHidden` is true
 - The flag is filtered out during manual relaunch to ensure window shows
 
+### passkeySupport.ts
+Provides passkey/WebAuthn authentication support with guidance for macOS system permissions.
+
+**Platform:**
+- **macOS only** - Feature is disabled on other platforms
+- Requires system permissions (Accessibility or Input Monitoring) for Touch ID/passkey support
+
+**Security features:**
+- Rate limiting (max 1 dialog per 30 seconds) to prevent spam
+- User preference to suppress dialog: `store.get('app.suppressPasskeyDialog')`
+- All errors logged for troubleshooting
+
+**Implementation:**
+- Listens for `PASSKEY_AUTH_FAILED` IPC from preload script
+- Receives `PasskeyFailureData` with error type (NotAllowedError, etc.)
+- Shows informative dialog with three options:
+  1. **Open System Settings** - Deep link to Privacy & Security pane
+  2. **Use Password Instead** - Dismisses dialog, user can use password
+  3. **Don't Show Again** - Sets `suppressPasskeyDialog: true` in config
+
+**Dialog details:**
+- Title: "Passkey Authentication Requires Permissions"
+- Provides step-by-step instructions for granting permissions
+- Explains alternative: password-based authentication
+- macOS 13+ compatibility (uses `x-apple.systempreferences:` URL scheme)
+
+**Fallback handling:**
+- If system settings URL fails, tries opening System Settings app directly
+- All errors logged for debugging
+
+**IPC channel:**
+- Receive: `IPC_CHANNELS.PASSKEY_AUTH_FAILED`
+- Data: `PasskeyFailureData` (errorType, timestamp)
+
+**Cleanup:**
+- Exports `cleanupPasskeySupport()` function
+- Removes IPC listener on app quit
+
+**Why needed:**
+- macOS requires explicit system permissions for Touch ID
+- Users unaware of permission requirements get cryptic errors
+- Provides clear guidance and direct path to fix
+
+**Data source:**
+- IPC from `src/preload/passkeyMonitor.ts` which wraps WebAuthn API
+
 ### reportExceptions.ts
 Sets up global error handling for unhandled exceptions and promise rejections.
 
