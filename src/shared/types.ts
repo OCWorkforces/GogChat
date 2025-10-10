@@ -70,7 +70,6 @@ export interface StoreMetadata {
 export interface StoreType extends Record<string, unknown> {
   window: WindowState;
   app: AppConfig;
-  messageLogging: MessageLogConfig;
   _meta?: StoreMetadata;
 }
 
@@ -87,6 +86,17 @@ export interface OnlineStatusData {
  */
 export interface PasskeyFailureData {
   errorType: string;
+  timestamp: number;
+}
+
+/**
+ * Notification data passed via IPC
+ */
+export interface NotificationData {
+  title: string;
+  body?: string;
+  icon?: string;
+  tag?: string;
   timestamp: number;
 }
 
@@ -117,7 +127,6 @@ export interface GChatBridgeAPI {
   sendNotificationClicked: () => void;
   checkIfOnline: () => void;
   reportPasskeyFailure: (errorType: string) => void;
-  sendMessageData: (messageData: MessageData) => void;
 
   // Receive messages from main process
   onSearchShortcut: (callback: () => void) => () => void;
@@ -179,103 +188,4 @@ export interface PerformanceMetrics {
   ipcMessageCount: number;
   memoryUsage?: NodeJS.MemoryUsage;
   domObserverCount: number;
-}
-
-/**
- * Message logging feature types
- */
-
-/**
- * Message type classification
- */
-export type MessageType = 'text' | 'image' | 'file' | 'reaction' | 'system' | 'unknown';
-
-/**
- * Conversation type
- */
-export type ConversationType = 'direct' | 'group' | 'space';
-
-/**
- * Raw message data extracted from DOM and passed via IPC
- */
-export interface MessageData {
-  messageId: string;
-  content: string;
-  sender: string;
-  timestamp: string; // ISO 8601 format
-  conversationId: string;
-  conversationName: string;
-  conversationType: ConversationType;
-  messageType: MessageType;
-  isOutgoing: boolean;
-  // Optional fields
-  receiverName?: string; // For direct messages
-  participants?: string[]; // For group chats
-  attachmentUrl?: string; // For files/images
-  attachmentName?: string;
-  reactionType?: string; // For reactions
-}
-
-/**
- * Message logging configuration
- */
-export interface MessageLogConfig {
-  enabled: boolean;
-  retentionDays: number;
-  excludedConversations: string[];
-  showAnalyticsInTray: boolean;
-  maxMessageSize: number; // Maximum message content length to store
-}
-
-/**
- * Database message record (stored format)
- */
-export interface MessageRecord {
-  id: number; // Auto-increment primary key
-  messageId: string; // Unique message ID from Google Chat
-  conversationId: string;
-  conversationName: string;
-  conversationType: ConversationType;
-  sender: string;
-  content: string; // Encrypted in database
-  timestamp: number; // Unix timestamp (ms)
-  messageType: MessageType;
-  isOutgoing: boolean;
-  attachmentUrl?: string;
-  attachmentName?: string;
-  createdAt: number; // When record was inserted
-  updatedAt?: number; // For tracking edits
-}
-
-/**
- * Conversation record
- */
-export interface ConversationRecord {
-  id: string; // Conversation ID from Google Chat
-  name: string;
-  type: ConversationType;
-  participants: string; // JSON-encoded array
-  firstSeen: number; // Unix timestamp
-  lastActivity: number; // Unix timestamp
-  messageCount: number;
-}
-
-/**
- * Analytics statistics
- */
-export interface MessageStatistics {
-  totalMessages: number;
-  sentMessages: number;
-  receivedMessages: number;
-  activeConversations: number;
-  mostActiveConversation: {
-    name: string;
-    count: number;
-  };
-  messagesPerDay: { date: string; count: number }[];
-  messagesByType: Record<MessageType, number>;
-  timeRange: {
-    start: number;
-    end: number;
-  };
 }

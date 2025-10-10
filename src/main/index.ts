@@ -24,7 +24,6 @@ import setupCertificatePinning, {
   cleanupCertificatePinning,
 } from './features/certificatePinning.js';
 import passkeySupport, { cleanupPasskeySupport } from './features/passkeySupport.js';
-import setupMessageLogger, { cleanupMessageLogger } from './features/messageLogger.js';
 import setupTrayIcon, { cleanupTrayIcon } from './features/trayIcon.js';
 import keepWindowState, { cleanupWindowState } from './features/windowState.js';
 import externalLinks, { cleanupExternalLinks } from './features/externalLinks.js';
@@ -159,7 +158,6 @@ if (enforceSingleInstance()) {
             Promise.resolve().then(() => enableContextMenu()),
             Promise.resolve().then(() => logFirstLaunch()),
             Promise.resolve().then(() => enforceMacOSAppLocation()),
-            Promise.resolve().then(() => setupMessageLogger(window)),
           ]);
 
           perfMonitor.mark('all-features-loaded', 'All features initialized');
@@ -236,9 +234,6 @@ app.on('before-quit', () => {
 
     // Cleanup all features in reverse order of initialization
     log.info('[Main] Cleaning up feature resources...');
-
-    // Cleanup message logger (has database and timers)
-    cleanupMessageLogger();
 
     // Cleanup IPC handlers
     cleanupPasskeySupport();

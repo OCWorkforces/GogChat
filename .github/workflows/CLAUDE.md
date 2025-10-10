@@ -263,17 +263,18 @@ Summarizes release results.
 
 **Current platforms:**
 - ✅ macOS Intel (x64)
-- ✅ macOS ARM (Apple Silicon, M1/M2/M3)
+- ✅ macOS ARM (Apple Silicon, M1/M2/M3+)
 
 **Not currently supported in CI:**
-- ❌ Windows (removed for now, macOS-only builds)
-- ❌ Linux (removed for now, macOS-only builds)
+- ❌ Windows - Not implemented (no `windows/` directory)
+- ❌ Linux - Not implemented (no `debian/` or `linux/` directory)
 
 **Why macOS only?**
-- Primary target platform
-- Simplifies CI/CD pipeline
-- Reduces workflow complexity and cost
-- Can be re-enabled in future if needed
+- GChat is currently a macOS-exclusive application
+- Focused development on single platform for better quality
+- Features like passkey support are macOS-specific
+- Simplifies CI/CD pipeline and reduces maintenance
+- Future platform support can be added if needed
 
 ## Troubleshooting
 

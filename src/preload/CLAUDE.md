@@ -6,27 +6,49 @@ This directory contains preload scripts that bridge the main process and rendere
 
 **Purpose**: Preload scripts inject functionality into the Google Chat web page to:
 - Extract information from the DOM (unread count, favicon)
-- Intercept web APIs (Notification API)
+- Monitor WebAuthn/passkey authentication failures
 - Respond to keyboard shortcuts from main process
 - Handle online/offline state changes
 
-**Security context**: These scripts run with `contextIsolation: false`, which allows them to modify `window` globals. This is necessary for overriding web APIs like `window.Notification`.
+**Security context**: These scripts run with `contextIsolation: true` (enabled) using Electron's `contextBridge` API to securely expose a limited API (`window.gchat`) to the renderer process. This provides strong security by preventing the renderer from accessing Node.js APIs directly.
 
 **Loading**: All scripts are imported via `index.ts` and bundled. The bundle is loaded by the BrowserWindow via the `preload` option in `../main/windowWrapper.ts`.
 
 ## Preload Scripts
 
 ### index.ts
-Entry point that imports all other preload scripts:
+Entry point that creates the secure contextBridge API and imports feature-specific preload scripts.
+
+**Context Bridge API:**
 ```typescript
-import './faviconChanged';
-import './offline';
-import './searchShortcut';
-import './overrideNotifications';
-import './unreadCount';
+import { contextBridge, ipcRenderer } from 'electron';
+import type { GChatBridgeAPI } from '../shared/types.js';
+
+// Expose secure API to renderer via window.gchat
+const api: GChatBridgeAPI = {
+  sendUnreadCount: (count: number) => { /* with validation */ },
+  sendFaviconChanged: (href: string) => { /* with validation */ },
+  sendNotificationClicked: () => { /* ... */ },
+  checkIfOnline: () => { /* ... */ },
+  reportPasskeyFailure: (errorType: string) => { /* with validation */ },
+  onSearchShortcut: (callback) => { /* returns cleanup function */ },
+  onOnlineStatus: (callback) => { /* returns cleanup function */ },
+};
+
+contextBridge.exposeInMainWorld('gchat', api);
 ```
 
-Scripts execute immediately on import. No explicit initialization needed.
+**Then imports feature scripts:**
+```typescript
+import './faviconChanged.js';
+import './offline.js';
+import './passkeyMonitor.js';
+import './searchShortcut.js';
+import './unreadCount.js';
+// Note: overrideNotifications loaded separately (requires special handling)
+```
+
+All API methods include input validation using shared validators. Event listeners return cleanup functions to prevent memory leaks.
 
 ### faviconChanged.ts
 Monitors changes to the page favicon, which indicates new messages in Google Chat.
@@ -63,6 +85,35 @@ Handles online/offline state transitions.
 3. This script sends IPC to main → main checks connectivity
 4. Main sends `onlineStatus` back → script redirects or reloads based on result
 
+### passkeyMonitor.ts
+Monitors WebAuthn/passkey authentication failures and reports them to the main process.
+
+**Implementation:**
+- Wraps `navigator.credentials.create()` and `navigator.credentials.get()` methods
+- Detects passkey-related errors (NotAllowedError, NotSupportedError, SecurityError, etc.)
+- Reports failure to main process via `window.gchat.reportPasskeyFailure()`
+- Only reports once per session to avoid spam
+
+**Error types monitored:**
+- `NotAllowedError` - User denied permission or operation not allowed
+- `NotSupportedError` - Passkeys/WebAuthn not supported
+- `SecurityError` - Security policy violation
+- `AbortError` - Operation was aborted
+- `InvalidStateError` - Invalid state for operation
+
+**Why needed:**
+- macOS requires specific system permissions for Touch ID/passkeys
+- Users need guidance when authentication fails due to missing permissions
+- Main process can show helpful dialog with instructions
+
+**IPC channel:**
+- Send: `window.gchat.reportPasskeyFailure(errorType)`
+- Main handler: `passkeySupport.ts` feature
+
+**Triggered by:**
+- Google Chat attempting passkey authentication
+- WebAuthn API calls failing due to permissions
+
 ### searchShortcut.ts
 Focuses the Google Chat search input when search shortcut is triggered.
 
@@ -85,21 +136,22 @@ Intercepts web notifications and adds click handling.
 **Why needed:**
 - Google Chat uses Web Notifications API
 - We want to bring the app to focus when notification clicked
-- Native Electron notification handling provides better OS integration
+- Notification click events trigger `window.gchat.sendNotificationClicked()`
 
 **Implementation:**
+- **Note**: This script is loaded via a separate preload entry (not imported in index.ts)
+- Uses `webPreferences.additionalPreloadScripts` to load with `contextIsolation: false`
 - Saves reference to native `window.Notification` constructor
-- Creates wrapper function with same signature
-- Adds click event listener that sends `notificationClicked` IPC
-- Replaces `window.Notification` with wrapper (preserves `requestPermission` and `permission` property)
+- Creates wrapper function that adds click event listener
+- Sends notification clicks via the exposed `window.gchat` API
 
-**Important:**
-- Must use ES5 function syntax (not arrow function) for proper `this` binding
-- Requires `contextIsolation: false` to override `window.Notification`
-- Wrapper maintains full API compatibility with Web Notifications API
+**Security consideration:**
+- Loaded with `contextIsolation: false` only for this specific functionality
+- Other preload scripts maintain `contextIsolation: true` for security
+- Minimal attack surface (only overrides Notification API)
 
 **IPC channel:**
-- `ipcRenderer.send('notificationClicked')`
+- Uses: `window.gchat.sendNotificationClicked()` (exposed by main preload)
 
 ### unreadCount.ts
 Extracts the unread message count from Google Chat DOM and sends to main process.
@@ -181,11 +233,15 @@ ipcRenderer.on('triggerNewFeature', () => {
 
 ## Security Considerations
 
-- **Context Isolation**: Disabled (`contextIsolation: false` in windowWrapper.ts)
-  - Allows access to `window` object for overriding APIs
-  - Trade-off: Slightly less secure but necessary for notification override
-- **Node Integration**: Disabled in renderer (security best practice)
-- **Limited API**: Only `ipcRenderer` is used from Node.js APIs
+- **Context Isolation**: ✅ **Enabled** (`contextIsolation: true` in windowWrapper.ts)
+  - Uses `contextBridge` API to expose only necessary functionality via `window.gchat`
+  - Renderer process cannot directly access Node.js or Electron APIs
+  - Strong security boundary between main and renderer processes
+  - Exception: `overrideNotifications.ts` uses `contextIsolation: false` (loaded separately with minimal scope)
+- **Node Integration**: ✅ Disabled in renderer (security best practice)
+- **Sandbox Mode**: ✅ Enabled - OS-level process isolation
+- **Limited API**: Only specific methods exposed via `contextBridge`
+- **Input Validation**: All IPC messages validated before sending
 - **No Remote Module**: Not used (deprecated and insecure)
 
 ## DOM Polling Pattern

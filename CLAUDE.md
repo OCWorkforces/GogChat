@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GChat is an Electron-based desktop application that wraps Google Chat (https://mail.google.com/chat/u/0) with native OS integrations and features. The app is built with TypeScript and targets Windows, macOS (Intel and ARM), and Linux (Debian) platforms.
+GChat is an Electron-based desktop application that wraps Google Chat (https://mail.google.com/chat/u/0) with native OS integrations and features. The app is built with TypeScript and currently targets macOS (both Intel x64 and Apple Silicon arm64) platforms.
 
 **Package Manager:** This project uses `npm`. Use `npm install` for dependencies.
 
 **Runtime Environment:**
 
-- **Electron version**: 38.2.1 (latest stable)
+- **Electron version**: 38.2.2 (latest stable)
 - **Node.js version**: 22.19.0 (bundled with Electron 38)
 - **Chromium version**: 140.0.7339.41
 - **V8 version**: 14.0
@@ -34,14 +34,7 @@ npm start            # Runs prestart (builds TypeScript) then starts Electron
 
 ## Build and Package Commands
 
-### Windows
-
-```bash
-npm run pack:windows      # Package for Windows (runs TypeScript build first)
-npm run build:windows     # Create Windows installer (uses windows/installer.js)
-```
-
-### macOS Intel
+### macOS Intel (x64)
 
 ```bash
 npm run pack:mac          # Package for macOS Intel
@@ -53,14 +46,6 @@ npm run build:mac-dmg     # Create DMG installer
 ```bash
 npm run pack:mac-arm      # Package for macOS ARM
 npm run build:mac-arm-dmg # Create ARM DMG installer
-```
-
-### Linux (Debian)
-
-```bash
-npm run pack:linux        # Package for Linux
-npm run build:deb         # Create .deb installer
-npm run build:deb-checksum # Generate SHA512 checksums
 ```
 
 ## Architecture
@@ -115,6 +100,7 @@ Features live in `src/main/features/`. Each feature is a self-contained module t
 - **handleNotification** - Native OS notification handling with rate limiting
 - **inOnline** - Internet connectivity monitoring with rate limiting
 - **openAtLogin** - Auto-launch on system startup (auto-launch)
+- **passkeySupport** - Passkey/WebAuthn authentication support with macOS permissions guidance (macOS only)
 - **reportExceptions** - Unhandled exception reporting (electron-unhandled)
 - **singleInstance** - Ensures only one app instance runs (brings existing to focus)
 - **trayIcon** - System tray icon with context menu
@@ -133,6 +119,7 @@ window.gchat {
   sendFaviconChanged(href: string)    // Send favicon URL to main process
   sendNotificationClicked()           // Notify main that notification was clicked
   checkIfOnline()                     // Request online status check
+  reportPasskeyFailure(errorType)     // Report passkey/WebAuthn authentication failure
   onSearchShortcut(callback)          // Register search shortcut handler
   onOnlineStatus(callback)            // Register online/offline status handler
 }
@@ -142,6 +129,7 @@ window.gchat {
 
 - **faviconChanged** - Uses MutationObserver to monitor favicon changes (no polling)
 - **offline** - Listens for online/offline status via contextBridge API
+- **passkeyMonitor** - Monitors WebAuthn/passkey authentication failures
 - **searchShortcut** - Keyboard shortcut for search functionality with cleanup
 - **unreadCount** - Uses MutationObserver to extract unread message count (no polling)
 
@@ -184,6 +172,7 @@ app: {
   startHidden: boolean;
   hideMenuBar: boolean;
   disableSpellChecker: boolean;
+  suppressPasskeyDialog: boolean;
 }
 ```
 
@@ -309,7 +298,10 @@ For complete security details, see `SECURITY.md` in the repository root.
 
 ## Platform-Specific Considerations
 
-- **macOS:** Uses `.icns` icon format, enforces app location via electron-util
-- **Windows:** Uses `.ico` icon format, requires Inno Setup for installer
-- **Linux:** Uses `.png` icon, creates `.deb` packages with electron-installer-debian
-- Badge icons work differently per platform (check `badgeIcon.ts` implementation)
+**Current platform support: macOS only (Intel x64 and Apple Silicon arm64)**
+
+- **macOS:** Uses `.icns` icon format for app bundle
+- Badge icons use `app.setBadgeCount()` for dock badge
+- Tray icons are 16px PNG (Retina displays handle scaling)
+- DMG installers created via `hdiutil` (see `mac/` directory)
+- Passkey/WebAuthn support with system permissions guidance

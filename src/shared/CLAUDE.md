@@ -32,7 +32,7 @@ export const IPC_CHANNELS = {
   FAVICON_CHANGED: 'faviconChanged',
   NOTIFICATION_CLICKED: 'notificationClicked',
   CHECK_IF_ONLINE: 'checkIfOnline',
-  PASSKEY_AUTH_FAILED: 'passkeyAuthFailed',
+  PASSKEY_AUTH_FAILED: 'passkeyAuthFailed',  // WebAuthn/passkey auth failure
 
   // From main to renderer
   SEARCH_SHORTCUT: 'searchShortcut',
@@ -162,7 +162,7 @@ export interface OnlineStatusData {
 }
 
 export interface PasskeyFailureData {
-  errorType: string;
+  errorType: string;  // WebAuthn error type (NotAllowedError, NotSupportedError, etc.)
   timestamp: number;
 }
 ```
@@ -189,7 +189,7 @@ export interface AppConfig {
   startHidden: boolean;
   hideMenuBar: boolean;
   disableSpellChecker: boolean;
-  suppressPasskeyDialog: boolean;
+  suppressPasskeyDialog: boolean;  // Don't show passkey permissions dialog (macOS)
 }
 
 export interface StoreType {
@@ -396,20 +396,35 @@ element.textContent = safeHTML; // Safe to insert
 
 **Note**: This is basic escaping. For complex HTML rendering, consider using a proper sanitization library.
 
-#### validatePasskeyFailureData(errorType: unknown): object
-Validates passkey/WebAuthn error data.
+#### validatePasskeyFailureData(errorType: unknown): PasskeyFailureData
+Validates passkey/WebAuthn error data from the renderer process.
 
 **Validation:**
 - Type: String, max 100 characters
-- Whitelist: Known WebAuthn error types (NotAllowedError, NotSupportedError, etc.)
-- Logging: Warns on unexpected error types but allows them
+- Whitelist: Known WebAuthn error types (NotAllowedError, NotSupportedError, SecurityError, AbortError, InvalidStateError)
+- Logging: Warns on unexpected error types but allows them (for forward compatibility)
+- Security: Prevents injection attacks and validates length
 
 **Returns:**
 ```typescript
 {
   errorType: string,
-  timestamp: number
+  timestamp: number  // Auto-generated
 }
+```
+
+**Usage:**
+```typescript
+import { validatePasskeyFailureData } from '../../shared/validators';
+
+ipcMain.on(IPC_CHANNELS.PASSKEY_AUTH_FAILED, (event, errorType) => {
+  try {
+    const validated = validatePasskeyFailureData(errorType);
+    handlePasskeyFailure(validated);
+  } catch (error) {
+    log.error('[Passkey] Validation failed:', error);
+  }
+});
 ```
 
 ## Security Architecture
