@@ -40,6 +40,8 @@
   },
   "devDependencies": {
     "@electron/osx-sign": "^2.2.0",
+    "@rsbuild/core": "^1.5.16",
+    "@rspack/core": "^1.5.8",
     "@types/auto-launch": "^5.0.5",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
@@ -58,8 +60,6 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@rsbuild/core": "^1.5.16",
-    "@rspack/core": "^1.5.8",
     "auto-launch": "^5.0.6",
     "electron-context-menu": "^4.1.1",
     "electron-log": "^5.4.3",
