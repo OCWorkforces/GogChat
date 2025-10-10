@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   // From renderer to main
   UNREAD_COUNT: 'unreadCount',
   FAVICON_CHANGED: 'faviconChanged',
+  NOTIFICATION_SHOW: 'notificationShow',
   NOTIFICATION_CLICKED: 'notificationClicked',
   CHECK_IF_ONLINE: 'checkIfOnline',
   PASSKEY_AUTH_FAILED: 'passkeyAuthFailed',
@@ -62,6 +63,7 @@ export const TIMING = {
   // Timeouts
   CONNECTIVITY_CHECK: 5000,
   CONNECTIVITY_CHECK_FAST: 3000,
+  NOTIFICATION_AUTO_DISMISS: 10000, // 10 seconds
 
   // Re-guard timer for external links
   EXTERNAL_LINKS_REGUARD: 5 * 60 * 1000, // 5 minutes
@@ -91,6 +93,7 @@ export const RATE_LIMITS = {
   IPC_DEFAULT: 10, // messages per second
   IPC_UNREAD_COUNT: 5,
   IPC_FAVICON: 5,
+  IPC_NOTIFICATION: 5, // Limit notification creation
   IPC_MESSAGE_CAPTURED: 100, // Higher limit for message capture (rapid conversations)
 } as const;
 

@@ -263,6 +263,55 @@ export function validatePasskeyFailureData(errorType: unknown): {
 }
 
 /**
+ * Validates notification data before creating native notification
+ * @param data - Notification data from renderer
+ * @returns Validated NotificationData object
+ * @throws Error if data is invalid
+ */
+export function validateNotificationData(data: unknown): {
+  title: string;
+  body?: string;
+  icon?: string;
+  tag?: string;
+  timestamp: number;
+} {
+  // Type check
+  if (!isSafeObject(data)) {
+    throw new Error('Notification data must be a plain object');
+  }
+
+  // Validate required fields
+  const title = validateString(data.title, 500);
+
+  // Validate optional fields
+  const result: {
+    title: string;
+    body?: string;
+    icon?: string;
+    tag?: string;
+    timestamp: number;
+  } = {
+    title,
+    timestamp: Date.now(),
+  };
+
+  if (data.body !== undefined && data.body !== null && data.body !== '') {
+    result.body = validateString(data.body as unknown, 5000);
+  }
+
+  if (data.icon !== undefined && data.icon !== null && data.icon !== '') {
+    // Validate icon URL (can be data: URL for inline images)
+    result.icon = validateFaviconURL(data.icon as unknown);
+  }
+
+  if (data.tag !== undefined && data.tag !== null && data.tag !== '') {
+    result.tag = validateString(data.tag as unknown, 200);
+  }
+
+  return result;
+}
+
+/**
  * Message logging validators
  */
 

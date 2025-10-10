@@ -91,6 +91,17 @@ export interface PasskeyFailureData {
 }
 
 /**
+ * Notification data passed via IPC
+ */
+export interface NotificationData {
+  title: string;
+  body?: string;
+  icon?: string;
+  tag?: string;
+  timestamp: number;
+}
+
+/**
  * IPC event handler type
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
