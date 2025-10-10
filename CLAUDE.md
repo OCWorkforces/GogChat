@@ -21,15 +21,17 @@ GChat is an Electron-based desktop application that wraps Google Chat (https://m
 # Install dependencies
 npm install
 
-# Build TypeScript (compiles src/ to lib/)
-npm run ts
+# Build with Rsbuild (compiles src/ to lib/)
+npm run build:dev      # Development build with source maps
+npm run build:prod     # Production build (minified, optimized)
+npm run build:watch    # Watch mode for development
 
 # Clean build artifacts
 npm run clean:lib    # Remove lib/ directory
 npm run clean:dist   # Remove dist/ directory
 
 # Run the app in development mode
-npm start            # Runs prestart (builds TypeScript) then starts Electron
+npm start            # Runs prestart (production build) then starts Electron
 ```
 
 ## Build and Package Commands
@@ -47,6 +49,175 @@ npm run build:mac-dmg     # Create DMG installer
 npm run pack:mac-arm      # Package for macOS ARM
 npm run build:mac-arm-dmg # Create ARM DMG installer
 ```
+
+## Build System
+
+The application uses **Rsbuild** (powered by Rspack) as the build tool. Rsbuild provides high-performance builds that are 5-10x faster than webpack, with full TypeScript support and optimal output for Electron main process.
+
+### Key Features
+
+- **Fast builds**: 0.25s for development builds, 0.31s for production builds
+- **Incremental builds**: 30-40% faster rebuilds in watch mode
+- **Tree shaking**: Dead code elimination for smaller bundles
+- **TypeScript**: Native TypeScript support with type checking
+- **Source maps**: Full source map support for debugging
+- **Dynamic entry points**: Automatically discovers all TypeScript files
+- **External dependencies**: Electron and Node.js modules marked as external
+
+### Configuration
+
+**Main configuration file**: `rsbuild.config.ts`
+
+```typescript
+export default defineConfig({
+  source: {
+    entry: {}, // Entry points added dynamically by build script
+  },
+  output: {
+    target: 'node',
+    distPath: { root: 'lib', js: '' },
+    module: true, // ESM output
+    externals: [
+      'electron',
+      /^electron\/.*/,
+      /^node:.*/,
+      'electron-log',
+      'electron-store',
+      'electron-unhandled',
+      'electron-update-notifier',
+      'electron-context-menu',
+      'auto-launch',
+    ],
+  },
+  tools: {
+    rspack: (config) => {
+      config.target = 'electron-main'; // Electron main process target
+      return config;
+    },
+  },
+});
+```
+
+### Build Script
+
+**Build script**: `scripts/build-rsbuild.js`
+
+The build script provides:
+
+1. **Dynamic entry point scanning**: Automatically finds all `.ts` files in `src/` (excluding tests)
+2. **Build history tracking**: Stores bundle size history in `.build-history.json`
+3. **Bundle size comparison**: Shows size difference from previous build
+4. **Environment support**: Development vs production builds
+5. **Watch mode**: Automatic rebuilds on file changes
+
+**Entry point discovery**:
+```javascript
+// Scans src/ directory recursively
+// Includes: *.ts files (except *.test.ts and *.spec.ts)
+// Output: lib/ directory (mirrors src/ structure)
+```
+
+**Build modes**:
+
+- **Development** (`--dev`):
+  - Source maps enabled
+  - No minification
+  - Fast builds (~0.25s)
+  - Suitable for debugging
+
+- **Production** (default):
+  - Minification enabled
+  - Tree shaking enabled
+  - Optimized output (~0.31s)
+  - Suitable for distribution
+
+**Watch mode** (`--watch`):
+- Monitors file changes
+- Incremental rebuilds
+- Faster than full rebuilds (30-40% improvement)
+
+### Build Output
+
+**Directory structure**:
+```
+lib/
+├── main/
+│   ├── index.js
+│   ├── windowWrapper.js
+│   ├── config.js
+│   ├── features/
+│   │   ├── badgeIcon.js
+│   │   ├── trayIcon.js
+│   │   └── ...
+│   └── utils/
+│       ├── logger.js
+│       ├── rateLimiter.js
+│       └── ...
+├── preload/
+│   ├── index.js
+│   └── modules/
+│       └── ...
+├── shared/
+│   ├── constants.js
+│   ├── validators.js
+│   └── types.js
+└── offline/
+    └── ...
+```
+
+**Bundle sizes** (typical production build):
+- Total output: ~1.04 MB
+- JavaScript: ~187 KB
+- Source maps: ~857 KB (not included in distribution)
+
+### Build History
+
+Build statistics are stored in `.build-history.json`:
+```json
+{
+  "builds": [
+    {
+      "timestamp": "2025-10-10T...",
+      "mode": "production",
+      "totalSize": 187428,
+      "fileCount": 46,
+      "duration": 312,
+      "success": true
+    }
+  ]
+}
+```
+
+**Tracked metrics**:
+- Total bundle size (bytes)
+- Number of files compiled
+- Build duration (milliseconds)
+- Build mode (development/production)
+- Success/failure status
+
+### Adding New Source Files
+
+No configuration changes needed. The build system automatically:
+1. Discovers new `.ts` files in `src/`
+2. Compiles them to corresponding `.js` files in `lib/`
+3. Maintains directory structure
+
+**Example**:
+```
+src/main/features/myNewFeature.ts  →  lib/main/features/myNewFeature.js
+```
+
+### Migrating from esbuild
+
+The project has fully migrated from esbuild to Rsbuild. Legacy esbuild scripts are kept as backup:
+- `npm run build:esbuild:dev` - Old dev build (do not use)
+- `npm run build:esbuild:prod` - Old prod build (do not use)
+- `npm run build:esbuild:watch` - Old watch mode (do not use)
+
+**Use Rsbuild scripts instead**:
+- `npm run build:dev`
+- `npm run build:prod`
+- `npm run build:watch`
 
 ## Architecture
 

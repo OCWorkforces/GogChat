@@ -97,11 +97,11 @@ fi
 print_success "Clean complete"
 echo ""
 
-# Step 2: Build production code with esbuild
-print_step "Step 2/5: Building production code with esbuild..."
+# Step 2: Build production code with Rsbuild
+print_step "Step 2/5: Building production code with Rsbuild..."
 npm run build:prod
 if [ $? -ne 0 ]; then
-    print_error "esbuild compilation failed"
+    print_error "Rsbuild compilation failed"
     exit 1
 fi
 print_success "Production build complete"
