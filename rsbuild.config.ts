@@ -39,10 +39,10 @@ export default defineConfig({
       jsAsync: 'chunks', // Async chunks go to lib/chunks/ directory
     },
 
-    // File naming - no hashing to maintain predictable imports
+    // File naming - descriptive names for debugging and cache management
     filename: {
       js: '[name].js',
-      asyncJs: '[name].js', // Async chunks use predictable names (no hash)
+      asyncJs: '[name].chunk.js', // Async chunks with .chunk suffix for clarity
     },
 
     // Enable ES modules output
@@ -55,6 +55,8 @@ export default defineConfig({
         minimizerOptions: {
           compress: {
             passes: 2,
+            drop_console: true, // Drop console logs in production
+            drop_debugger: true,
           },
           mangle: true,
         },
@@ -113,6 +115,16 @@ export default defineConfig({
         '.js': ['.ts', '.js'],
       };
 
+      // Configure output to properly indicate ESM format
+      config.output = config.output || {};
+      config.output.module = true; // Ensure module output
+      config.output.chunkFormat = 'module'; // Use ESM chunk format
+      config.output.library = {
+        type: 'module', // Library type as module
+      };
+      config.experiments = config.experiments || {};
+      config.experiments.outputModule = true; // Enable output module experiment
+
       // Optimization settings
       config.optimization = config.optimization || {};
       config.optimization.minimize = isProduction;
@@ -127,14 +139,40 @@ export default defineConfig({
       config.optimization.splitChunks = {
         chunks: 'async', // Only split async chunks (dynamic imports)
         minSize: 0, // Split even small chunks (important for Electron)
+        maxAsyncRequests: 30, // Allow many parallel chunks
+        maxInitialRequests: 30,
         cacheGroups: {
           default: false, // Disable default cache groups
           vendors: false, // Disable vendor splitting
-          // Each dynamic import gets its own chunk
-          asyncChunks: {
+          // Each dynamic import gets its own named chunk
+          asyncFeatures: {
+            test: (module) => {
+              // Match feature and utils modules
+              const resource = module.resource || module.identifier?.() || '';
+              return /[\\/](features|utils)[\\/]/.test(resource);
+            },
             chunks: 'async',
-            minChunks: 1,
+            name: (module) => {
+              // Extract feature name from module resource path
+              const resource = module.resource || module.identifier?.() || '';
+
+              // Try to match features directory
+              const featureMatch = resource.match(/[\\/]features[\\/]([^/\\]+)\.(?:ts|js)/);
+              if (featureMatch) return featureMatch[1];
+
+              // Try to match utils directory
+              const utilMatch = resource.match(/[\\/]utils[\\/]([^/\\]+)\.(?:ts|js)/);
+              if (utilMatch) return utilMatch[1];
+
+              // Fallback: try to extract filename
+              const filenameMatch = resource.match(/[\\/]([^/\\]+)\.(?:ts|js)$/);
+              if (filenameMatch) return filenameMatch[1];
+
+              // Last resort: use module id
+              return `chunk-${module.id || 'unknown'}`;
+            },
             priority: 10,
+            reuseExistingChunk: false, // Always create new chunks for better splitting
           },
         },
       };
@@ -161,15 +199,22 @@ export default defineConfig({
 
   // Performance configuration
   performance: {
-    // Bundle size warnings
+    // Bundle size warnings and budgets
     chunkSplit: {
       strategy: 'split-by-experience', // Allow async chunks for dynamic imports
       override: {
         chunks: {
           async: 'async', // Split async chunks (dynamic imports)
+          minSize: 10000, // 10KB minimum chunk size
+          maxSize: 50000, // 50KB maximum chunk size (budget per chunk)
         },
       },
     },
+
+    // Bundle size analysis disabled globally due to ESM parsing issues
+    // ESM output format causes webpack-bundle-analyzer to fail with parser errors
+    // Use ANALYZE=true environment variable to enable manual BundleAnalyzerPlugin when needed
+    bundleAnalyze: false,
 
     // Print file sizes after build
     printFileSize: {
@@ -201,6 +246,10 @@ export default defineConfig({
           js: 'source-map',
         },
       },
+      performance: {
+        // Disable bundle analysis for development to avoid ESM parsing errors
+        bundleAnalyze: false,
+      },
     },
 
     // Production environment
@@ -212,7 +261,7 @@ export default defineConfig({
             minimizerOptions: {
               compress: {
                 passes: 2,
-                drop_console: false, // Keep console logs for Electron
+                drop_console: true, // Drop console logs in production for smaller bundles
                 drop_debugger: true,
               },
               mangle: {
@@ -231,6 +280,9 @@ export default defineConfig({
           total: true,
           detail: true,
         },
+        // Bundle analysis disabled - ESM output causes parsing errors in webpack-bundle-analyzer
+        // Use ANALYZE=true environment variable to enable manual analysis when needed
+        bundleAnalyze: false,
       },
     },
   },
