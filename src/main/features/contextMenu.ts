@@ -1,7 +1,7 @@
 import contextMenu from 'electron-context-menu';
 
 export default () => {
-  return contextMenu({
+  contextMenu({
     showSaveImage: true,
     showCopyImageAddress: true,
   });
