@@ -21,7 +21,7 @@ const autoLaunch = (): AutoLaunch => {
   return autoLaunchInstance;
 };
 
-export default (window: BrowserWindow) => {
+export default ({ mainWindow }: { mainWindow?: BrowserWindow }) => {
   if (environment.isDev) return;
 
   autoLaunchInstance = autoLaunch();
@@ -31,8 +31,8 @@ export default (window: BrowserWindow) => {
     return;
   }
 
-  if (app.commandLine.hasSwitch('hidden')) {
-    window.hide();
+  if (app.commandLine.hasSwitch('hidden') && mainWindow) {
+    mainWindow.hide();
   }
 
   void autoLaunchInstance.isEnabled().then((isEnabled) => {

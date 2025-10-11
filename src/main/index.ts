@@ -274,9 +274,21 @@ featureManager.registerAll([
     description: 'Update notification system',
   }),
 
-  createLazyFeature('contextMenu', 'deferred', () => import('./features/contextMenu.js'), {
-    description: 'Right-click context menu',
-  }),
+  createLazyFeature(
+    'contextMenu',
+    'deferred',
+    async () => {
+      const module = await import('./features/contextMenu.js');
+      return {
+        default: () => {
+          module.default(); // Call and discard cleanup function
+        },
+      };
+    },
+    {
+      description: 'Right-click context menu',
+    }
+  ),
 
   createLazyFeature('firstLaunch', 'deferred', () => import('./features/firstLaunch.js'), {
     description: 'First launch logging',
