@@ -9,7 +9,38 @@ vi.mock('electron', () => ({
   app: {
     getName: () => 'gchat',
     getPath: (name: string) => `/fake/path/${name}`,
+    getAppPath: () => '/fake/app/path',
   },
+}));
+
+// Mock electron-log
+vi.mock('electron-log', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// Mock packageInfo to avoid file system access
+vi.mock('./utils/packageInfo', () => ({
+  getPackageInfo: vi.fn(() => ({
+    name: 'gchat',
+    productName: 'Google Chat',
+    version: '0.0.0',
+    description: 'Google Chat',
+    repository: '',
+    homepage: '',
+    author: '',
+  })),
+  clearPackageInfoCache: vi.fn(),
+  isPackageInfoLoaded: vi.fn(() => true),
+}));
+
+// Mock configCache to return store as-is (no caching in tests)
+vi.mock('./utils/configCache', () => ({
+  addCacheLayer: vi.fn((store) => store),
 }));
 
 // Mock electron-store
