@@ -39,9 +39,13 @@ jobs:
         continue-on-error: true
 
   build-macos:
-    name: Build macOS
+    name: Build macOS ${{ matrix.arch }}
     runs-on: macos-latest
     needs: test
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+      fail-fast: false
 
     steps:
       - name: Checkout code
@@ -56,45 +60,25 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Make build scripts executable
-        run: |
-          chmod +x build-macOS-x64-dmg.sh
-          chmod +x build-macOS-arm64-dmg.sh
+      - name: Make build script executable
+        run: chmod +x build-macOS-${{ matrix.arch }}-dmg.sh
 
-      - name: Build macOS x64 DMG
-        run: ./build-macOS-x64-dmg.sh --environment ${{ github.head_ref || github.ref_name }}
+      - name: Build macOS ${{ matrix.arch }} DMG
+        run: ./build-macOS-${{ matrix.arch }}-dmg.sh --environment ${{ github.head_ref || github.ref_name }}
 
-      - name: Preserve x64 artifacts
+      - name: Preserve ${{ matrix.arch }} artifacts
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         run: |
-          mkdir -p artifacts/x64
-          mv dist/*x64*.dmg artifacts/x64/ || true
-          mv dist/*x64*.sha256 artifacts/x64/ || true
+          mkdir -p artifacts/${{ matrix.arch }}
+          mv dist/*${{ matrix.arch }}*.dmg artifacts/${{ matrix.arch }}/ || true
+          mv dist/*${{ matrix.arch }}*.sha256 artifacts/${{ matrix.arch }}/ || true
 
-      - name: Build macOS ARM64 DMG
-        run: ./build-macOS-arm64-dmg.sh --environment ${{ github.head_ref || github.ref_name }}
-
-      - name: Preserve ARM64 artifacts
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        run: |
-          mkdir -p artifacts/arm64
-          mv dist/*arm64*.dmg artifacts/arm64/ || true
-          mv dist/*arm64*.sha256 artifacts/arm64/ || true
-
-      - name: Upload macOS x64 artifacts
+      - name: Upload macOS ${{ matrix.arch }} artifacts
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: gchat-macos-x64-dmg
-          path: artifacts/x64/*
-          retention-days: 30
-
-      - name: Upload macOS ARM64 artifacts
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: gchat-macos-arm64-dmg
-          path: artifacts/arm64/*
+          name: gchat-macos-${{ matrix.arch }}-dmg
+          path: artifacts/${{ matrix.arch }}/*
           retention-days: 30
 
   build-summary:

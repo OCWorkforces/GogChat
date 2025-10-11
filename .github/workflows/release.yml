@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 env:
   NODE_VERSION: '22.x'
