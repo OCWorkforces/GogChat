@@ -62,7 +62,7 @@ jobs:
           chmod +x build-macOS-arm64-dmg.sh
 
       - name: Build macOS x64 DMG
-        run: ./build-macOS-x64-dmg.sh --environment ${{ github.ref_name }}
+        run: ./build-macOS-x64-dmg.sh --environment ${{ github.head_ref || github.ref_name }}
 
       - name: Preserve x64 artifacts
         run: |
@@ -71,7 +71,7 @@ jobs:
           mv dist/*x64*.sha256 artifacts/x64/ || true
 
       - name: Build macOS ARM64 DMG
-        run: ./build-macOS-arm64-dmg.sh --environment ${{ github.ref_name }}
+        run: ./build-macOS-arm64-dmg.sh --environment ${{ github.head_ref || github.ref_name }}
 
       - name: Preserve ARM64 artifacts
         run: |
