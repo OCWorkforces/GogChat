@@ -68,9 +68,6 @@ jobs:
 
           ### Security
           - See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for security details
-
-          ---
-          🤖 Generated with [Claude Code](https://claude.com/claude-code)
           EOF
 
           # Create release using GitHub CLI
@@ -88,7 +85,7 @@ jobs:
         uses: actions/checkout@v5.0.0
 
       - name: Download x64 artifacts from build workflow
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v11
         with:
           workflow: build.yml
           name: gchat-macos-x64-dmg
@@ -97,7 +94,7 @@ jobs:
           event: push
 
       - name: Download ARM64 artifacts from build workflow
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v11
         with:
           workflow: build.yml
           name: gchat-macos-arm64-dmg
