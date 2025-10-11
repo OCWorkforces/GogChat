@@ -70,6 +70,19 @@ export default (url: string): BrowserWindow => {
 
       // Apply enhanced CSP to main frame only
       if (details.resourceType === 'mainFrame') {
+        // Skip CSP modification for authentication pages
+        // Google Sign-In has its own CSP requirements that we shouldn't override
+        const isAuthPage =
+          url.includes('accounts.google.com') || url.includes('accounts.youtube.com');
+
+        if (isAuthPage) {
+          log.debug(
+            `[Security] Skipping custom CSP for authentication page: ${details.url.substring(0, 80)}`
+          );
+          callback({ responseHeaders });
+          return;
+        }
+
         // Generate fresh nonce for this page load
         const nonce = generateCSPNonce();
         log.debug(`[Security] Generated CSP nonce: ${nonce.substring(0, 12)}...`);
