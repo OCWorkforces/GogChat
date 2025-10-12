@@ -1,6 +1,4 @@
 import { defineConfig } from '@rsbuild/core';
-import type { RsbuildConfig } from '@rsbuild/core';
-import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 /**
  * Rsbuild configuration for GChat Electron application
@@ -12,12 +10,13 @@ import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
  * - Bundling: Bundle dependencies except Electron modules
  * - Output: lib/ directory maintaining src/ structure
  * - Code Splitting: Enabled for dynamic imports (see CODE_SPLITTING.md)
+ *
+ * @type {import('@rsbuild/core').RsbuildConfig}
  */
 
 // Environment detection
 const isDev = process.env.NODE_ENV === 'development';
 const isProduction = process.env.NODE_ENV === 'production';
-const shouldAnalyze = process.env.ANALYZE === 'true';
 
 export default defineConfig({
   // Source configuration
@@ -39,10 +38,9 @@ export default defineConfig({
       jsAsync: 'chunks', // Async chunks go to lib/chunks/ directory
     },
 
-    // File naming - no hashing to maintain predictable imports
+    // File naming - descriptive names for debugging and cache management
     filename: {
       js: '[name].js',
-      asyncJs: '[name].js', // Async chunks use predictable names (no hash)
     },
 
     // Enable ES modules output
@@ -55,6 +53,8 @@ export default defineConfig({
         minimizerOptions: {
           compress: {
             passes: 2,
+            drop_console: true, // Drop console logs in production
+            drop_debugger: true,
           },
           mangle: true,
         },
@@ -113,6 +113,16 @@ export default defineConfig({
         '.js': ['.ts', '.js'],
       };
 
+      // Configure output to properly indicate ESM format
+      config.output = config.output || {};
+      config.output.module = true; // Ensure module output
+      config.output.chunkFormat = 'module'; // Use ESM chunk format
+      config.output.library = {
+        type: 'module', // Library type as module
+      };
+      config.experiments = config.experiments || {};
+      config.experiments.outputModule = true; // Enable output module experiment
+
       // Optimization settings
       config.optimization = config.optimization || {};
       config.optimization.minimize = isProduction;
@@ -127,33 +137,44 @@ export default defineConfig({
       config.optimization.splitChunks = {
         chunks: 'async', // Only split async chunks (dynamic imports)
         minSize: 0, // Split even small chunks (important for Electron)
+        maxAsyncRequests: 30, // Allow many parallel chunks
+        maxInitialRequests: 30,
         cacheGroups: {
           default: false, // Disable default cache groups
           vendors: false, // Disable vendor splitting
-          // Each dynamic import gets its own chunk
-          asyncChunks: {
+          // Each dynamic import gets its own named chunk
+          asyncFeatures: {
+            test: (module) => {
+              // Match feature and utils modules
+              const resource = module.resource || module.identifier?.() || '';
+              return /[\\/](features|utils)[\\/]/.test(resource);
+            },
             chunks: 'async',
-            minChunks: 1,
+            name: (module) => {
+              // Extract feature name from module resource path
+              const resource = module.resource || module.identifier?.() || '';
+
+              // Try to match features directory
+              const featureMatch = resource.match(/[\\/]features[\\/]([^/\\]+)\.(?:ts|js)/);
+              if (featureMatch) return featureMatch[1];
+
+              // Try to match utils directory
+              const utilMatch = resource.match(/[\\/]utils[\\/]([^/\\]+)\.(?:ts|js)/);
+              if (utilMatch) return utilMatch[1];
+
+              // Fallback: try to extract filename
+              const filenameMatch = resource.match(/[\\/]([^/\\]+)\.(?:ts|js)$/);
+              if (filenameMatch) return filenameMatch[1];
+
+              // Last resort: use module id
+              return `chunk-${module.id || 'unknown'}`;
+            },
             priority: 10,
+            reuseExistingChunk: false, // Always create new chunks for better splitting
           },
         },
       };
       config.optimization.runtimeChunk = false; // No separate runtime chunk
-
-      // Bundle analyzer plugin (only when ANALYZE=true)
-      if (shouldAnalyze) {
-        config.plugins = config.plugins || [];
-        config.plugins.push(
-          new BundleAnalyzerPlugin({
-            analyzerMode: 'static',
-            reportFilename: 'bundle-analysis.html',
-            openAnalyzer: true,
-            generateStatsFile: true,
-            statsFilename: 'bundle-stats.json',
-            logLevel: 'info',
-          })
-        );
-      }
 
       return config;
     },
@@ -161,14 +182,9 @@ export default defineConfig({
 
   // Performance configuration
   performance: {
-    // Bundle size warnings
+    // Bundle size warnings and budgets
     chunkSplit: {
       strategy: 'split-by-experience', // Allow async chunks for dynamic imports
-      override: {
-        chunks: {
-          async: 'async', // Split async chunks (dynamic imports)
-        },
-      },
     },
 
     // Print file sizes after build
@@ -212,7 +228,7 @@ export default defineConfig({
             minimizerOptions: {
               compress: {
                 passes: 2,
-                drop_console: false, // Keep console logs for Electron
+                drop_console: true, // Drop console logs in production for smaller bundles
                 drop_debugger: true,
               },
               mangle: {
@@ -234,4 +250,4 @@ export default defineConfig({
       },
     },
   },
-} satisfies RsbuildConfig);
+});

@@ -7,22 +7,11 @@ import path from 'path';
 import windowWrapper from './windowWrapper.js';
 import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
 import environment from '../environment.js';
-import badgeIcons, { cleanupBadgeIcon } from './features/badgeIcon.js';
-import closeToTray, { cleanupCloseToTray } from './features/closeToTray.js';
-import setAppMenu from './features/appMenu.js';
+// Critical features only - loaded synchronously
 import overrideUserAgent from './features/userAgent.js';
-import setupOfflineHandlers, {
-  checkForInternet,
-  cleanupConnectivityHandler,
-} from './features/inOnline.js';
-import handleNotification, { cleanupNotificationHandler } from './features/handleNotification.js';
 import setupCertificatePinning, {
   cleanupCertificatePinning,
 } from './features/certificatePinning.js';
-import passkeySupport, { cleanupPasskeySupport } from './features/passkeySupport.js';
-import setupTrayIcon, { cleanupTrayIcon } from './features/trayIcon.js';
-import keepWindowState, { cleanupWindowState } from './features/windowState.js';
-import externalLinks, { cleanupExternalLinks } from './features/externalLinks.js';
 import { getIconCache } from './utils/iconCache.js';
 import { initializeStore, getStore } from './config.js';
 import type { CachedStore } from './utils/configCache.js';
@@ -30,7 +19,6 @@ import { getDeduplicator } from './utils/ipcDeduplicator.js';
 import { getRateLimiter } from './utils/rateLimiter.js';
 import type { StoreType } from '../shared/types.js';
 import type Store from 'electron-store';
-import reportExceptions from './features/reportExceptions.js';
 
 import { getFeatureManager, createFeature, createLazyFeature } from './utils/featureManager.js';
 import { initializeErrorHandler } from './utils/errorHandler.js';
@@ -88,10 +76,15 @@ featureManager.registerAll([
     }
   ),
 
-  createFeature('reportExceptions', 'security', () => reportExceptions(), {
-    description: 'Unhandled exception reporting',
-    required: true,
-  }),
+  createLazyFeature(
+    'reportExceptions',
+    'security',
+    () => import('./features/reportExceptions.js'),
+    {
+      description: 'Unhandled exception reporting',
+      required: true,
+    }
+  ),
 
   // ===== CRITICAL PHASE =====
   // Core features that must be initialized during app.whenReady (sequential)
@@ -99,56 +92,10 @@ featureManager.registerAll([
     description: 'Custom User-Agent override',
   }),
 
-  createFeature(
-    'offlineHandlers',
-    'critical',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        setupOfflineHandlers(mainWindow);
-        void checkForInternet(mainWindow);
-      }
-    },
-    {
-      cleanup: () => {
-        cleanupConnectivityHandler();
-      },
-      description: 'Internet connectivity monitoring',
-    }
-  ),
+  // Offline handlers moved to deferred (not critical for initial render)
 
   // ===== UI PHASE =====
-  // UI features initialized in parallel for performance
-  createFeature(
-    'trayIcon',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        trayIcon = setupTrayIcon(mainWindow);
-        // Update feature context with trayIcon
-        featureManager.updateContext({ trayIcon });
-      }
-    },
-    {
-      cleanup: () => {
-        cleanupTrayIcon();
-      },
-      description: 'System tray icon',
-    }
-  ),
-
-  createFeature(
-    'appMenu',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        setAppMenu(mainWindow);
-      }
-    },
-    {
-      description: 'Application menu',
-    }
-  ),
-
+  // Minimal UI - only single instance handler synchronous
   createFeature(
     'singleInstance',
     'ui',
@@ -162,118 +109,194 @@ featureManager.registerAll([
     }
   ),
 
-  createFeature(
-    'windowState',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        keepWindowState(mainWindow);
-      }
+  // ===== DEFERRED PHASE =====
+  // Non-critical features loaded asynchronously with dynamic imports
+
+  // Tray icon - load first as other features depend on it
+  createLazyFeature(
+    'trayIcon',
+    'deferred',
+    async () => {
+      const module = await import('./features/trayIcon.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            trayIcon = module.default(mainWindow);
+            featureManager.updateContext({ trayIcon });
+          }
+        },
+      };
     },
     {
-      cleanup: ({ mainWindow }) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          cleanupWindowState(mainWindow);
-        }
-      },
-      description: 'Window state persistence',
+      description: 'System tray icon',
     }
   ),
 
-  createFeature(
-    'externalLinks',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        externalLinks(mainWindow);
-      }
+  // App menu
+  createLazyFeature(
+    'appMenu',
+    'deferred',
+    async () => {
+      const module = await import('./features/appMenu.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+          }
+        },
+      };
     },
     {
-      cleanup: () => {
-        cleanupExternalLinks();
-      },
-      description: 'External links handler',
+      description: 'Application menu',
     }
   ),
 
-  createFeature(
-    'handleNotification',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        handleNotification(mainWindow);
-      }
-    },
-    {
-      cleanup: () => {
-        cleanupNotificationHandler();
-      },
-      description: 'Native notification handler',
-    }
-  ),
-
-  createFeature(
-    'passkeySupport',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        passkeySupport(mainWindow);
-      }
-    },
-    {
-      cleanup: () => {
-        cleanupPasskeySupport();
-      },
-      description: 'Passkey/WebAuthn support',
-    }
-  ),
-
-  createFeature(
-    'closeToTray',
-    'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        closeToTray(mainWindow);
-      }
-    },
-    {
-      cleanup: ({ mainWindow }) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          cleanupCloseToTray(mainWindow);
-        }
-      },
-      description: 'Close to tray behavior',
-    }
-  ),
-
-  // badgeIcons depends on trayIcon
-  createFeature(
+  // Badge icons - depends on trayIcon
+  createLazyFeature(
     'badgeIcons',
-    'ui',
-    ({ mainWindow, trayIcon }) => {
-      if (mainWindow && trayIcon) {
-        badgeIcons(mainWindow, trayIcon);
-      }
+    'deferred',
+    async () => {
+      const module = await import('./features/badgeIcon.js');
+      return {
+        default: ({ mainWindow, trayIcon }) => {
+          if (mainWindow && trayIcon) {
+            module.default(mainWindow, trayIcon);
+          }
+        },
+      };
     },
     {
       dependencies: ['trayIcon'],
-      cleanup: () => {
-        cleanupBadgeIcon();
-      },
       description: 'Badge/overlay icon for unread count',
     }
   ),
 
-  // ===== DEFERRED PHASE =====
-  // Non-critical features loaded asynchronously with dynamic imports
+  // Window state persistence
+  createLazyFeature(
+    'windowState',
+    'deferred',
+    async () => {
+      const module = await import('./features/windowState.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+          }
+        },
+      };
+    },
+    {
+      description: 'Window state persistence',
+    }
+  ),
+
+  // Passkey support
+  createLazyFeature(
+    'passkeySupport',
+    'deferred',
+    async () => {
+      const module = await import('./features/passkeySupport.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+          }
+        },
+      };
+    },
+    {
+      description: 'Passkey/WebAuthn support',
+    }
+  ),
+
+  // Notification handler
+  createLazyFeature(
+    'handleNotification',
+    'deferred',
+    async () => {
+      const module = await import('./features/handleNotification.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+          }
+        },
+      };
+    },
+    {
+      description: 'Native notification handler',
+    }
+  ),
+
+  // Offline/connectivity monitoring
+  createLazyFeature(
+    'inOnline',
+    'deferred',
+    async () => {
+      const module = await import('./features/inOnline.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+            void module.checkForInternet(mainWindow);
+          }
+        },
+      };
+    },
+    {
+      description: 'Internet connectivity monitoring',
+    }
+  ),
+
+  // External links handler
+  createLazyFeature(
+    'externalLinks',
+    'deferred',
+    async () => {
+      const module = await import('./features/externalLinks.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+          }
+        },
+      };
+    },
+    {
+      description: 'External links handler',
+    }
+  ),
+
+  // Close to tray behavior
+  createLazyFeature(
+    'closeToTray',
+    'deferred',
+    async () => {
+      const module = await import('./features/closeToTray.js');
+      return {
+        default: ({ mainWindow }) => {
+          if (mainWindow) {
+            module.default(mainWindow);
+          }
+        },
+      };
+    },
+    {
+      description: 'Close to tray behavior',
+    }
+  ),
+
+  // Auto-launch
   createLazyFeature('openAtLogin', 'deferred', () => import('./features/openAtLogin.js'), {
     description: 'Auto-launch on system startup',
   }),
 
+  // Update checker
   createLazyFeature('appUpdates', 'deferred', () => import('./features/appUpdates.js'), {
     description: 'Update notification system',
   }),
 
+  // Context menu
   createLazyFeature(
     'contextMenu',
     'deferred',
@@ -290,10 +313,12 @@ featureManager.registerAll([
     }
   ),
 
+  // First launch logging
   createLazyFeature('firstLaunch', 'deferred', () => import('./features/firstLaunch.js'), {
     description: 'First launch logging',
   }),
 
+  // macOS app location enforcement
   createLazyFeature(
     'enforceMacOSAppLocation',
     'deferred',
