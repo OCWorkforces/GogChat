@@ -1,6 +1,5 @@
 import { defineConfig } from '@rsbuild/core';
 import type { RsbuildConfig } from '@rsbuild/core';
-import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 /**
  * Rsbuild configuration for GChat Electron application
@@ -17,7 +16,6 @@ import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 // Environment detection
 const isDev = process.env.NODE_ENV === 'development';
 const isProduction = process.env.NODE_ENV === 'production';
-const shouldAnalyze = process.env.ANALYZE === 'true';
 
 export default defineConfig({
   // Source configuration
@@ -42,7 +40,6 @@ export default defineConfig({
     // File naming - descriptive names for debugging and cache management
     filename: {
       js: '[name].js',
-      asyncJs: '[name].chunk.js', // Async chunks with .chunk suffix for clarity
     },
 
     // Enable ES modules output
@@ -146,13 +143,13 @@ export default defineConfig({
           vendors: false, // Disable vendor splitting
           // Each dynamic import gets its own named chunk
           asyncFeatures: {
-            test: (module) => {
+            test: (module: any) => {
               // Match feature and utils modules
               const resource = module.resource || module.identifier?.() || '';
               return /[\\/](features|utils)[\\/]/.test(resource);
             },
             chunks: 'async',
-            name: (module) => {
+            name: (module: any) => {
               // Extract feature name from module resource path
               const resource = module.resource || module.identifier?.() || '';
 
@@ -178,21 +175,6 @@ export default defineConfig({
       };
       config.optimization.runtimeChunk = false; // No separate runtime chunk
 
-      // Bundle analyzer plugin (only when ANALYZE=true)
-      if (shouldAnalyze) {
-        config.plugins = config.plugins || [];
-        config.plugins.push(
-          new BundleAnalyzerPlugin({
-            analyzerMode: 'static',
-            reportFilename: 'bundle-analysis.html',
-            openAnalyzer: true,
-            generateStatsFile: true,
-            statsFilename: 'bundle-stats.json',
-            logLevel: 'info',
-          })
-        );
-      }
-
       return config;
     },
   },
@@ -202,19 +184,7 @@ export default defineConfig({
     // Bundle size warnings and budgets
     chunkSplit: {
       strategy: 'split-by-experience', // Allow async chunks for dynamic imports
-      override: {
-        chunks: {
-          async: 'async', // Split async chunks (dynamic imports)
-          minSize: 10000, // 10KB minimum chunk size
-          maxSize: 50000, // 50KB maximum chunk size (budget per chunk)
-        },
-      },
     },
-
-    // Bundle size analysis disabled globally due to ESM parsing issues
-    // ESM output format causes webpack-bundle-analyzer to fail with parser errors
-    // Use ANALYZE=true environment variable to enable manual BundleAnalyzerPlugin when needed
-    bundleAnalyze: false,
 
     // Print file sizes after build
     printFileSize: {
@@ -246,10 +216,6 @@ export default defineConfig({
           js: 'source-map',
         },
       },
-      performance: {
-        // Disable bundle analysis for development to avoid ESM parsing errors
-        bundleAnalyze: false,
-      },
     },
 
     // Production environment
@@ -280,9 +246,6 @@ export default defineConfig({
           total: true,
           detail: true,
         },
-        // Bundle analysis disabled - ESM output causes parsing errors in webpack-bundle-analyzer
-        // Use ANALYZE=true environment variable to enable manual analysis when needed
-        bundleAnalyze: false,
       },
     },
   },
