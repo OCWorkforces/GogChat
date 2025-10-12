@@ -1,5 +1,4 @@
 import { defineConfig } from '@rsbuild/core';
-import type { RsbuildConfig } from '@rsbuild/core';
 
 /**
  * Rsbuild configuration for GChat Electron application
@@ -11,6 +10,8 @@ import type { RsbuildConfig } from '@rsbuild/core';
  * - Bundling: Bundle dependencies except Electron modules
  * - Output: lib/ directory maintaining src/ structure
  * - Code Splitting: Enabled for dynamic imports (see CODE_SPLITTING.md)
+ *
+ * @type {import('@rsbuild/core').RsbuildConfig}
  */
 
 // Environment detection
@@ -143,13 +144,13 @@ export default defineConfig({
           vendors: false, // Disable vendor splitting
           // Each dynamic import gets its own named chunk
           asyncFeatures: {
-            test: (module: any) => {
+            test: (module) => {
               // Match feature and utils modules
               const resource = module.resource || module.identifier?.() || '';
               return /[\\/](features|utils)[\\/]/.test(resource);
             },
             chunks: 'async',
-            name: (module: any) => {
+            name: (module) => {
               // Extract feature name from module resource path
               const resource = module.resource || module.identifier?.() || '';
 
@@ -249,4 +250,4 @@ export default defineConfig({
       },
     },
   },
-} satisfies RsbuildConfig);
+});

@@ -16,6 +16,6 @@
     "target": "es2022",
     "typeRoots": ["node_modules/@types"]
   },
-  "include": ["./src/**/*", "rsbuild.config.ts"],
+  "include": ["./src/**/*"],
   "exclude": ["**/*.test.ts", "**/*.spec.ts", "coverage/**", "node_modules"]
 }
