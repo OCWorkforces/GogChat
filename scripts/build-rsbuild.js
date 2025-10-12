@@ -113,7 +113,7 @@ function getAllFiles(dirPath) {
 }
 
 /**
- * Track bundle size history
+ * Track bundle size history with chunk-level details
  */
 function trackBuildHistory(libDir) {
   const libSize = getDirectorySize(libDir);
@@ -122,20 +122,54 @@ function trackBuildHistory(libDir) {
 
   console.log(`[Build] Output size: ${libSizeMB} MB (${libSize.toLocaleString()} bytes)`);
 
-  // Log top 10 largest files
-  console.log('[Build] Top 10 largest files:');
-  const fileSizes = files
-    .map((file) => ({
-      path: file.replace(libDir + '/', ''),
-      size: fs.statSync(file).size,
-    }))
-    .sort((a, b) => b.size - a.size)
-    .slice(0, 10);
+  // Separate chunks from regular files
+  const chunks = [];
+  const regularFiles = [];
 
-  fileSizes.forEach((file, index) => {
-    const sizeKB = (file.size / 1024).toFixed(1);
-    console.log(`[Build]   ${index + 1}. ${file.path} (${sizeKB} KB)`);
+  files.forEach((file) => {
+    const relativePath = file.replace(libDir + '/', '');
+    const size = fs.statSync(file).size;
+
+    if (relativePath.includes('chunks/') && relativePath.endsWith('.chunk.js')) {
+      chunks.push({ path: relativePath, size });
+    } else if (relativePath.endsWith('.js')) {
+      regularFiles.push({ path: relativePath, size });
+    }
   });
+
+  // Log main bundle
+  const mainBundle = regularFiles.find((f) => f.path === 'main/index.js');
+  if (mainBundle) {
+    const mainSizeKB = (mainBundle.size / 1024).toFixed(1);
+    console.log(`[Build] Main bundle: ${mainSizeKB} KB`);
+  }
+
+  // Log async chunks
+  if (chunks.length > 0) {
+    console.log(`[Build] Async chunks (${chunks.length}):`);
+    chunks
+      .sort((a, b) => b.size - a.size)
+      .forEach((chunk) => {
+        const sizeKB = (chunk.size / 1024).toFixed(1);
+        const chunkName = chunk.path.replace('chunks/', '').replace('.chunk.js', '');
+        console.log(`[Build]   - ${chunkName}: ${sizeKB} KB`);
+      });
+
+    const totalChunkSize = chunks.reduce((sum, c) => sum + c.size, 0);
+    const totalChunkKB = (totalChunkSize / 1024).toFixed(1);
+    console.log(`[Build]   Total chunks: ${totalChunkKB} KB`);
+  }
+
+  // Log top 5 largest regular files (excluding main bundle)
+  console.log('[Build] Top 5 largest files:');
+  regularFiles
+    .filter((f) => f.path !== 'main/index.js')
+    .sort((a, b) => b.size - a.size)
+    .slice(0, 5)
+    .forEach((file, index) => {
+      const sizeKB = (file.size / 1024).toFixed(1);
+      console.log(`[Build]   ${index + 1}. ${file.path} (${sizeKB} KB)`);
+    });
 
   // Track bundle size history
   const historyFile = path.join(__dirname, '../.build-history.json');
@@ -149,13 +183,22 @@ function trackBuildHistory(libDir) {
     }
   }
 
-  history.push({
+  const buildRecord = {
     timestamp: new Date().toISOString(),
     size: libSize,
     sizeMB: parseFloat(libSizeMB),
     fileCount: files.length,
     tool: 'rsbuild',
-  });
+    mainBundleSize: mainBundle?.size || 0,
+    chunkCount: chunks.length,
+    totalChunkSize: chunks.reduce((sum, c) => sum + c.size, 0),
+    chunks: chunks.map((c) => ({
+      name: c.path.replace('chunks/', '').replace('.chunk.js', ''),
+      size: c.size,
+    })),
+  };
+
+  history.push(buildRecord);
 
   // Keep only last 20 builds
   if (history.length > 20) {
@@ -166,16 +209,32 @@ function trackBuildHistory(libDir) {
 
   // Show size trend if we have history
   if (history.length > 1) {
-    const previousSize = history[history.length - 2].sizeMB;
-    const diff = parseFloat(libSizeMB) - previousSize;
-    const diffPercent = ((diff / previousSize) * 100).toFixed(1);
+    const prev = history[history.length - 2];
+    const curr = history[history.length - 1];
+
+    // Main bundle trend
+    if (prev.mainBundleSize && curr.mainBundleSize) {
+      const mainDiff = (curr.mainBundleSize - prev.mainBundleSize) / 1024;
+      const mainDiffPercent = ((mainDiff / (prev.mainBundleSize / 1024)) * 100).toFixed(1);
+
+      if (Math.abs(mainDiff) > 0.1) {
+        const sign = mainDiff > 0 ? '+' : '';
+        console.log(
+          `[Build] Main bundle: ${sign}${mainDiff.toFixed(1)} KB (${sign}${mainDiffPercent}%)`
+        );
+      }
+    }
+
+    // Total size trend
+    const diff = parseFloat(libSizeMB) - prev.sizeMB;
+    const diffPercent = ((diff / prev.sizeMB) * 100).toFixed(1);
 
     if (diff > 0) {
-      console.log(`[Build] Size increased by ${diff.toFixed(2)} MB (+${diffPercent}%)`);
+      console.log(`[Build] Total size: +${diff.toFixed(2)} MB (+${diffPercent}%)`);
     } else if (diff < 0) {
-      console.log(`[Build] Size decreased by ${Math.abs(diff).toFixed(2)} MB (${diffPercent}%)`);
+      console.log(`[Build] Total size: ${diff.toFixed(2)} MB (${diffPercent}%)`);
     } else {
-      console.log(`[Build] Size unchanged`);
+      console.log(`[Build] Total size: unchanged`);
     }
   }
 }
