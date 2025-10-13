@@ -8,7 +8,7 @@
 set -e  # Exit on error
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  Google Chat - macOS x64 DMG Build Script"
+echo "  Open GChat - macOS x64 DMG Build Script"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
