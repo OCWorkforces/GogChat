@@ -64,8 +64,8 @@ jobs:
           ${{ steps.changelog.outputs.changelog }}
 
           ### Downloads
-          - **macOS Intel (x64)**: Google-Chat-${{ steps.get_version.outputs.version }}-macOS-x64-main.dmg
-          - **macOS ARM (Apple Silicon)**: Google-Chat-${{ steps.get_version.outputs.version }}-macOS-arm64-main.dmg
+          - **macOS Intel (x64)**: OpenGChat-${{ steps.get_version.outputs.version }}-macOS-x64-main.dmg
+          - **macOS ARM (Apple Silicon)**: OpenGChat-${{ steps.get_version.outputs.version }}-macOS-arm64-main.dmg
 
           ### Security
           - See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for security details
