@@ -1,7 +1,7 @@
 {
   "name": "gchat",
   "productName": "Google Chat",
-  "version": "3.2.7",
+  "version": "3.2.8",
   "description": "Google Chat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
@@ -73,6 +73,6 @@
   },
   "engineStrict": true,
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.20.0"
   }
 }
