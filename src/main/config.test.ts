@@ -53,13 +53,27 @@ const mockStore = {
   onDidChange: vi.fn(),
 };
 
+// Mock electron-store constructor - must be a proper constructor function
+class MockStore {
+  get = mockStore.get;
+  set = mockStore.set;
+  has = mockStore.has;
+  delete = mockStore.delete;
+  clear = mockStore.clear;
+  onDidChange = mockStore.onDidChange;
+}
+
 vi.mock('electron-store', () => ({
-  default: vi.fn(() => mockStore),
+  default: MockStore,
 }));
 
 describe('Config Store', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mockStore implementation
+    mockStore.get.mockReturnValue(undefined);
+    mockStore.set.mockReturnValue(undefined);
+    mockStore.has.mockReturnValue(false);
     // Reset the module to clear singleton state
     vi.resetModules();
   });

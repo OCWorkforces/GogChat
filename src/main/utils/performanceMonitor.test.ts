@@ -9,6 +9,29 @@ import {
   perfMonitor,
 } from './performanceMonitor';
 
+// Mock electron
+vi.mock('electron', () => ({
+  app: {
+    getAppPath: () => '/fake/app/path',
+  },
+}));
+
+// Mock fs
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(() => false),
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn(),
+  },
+}));
+
+// Mock path
+vi.mock('path', () => ({
+  default: {
+    join: (...args: string[]) => args.join('/'),
+  },
+}));
+
 // Mock electron-log
 vi.mock('electron-log', () => ({
   default: {
