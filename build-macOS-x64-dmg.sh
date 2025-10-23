@@ -2,7 +2,7 @@
 
 ##
 # Complete build script for macOS x64 DMG
-# This script handles the entire build pipeline from source to DMG installer
+# This script uses electron-builder for packaging and DMG creation
 ##
 
 set -e  # Exit on error
@@ -73,19 +73,13 @@ fi
 print_success "Version: ${PACKAGE_VERSION}"
 echo ""
 
-# Define paths
-ARCH="x64"
-PLATFORM="darwin"
-SOURCE_DIR="./dist/Google Chat-${PLATFORM}-${ARCH}/"
-APP_NAME="Google Chat.app"
+# Define output paths
 OUT_DIR="./dist/"
-DMG_NAME="Google-Chat-v${PACKAGE_VERSION}-macOS-x64-${ENVIRONMENT}.dmg"
+DMG_NAME="Google Chat-v${PACKAGE_VERSION}-macOS-x64-${ENVIRONMENT}.dmg"
 OUT_FILE_PATH="${OUT_DIR}${DMG_NAME}"
-TEMP_DMG="${OUT_DIR}Google-Chat-v${PACKAGE_VERSION}-x64-${ENVIRONMENT}-temp.dmg"
-VOLUME_NAME="Google Chat ${PACKAGE_VERSION} (${ENVIRONMENT})"
 
 # Step 1: Clean previous builds
-print_step "Step 1/5: Cleaning previous builds..."
+print_step "Step 1/3: Cleaning previous builds..."
 if [ -d "./dist" ]; then
     print_warning "Removing dist directory..."
     rm -rf ./dist
@@ -98,7 +92,7 @@ print_success "Clean complete"
 echo ""
 
 # Step 2: Build production code with Rsbuild
-print_step "Step 2/5: Building production code with Rsbuild..."
+print_step "Step 2/3: Building production code with Rsbuild..."
 npm run build:prod
 if [ $? -ne 0 ]; then
     print_error "Rsbuild compilation failed"
@@ -107,121 +101,71 @@ fi
 print_success "Production build complete"
 echo ""
 
-# Step 3: Package the app with electron-packager
-print_step "Step 3/5: Packaging app for macOS x64..."
-npm run pack:mac
-if [ $? -ne 0 ]; then
-    print_error "Packaging failed"
-    exit 1
-fi
-print_success "App packaged successfully"
+# Step 3: Package and create DMG with electron-builder
+print_step "Step 3/3: Packaging app and creating DMG with electron-builder..."
+echo "  → Building for macOS x64 (Intel)..."
+echo "  → This will package the app and create the DMG installer"
 echo ""
 
-# Verify the app bundle exists
-if [ ! -d "${SOURCE_DIR}${APP_NAME}" ]; then
-    print_error "App bundle not found at ${SOURCE_DIR}${APP_NAME}"
-    exit 1
-fi
+# Set BUILD_ENV environment variable for artifact naming
+export BUILD_ENV="${ENVIRONMENT}"
 
-# Step 4: Create DMG installer
-print_step "Step 4/5: Creating DMG installer..."
+# Disable automatic code signing discovery
+export CSC_IDENTITY_AUTO_DISCOVERY=false
 
-# Create output directory
-mkdir -p "$OUT_DIR"
-
-# Remove existing DMG files
-if [ -f "$OUT_FILE_PATH" ]; then
-    print_warning "Removing existing DMG: ${DMG_NAME}"
-    rm -f "$OUT_FILE_PATH"
-fi
-if [ -f "$TEMP_DMG" ]; then
-    rm -f "$TEMP_DMG"
-fi
-
-# Create temporary DMG
-echo "  → Creating temporary DMG from app bundle..."
-hdiutil create -srcfolder "${SOURCE_DIR}${APP_NAME}" \
-    -volname "${VOLUME_NAME}" \
-    -fs HFS+ \
-    -fsargs "-c c=64,a=16,e=16" \
-    -format UDRW \
-    -size 500m \
-    "$TEMP_DMG" > /dev/null
+# Run electron-builder with macOS x64 target
+npx electron-builder --mac --x64 --config electron-builder.yml
 
 if [ $? -ne 0 ]; then
-    print_error "Failed to create temporary DMG"
+    print_error "electron-builder failed"
     exit 1
 fi
 
-# Mount temporary DMG
-echo "  → Mounting temporary DMG..."
-MOUNT_OUTPUT=$(hdiutil attach -readwrite -noverify -noautoopen "$TEMP_DMG" 2>&1)
-MOUNT_DIR=$(echo "$MOUNT_OUTPUT" | grep -E '^/dev/' | tail -1 | awk '{$1=$2=""; print $0}' | sed 's/^ *//')
-
-if [ -z "$MOUNT_DIR" ]; then
-    print_error "Failed to mount temporary DMG"
-    rm -f "$TEMP_DMG"
-    exit 1
-fi
-
-echo "  → Mount directory: ${MOUNT_DIR}"
-
-# Create Applications symlink for drag-to-install UX
-echo "  → Creating Applications symlink..."
-ln -s /Applications "$MOUNT_DIR/Applications"
-
-# Unmount temporary DMG
-echo "  → Unmounting temporary DMG..."
-hdiutil detach "$MOUNT_DIR" -force > /dev/null 2>&1
-
-# Convert to compressed DMG
-echo "  → Converting to compressed DMG (zlib level 9)..."
-hdiutil convert "$TEMP_DMG" \
-    -format UDZO \
-    -imagekey zlib-level=9 \
-    -o "$OUT_FILE_PATH" > /dev/null
-
-if [ $? -ne 0 ]; then
-    print_error "Failed to convert to compressed DMG"
-    rm -f "$TEMP_DMG"
-    exit 1
-fi
-
-# Remove temporary DMG
-echo "  → Cleaning up temporary files..."
-rm -f "$TEMP_DMG"
-
-print_success "DMG created successfully"
+print_success "Packaging and DMG creation complete"
 echo ""
 
-# Step 5: Summary
-print_step "Step 5/5: Build Summary"
+# Step 4: Find the generated DMG file
+print_step "Step 4/4: Locating generated DMG file..."
+
+# electron-builder creates DMG with the pattern defined in artifactName
+# Look for the DMG file in dist directory
+ACTUAL_DMG=$(find ./dist -name "*.dmg" -type f | head -n 1)
+
+if [ -z "$ACTUAL_DMG" ]; then
+    print_error "DMG file not found in ./dist directory"
+    exit 1
+fi
+
+print_success "DMG found: $(basename "$ACTUAL_DMG")"
+echo ""
+
+# Build Summary
+echo "════════════════════════════════════════════════════════════════"
+echo "  Build Summary"
+echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "  Package Version:  ${PACKAGE_VERSION}"
+echo "  Environment:      ${ENVIRONMENT}"
 echo "  Platform:         macOS (Intel x64)"
-echo "  Output Location:  ${OUT_FILE_PATH}"
-echo "  File Size:        $(du -sh "$OUT_FILE_PATH" | awk '{print $1}')"
-echo ""
-
-# Calculate total app bundle size
-APP_SIZE=$(du -sh "${SOURCE_DIR}${APP_NAME}" | awk '{print $1}')
-echo "  App Bundle Size:  ${APP_SIZE}"
+echo "  Output Location:  ${ACTUAL_DMG}"
+echo "  File Size:        $(du -sh "$ACTUAL_DMG" | awk '{print $1}')"
 echo ""
 
 print_success "Build complete!"
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo "  DMG installer ready for distribution:"
-echo "  ${OUT_FILE_PATH}"
+echo "  ${ACTUAL_DMG}"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
-# Optional: Create checksum
+# Generate SHA-256 checksum
 print_step "Generating SHA-256 checksum..."
-CHECKSUM=$(shasum -a 256 "$OUT_FILE_PATH" | awk '{print $1}')
-echo "$CHECKSUM  $DMG_NAME" > "${OUT_FILE_PATH}.sha256"
+CHECKSUM=$(shasum -a 256 "$ACTUAL_DMG" | awk '{print $1}')
+CHECKSUM_FILE="${ACTUAL_DMG}.sha256"
+echo "$CHECKSUM  $(basename "$ACTUAL_DMG")" > "${CHECKSUM_FILE}"
 print_success "Checksum: ${CHECKSUM}"
-echo "  Saved to: ${OUT_FILE_PATH}.sha256"
+echo "  Saved to: ${CHECKSUM_FILE}"
 echo ""
 
 exit 0

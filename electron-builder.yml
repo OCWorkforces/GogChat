@@ -1,0 +1,91 @@
+# Electron Builder Configuration
+# https://www.electron.build/configuration/configuration
+
+appId: com.ccworkforce.gchat
+productName: Google Chat
+copyright: Copyright © 2025 CCWorkforce
+
+# Directories
+directories:
+  output: dist
+  buildResources: resources
+
+# Files to include/exclude in the app
+files:
+  - lib/**/*
+  - node_modules/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/*.test.{ts,js}"
+  - "!**/*.spec.{ts,js}"
+  - "!src/**/*"
+  - "!.github/**/*"
+  - "!coverage/**/*"
+  - "!debian/**/*"
+  - "!mac/**/*"
+  - "!windows/**/*"
+  - "!.git/**/*"
+  - "!.vscode/**/*"
+  - "!.idea/**/*"
+  - "!tests/**/*"
+  - "!scripts/**/*"
+  - "!**/*.md"
+  - "!tsconfig.json"
+  - "!vitest.config.ts"
+  - "!playwright.config.ts"
+  - "!eslint.config.js"
+  - "!.prettierrc.json"
+  - "!.editorconfig"
+  - "!.npmrc"
+  - "!.gitignore"
+  - "!.gitattributes"
+  - "!.DS_Store"
+  - "!package-lock.json"
+  - "!entitlements.mac.*.plist"
+  - "!electron-builder.yml"
+  - "!rsbuild.config.ts"
+  - "!build-macOS-*.sh"
+
+# Compression settings
+compression: normal
+asar: true
+
+# macOS Configuration
+mac:
+  category: public.app-category.social-networking
+  icon: resources/icons/normal/mac.icns
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  gatekeeperAssess: false
+
+# DMG Configuration
+dmg:
+  title: "${productName} ${version}"
+  icon: resources/icons/normal/mac.icns
+  iconSize: 100
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 140
+      y: 180
+      type: file
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications
+  # Optional: Custom background
+  # background: resources/dmg-background.png
+  format: UDZO
+
+# Auto-update configuration
+# Generates update manifest files for electron-updater
+publish:
+  provider: generic
+  url: https://your-update-server.com/releases
+
+# Additional metadata
+artifactName: "${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}"
