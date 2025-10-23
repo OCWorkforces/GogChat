@@ -61,10 +61,10 @@ jobs:
         run: npm install
 
       - name: Make build script executable
-        run: chmod +x build-macOS-${{ matrix.arch }}-dmg.sh
+        run: chmod +x build-macOS-dmg.sh
 
       - name: Build macOS ${{ matrix.arch }} DMG
-        run: ./build-macOS-${{ matrix.arch }}-dmg.sh --environment ${{ github.head_ref || github.ref_name }}
+        run: ./build-macOS-dmg.sh --environment ${{ github.head_ref || github.ref_name }} --arch ${{ matrix.arch }}
 
       - name: Preserve ${{ matrix.arch }} artifacts
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')

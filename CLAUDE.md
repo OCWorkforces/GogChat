@@ -36,18 +36,39 @@ npm start            # Runs prestart (production build) then starts Electron
 
 ## Build and Package Commands
 
-### macOS Intel (x64)
+### Unified DMG Build (Recommended)
+
+```bash
+# Build both Intel and Apple Silicon DMGs (production)
+npm run build:mac
+
+# Build both DMGs (development)
+npm run build:mac:dev
+
+# Build specific architecture only
+npm run build:mac:x64       # Intel only (production)
+npm run build:mac:arm64     # Apple Silicon only (production)
+
+# Direct script usage with custom environment
+./build-macOS-dmg.sh --environment production              # Both architectures
+./build-macOS-dmg.sh --environment develop --arch x64      # Intel only
+./build-macOS-dmg.sh --environment staging --arch arm64    # ARM only
+```
+
+### Legacy Commands (Backward Compatible)
+
+```bash
+npm run build:mac-x64        # Intel DMG (production) - alias for build:mac:x64
+npm run build:mac-arm64      # ARM DMG (production) - alias for build:mac:arm64
+npm run build:mac-x64:dev    # Intel DMG (development)
+npm run build:mac-arm64:dev  # ARM DMG (development)
+```
+
+### Package Only (No DMG)
 
 ```bash
 npm run pack:mac          # Package for macOS Intel
-npm run build:mac-dmg     # Create DMG installer
-```
-
-### macOS ARM (Apple Silicon)
-
-```bash
 npm run pack:mac-arm      # Package for macOS ARM
-npm run build:mac-arm-dmg # Create ARM DMG installer
 ```
 
 ## Build System
