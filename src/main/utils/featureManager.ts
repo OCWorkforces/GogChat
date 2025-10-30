@@ -160,15 +160,27 @@ export class FeatureManager {
     // Resolve dependencies and sort topologically
     const sorted = this.topologicalSort(phaseFeatures);
 
-    // Execute based on phase strategy
-    if (phase === 'security' || phase === 'critical') {
-      // Sequential execution for critical features
-      for (const feature of sorted) {
-        await this.initializeFeature(feature);
-      }
-    } else {
-      // Parallel execution for UI and deferred features (performance optimization)
-      await Promise.all(sorted.map((f) => this.initializeFeature(f)));
+    // Group features into dependency-aware batches
+    const batches = this.groupFeaturesByDependencyLevel(sorted);
+
+    log.info(
+      `[FeatureManager] Executing ${phaseFeatures.length} features in ${batches.length} batch(es)`
+    );
+
+    // Execute batches sequentially, features within each batch in parallel
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      const batchStartTime = Date.now();
+
+      log.debug(
+        `[FeatureManager] Batch ${i + 1}/${batches.length}: ${batch.map((f) => f.name).join(', ')}`
+      );
+
+      // Execute all features in this batch in parallel
+      await Promise.all(batch.map((f) => this.initializeFeature(f)));
+
+      const batchDuration = Date.now() - batchStartTime;
+      log.debug(`[FeatureManager] Batch ${i + 1} completed in ${batchDuration}ms`);
     }
 
     const duration = Date.now() - startTime;
@@ -310,6 +322,57 @@ export class FeatureManager {
     }
 
     return sorted;
+  }
+
+  /**
+   * Group features into batches by dependency level
+   * Features in the same batch have no dependencies on each other and can execute in parallel
+   * @param features - Features to group (should be topologically sorted)
+   * @returns Array of batches, where each batch can execute in parallel
+   */
+  private groupFeaturesByDependencyLevel(features: FeatureConfig[]): FeatureConfig[][] {
+    const batches: FeatureConfig[][] = [];
+    const assignedFeatures = new Set<string>();
+
+    // Helper: Check if all dependencies of a feature are in previous batches
+    const areDependenciesSatisfied = (feature: FeatureConfig): boolean => {
+      if (!feature.dependencies || feature.dependencies.length === 0) {
+        return true;
+      }
+
+      return feature.dependencies.every((dep) => {
+        // Check if dependency is in assigned features (previous batches)
+        // OR if dependency is in a different phase (already initialized)
+        return assignedFeatures.has(dep) || !features.some((f) => f.name === dep);
+      });
+    };
+
+    // Keep grouping until all features are assigned
+    let remainingFeatures = [...features];
+
+    while (remainingFeatures.length > 0) {
+      // Find features that can execute in this batch
+      const currentBatch = remainingFeatures.filter((f) => areDependenciesSatisfied(f));
+
+      if (currentBatch.length === 0) {
+        // This should never happen if features are properly sorted
+        log.error(
+          '[FeatureManager] Unable to create batches - possible unresolved cross-phase dependency'
+        );
+        // Add remaining features to final batch to avoid infinite loop
+        batches.push(remainingFeatures);
+        break;
+      }
+
+      // Add batch and mark features as assigned
+      batches.push(currentBatch);
+      currentBatch.forEach((f) => assignedFeatures.add(f.name));
+
+      // Remove assigned features from remaining
+      remainingFeatures = remainingFeatures.filter((f) => !assignedFeatures.has(f.name));
+    }
+
+    return batches;
   }
 
   /**
