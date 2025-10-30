@@ -206,48 +206,4 @@ export default defineConfig({
   html: {
     template: undefined,
   },
-
-  // Environment-specific configurations
-  environments: {
-    // Development environment
-    development: {
-      output: {
-        minify: false,
-        sourceMap: {
-          js: 'source-map',
-        },
-      },
-    },
-
-    // Production environment
-    production: {
-      output: {
-        minify: {
-          js: true,
-          jsOptions: {
-            minimizerOptions: {
-              compress: {
-                passes: 2,
-                drop_console: true, // Drop console logs in production for smaller bundles
-                drop_debugger: true,
-              },
-              mangle: {
-                keep_classnames: false,
-                keep_fnames: false,
-              },
-            },
-          },
-        },
-        sourceMap: {
-          js: false,
-        },
-      },
-      performance: {
-        printFileSize: {
-          total: true,
-          detail: true,
-        },
-      },
-    },
-  },
 });
