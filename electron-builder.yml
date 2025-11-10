@@ -56,9 +56,6 @@ mac:
   icon: resources/icons/normal/mac.icns
   target:
     - target: dmg
-      arch:
-        - x64
-        - arm64
   gatekeeperAssess: false
 
 # DMG Configuration

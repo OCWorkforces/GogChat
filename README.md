@@ -113,6 +113,15 @@ npm run build:mac-dmg
 
 # macOS ARM (Apple Silicon)
 npm run build:mac-arm-dmg
+
+# Build only the x64 DMG via the unified script
+./build-macOS-dmg.sh --environment stable --arch x64
+
+# Build only the ARM64 DMG via the unified script
+./build-macOS-dmg.sh --environment stable --arch arm64
+
+# Build both x64 and ARM64 DMGs in one go (default behavior)
+./build-macOS-dmg.sh --environment stable
 ```
 
 ## CI/CD

@@ -162,16 +162,25 @@ export BUILD_ENV="${ENVIRONMENT}"
 # Disable automatic code signing discovery
 export CSC_IDENTITY_AUTO_DISCOVERY=false
 
+# Helper to run electron-builder for a specific architecture
+run_electron_builder() {
+    local target_arch="$1"
+    echo ""
+    echo "  → Starting electron-builder for macOS ${target_arch}..."
+    npx electron-builder --mac --"${target_arch}" --config electron-builder.yml
+}
+
 # Run electron-builder with appropriate architecture flags
 case "$ARCH" in
     x64)
-        npx electron-builder --mac --x64 --config electron-builder.yml
+        run_electron_builder "x64"
         ;;
     arm64)
-        npx electron-builder --mac --arm64 --config electron-builder.yml
+        run_electron_builder "arm64"
         ;;
     both)
-        npx electron-builder --mac --config electron-builder.yml
+        run_electron_builder "x64"
+        run_electron_builder "arm64"
         ;;
 esac
 
