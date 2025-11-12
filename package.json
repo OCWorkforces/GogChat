@@ -51,12 +51,12 @@
     "@rspack/core": "^1.6.1",
     "@types/auto-launch": "^5.0.5",
     "@types/throttle-debounce": "^5.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.46.3",
-    "@typescript-eslint/parser": "^8.46.3",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
     "@vitest/coverage-v8": "^4.0.8",
     "@vitest/ui": "^4.0.8",
     "cross-env": "^10.1.0",
-    "electron": "^39.1.1",
+    "electron": "^39.1.2",
     "electron-builder": "^26.0.12",
     "electron-updater": "^6.6.2",
     "esbuild": "^0.27.0",
@@ -79,6 +79,6 @@
   },
   "engineStrict": true,
   "engines": {
-    "node": ">=22.20.0"
+    "node": ">=22.21.1"
   }
 }
