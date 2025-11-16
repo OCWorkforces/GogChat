@@ -1,4 +1,4 @@
-const appUrl = 'https://mail.google.com/chat/u/0';
+const appUrl = 'https://chat.google.com';
 
 export default Object.freeze({
   appUrl,
