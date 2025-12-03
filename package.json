@@ -1,7 +1,7 @@
 {
   "name": "gchat",
   "productName": "Google Chat",
-  "version": "3.3.4",
+  "version": "3.3.6",
   "description": "Google Chat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
@@ -47,26 +47,26 @@
     "dist:mac-arm64": "npm run clean:dist && npm run build:prod && electron-builder --mac --arm64"
   },
   "devDependencies": {
-    "@rsbuild/core": "^1.6.3",
-    "@rspack/core": "^1.6.1",
+    "@rsbuild/core": "^1.6.12",
+    "@rspack/core": "^1.6.6",
     "@types/auto-launch": "^5.0.5",
     "@types/throttle-debounce": "^5.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.46.3",
-    "@typescript-eslint/parser": "^8.46.3",
-    "@vitest/coverage-v8": "^4.0.8",
-    "@vitest/ui": "^4.0.8",
+    "@typescript-eslint/eslint-plugin": "^8.48.1",
+    "@typescript-eslint/parser": "^8.48.1",
+    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/ui": "^4.0.15",
     "cross-env": "^10.1.0",
-    "electron": "^39.1.1",
+    "electron": "^39.2.4",
     "electron-builder": "^26.0.12",
     "electron-updater": "^6.6.2",
     "esbuild": "^0.27.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
-    "prettier": "^3.6.2",
-    "rimraf": "^6.1.0",
+    "prettier": "^3.7.3",
+    "rimraf": "^6.1.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.15"
   },
   "dependencies": {
     "auto-launch": "^5.0.6",
@@ -79,6 +79,6 @@
   },
   "engineStrict": true,
   "engines": {
-    "node": ">=22.20.0"
+    "node": ">=22.21.1"
   }
 }

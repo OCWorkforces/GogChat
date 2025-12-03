@@ -12,7 +12,7 @@ export default (url: string): BrowserWindow => {
       contextIsolation: true, // Enabled - prevents renderer from accessing Node
       nodeIntegration: false, // Keep disabled
       sandbox: true, // Enabled - OS-level process isolation
-      webSecurity: true, // Explicit enable
+      webSecurity: false, // DISABLED for Google Chat compatibility
       allowRunningInsecureContent: false, // Block mixed content
       disableBlinkFeatures: 'Auxclick', // Prevent Auxclick exploits
       preload: path.join(app.getAppPath(), 'lib/preload/index'),
