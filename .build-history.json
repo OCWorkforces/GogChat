@@ -1,0 +1,222 @@
+[
+  {
+    "timestamp": "2025-11-16T03:46:43.591Z",
+    "size": 209674,
+    "sizeMB": 0.2,
+    "fileCount": 72,
+    "tool": "rsbuild",
+    "mainBundleSize": 40235,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2025-11-16T03:57:10.087Z",
+    "size": 209674,
+    "sizeMB": 0.2,
+    "fileCount": 72,
+    "tool": "rsbuild",
+    "mainBundleSize": 40235,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2025-11-16T04:02:34.317Z",
+    "size": 209674,
+    "sizeMB": 0.2,
+    "fileCount": 72,
+    "tool": "rsbuild",
+    "mainBundleSize": 40235,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2025-12-03T02:52:36.987Z",
+    "size": 207701,
+    "sizeMB": 0.2,
+    "fileCount": 72,
+    "tool": "rsbuild",
+    "mainBundleSize": 40012,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T12:26:13.043Z",
+    "size": 207681,
+    "sizeMB": 0.2,
+    "fileCount": 72,
+    "tool": "rsbuild",
+    "mainBundleSize": 40003,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T12:48:48.984Z",
+    "size": 207681,
+    "sizeMB": 0.2,
+    "fileCount": 72,
+    "tool": "rsbuild",
+    "mainBundleSize": 40003,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T12:54:57.978Z",
+    "size": 207845,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 40003,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T12:55:17.088Z",
+    "size": 207845,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 40003,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T12:56:55.373Z",
+    "size": 207845,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 40003,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:01:35.264Z",
+    "size": 209193,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 40677,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:01:40.454Z",
+    "size": 209193,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 40677,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:02:29.068Z",
+    "size": 209193,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 40677,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:05:04.599Z",
+    "size": 205859,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 39118,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:05:08.982Z",
+    "size": 205859,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 39118,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:06:05.426Z",
+    "size": 205859,
+    "sizeMB": 0.2,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 39118,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:09:05.580Z",
+    "size": 6670,
+    "sizeMB": 0.01,
+    "fileCount": 8,
+    "tool": "rsbuild",
+    "mainBundleSize": 0,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:09:21.102Z",
+    "size": 6670,
+    "sizeMB": 0.01,
+    "fileCount": 8,
+    "tool": "rsbuild",
+    "mainBundleSize": 0,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:10:19.976Z",
+    "size": 202681,
+    "sizeMB": 0.19,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 39118,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:10:27.228Z",
+    "size": 202681,
+    "sizeMB": 0.19,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 39118,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  },
+  {
+    "timestamp": "2026-02-22T13:11:21.753Z",
+    "size": 202593,
+    "sizeMB": 0.19,
+    "fileCount": 73,
+    "tool": "rsbuild",
+    "mainBundleSize": 39074,
+    "chunkCount": 0,
+    "totalChunkSize": 0,
+    "chunks": []
+  }
+]
