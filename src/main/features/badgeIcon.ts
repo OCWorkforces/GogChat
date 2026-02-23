@@ -1,3 +1,4 @@
+import { toErrorMessage } from '../utils/errorHandler.js';
 import { ipcMain, app, BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants.js';
@@ -69,8 +70,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
           } else {
             log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
           }
-        } catch (error) {
-          log.error('[BadgeIcon] Failed to process favicon change:', error);
+        } catch (error: unknown) {
+          log.error('[BadgeIcon] Failed to process favicon change:', toErrorMessage(error));
         }
         // Return void to satisfy async function requirement
         return Promise.resolve();
@@ -101,8 +102,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
           updateBadgeIcon(window, validatedCount);
 
           log.debug(`[BadgeIcon] Unread count updated: ${validatedCount}`);
-        } catch (error) {
-          log.error('[BadgeIcon] Failed to update unread count:', error);
+        } catch (error: unknown) {
+          log.error('[BadgeIcon] Failed to update unread count:', toErrorMessage(error));
         }
         // Return void to satisfy async function requirement
         return Promise.resolve();
@@ -124,7 +125,7 @@ export function cleanupBadgeIcon(): void {
     ipcMain.removeAllListeners(IPC_CHANNELS.FAVICON_CHANGED);
     ipcMain.removeAllListeners(IPC_CHANNELS.UNREAD_COUNT);
     log.info('[BadgeIcon] Badge icon cleaned up');
-  } catch (error) {
-    log.error('[BadgeIcon] Failed to cleanup badge icon:', error);
+  } catch (error: unknown) {
+    log.error('[BadgeIcon] Failed to cleanup badge icon:', toErrorMessage(error));
   }
 }

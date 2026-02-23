@@ -66,14 +66,14 @@ export default (window: BrowserWindow) => {
           try {
             await shell.openExternal(settingsURL);
             log.info('[Passkey Support] Opened System Settings');
-          } catch (error) {
+            } catch (error: unknown) {
             log.error('[Passkey Support] Failed to open System Settings:', error);
 
             // Fallback: try to open System Settings app directly
             try {
               await shell.openPath('/System/Applications/System Settings.app');
               log.info('[Passkey Support] Opened System Settings app (fallback)');
-            } catch (fallbackError) {
+            } catch (fallbackError: unknown) {
               log.error('[Passkey Support] Fallback also failed:', fallbackError);
             }
           }
@@ -83,7 +83,7 @@ export default (window: BrowserWindow) => {
           log.info('[Passkey Support] User suppressed future dialogs');
         }
         // response === 1 means "Use Password Instead" - just close the dialog
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[Passkey Support] Error handling passkey failure:', error);
       }
     })();
@@ -102,7 +102,7 @@ export function cleanupPasskeySupport(): void {
     log.debug('[Passkey Support] Cleaning up passkey support handler');
     ipcMain.removeAllListeners(IPC_CHANNELS.PASSKEY_AUTH_FAILED);
     log.info('[Passkey Support] Passkey support cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Passkey Support] Failed to cleanup passkey support:', error);
   }
 }

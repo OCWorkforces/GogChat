@@ -62,7 +62,7 @@ export default (window: BrowserWindow) => {
           });
           log.debug('[WindowState] Saved window position');
         }
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[WindowState] Failed to save window position:', error);
       }
     };
@@ -82,7 +82,7 @@ export default (window: BrowserWindow) => {
       try {
         store.set('window.isMaximized', true);
         log.debug('[WindowState] Window maximized');
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[WindowState] Failed to save maximized state:', error);
       }
     };
@@ -91,7 +91,7 @@ export default (window: BrowserWindow) => {
       try {
         store.set('window.isMaximized', false);
         log.debug('[WindowState] Window unmaximized');
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[WindowState] Failed to save unmaximized state:', error);
       }
     };
@@ -100,7 +100,7 @@ export default (window: BrowserWindow) => {
     window.on('unmaximize', unmaximizeHandler);
 
     log.info('[WindowState] Window state persistence initialized');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[WindowState] Failed to initialize window state:', error);
   }
 };
@@ -154,7 +154,7 @@ export function cleanupWindowState(window: BrowserWindow): void {
     unmaximizeHandler = null;
 
     log.info('[WindowState] Window state cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[WindowState] Failed to cleanup window state:', error);
   }
 }

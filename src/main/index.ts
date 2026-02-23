@@ -47,7 +47,7 @@ try {
   initializeStore();
   perfMonitor.mark('store-initialized', 'Config store initialized');
   log.info('[Main] Config store initialized');
-} catch (error) {
+} catch (error: unknown) {
   log.error('[Main] Failed to initialize store:', error);
 }
 
@@ -347,7 +347,7 @@ if (enforceSingleInstance()) {
           gracefulShutdown: true,
         });
         log.info('[Main] Centralized error handler initialized');
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[Main] Failed to initialize error handler:', error);
       }
 
@@ -419,7 +419,7 @@ if (enforceSingleInstance()) {
         })();
       });
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       log.error('[Main] Failed to initialize application:', error);
       app.quit();
     });
@@ -461,7 +461,7 @@ function warmCachesOnIdle(): void {
     log.debug(
       `[Main] Icon cache stats - Size: ${stats.size}/${stats.maxSize}, Total accesses: ${stats.totalAccesses}, Most accessed: ${stats.mostAccessed}`
     );
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Main] Failed to warm caches:', error);
   }
 }
@@ -483,7 +483,7 @@ app.on('before-quit', () => {
     logComprehensiveCacheStatistics();
 
     log.info('[Main] =====================================================');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Main] Error during shutdown cleanup:', error);
   }
 });
@@ -539,7 +539,7 @@ function logComprehensiveCacheStatistics(): void {
       log.info(
         `[Main]   Deduplication rate: ${dedupStats.cacheHits + dedupStats.cacheMisses > 0 ? ((dedupStats.cacheHits / (dedupStats.cacheHits + dedupStats.cacheMisses)) * 100).toFixed(1) : '0'}%`
       );
-    } catch (error) {
+    } catch (error: unknown) {
       log.debug('[Main] IPC deduplicator not available:', error);
     }
 
@@ -562,7 +562,7 @@ function logComprehensiveCacheStatistics(): void {
       log.info(
         `[Main]   Block rate: ${totalMessages > 0 ? ((totalBlocked / totalMessages) * 100).toFixed(1) : '0'}%`
       );
-    } catch (error) {
+    } catch (error: unknown) {
       log.debug('[Main] Rate limiter not available:', error);
     }
 
@@ -574,7 +574,7 @@ function logComprehensiveCacheStatistics(): void {
     log.info(`[Main]   Failed: ${summary.failed}`);
     log.info(`[Main]   Pending: ${summary.pending}`);
     log.info(`[Main]   Total init time: ${summary.totalTime}ms`);
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Main] Failed to log comprehensive cache statistics:', error);
   }
 }

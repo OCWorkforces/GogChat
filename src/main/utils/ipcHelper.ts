@@ -7,6 +7,7 @@
 import { ipcMain, IpcMainEvent, BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import { getRateLimiter } from './rateLimiter.js';
 import { logger } from './logger.js';
+import { toError, toErrorMessage } from './errorHandler.js';
 
 /**
  * Configuration for creating a secure IPC handler
@@ -77,8 +78,8 @@ export function createSecureIPCHandler<T>(config: IPCHandlerConfig<T>): () => vo
 
         // Execute handler with validated data
         await handler(validated, event);
-      } catch (error) {
-        const err = error as Error;
+      } catch (error: unknown) {
+        const err = toError(error);
 
         if (!silent) {
           log.error(`Handler failed: ${channel}`, err.message);
@@ -146,8 +147,8 @@ export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, 
 
         // Send reply
         event.reply(responseChannel, { success: true, data: response });
-      } catch (error) {
-        const err = error as Error;
+      } catch (error: unknown) {
+        const err = toError(error);
 
         if (!silent) {
           log.error(`Reply handler failed: ${channel}`, err.message);
@@ -203,8 +204,8 @@ export function createSecureInvokeHandler<T, R>(config: IPCInvokeHandlerConfig<T
 
       // Execute handler and return response
       return await handler(validated, event);
-    } catch (error) {
-      const err = error as Error;
+    } catch (error: unknown) {
+      const err = toError(error);
 
       if (!silent) {
         log.error(`Invoke handler failed: ${channel}`, err.message);
@@ -247,8 +248,8 @@ export function createBroadcastHandler<T>(config: {
           window.webContents.send(config.channel, validated);
         }
       });
-    } catch (error) {
-      logger.ipc.error(`Broadcast failed: ${config.channel}`, error);
+    } catch (error: unknown) {
+      logger.ipc.error(`Broadcast failed: ${config.channel}`, toErrorMessage(error));
     }
   };
 }
@@ -271,8 +272,8 @@ export function sendToWindow<T>(
     const validated = validator ? validator(data) : data;
     window.webContents.send(channel, validated);
     return true;
-  } catch (error) {
-    logger.ipc.error(`Failed to send to window: ${channel}`, error);
+  } catch (error: unknown) {
+    logger.ipc.error(`Failed to send to window: ${channel}`, toErrorMessage(error));
     return false;
   }
 }

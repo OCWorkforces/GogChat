@@ -94,7 +94,7 @@ export default (window: BrowserWindow) => {
             const sanitizedURL = validateExternalURL(url);
             void shell.openExternal(sanitizedURL);
             log.info('[ExternalLinks] Opened external URL:', sanitizedURL);
-          } catch (error) {
+          } catch (error: unknown) {
             log.error('[ExternalLinks] Failed to open external URL:', error);
           }
         });
@@ -105,7 +105,7 @@ export default (window: BrowserWindow) => {
       // Allow navigation within whitelisted hosts
       log.debug('[ExternalLinks] Allowing whitelisted navigation:', url);
       return ACTION_ALLOWED;
-    } catch (error) {
+    } catch (error: unknown) {
       log.error('[ExternalLinks] Error handling redirect:', error);
       return ACTION_DENIED;
     }
@@ -172,7 +172,7 @@ export function cleanupExternalLinks(): void {
     stopReGuardTimer();
     guardAgainstExternalLinks = true;
     log.info('[ExternalLinks] External links handler cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[ExternalLinks] Failed to cleanup external links:', error);
   }
 }

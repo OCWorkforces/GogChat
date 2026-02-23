@@ -11,6 +11,7 @@ import { destroyDeduplicator } from './ipcDeduplicator.js';
 import { cleanupGlobalHandlers } from './ipcHelper.js';
 import { getIconCache } from './iconCache.js';
 import { clearConfigCache } from './configCache.js';
+import { toErrorMessage } from './errorHandler.js';
 
 /**
  * Type for event handler functions
@@ -132,8 +133,8 @@ export class ResourceCleanupManager {
         } else if (target && target.off) {
           target.off(event, handler);
         }
-      } catch (error) {
-        this.log.debug(`Failed to remove listener for ${event}:`, error);
+      } catch (error: unknown) {
+        this.log.debug(`Failed to remove listener for ${event}:`, toErrorMessage(error));
       }
     }
     this.listeners = [];
@@ -181,11 +182,11 @@ export class ResourceCleanupManager {
           this.log.debug(`Running cleanup task: ${task.name}`);
         }
         await task.cleanup();
-      } catch (error) {
+      } catch (error: unknown) {
         if (task.critical) {
-          this.log.error(`Critical cleanup task failed: ${task.name}`, error);
+          this.log.error(`Critical cleanup task failed: ${task.name}`, toErrorMessage(error));
         } else {
-          this.log.debug(`Cleanup task failed: ${task.name}`, error);
+          this.log.debug(`Cleanup task failed: ${task.name}`, toErrorMessage(error));
         }
       }
     }
@@ -209,24 +210,24 @@ export class ResourceCleanupManager {
       // Clean up IPC handlers
       cleanupGlobalHandlers();
       this.log.debug('IPC handlers cleaned up');
-    } catch (error) {
-      this.log.debug('Failed to cleanup IPC handlers:', error);
+    } catch (error: unknown) {
+      this.log.debug('Failed to cleanup IPC handlers:', toErrorMessage(error));
     }
 
     try {
       // Clean up rate limiter
       destroyRateLimiter();
       this.log.debug('Rate limiter cleaned up');
-    } catch (error) {
-      this.log.debug('Failed to cleanup rate limiter:', error);
+    } catch (error: unknown) {
+      this.log.debug('Failed to cleanup rate limiter:', toErrorMessage(error));
     }
 
     try {
       // Clean up deduplicator
       destroyDeduplicator();
       this.log.debug('Deduplicator cleaned up');
-    } catch (error) {
-      this.log.debug('Failed to cleanup deduplicator:', error);
+    } catch (error: unknown) {
+      this.log.debug('Failed to cleanup deduplicator:', toErrorMessage(error));
     }
 
     try {
@@ -234,16 +235,16 @@ export class ResourceCleanupManager {
       const iconCache = getIconCache();
       iconCache.clear();
       this.log.debug('Icon cache cleared');
-    } catch (error) {
-      this.log.debug('Failed to clear icon cache:', error);
+    } catch (error: unknown) {
+      this.log.debug('Failed to clear icon cache:', toErrorMessage(error));
     }
 
     try {
       // Clear config cache
       clearConfigCache();
       this.log.debug('Config cache cleared');
-    } catch (error) {
-      this.log.debug('Failed to clear config cache:', error);
+    } catch (error: unknown) {
+      this.log.debug('Failed to clear config cache:', toErrorMessage(error));
     }
   }
 
@@ -322,8 +323,8 @@ export function setupWindowCleanup(window: BrowserWindow): void {
           includeGlobalResources: false,
           logDetails: process.env.NODE_ENV === 'development',
         });
-      } catch (error) {
-        log.error('Cleanup failed during window close:', error);
+      } catch (error: unknown) {
+        log.error('Cleanup failed during window close:', toErrorMessage(error));
       }
     })();
   });
@@ -359,8 +360,8 @@ export function setupAppCleanup(): void {
           includeGlobalResources: true,
           logDetails: true,
         });
-      } catch (error) {
-        log.error('Final cleanup failed:', error);
+      } catch (error: unknown) {
+        log.error('Final cleanup failed:', toErrorMessage(error));
       } finally {
         // Allow quit to proceed
         app.exit();

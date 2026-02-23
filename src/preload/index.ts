@@ -23,7 +23,7 @@ const api: GChatBridgeAPI = {
     try {
       const validated = validateUnreadCount(count);
       ipcRenderer.send(IPC_CHANNELS.UNREAD_COUNT, validated);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Google Chat API] Invalid unread count:', error);
     }
   },
@@ -32,7 +32,7 @@ const api: GChatBridgeAPI = {
     try {
       const validated = validateFaviconURL(href);
       ipcRenderer.send(IPC_CHANNELS.FAVICON_CHANGED, validated);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Google Chat API] Invalid favicon URL:', error);
     }
   },
@@ -49,7 +49,7 @@ const api: GChatBridgeAPI = {
     try {
       const validated = validatePasskeyFailureData(errorType);
       ipcRenderer.send(IPC_CHANNELS.PASSKEY_AUTH_FAILED, validated);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Google Chat API] Invalid passkey failure data:', error);
     }
   },

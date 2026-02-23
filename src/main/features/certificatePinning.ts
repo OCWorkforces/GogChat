@@ -151,7 +151,7 @@ export function cleanupCertificatePinning(): void {
     }
 
     log.info('[CertPinning] Certificate pinning cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[CertPinning] Failed to cleanup certificate pinning:', error);
   }
 }

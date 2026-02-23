@@ -53,7 +53,7 @@ function monitorWebAuthn(): void {
     try {
       const result = await originalCreate(options);
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       // Check if this is a passkey-related error
       if (
         error &&
@@ -76,7 +76,7 @@ function monitorWebAuthn(): void {
     try {
       const result = await originalGet(options);
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       // Check if this is a passkey-related error
       if (
         error &&
