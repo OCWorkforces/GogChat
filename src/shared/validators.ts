@@ -145,8 +145,7 @@ export function isWhitelistedHost(url: string, currentHost: string): boolean {
     }
 
     // Check against whitelist
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    return WHITELISTED_HOSTS.includes(hostname as any);
+    return (WHITELISTED_HOSTS as readonly string[]).includes(hostname);
   } catch {
     return false;
   }

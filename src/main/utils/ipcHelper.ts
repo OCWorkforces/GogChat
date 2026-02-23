@@ -377,6 +377,8 @@ export const commonValidators = {
     return data;
   },
 
-  /** Pass-through validator (no validation) */
-  passthrough: <T>(data: unknown): T => data as T,
+  /** No-op validator for void/empty channels */
+  noData: (_data: unknown): void => {
+    /* Intentionally empty - for channels with no payload */
+  },
 };
