@@ -304,10 +304,19 @@ async function build() {
     const preloadRsbuild = await createRsbuild({ rsbuildConfig: preloadRsbuildConfig });
     if (isWatch) {
       console.log('[Build] Starting watch mode...');
-      const mainWatcher = await mainRsbuild.createDevServer();
-      const preloadWatcher = await preloadRsbuild.createDevServer();
-      await Promise.all([mainWatcher.afterClose(), preloadWatcher.afterClose()]);
-      console.log('[Build] ✅ Watching for changes...');
+      const mainResult = await mainRsbuild.build({ watch: true });
+      const preloadResult = await preloadRsbuild.build({ watch: true });
+      console.log('[Build] ✅ Watching for changes... (press Ctrl+C to stop)');
+
+      // Graceful shutdown on SIGINT/SIGTERM
+      const cleanup = async () => {
+        console.log('\n[Build] Stopping watch mode...');
+        await mainResult.close();
+        await preloadResult.close();
+        process.exit(0);
+      };
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
     } else {
       await mainRsbuild.build();
       await preloadRsbuild.build();
