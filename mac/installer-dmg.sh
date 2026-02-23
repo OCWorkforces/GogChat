@@ -1,13 +1,16 @@
 #!/bin/bash
 set -e
 
+# Resolve project root regardless of where the script is invoked from
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 echo "Starting mac x64 DMG build..."
-
 echo "Finding package version..."
-PACKAGE_VERSION=$(cat ./package.json | grep '"version"' | sed s/'  \"version\": \"'//g | sed s/'\",'//g)
+PACKAGE_VERSION=$(grep '"version"' ./package.json | sed 's/.*"version": "//;s/".*//')
 echo "Version: $PACKAGE_VERSION"
-
-SOURCE_DIR="./dist/Google Chat-darwin-x64/"
+SOURCE_DIR="./dist/mac-x64/"
 APP_NAME="Google Chat.app"
 OUT_DIR="./dist/"
 OUT_FILE_PATH="${OUT_DIR}Google Chat-v${PACKAGE_VERSION}.dmg"
