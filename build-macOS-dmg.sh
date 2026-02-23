@@ -6,12 +6,16 @@
 # This script uses electron-builder for packaging and DMG creation
 ##
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  Open GChat - macOS DMG Build Script"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
+
+# Record build start time for elapsed time reporting
+BUILD_START_TIME=$(date +%s)
+
 
 # Color codes for output
 RED='\033[0;31m'
@@ -37,10 +41,13 @@ print_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+# Error trap — prints failing line number for fast diagnosis
+trap 'print_error "Build failed at line ${LINENO} (exit code: $?)"; exit 1' ERR
+
 # Parse command line arguments
 ENVIRONMENT=""
 ARCH="both"  # Default to building both architectures
-
+ENABLE_CODE_SIGN=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --environment)
@@ -51,18 +58,23 @@ while [[ $# -gt 0 ]]; do
             ARCH="$2"
             shift 2
             ;;
+        --enable-code-sign)
+            ENABLE_CODE_SIGN=true
+            shift
+            ;;
         *)
             print_error "Unknown argument: $1"
-            echo "Usage: $0 --environment <environment> [--arch <x64|arm64|both>]"
+            echo "Usage: $0 --environment <environment> [--arch <x64|arm64|both>] [--enable-code-sign]"
             echo ""
             echo "Arguments:"
-            echo "  --environment <env>  Required. Environment name (e.g., production, develop, staging)"
-            echo "  --arch <arch>        Optional. Architecture to build (x64, arm64, or both). Default: both"
+            echo "  --environment <env>   Required. Environment name (e.g., production, develop, staging)"
+            echo "  --arch <arch>         Optional. Architecture to build (x64, arm64, or both). Default: both"
+            echo "  --enable-code-sign    Optional. Enable macOS code signing (requires CSC_LINK env var)"
             echo ""
             echo "Examples:"
-            echo "  $0 --environment production              # Build both architectures"
+            echo "  $0 --environment production              # Build both architectures (no signing)"
             echo "  $0 --environment develop --arch x64      # Build only Intel"
-            echo "  $0 --environment staging --arch arm64    # Build only Apple Silicon"
+            echo "  $0 --environment production --enable-code-sign  # Build with code signing"
             exit 1
             ;;
     esac
@@ -92,9 +104,41 @@ print_success "Environment: ${ENVIRONMENT}"
 print_success "Architecture: ${ARCH}"
 echo ""
 
+# Pre-flight checks
+print_step "Running pre-flight checks..."
+
+# Check Node.js version (requires >= 22)
+_NODE_MAJOR=$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')
+if [ "${_NODE_MAJOR}" -lt 22 ]; then
+    print_error "Node.js >= 22 is required (found $(node --version))"
+    exit 1
+fi
+
+# Check node_modules exists
+if [ ! -d "./node_modules" ]; then
+    print_error "node_modules not found — run 'npm install' first"
+    exit 1
+fi
+
+# Check electron-builder is available
+if ! npx electron-builder --version > /dev/null 2>&1; then
+    print_error "electron-builder not found — run 'npm install' first"
+    exit 1
+fi
+
+# Warn if available disk space is below 2 GB
+_AVAIL_KB=$(df -k . | awk 'NR==2 {print $4}')
+_AVAIL_GB=$(echo "scale=1; ${_AVAIL_KB} / 1048576" | bc)
+if [ "${_AVAIL_KB}" -lt 2097152 ]; then
+    print_warning "Low disk space: ${_AVAIL_GB} GB available (2 GB recommended for DMG build)"
+fi
+
+print_success "Pre-flight checks passed"
+
+
 # Extract version from package.json
 print_step "Extracting version from package.json..."
-PACKAGE_VERSION=$(cat ./package.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
+PACKAGE_VERSION=$(node -p "require('./package.json').version")
 if [ -z "$PACKAGE_VERSION" ]; then
     print_error "Failed to extract version from package.json"
     exit 1
@@ -106,7 +150,7 @@ echo ""
 print_step "Step 1/3: Cleaning previous builds..."
 
 # Unmount any existing DMG volumes that might be mounted
-MOUNTED_VOLUMES=$(mount | grep "Google Chat" | awk '{print $3}')
+MOUNTED_VOLUMES=$(mount | grep "Google Chat" | awk '{print $3}' || true)
 if [ ! -z "$MOUNTED_VOLUMES" ]; then
     print_warning "Unmounting existing DMG volumes..."
     while IFS= read -r volume; do
@@ -131,10 +175,6 @@ echo ""
 # Step 2: Build production code with Rsbuild
 print_step "Step 2/3: Building production code with Rsbuild..."
 npm run build:prod
-if [ $? -ne 0 ]; then
-    print_error "Rsbuild compilation failed"
-    exit 1
-fi
 print_success "Production build complete"
 echo ""
 
@@ -159,15 +199,25 @@ echo ""
 # Set BUILD_ENV environment variable for artifact naming
 export BUILD_ENV="${ENVIRONMENT}"
 
-# Disable automatic code signing discovery
-export CSC_IDENTITY_AUTO_DISCOVERY=false
+# Code signing: enabled only if --enable-code-sign flag was passed
+# hardenedRuntime and entitlements are only applied when code signing is enabled
+# to avoid Team ID mismatch (Electron Framework is pre-signed by Apple)
+if [ "${ENABLE_CODE_SIGN}" = "true" ]; then
+    print_success "Code signing: enabled"
+    unset CSC_IDENTITY_AUTO_DISCOVERY
+    CONFIG_FILES="electron-builder.yml electron-builder.sign.yml"
+else
+    print_warning "Code signing: disabled (pass --enable-code-sign to enable)"
+    export CSC_IDENTITY_AUTO_DISCOVERY=false
+    CONFIG_FILES="electron-builder.yml"
+fi
 
 # Helper to run electron-builder for a specific architecture
 run_electron_builder() {
     local target_arch="$1"
     echo ""
     echo "  → Starting electron-builder for macOS ${target_arch}..."
-    npx electron-builder --mac --"${target_arch}" --config electron-builder.yml
+    npx electron-builder --mac --"${target_arch}" --config ${CONFIG_FILES}
 }
 
 # Run electron-builder with appropriate architecture flags
@@ -184,10 +234,6 @@ case "$ARCH" in
         ;;
 esac
 
-if [ $? -ne 0 ]; then
-    print_error "electron-builder failed"
-    exit 1
-fi
 
 print_success "Packaging and DMG creation complete"
 echo ""
@@ -250,6 +296,14 @@ while IFS= read -r dmg_file; do
     echo "  ${dmg_file}"
 done <<< "$DMG_FILES"
 echo "════════════════════════════════════════════════════════════════"
+echo ""
+
+# Build duration
+BUILD_END_TIME=$(date +%s)
+BUILD_DURATION=$((BUILD_END_TIME - BUILD_START_TIME))
+BUILD_MINUTES=$((BUILD_DURATION / 60))
+BUILD_SECONDS=$((BUILD_DURATION % 60))
+echo "  Build duration:   ${BUILD_MINUTES}m ${BUILD_SECONDS}s"
 echo ""
 
 exit 0

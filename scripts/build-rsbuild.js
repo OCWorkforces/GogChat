@@ -36,28 +36,30 @@ process.env.NODE_ENV = isDev ? 'development' : 'production';
  * Excludes test files (*.test.ts, *.spec.ts)
  */
 function getEntryPoints() {
-  const entries = {};
+  const allEntries = {};
+  const preloadEntries = {};
+  const mainEntries = {};
   const srcDir = path.join(__dirname, '../src');
-
   function scanDirectory(dir, relativePath = '') {
     const files = fs.readdirSync(dir);
-
     for (const file of files) {
       const fullPath = path.join(dir, file);
       const stat = fs.statSync(fullPath);
-
       if (stat.isDirectory()) {
         scanDirectory(fullPath, path.join(relativePath, file));
       } else if (file.endsWith('.ts') && !file.endsWith('.test.ts') && !file.endsWith('.spec.ts')) {
-        // Generate entry name: 'main/index' for 'src/main/index.ts'
         const entryName = path.join(relativePath, file.replace(/\.ts$/, ''));
-        entries[entryName] = fullPath;
+        allEntries[entryName] = fullPath;
+        if (relativePath === 'preload' || relativePath.startsWith('preload' + path.sep)) {
+          preloadEntries[entryName] = fullPath;
+        } else {
+          mainEntries[entryName] = fullPath;
+        }
       }
     }
   }
-
   scanDirectory(srcDir);
-  return entries;
+  return { allEntries, preloadEntries, mainEntries };
 }
 
 /**
@@ -245,47 +247,82 @@ function trackBuildHistory(libDir) {
 async function build() {
   try {
     const startTime = Date.now();
-
-    // Get all entry points
-    const entryPoints = getEntryPoints();
-    console.log(`[Build] Found ${Object.keys(entryPoints).length} TypeScript files to compile`);
-
+    // Get all entry points, split by preload vs main
+    const { allEntries, preloadEntries, mainEntries } = getEntryPoints();
+    console.log(`[Build] Found ${Object.keys(allEntries).length} TypeScript files to compile`);
     // Load Rsbuild configuration
     const { content: userConfig } = await loadConfig({
       cwd: path.join(__dirname, '..'),
     });
 
-    // Override entry points in config
-    const rsbuildConfig = {
+    // Build 1: Main process (ESM) — everything except preload
+    console.log('[Build] Building main process (ESM)...');
+    const mainRsbuildConfig = {
       ...userConfig,
       source: {
         ...userConfig.source,
-        entry: entryPoints,
+        entry: mainEntries,
       },
     };
+    const mainRsbuild = await createRsbuild({ rsbuildConfig: mainRsbuildConfig });
 
-    // Create Rsbuild instance
-    const rsbuild = await createRsbuild({
-      rsbuildConfig,
-    });
-
+    // Build 2: Preload scripts (CJS) — sandbox preloads cannot use ESM import
+    console.log('[Build] Building preload scripts (CJS)...');
+    const preloadRsbuildConfig = {
+      ...userConfig,
+      source: {
+        ...userConfig.source,
+        entry: preloadEntries,
+      },
+      output: {
+        ...userConfig.output,
+        module: false,
+        // Preload must NOT clean dist — main process already wrote there
+        cleanDistPath: false,
+      },
+      tools: {
+        ...userConfig.tools,
+        rspack: (config, ctx) => {
+          // Apply any existing rspack config first
+          if (userConfig.tools && typeof userConfig.tools.rspack === 'function') {
+            config = userConfig.tools.rspack(config, ctx) ?? config;
+          } else if (userConfig.tools && typeof userConfig.tools.rspack === 'object' && !Array.isArray(userConfig.tools.rspack)) {
+            Object.assign(config, userConfig.tools.rspack);
+          }
+          // Force CJS output for sandboxed preload
+          config.target = 'electron-renderer';
+          config.output = config.output || {};
+          config.output.module = false;
+          config.output.chunkFormat = 'commonjs';
+          config.output.library = { type: 'commonjs2' };
+          config.experiments = config.experiments || {};
+          config.experiments.outputModule = false;
+          return config;
+        },
+      },
+    };
+    const preloadRsbuild = await createRsbuild({ rsbuildConfig: preloadRsbuildConfig });
     if (isWatch) {
-      // Watch mode
       console.log('[Build] Starting watch mode...');
-      const watcher = await rsbuild.createDevServer();
+      const mainResult = await mainRsbuild.build({ watch: true });
+      const preloadResult = await preloadRsbuild.build({ watch: true });
+      console.log('[Build] ✅ Watching for changes... (press Ctrl+C to stop)');
 
-      await watcher.afterClose();
-      console.log('[Build] ✅ Watching for changes...');
+      // Graceful shutdown on SIGINT/SIGTERM
+      const cleanup = async () => {
+        console.log('\n[Build] Stopping watch mode...');
+        await mainResult.close();
+        await preloadResult.close();
+        process.exit(0);
+      };
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
     } else {
-      // Build mode
-      await rsbuild.build();
-
+      await mainRsbuild.build();
+      await preloadRsbuild.build();
       const endTime = Date.now();
       const duration = ((endTime - startTime) / 1000).toFixed(2);
-
       console.log(`[Build] ✅ Compilation completed in ${duration}s`);
-
-      // Track bundle size and history (production only)
       if (!isDev) {
         const libDir = path.join(__dirname, '../lib');
         trackBuildHistory(libDir);
@@ -296,6 +333,5 @@ async function build() {
     process.exit(1);
   }
 }
-
 // Run build
 build();

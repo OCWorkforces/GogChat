@@ -1,0 +1,8 @@
+# Electron Builder Configuration - Code Signing Extensions
+# This file is merged with electron-builder.yml when --enable-code-sign is passed
+# It adds hardened runtime and entitlements required for macOS notarization
+
+mac:
+  hardenedRuntime: true
+  entitlements: entitlements.mac.plist
+  entitlementsInherit: entitlements.mac.inherit.plist
