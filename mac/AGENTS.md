@@ -102,6 +102,30 @@ export APPLE_APP_SPECIFIC_PASSWORD="app-specific-password"
 
 See `scripts/notarize.js` for the notarization hook (invoked by electron-builder's `afterSign`).
 
+
+## HARDENED RUNTIME AND TEAM ID MISMATCH
+
+`hardenedRuntime: true` requires proper code signing. The Electron Framework comes pre-signed with Apple's platform Team ID. If you enable hardened runtime without code signing, the app binary gets an ad-hoc signature (no Team ID), causing a mismatch:
+
+```
+Termination Reason: Namespace DYLD, Code 1, Library missing
+Library not loaded: @rpath/Electron Framework.framework/Electron Framework
+Reason: code signature ... not valid for use in process:
+        mapping process and mapped file (non-platform) have different Team IDs
+```
+
+The build script handles this automatically using a dual-config approach:
+- **With `--enable-code-sign`**: Merges `electron-builder.yml` + `electron-builder.sign.yml` (adds hardenedRuntime + entitlements)
+- **Without flag**: Uses only `electron-builder.yml` (no hardenedRuntime, avoids Team ID mismatch)
+
+The `electron-builder.sign.yml` file contains only the code signing extensions:
+```yaml
+mac:
+  hardenedRuntime: true
+  entitlements: entitlements.mac.plist
+  entitlementsInherit: entitlements.mac.inherit.plist
+```
+
 ## ANTI-PATTERNS
 
 - **NEVER** call `electron-builder` directly without `export BUILD_ENV=...` — artifact names will contain empty env segment

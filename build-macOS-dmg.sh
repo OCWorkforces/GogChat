@@ -200,12 +200,16 @@ echo ""
 export BUILD_ENV="${ENVIRONMENT}"
 
 # Code signing: enabled only if --enable-code-sign flag was passed
+# hardenedRuntime and entitlements are only applied when code signing is enabled
+# to avoid Team ID mismatch (Electron Framework is pre-signed by Apple)
 if [ "${ENABLE_CODE_SIGN}" = "true" ]; then
     print_success "Code signing: enabled"
     unset CSC_IDENTITY_AUTO_DISCOVERY
+    CONFIG_FILES="electron-builder.yml electron-builder.sign.yml"
 else
     print_warning "Code signing: disabled (pass --enable-code-sign to enable)"
     export CSC_IDENTITY_AUTO_DISCOVERY=false
+    CONFIG_FILES="electron-builder.yml"
 fi
 
 # Helper to run electron-builder for a specific architecture
@@ -213,7 +217,7 @@ run_electron_builder() {
     local target_arch="$1"
     echo ""
     echo "  → Starting electron-builder for macOS ${target_arch}..."
-    npx electron-builder --mac --"${target_arch}" --config electron-builder.yml
+    npx electron-builder --mac --"${target_arch}" --config ${CONFIG_FILES}
 }
 
 # Run electron-builder with appropriate architecture flags

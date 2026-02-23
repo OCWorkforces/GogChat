@@ -42,7 +42,7 @@ files:
   - "!.DS_Store"
   - "!package-lock.json"
   - "!entitlements.mac.*.plist"
-  - "!electron-builder.yml"
+  - "!electron-builder*.yml"
   - "!rsbuild.config.ts"
   - "!build-macOS-*.sh"
 
@@ -59,9 +59,6 @@ mac:
   target:
     - target: dmg
   gatekeeperAssess: false
-  hardenedRuntime: true
-  entitlements: entitlements.mac.plist
-  entitlementsInherit: entitlements.mac.inherit.plist
 
 
 # DMG Configuration
