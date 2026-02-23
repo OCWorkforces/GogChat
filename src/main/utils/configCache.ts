@@ -68,7 +68,7 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
   cachedStore.set = function (key: any, value?: any): void {
     stats.writes++;
     invalidateCacheForKey(key as string, cache);
-    return originalSet(key, value);
+    return originalSet(key as never, value as never);
   };
   // Wrap delete() with cache invalidation
   cachedStore.delete = function (key: string): void {

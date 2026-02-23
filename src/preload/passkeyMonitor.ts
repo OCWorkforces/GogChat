@@ -25,7 +25,11 @@ function reportPasskeyFailure(errorName: string): void {
   }
 
   // Check if window.googlechat API is available
-  if (typeof window !== 'undefined' && window.googlechat && window.googlechat.reportPasskeyFailure) {
+  if (
+    typeof window !== 'undefined' &&
+    window.googlechat &&
+    window.googlechat.reportPasskeyFailure
+  ) {
     hasReportedFailure = true;
     window.googlechat.reportPasskeyFailure(errorName);
     console.debug('[Passkey Monitor] Reported failure:', errorName);

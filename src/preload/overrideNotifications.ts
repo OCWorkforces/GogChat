@@ -86,7 +86,6 @@ ipcRenderer.on(IPC_CHANNELS.NOTIFICATION_CLICKED, () => {
   // Trigger click callback for all notifications
   notificationInstances.forEach((instance) => {
     if (instance.onclick) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       instance.onclick.call(null as unknown as Notification, new Event('click'));
     }
   });

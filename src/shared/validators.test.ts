@@ -433,16 +433,24 @@ describe('validateDeepLinkURL', () => {
   });
 
   it('should throw on wrong host', () => {
-    expect(() => validateDeepLinkURL('https://evil.com/room/abc')).toThrow('host must be chat.google.com');
+    expect(() => validateDeepLinkURL('https://evil.com/room/abc')).toThrow(
+      'host must be chat.google.com'
+    );
   });
 
   it('should throw on non-HTTPS direct URL', () => {
-    expect(() => validateDeepLinkURL('http://chat.google.com/room/abc')).toThrow('Unsupported deep link scheme');
+    expect(() => validateDeepLinkURL('http://chat.google.com/room/abc')).toThrow(
+      'Unsupported deep link scheme'
+    );
   });
 
   it('should throw on unsupported scheme', () => {
-    expect(() => validateDeepLinkURL('ftp://chat.google.com/room/abc')).toThrow('Unsupported deep link scheme');
-    expect(() => validateDeepLinkURL('javascript:alert(1)')).toThrow('Unsupported deep link scheme');
+    expect(() => validateDeepLinkURL('ftp://chat.google.com/room/abc')).toThrow(
+      'Unsupported deep link scheme'
+    );
+    expect(() => validateDeepLinkURL('javascript:alert(1)')).toThrow(
+      'Unsupported deep link scheme'
+    );
   });
 
   it('should throw on disallowed path prefix', () => {
