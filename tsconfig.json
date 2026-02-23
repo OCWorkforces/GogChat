@@ -12,6 +12,7 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
     "outDir": "./lib",
     "pretty": true,
     "sourceMap": false,

@@ -66,7 +66,7 @@ export default (window: BrowserWindow) => {
           try {
             await shell.openExternal(settingsURL);
             log.info('[Passkey Support] Opened System Settings');
-            } catch (error: unknown) {
+          } catch (error: unknown) {
             log.error('[Passkey Support] Failed to open System Settings:', error);
 
             // Fallback: try to open System Settings app directly

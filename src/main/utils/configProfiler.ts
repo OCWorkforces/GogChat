@@ -5,6 +5,7 @@
 
 import log from 'electron-log';
 import store from '../config.js';
+import type { StoreType } from '../../shared/types.js';
 
 /**
  * Profile config store read performance
@@ -27,8 +28,7 @@ export function profileConfigStoreReads(iterations: number = 100): number {
   // Perform sequential reads
   for (let i = 0; i < iterations; i++) {
     keys.forEach((key) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      store.get(key as any);
+      store.get(key as keyof StoreType);
     });
   }
 
@@ -54,8 +54,7 @@ export function profileSingleKeyRead(key: string, iterations: number = 1000): nu
   const startTime = performance.now();
 
   for (let i = 0; i < iterations; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    store.get(key as any);
+    store.get(key as keyof StoreType);
   }
 
   const endTime = performance.now();

@@ -34,58 +34,50 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
   const cache = new Map<string, unknown>();
   const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
 
-  // Store original methods
   const originalGet = store.get.bind(store);
   const originalSet = store.set.bind(store);
   const originalDelete = store.delete.bind(store);
   const originalClear = store.clear.bind(store);
 
+  // Cast once to the target type — all subsequent augmentation is typed
+  const cachedStore = store as CachedStore<T>;
+
   // Wrap get() with caching
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (store as any).get = function <Key extends keyof T>(key: Key, defaultValue?: T[Key]): T[Key] {
+  // The implementation uses `any` internally to satisfy electron-store's complex overloaded
+  // signature, while the public interface (CachedStore<T>) remains fully typed.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cachedStore.get = function (key: any, defaultValue?: any): any {
     // Check cache first
     if (cache.has(key as string)) {
       stats.hits++;
       log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
-      return cache.get(key as string) as T[Key];
+      return cache.get(key as string);
     }
-
     // Cache miss - read from store
     stats.misses++;
-    // Call originalGet - handle with/without default separately to satisfy TypeScript
     const value =
       defaultValue !== undefined
         ? originalGet(key as never, defaultValue as never)
         : originalGet(key as never);
     cache.set(key as string, value);
     log.debug(`[ConfigCache] Cache miss: ${String(key)}, value cached`);
-
     return value;
   };
-
   // Wrap set() with cache invalidation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (store as any).set = function <Key extends keyof T>(key: Key, value: T[Key]): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cachedStore.set = function (key: any, value?: any): void {
     stats.writes++;
-
-    // Invalidate cache for this key and parent paths
     invalidateCacheForKey(key as string, cache);
-
-    // Write to store
     return originalSet(key, value);
   };
-
   // Wrap delete() with cache invalidation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (store as any).delete = function (key: string): void {
+  cachedStore.delete = function (key: string): void {
     invalidateCacheForKey(key, cache);
     // Call originalDelete with proper typing - the bound method already has correct signature
     return originalDelete(key);
   };
-
   // Wrap clear() with full cache clear
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (store as any).clear = function (): void {
+  cachedStore.clear = function (): void {
     cache.clear();
     stats.hits = 0;
     stats.misses = 0;
@@ -93,25 +85,21 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
     log.debug('[ConfigCache] Cache cleared');
     return originalClear();
   };
-
   // Add cache stats method
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (store as any).getCacheStats = function (): CacheStats & { hitRate: string } {
+  cachedStore.getCacheStats = function (): CacheStats & { hitRate: string } {
     const total = stats.hits + stats.misses;
     const hitRate = total > 0 ? ((stats.hits / total) * 100).toFixed(1) : '0.0';
     return { ...stats, hitRate: `${hitRate}%` };
   };
-
   // Add manual cache clear method
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (store as any).clearCache = function (): void {
+  cachedStore.clearCache = function (): void {
     const size = cache.size;
     cache.clear();
     log.info(`[ConfigCache] Manually cleared ${size} cached entries`);
   };
 
   log.info('[ConfigCache] Cache layer enabled for electron-store');
-  return store as CachedStore<T>;
+  return cachedStore;
 }
 
 /**

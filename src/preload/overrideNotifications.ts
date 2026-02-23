@@ -86,8 +86,8 @@ ipcRenderer.on(IPC_CHANNELS.NOTIFICATION_CLICKED, () => {
   // Trigger click callback for all notifications
   notificationInstances.forEach((instance) => {
     if (instance.onclick) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      instance.onclick.call(null as any, new Event('click'));
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      instance.onclick.call(null as unknown as Notification, new Event('click'));
     }
   });
 });
@@ -104,5 +104,4 @@ Object.defineProperty(newNotify, 'permission', {
   get: () => NativeNotification.permission,
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-window.Notification = newNotify as any;
+window.Notification = newNotify as unknown as typeof Notification;

@@ -71,7 +71,7 @@ export default (window: BrowserWindow) => {
         try {
           notification.close();
           log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
-          } catch (error: unknown) {
+        } catch (error: unknown) {
           log.error('[Notification] Failed to auto-dismiss notification:', error);
         }
       }, TIMING.NOTIFICATION_AUTO_DISMISS);

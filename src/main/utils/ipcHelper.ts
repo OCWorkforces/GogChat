@@ -5,6 +5,7 @@
  */
 
 import { ipcMain, IpcMainEvent, BrowserWindow, IpcMainInvokeEvent } from 'electron';
+import type { IPCResponse } from '../../shared/types.js';
 import { getRateLimiter } from './rateLimiter.js';
 import { logger } from './logger.js';
 import { toError, toErrorMessage } from './errorHandler.js';
@@ -130,7 +131,10 @@ export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, 
           if (!silent) {
             log.warn(`Rate limited: ${channel}`);
           }
-          event.reply(responseChannel, { error: 'Rate limited' });
+          event.reply(responseChannel, {
+            success: false,
+            error: 'Rate limited',
+          } satisfies IPCResponse<R>);
           return;
         }
 
@@ -146,7 +150,7 @@ export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, 
         const response = await handler(validated, event);
 
         // Send reply
-        event.reply(responseChannel, { success: true, data: response });
+        event.reply(responseChannel, { success: true, data: response } satisfies IPCResponse<R>);
       } catch (error: unknown) {
         const err = toError(error);
 
@@ -155,7 +159,10 @@ export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, 
         }
 
         // Send error reply
-        event.reply(responseChannel, { error: err.message });
+        event.reply(responseChannel, {
+          success: false,
+          error: err.message,
+        } satisfies IPCResponse<R>);
 
         // Call custom error handler if provided
         if (onError) {
