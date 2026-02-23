@@ -6,6 +6,7 @@ import { compareStorePerformance } from './utils/configProfiler.js';
 import path from 'path';
 import windowWrapper from './windowWrapper.js';
 import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
+import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import environment from '../environment.js';
 // Critical features only - loaded synchronously
 import overrideUserAgent from './features/userAgent.js';
@@ -106,6 +107,24 @@ featureManager.registerAll([
     },
     {
       description: 'Single instance restoration handler',
+    }
+  ),
+
+  createFeature(
+    'deepLinkHandler',
+    'ui',
+    async ({ mainWindow }) => {
+      const module = await import('./features/deepLinkHandler.js');
+      if (mainWindow) {
+        module.default(mainWindow);
+      }
+    },
+    {
+      cleanup: async () => {
+        const module = await import('./features/deepLinkHandler.js');
+        module.cleanupDeepLinkHandler();
+      },
+      description: 'Custom protocol (gchat://) handler',
     }
   ),
 
@@ -335,6 +354,9 @@ featureManager.registerAll([
 ]);
 
 if (enforceSingleInstance()) {
+  // Register deep link listener BEFORE app.ready (macOS fires open-url early)
+  setupDeepLinkListener();
+
   app
     .whenReady()
     .then(async () => {
