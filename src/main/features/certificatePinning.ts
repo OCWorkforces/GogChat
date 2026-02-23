@@ -100,7 +100,7 @@ let certificateErrorHandler:
  * Prevents MITM attacks on Google domains
  */
 export default function setupCertificatePinning(): void {
-  certificateErrorHandler = (event, webContents, url, error, certificate, callback) => {
+  certificateErrorHandler = (event, _webContents, url, error, certificate, callback) => {
     // Prevent default behavior
     event.preventDefault();
 

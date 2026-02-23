@@ -26,7 +26,7 @@ const decideIcon = (href: string): IconType => {
  * Update badge icon for macOS
  * Uses dock badge to display unread count
  */
-const updateBadgeIcon = (window: BrowserWindow, count: number) => {
+const updateBadgeIcon = (_window: BrowserWindow, count: number) => {
   // macOS: Use dock badge
   app.setBadgeCount(count);
   log.debug(`[BadgeIcon] Dock badge updated: ${count}`);
@@ -41,7 +41,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
 
   // ⚡ OPTIMIZATION: Deduplicated favicon handler to prevent redundant updates
   // Validate favicon URL and check rate limit
-  const faviconChangedHandler = (evt: Electron.IpcMainEvent, href: string) => {
+  const faviconChangedHandler = (_evt: Electron.IpcMainEvent, href: string) => {
     // Deduplicate rapid favicon changes (e.g., during page load)
     void deduplicator.deduplicate(
       `${IPC_CHANNELS.FAVICON_CHANGED}:${href}`,
@@ -82,7 +82,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
   // ⚡ OPTIMIZATION: Deduplicated unread count handler
   // Validate unread count and check rate limit
   // Uses cached badge icons for Windows
-  const unreadCountHandler = (event: Electron.IpcMainEvent, count: number) => {
+  const unreadCountHandler = (_event: Electron.IpcMainEvent, count: number) => {
     // Deduplicate rapid count changes (e.g., multiple messages arriving at once)
     void deduplicator.deduplicate(
       `${IPC_CHANNELS.UNREAD_COUNT}:${count}`,

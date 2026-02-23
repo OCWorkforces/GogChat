@@ -51,7 +51,7 @@ export default (url: string): BrowserWindow => {
     log.debug('[Security] COEP/COOP header stripping installed');
   };
 
-  window.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+  window.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
     const allowedPermissions = ['notifications', 'media', 'mediaKeySystem', 'geolocation'];
     if (allowedPermissions.includes(permission)) {
       log.debug(`[Security] Permission granted: ${permission}`);

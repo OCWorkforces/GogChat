@@ -19,7 +19,7 @@ export default (window: BrowserWindow) => {
     return;
   }
 
-  const passkeyFailedHandler = (event: Electron.IpcMainEvent, data: PasskeyFailureData) => {
+  const passkeyFailedHandler = (_event: Electron.IpcMainEvent, data: PasskeyFailureData) => {
     // Rate limiting - max 1 dialog per 30 seconds to avoid spam
     if (!rateLimiter.isAllowed(IPC_CHANNELS.PASSKEY_AUTH_FAILED, 1 / 30)) {
       log.warn('[Passkey Support] Rate limited');
