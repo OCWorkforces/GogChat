@@ -79,10 +79,18 @@ Example: `Google Chat-v3.3.6-macOS-x64-production.dmg`
 `electron-builder.yml` uses `compression: maximum` (LZMA). Produces 10-20% smaller DMGs than `normal`.
 
 ## CODE SIGNING / NOTARIZATION
+Code signing is **opt-in** via the `--enable-code-sign` flag. Without it, `CSC_IDENTITY_AUTO_DISCOVERY=false` is always set and signing is skipped — safe for local development and CI without credentials.
 
-Code signing and notarization require an Apple Developer ID certificate. The build script sets `CSC_IDENTITY_AUTO_DISCOVERY=false` by default to skip signing during local development.
+```bash
+# Without flag: signing skipped (default)
+bash build-macOS-dmg.sh --environment production --arch x64
+# → ⚠ Code signing: disabled (pass --enable-code-sign to enable)
 
-To enable signing, set the following environment variables before running the build:
+# With flag: signing attempted (requires CSC_LINK + credentials)
+bash build-macOS-dmg.sh --environment production --enable-code-sign
+```
+
+To enable signing, set the following environment variables **before** passing `--enable-code-sign`:
 
 ```bash
 export CSC_LINK="/path/to/Developer ID Application cert.p12"

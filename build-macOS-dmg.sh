@@ -47,7 +47,7 @@ trap 'print_error "Build failed at line ${LINENO} (exit code: $?)"; exit 1' ERR
 # Parse command line arguments
 ENVIRONMENT=""
 ARCH="both"  # Default to building both architectures
-
+ENABLE_CODE_SIGN=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --environment)
@@ -58,18 +58,23 @@ while [[ $# -gt 0 ]]; do
             ARCH="$2"
             shift 2
             ;;
+        --enable-code-sign)
+            ENABLE_CODE_SIGN=true
+            shift
+            ;;
         *)
             print_error "Unknown argument: $1"
-            echo "Usage: $0 --environment <environment> [--arch <x64|arm64|both>]"
+            echo "Usage: $0 --environment <environment> [--arch <x64|arm64|both>] [--enable-code-sign]"
             echo ""
             echo "Arguments:"
-            echo "  --environment <env>  Required. Environment name (e.g., production, develop, staging)"
-            echo "  --arch <arch>        Optional. Architecture to build (x64, arm64, or both). Default: both"
+            echo "  --environment <env>   Required. Environment name (e.g., production, develop, staging)"
+            echo "  --arch <arch>         Optional. Architecture to build (x64, arm64, or both). Default: both"
+            echo "  --enable-code-sign    Optional. Enable macOS code signing (requires CSC_LINK env var)"
             echo ""
             echo "Examples:"
-            echo "  $0 --environment production              # Build both architectures"
+            echo "  $0 --environment production              # Build both architectures (no signing)"
             echo "  $0 --environment develop --arch x64      # Build only Intel"
-            echo "  $0 --environment staging --arch arm64    # Build only Apple Silicon"
+            echo "  $0 --environment production --enable-code-sign  # Build with code signing"
             exit 1
             ;;
     esac
@@ -194,12 +199,12 @@ echo ""
 # Set BUILD_ENV environment variable for artifact naming
 export BUILD_ENV="${ENVIRONMENT}"
 
-# Code signing: enabled if CSC_LINK is set, disabled otherwise
-if [ -n "${CSC_LINK:-}" ]; then
+# Code signing: enabled only if --enable-code-sign flag was passed
+if [ "${ENABLE_CODE_SIGN}" = "true" ]; then
     print_success "Code signing: enabled"
     unset CSC_IDENTITY_AUTO_DISCOVERY
 else
-    print_warning "Code signing: disabled (set CSC_LINK to enable)"
+    print_warning "Code signing: disabled (pass --enable-code-sign to enable)"
     export CSC_IDENTITY_AUTO_DISCOVERY=false
 fi
 
