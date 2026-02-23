@@ -6,12 +6,16 @@
 # This script uses electron-builder for packaging and DMG creation
 ##
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  Open GChat - macOS DMG Build Script"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
+
+# Record build start time for elapsed time reporting
+BUILD_START_TIME=$(date +%s)
+
 
 # Color codes for output
 RED='\033[0;31m'
@@ -36,6 +40,9 @@ print_warning() {
 print_error() {
     echo -e "${RED}✗${NC} $1"
 }
+
+# Error trap — prints failing line number for fast diagnosis
+trap 'print_error "Build failed at line ${LINENO} (exit code: $?)"; exit 1' ERR
 
 # Parse command line arguments
 ENVIRONMENT=""
@@ -92,9 +99,41 @@ print_success "Environment: ${ENVIRONMENT}"
 print_success "Architecture: ${ARCH}"
 echo ""
 
+# Pre-flight checks
+print_step "Running pre-flight checks..."
+
+# Check Node.js version (requires >= 22)
+_NODE_MAJOR=$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')
+if [ "${_NODE_MAJOR}" -lt 22 ]; then
+    print_error "Node.js >= 22 is required (found $(node --version))"
+    exit 1
+fi
+
+# Check node_modules exists
+if [ ! -d "./node_modules" ]; then
+    print_error "node_modules not found — run 'npm install' first"
+    exit 1
+fi
+
+# Check electron-builder is available
+if ! npx electron-builder --version > /dev/null 2>&1; then
+    print_error "electron-builder not found — run 'npm install' first"
+    exit 1
+fi
+
+# Warn if available disk space is below 2 GB
+_AVAIL_KB=$(df -k . | awk 'NR==2 {print $4}')
+_AVAIL_GB=$(echo "scale=1; ${_AVAIL_KB} / 1048576" | bc)
+if [ "${_AVAIL_KB}" -lt 2097152 ]; then
+    print_warning "Low disk space: ${_AVAIL_GB} GB available (2 GB recommended for DMG build)"
+fi
+
+print_success "Pre-flight checks passed"
+
+
 # Extract version from package.json
 print_step "Extracting version from package.json..."
-PACKAGE_VERSION=$(cat ./package.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
+PACKAGE_VERSION=$(node -p "require('./package.json').version")
 if [ -z "$PACKAGE_VERSION" ]; then
     print_error "Failed to extract version from package.json"
     exit 1
@@ -131,10 +170,6 @@ echo ""
 # Step 2: Build production code with Rsbuild
 print_step "Step 2/3: Building production code with Rsbuild..."
 npm run build:prod
-if [ $? -ne 0 ]; then
-    print_error "Rsbuild compilation failed"
-    exit 1
-fi
 print_success "Production build complete"
 echo ""
 
@@ -159,8 +194,14 @@ echo ""
 # Set BUILD_ENV environment variable for artifact naming
 export BUILD_ENV="${ENVIRONMENT}"
 
-# Disable automatic code signing discovery
-export CSC_IDENTITY_AUTO_DISCOVERY=false
+# Code signing: enabled if CSC_LINK is set, disabled otherwise
+if [ -n "${CSC_LINK:-}" ]; then
+    print_success "Code signing: enabled"
+    unset CSC_IDENTITY_AUTO_DISCOVERY
+else
+    print_warning "Code signing: disabled (set CSC_LINK to enable)"
+    export CSC_IDENTITY_AUTO_DISCOVERY=false
+fi
 
 # Helper to run electron-builder for a specific architecture
 run_electron_builder() {
@@ -184,10 +225,6 @@ case "$ARCH" in
         ;;
 esac
 
-if [ $? -ne 0 ]; then
-    print_error "electron-builder failed"
-    exit 1
-fi
 
 print_success "Packaging and DMG creation complete"
 echo ""
@@ -250,6 +287,14 @@ while IFS= read -r dmg_file; do
     echo "  ${dmg_file}"
 done <<< "$DMG_FILES"
 echo "════════════════════════════════════════════════════════════════"
+echo ""
+
+# Build duration
+BUILD_END_TIME=$(date +%s)
+BUILD_DURATION=$((BUILD_END_TIME - BUILD_START_TIME))
+BUILD_MINUTES=$((BUILD_DURATION / 60))
+BUILD_SECONDS=$((BUILD_DURATION % 60))
+echo "  Build duration:   ${BUILD_MINUTES}m ${BUILD_SECONDS}s"
 echo ""
 
 exit 0
