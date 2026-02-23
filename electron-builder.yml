@@ -47,7 +47,7 @@ files:
   - "!build-macOS-*.sh"
 
 # Compression settings
-compression: normal
+compression: maximum
 asar: true
 
 # macOS Configuration
@@ -57,6 +57,10 @@ mac:
   target:
     - target: dmg
   gatekeeperAssess: false
+  hardenedRuntime: true
+  entitlements: entitlements.mac.plist
+  entitlementsInherit: entitlements.mac.inherit.plist
+  afterSign: scripts/notarize.js
 
 # DMG Configuration
 dmg:
@@ -78,11 +82,12 @@ dmg:
   # background: resources/dmg-background.png
   format: UDZO
 
-# Auto-update configuration
-# Generates update manifest files for electron-updater
-publish:
-  provider: generic
-  url: https://your-update-server.com/releases
+# Auto-update: configure a real provider here when ready.
+# Example: provider: github (uses GitHub Releases)
+# publish:
+#   provider: github
+#   owner: CCWorkforce
+#   repo: GChat
 
 # Additional metadata
 artifactName: "${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}"
