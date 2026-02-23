@@ -49,6 +49,8 @@ files:
 # Compression settings
 compression: maximum
 asar: true
+afterSign: scripts/notarize.js
+
 
 # macOS Configuration
 mac:
@@ -60,7 +62,7 @@ mac:
   hardenedRuntime: true
   entitlements: entitlements.mac.plist
   entitlementsInherit: entitlements.mac.inherit.plist
-  afterSign: scripts/notarize.js
+
 
 # DMG Configuration
 dmg:

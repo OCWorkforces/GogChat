@@ -145,7 +145,7 @@ echo ""
 print_step "Step 1/3: Cleaning previous builds..."
 
 # Unmount any existing DMG volumes that might be mounted
-MOUNTED_VOLUMES=$(mount | grep "Google Chat" | awk '{print $3}')
+MOUNTED_VOLUMES=$(mount | grep "Google Chat" | awk '{print $3}' || true)
 if [ ! -z "$MOUNTED_VOLUMES" ]; then
     print_warning "Unmounting existing DMG volumes..."
     while IFS= read -r volume; do
