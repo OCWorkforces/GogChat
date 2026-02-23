@@ -1,58 +1,38 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
 import { validateDeepLinkURL } from '../../shared/validators.js';
 
-/** Buffered URL received before app was ready or before window existed */
 let pendingDeepLinkUrl: string | null = null;
-
-/** Reference to mainWindow for navigation (set during init) */
 let windowRef: BrowserWindow | null = null;
-
-/** Track if open-url listener is registered */
 let openUrlListenerRegistered = false;
 
-/**
- * Sanitize a URL for safe logging (strip query params that might contain tokens)
- */
 function sanitizeUrlForLog(url: string): string {
   try {
     const parsed = new URL(url);
-    // Keep path but redact query params
     return `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search ? '?[redacted]' : ''}`;
   } catch {
     return '[invalid-url]';
   }
 }
 
-/**
- * Process a deep link URL: validate, convert, and navigate.
- * If the window is not ready yet, buffers the URL for later processing.
- */
 export function processDeepLink(url: string): void {
   try {
     log.info(`[DeepLink] Received deep link: ${sanitizeUrlForLog(url)}`);
-
-    // Validate and convert to HTTPS URL
     const validatedUrl = validateDeepLinkURL(url);
 
-    // If window is not ready, buffer the URL
     if (!windowRef || windowRef.isDestroyed()) {
       log.info('[DeepLink] Window not ready, buffering URL');
       pendingDeepLinkUrl = validatedUrl;
       return;
     }
 
-    // Navigate the window
     navigateToUrl(validatedUrl);
   } catch (error: unknown) {
     log.error('[DeepLink] Failed to process deep link:', error);
   }
 }
 
-/**
- * Navigate the main window to the given URL and focus it
- */
 function navigateToUrl(url: string): void {
   if (!windowRef || windowRef.isDestroyed()) {
     log.warn('[DeepLink] Cannot navigate — window unavailable');
@@ -62,7 +42,6 @@ function navigateToUrl(url: string): void {
   log.info(`[DeepLink] Navigating to: ${sanitizeUrlForLog(url)}`);
   void windowRef.loadURL(url);
 
-  // Bring window to front
   if (windowRef.isMinimized()) {
     windowRef.restore();
   }
@@ -70,9 +49,6 @@ function navigateToUrl(url: string): void {
   windowRef.focus();
 }
 
-/**
- * Process any buffered deep link URL (called after window is ready)
- */
 function processPendingDeepLink(): void {
   if (pendingDeepLinkUrl) {
     log.info('[DeepLink] Processing buffered deep link');
@@ -82,11 +58,15 @@ function processPendingDeepLink(): void {
   }
 }
 
-/**
- * EARLY PHASE: Register the macOS open-url listener.
- * MUST be called BEFORE app.whenReady() — macOS fires open-url before ready.
- * This is a static/module-level setup, not a feature init.
- */
+function openInDefaultBrowser(url: string): void {
+  try {
+    log.info(`[DeepLink] Opening external URL in default browser: ${sanitizeUrlForLog(url)}`);
+    void shell.openExternal(url);
+  } catch (error: unknown) {
+    log.error('[DeepLink] Failed to open external URL:', error);
+  }
+}
+
 export function setupDeepLinkListener(): void {
   if (openUrlListenerRegistered) {
     log.warn('[DeepLink] open-url listener already registered');
@@ -97,9 +77,10 @@ export function setupDeepLinkListener(): void {
     event.preventDefault();
     log.info(`[DeepLink] open-url event: ${sanitizeUrlForLog(url)}`);
 
-    // Only handle our protocol
     if (url.startsWith(DEEP_LINK.PREFIX) || url.startsWith('https://chat.google.com')) {
       processDeepLink(url);
+    } else if (url.startsWith('https://')) {
+      openInDefaultBrowser(url);
     } else {
       log.warn(`[DeepLink] Ignoring unrecognized URL scheme: ${sanitizeUrlForLog(url)}`);
     }
@@ -109,67 +90,52 @@ export function setupDeepLinkListener(): void {
   log.info('[DeepLink] open-url listener registered');
 }
 
-/**
- * Register the app as default protocol client for gchat://
- * Must be called AFTER app.ready.
- */
-export function registerDeepLinkProtocol(): void {
+function registerProtocolClient(protocol: string): void {
   try {
     let result: boolean;
 
-    // In development, Electron is not the app itself — pass explicit path
     if (process.defaultApp && process.argv.length >= 2) {
-      result = app.setAsDefaultProtocolClient(
-        DEEP_LINK.PROTOCOL,
-        process.execPath,
-        [process.argv[1]!]
-      );
+      result = app.setAsDefaultProtocolClient(protocol, process.execPath, [process.argv[1]!]);
     } else {
-      result = app.setAsDefaultProtocolClient(DEEP_LINK.PROTOCOL);
+      result = app.setAsDefaultProtocolClient(protocol);
     }
 
     if (result) {
-      log.info(`[DeepLink] Registered as default protocol client for ${DEEP_LINK.PREFIX}`);
+      log.info(`[DeepLink] Registered as default protocol client for ${protocol}://`);
     } else {
-      log.error(`[DeepLink] Failed to register as default protocol client for ${DEEP_LINK.PREFIX}`);
+      log.error(`[DeepLink] Failed to register as default protocol client for ${protocol}://`);
     }
   } catch (error: unknown) {
     log.error('[DeepLink] Error registering protocol client:', error);
   }
 }
 
-/**
- * Feature init function — called during ui phase after window creation.
- * Sets the window reference and processes any buffered deep link.
- */
+export function registerDeepLinkProtocol(): void {
+  registerProtocolClient(DEEP_LINK.PROTOCOL);
+  registerProtocolClient('https');
+}
+
 export default function initDeepLinkHandler(window: BrowserWindow): void {
   try {
     windowRef = window;
-
-    // Register protocol client (requires app.ready)
     registerDeepLinkProtocol();
-
-    // Process any URL that arrived before the window was ready
     processPendingDeepLink();
-
     log.info('[DeepLink] Deep link handler initialized');
   } catch (error: unknown) {
     log.error('[DeepLink] Failed to initialize deep link handler:', error);
   }
 }
 
-/**
- * Extract a deep link URL from command-line arguments.
- * Used by second-instance handler on Windows/Linux.
- * On macOS this is handled via open-url instead.
- */
 export function extractDeepLinkFromArgv(argv: string[]): string | null {
-  return argv.find((arg) => arg.startsWith(DEEP_LINK.PREFIX)) ?? null;
+  const deepLink = argv.find((arg) => arg.startsWith(DEEP_LINK.PREFIX));
+  if (deepLink) return deepLink;
+
+  const httpsChatLink = argv.find(
+    (arg) => arg.startsWith('https://') && arg.includes('chat.google.com')
+  );
+  return httpsChatLink ?? null;
 }
 
-/**
- * Cleanup function for deep link handler
- */
 export function cleanupDeepLinkHandler(): void {
   try {
     log.debug('[DeepLink] Cleaning up deep link handler');

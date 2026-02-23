@@ -111,3 +111,21 @@ export const URL_PATTERNS = {
   GMAIL_PREFIX: 'https://mail.google.com/',
   CHAT_PREFIX: 'https://mail.google.com/chat',
 } as const;
+
+/**
+ * Deep link protocol configuration
+ */
+export const DEEP_LINK = {
+  /** Custom protocol scheme (without colon) */
+  PROTOCOL: 'googlechat',
+  /** Full protocol prefix for URL matching */
+  PREFIX: 'googlechat://',
+  /** Target host for deep link navigation */
+  TARGET_HOST: 'chat.google.com',
+  /** Target origin for constructed URLs */
+  TARGET_ORIGIN: 'https://chat.google.com',
+  /** Maximum URL length for deep links */
+  MAX_URL_LENGTH: 2048,
+  /** Allowed path prefixes for deep link navigation */
+  ALLOWED_PATH_PREFIXES: ['/room/', '/dm/', '/space/'] as readonly string[],
+} as const;
