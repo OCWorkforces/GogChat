@@ -125,7 +125,7 @@ featureManager.registerAll([
         const module = await import('./features/deepLinkHandler.js');
         module.cleanupDeepLinkHandler();
       },
-      description: 'Custom protocol (gchat://) handler',
+      description: 'Custom protocol (googlechat://) handler',
     }
   ),
 

@@ -30,8 +30,8 @@ const handleSearchShortcut = () => {
 let unsubscribe: (() => void) | null = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-  if (window.gchat?.onSearchShortcut) {
-    unsubscribe = window.gchat.onSearchShortcut(handleSearchShortcut);
+  if (window.googlechat?.onSearchShortcut) {
+    unsubscribe = window.googlechat.onSearchShortcut(handleSearchShortcut);
   }
 });
 

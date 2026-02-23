@@ -24,7 +24,7 @@ describe('ConfigCache', () => {
   beforeEach(() => {
     // Create a fresh store instance
     store = new Store<{ test: string; nested: { value: number } }>({
-      projectName: 'gchat-test',
+      projectName: 'googlechat-test',
       name: 'test-config-cache',
       schema: {
         test: {
@@ -275,7 +275,7 @@ describe('ConfigCache', () => {
 
     it('should handle store without cache enabled', () => {
       const regularStore = new Store<{ test: string }>({
-        projectName: 'gchat-test',
+        projectName: 'googlechat-test',
         name: 'test-regular',
         schema: {
           test: {

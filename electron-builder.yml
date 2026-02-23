@@ -1,9 +1,9 @@
 # Electron Builder Configuration
 # https://www.electron.build/configuration/configuration
 
-appId: com.ccworkforce.gchat
+appId: com.ccworkforce.googlechat
 productName: Google Chat
-copyright: Copyright © 2025 CCWorkforce
+copyright: Copyright © 2026 CCWorkforce
 
 # Protocol handler for deep linking
 protocols:

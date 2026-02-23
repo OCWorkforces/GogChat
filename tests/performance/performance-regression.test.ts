@@ -83,8 +83,8 @@ test.describe('Performance Regression Tests', () => {
       const { duration } = await measureTime('IPC Round Trip', async () => {
         // Send message and wait for response
         await mainWindow.evaluate(() => {
-          if ((window as any).gchat) {
-            (window as any).gchat.sendUnreadCount(5);
+          if ((window as any).googlechat) {
+            (window as any).googlechat.sendUnreadCount(5);
           }
         });
 
@@ -158,8 +158,8 @@ test.describe('Performance Regression Tests', () => {
       for (let i = 0; i < messageCount; i++) {
         const { duration } = await measureTime(`IPC Message ${i}`, async () => {
           await mainWindow.evaluate((count) => {
-            if ((window as any).gchat) {
-              (window as any).gchat.sendUnreadCount(count);
+            if ((window as any).googlechat) {
+              (window as any).googlechat.sendUnreadCount(count);
             }
           }, i);
         });

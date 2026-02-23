@@ -384,8 +384,8 @@ describe('Security integration tests', () => {
 });
 
 describe('validateDeepLinkURL', () => {
-  it('should convert gchat:// URL to https://chat.google.com/', () => {
-    const result = validateDeepLinkURL('gchat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
+  it('should convert googlechat:// URL to https://chat.google.com/', () => {
+    const result = validateDeepLinkURL('googlechat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
     expect(result).toBe('https://chat.google.com/room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
   });
 
@@ -395,17 +395,17 @@ describe('validateDeepLinkURL', () => {
   });
 
   it('should accept /dm/ path', () => {
-    const result = validateDeepLinkURL('gchat://dm/abc123');
+    const result = validateDeepLinkURL('googlechat://dm/abc123');
     expect(result).toBe('https://chat.google.com/dm/abc123');
   });
 
   it('should accept /space/ path', () => {
-    const result = validateDeepLinkURL('gchat://space/abc123');
+    const result = validateDeepLinkURL('googlechat://space/abc123');
     expect(result).toBe('https://chat.google.com/space/abc123');
   });
 
   it('should accept root path', () => {
-    const result = validateDeepLinkURL('gchat://');
+    const result = validateDeepLinkURL('googlechat://');
     expect(result).toBe('https://chat.google.com/');
   });
 
@@ -428,7 +428,7 @@ describe('validateDeepLinkURL', () => {
   });
 
   it('should throw on URL exceeding max length', () => {
-    const longUrl = 'gchat://room/' + 'a'.repeat(2100);
+    const longUrl = 'googlechat://room/' + 'a'.repeat(2100);
     expect(() => validateDeepLinkURL(longUrl)).toThrow('Deep link URL too long');
   });
 
@@ -446,7 +446,7 @@ describe('validateDeepLinkURL', () => {
   });
 
   it('should throw on disallowed path prefix', () => {
-    expect(() => validateDeepLinkURL('gchat://admin/settings')).toThrow('path not allowed');
-    expect(() => validateDeepLinkURL('gchat://api/v1/data')).toThrow('path not allowed');
+    expect(() => validateDeepLinkURL('googlechat://admin/settings')).toThrow('path not allowed');
+    expect(() => validateDeepLinkURL('googlechat://api/v1/data')).toThrow('path not allowed');
   });
 });

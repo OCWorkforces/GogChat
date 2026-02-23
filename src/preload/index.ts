@@ -14,7 +14,7 @@ import {
 } from '../shared/validators.js';
 
 /**
- * Expose secure API to renderer process via window.gchat
+ * Expose secure API to renderer process via window.googlechat
  * This API is the ONLY way renderer can communicate with main process
  */
 const api: GChatBridgeAPI = {
@@ -77,13 +77,13 @@ const api: GChatBridgeAPI = {
 };
 
 // Expose API to renderer
-contextBridge.exposeInMainWorld('gchat', api);
+contextBridge.exposeInMainWorld('googlechat', api);
 
 // Disable WebAuthn/U2F FIRST - must run before any Google auth scripts
 import './disableWebAuthn.js';
 
 // Now load feature-specific preload scripts
-// These will use the window.gchat API we just exposed
+// These will use the window.googlechat API we just exposed
 import './faviconChanged.js';
 import './offline.js';
 import './passkeyMonitor.js';

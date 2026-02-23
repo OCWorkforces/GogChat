@@ -49,8 +49,8 @@ const emitCount = () => {
   previousCount = count;
 
   // Use secure API exposed via contextBridge
-  if (window.gchat?.sendUnreadCount) {
-    window.gchat.sendUnreadCount(count);
+  if (window.googlechat?.sendUnreadCount) {
+    window.googlechat.sendUnreadCount(count);
   }
 };
 

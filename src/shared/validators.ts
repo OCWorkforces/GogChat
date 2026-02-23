@@ -314,7 +314,7 @@ export function validateNotificationData(data: unknown): {
  * Validates and converts a deep link URL to a safe Google Chat HTTPS URL.
  *
  * Accepts:
- * - gchat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10
+ * - googlechat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10
  * - https://chat.google.com/room/AAAA9BixgjY/EypiKwiqrS0?cls=10
  *
  * @param url - Raw URL from protocol handler or command line
@@ -339,7 +339,7 @@ export function validateDeepLinkURL(url: unknown): string {
 
   let httpsUrl: string;
 
-  // Convert gchat:// to https://chat.google.com/
+  // Convert googlechat:// to https://chat.google.com/
   if (url.startsWith(DEEP_LINK.PREFIX)) {
     const pathAndQuery = url.slice(DEEP_LINK.PREFIX.length);
     httpsUrl = `${DEEP_LINK.TARGET_ORIGIN}/${pathAndQuery}`;

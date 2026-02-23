@@ -140,7 +140,7 @@ export interface GChatBridgeAPI {
  */
 declare global {
   interface Window {
-    gchat: GChatBridgeAPI;
+    googlechat: GChatBridgeAPI;
   }
 }
 

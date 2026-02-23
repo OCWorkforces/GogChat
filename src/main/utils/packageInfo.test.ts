@@ -9,7 +9,7 @@ import path from 'path';
 vi.mock('electron', () => ({
   app: {
     getAppPath: () => path.join(__dirname, '../../..'),
-    getName: () => 'gchat',
+    getName: () => 'googlechat',
     getPath: (name: string) => `/fake/path/${name}`,
   },
 }));
@@ -90,7 +90,7 @@ describe('PackageInfo', () => {
       const pkg = getPackageInfo();
 
       // Verify it's loading real data, not fallback
-      expect(pkg.name).toBe('gchat');
+      expect(pkg.name).toBe('googlechat');
       expect(pkg.productName).toBe('Google Chat');
       expect(pkg.version).toMatch(/^\d+\.\d+\.\d+/); // Semver format
     });

@@ -24,10 +24,10 @@ function reportPasskeyFailure(errorName: string): void {
     return;
   }
 
-  // Check if window.gchat API is available
-  if (typeof window !== 'undefined' && window.gchat && window.gchat.reportPasskeyFailure) {
+  // Check if window.googlechat API is available
+  if (typeof window !== 'undefined' && window.googlechat && window.googlechat.reportPasskeyFailure) {
     hasReportedFailure = true;
-    window.gchat.reportPasskeyFailure(errorName);
+    window.googlechat.reportPasskeyFailure(errorName);
     console.debug('[Passkey Monitor] Reported failure:', errorName);
   }
 }
@@ -96,7 +96,7 @@ function monitorWebAuthn(): void {
 }
 
 // Initialize monitoring when DOM is ready
-// We wait for DOMContentLoaded to ensure window.gchat is available
+// We wait for DOMContentLoaded to ensure window.googlechat is available
 window.addEventListener('DOMContentLoaded', () => {
   monitorWebAuthn();
 });
