@@ -286,7 +286,11 @@ async function build() {
           // Apply any existing rspack config first
           if (userConfig.tools && typeof userConfig.tools.rspack === 'function') {
             config = userConfig.tools.rspack(config, ctx) ?? config;
-          } else if (userConfig.tools && typeof userConfig.tools.rspack === 'object' && !Array.isArray(userConfig.tools.rspack)) {
+          } else if (
+            userConfig.tools &&
+            typeof userConfig.tools.rspack === 'object' &&
+            !Array.isArray(userConfig.tools.rspack)
+          ) {
             Object.assign(config, userConfig.tools.rspack);
           }
           // Force CJS output for sandboxed preload

@@ -301,6 +301,21 @@ export class MockApp extends EventEmitter {
     // Mock implementation
   }
 
+  private protocolClients: Set<string> = new Set();
+
+  setAsDefaultProtocolClient(protocol: string, _path?: string, _args?: string[]): boolean {
+    this.protocolClients.add(protocol);
+    return true;
+  }
+
+  removeAsDefaultProtocolClient(protocol: string): boolean {
+    return this.protocolClients.delete(protocol);
+  }
+
+  isDefaultProtocolClient(protocol: string): boolean {
+    return this.protocolClients.has(protocol);
+  }
+
   setReady(): void {
     this.ready = true;
     this.emit('ready');
@@ -309,6 +324,7 @@ export class MockApp extends EventEmitter {
   reset(): void {
     this.ready = false;
     this.quitting = false;
+    this.protocolClients.clear();
     this.removeAllListeners();
   }
 }

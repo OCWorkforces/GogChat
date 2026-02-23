@@ -7,6 +7,7 @@ import { SELECTORS } from '../shared/constants.js';
 
 let previousCount = -1;
 let observer: MutationObserver | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Extract unread message count from Google Chat DOM
@@ -48,14 +49,15 @@ const emitCount = () => {
   previousCount = count;
 
   // Use secure API exposed via contextBridge
-  if (window.gchat?.sendUnreadCount) {
-    window.gchat.sendUnreadCount(count);
+  if (window.googlechat?.sendUnreadCount) {
+    window.googlechat.sendUnreadCount(count);
   }
 };
 
 /**
  * Initialize MutationObserver to watch for sidebar changes
  * Replaces 1-second polling with reactive observation
+ * ⚡ PERF: 200ms debounce batches rapid DOM mutations (typing, UI updates)
  */
 const initObserver = () => {
   // Clean up existing observer
@@ -66,10 +68,16 @@ const initObserver = () => {
   // Initial count check
   emitCount();
 
-  // Create observer for document.body changes
+  // Create observer for document.body changes with debounced callback
   observer = new MutationObserver(() => {
-    // Debounce: only check count when mutations occur
-    emitCount();
+    // Debounce rapid mutations — Google Chat fires many during typing/rendering
+    if (debounceTimer !== null) {
+      return;
+    }
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      emitCount();
+    }, 200);
   });
 
   // Observe changes to body
@@ -86,6 +94,10 @@ const initObserver = () => {
  * ✅ SECURITY FIX: Cleanup to prevent memory leaks
  */
 const cleanup = () => {
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
   if (observer) {
     observer.disconnect();
     observer = null;

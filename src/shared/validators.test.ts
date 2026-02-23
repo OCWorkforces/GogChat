@@ -13,6 +13,7 @@ import {
   sanitizeHTML,
   isWhitelistedHost,
   isSafeObject,
+  validateDeepLinkURL,
 } from './validators';
 
 describe('validateUnreadCount', () => {
@@ -379,5 +380,81 @@ describe('Security integration tests', () => {
     // The word 'onerror' will still be present but safe (no angle brackets)
     expect(escaped).not.toContain('<');
     expect(escaped).not.toContain('>');
+  });
+});
+
+describe('validateDeepLinkURL', () => {
+  it('should convert googlechat:// URL to https://chat.google.com/', () => {
+    const result = validateDeepLinkURL('googlechat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
+    expect(result).toBe('https://chat.google.com/room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
+  });
+
+  it('should accept direct https://chat.google.com URLs', () => {
+    const result = validateDeepLinkURL('https://chat.google.com/room/AAAA9BixgjY');
+    expect(result).toBe('https://chat.google.com/room/AAAA9BixgjY');
+  });
+
+  it('should accept /dm/ path', () => {
+    const result = validateDeepLinkURL('googlechat://dm/abc123');
+    expect(result).toBe('https://chat.google.com/dm/abc123');
+  });
+
+  it('should accept /space/ path', () => {
+    const result = validateDeepLinkURL('googlechat://space/abc123');
+    expect(result).toBe('https://chat.google.com/space/abc123');
+  });
+
+  it('should accept root path', () => {
+    const result = validateDeepLinkURL('googlechat://');
+    expect(result).toBe('https://chat.google.com/');
+  });
+
+  it('should strip credentials from URL', () => {
+    const result = validateDeepLinkURL('https://user:pass@chat.google.com/room/abc');
+    expect(result).not.toContain('user');
+    expect(result).not.toContain('pass');
+    expect(result).toBe('https://chat.google.com/room/abc');
+  });
+
+  it('should throw on non-string input', () => {
+    expect(() => validateDeepLinkURL(123)).toThrow('Deep link URL must be a string');
+    expect(() => validateDeepLinkURL(null)).toThrow('Deep link URL must be a string');
+    expect(() => validateDeepLinkURL(undefined)).toThrow('Deep link URL must be a string');
+  });
+
+  it('should throw on empty string', () => {
+    expect(() => validateDeepLinkURL('')).toThrow('Deep link URL cannot be empty');
+    expect(() => validateDeepLinkURL('   ')).toThrow('Deep link URL cannot be empty');
+  });
+
+  it('should throw on URL exceeding max length', () => {
+    const longUrl = 'googlechat://room/' + 'a'.repeat(2100);
+    expect(() => validateDeepLinkURL(longUrl)).toThrow('Deep link URL too long');
+  });
+
+  it('should throw on wrong host', () => {
+    expect(() => validateDeepLinkURL('https://evil.com/room/abc')).toThrow(
+      'host must be chat.google.com'
+    );
+  });
+
+  it('should throw on non-HTTPS direct URL', () => {
+    expect(() => validateDeepLinkURL('http://chat.google.com/room/abc')).toThrow(
+      'Unsupported deep link scheme'
+    );
+  });
+
+  it('should throw on unsupported scheme', () => {
+    expect(() => validateDeepLinkURL('ftp://chat.google.com/room/abc')).toThrow(
+      'Unsupported deep link scheme'
+    );
+    expect(() => validateDeepLinkURL('javascript:alert(1)')).toThrow(
+      'Unsupported deep link scheme'
+    );
+  });
+
+  it('should throw on disallowed path prefix', () => {
+    expect(() => validateDeepLinkURL('googlechat://admin/settings')).toThrow('path not allowed');
+    expect(() => validateDeepLinkURL('googlechat://api/v1/data')).toThrow('path not allowed');
   });
 });

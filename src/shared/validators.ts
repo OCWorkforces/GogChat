@@ -3,7 +3,7 @@
  * These validators prevent injection attacks and ensure data integrity
  */
 
-import { BADGE, WHITELISTED_HOSTS } from './constants.js';
+import { BADGE, WHITELISTED_HOSTS, DEEP_LINK } from './constants.js';
 
 /**
  * Validates and sanitizes unread count values
@@ -75,7 +75,7 @@ export function validateFaviconURL(href: unknown): string {
     return href;
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error('Invalid favicon URL format');
+      throw new Error('Invalid favicon URL format', { cause: error });
     }
     throw error;
   }
@@ -308,4 +308,78 @@ export function validateNotificationData(data: unknown): {
   }
 
   return result;
+}
+
+/**
+ * Validates and converts a deep link URL to a safe Google Chat HTTPS URL.
+ *
+ * Accepts:
+ * - googlechat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10
+ * - https://chat.google.com/room/AAAA9BixgjY/EypiKwiqrS0?cls=10
+ *
+ * @param url - Raw URL from protocol handler or command line
+ * @returns Sanitized https://chat.google.com/... URL
+ * @throws Error if URL is invalid, not a recognized scheme, or targets a non-allowed host
+ */
+export function validateDeepLinkURL(url: unknown): string {
+  // Type check
+  if (typeof url !== 'string') {
+    throw new Error('Deep link URL must be a string');
+  }
+
+  // Length check
+  if (url.length > DEEP_LINK.MAX_URL_LENGTH) {
+    throw new Error('Deep link URL too long');
+  }
+
+  // Empty check
+  if (url.trim().length === 0) {
+    throw new Error('Deep link URL cannot be empty');
+  }
+
+  let httpsUrl: string;
+
+  // Convert googlechat:// to https://chat.google.com/
+  if (url.startsWith(DEEP_LINK.PREFIX)) {
+    const pathAndQuery = url.slice(DEEP_LINK.PREFIX.length);
+    httpsUrl = `${DEEP_LINK.TARGET_ORIGIN}/${pathAndQuery}`;
+  } else if (url.startsWith('https://')) {
+    httpsUrl = url;
+  } else {
+    throw new Error(`Unsupported deep link scheme: ${url.split(':')[0] ?? 'unknown'}`);
+  }
+
+  // Parse and validate
+  let parsed: URL;
+  try {
+    parsed = new URL(httpsUrl);
+  } catch {
+    throw new Error('Invalid deep link URL format');
+  }
+
+  // Protocol must be https
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`Deep link must use HTTPS, got: ${parsed.protocol}`);
+  }
+
+  // Host must be chat.google.com
+  if (parsed.hostname !== DEEP_LINK.TARGET_HOST) {
+    throw new Error(`Deep link host must be ${DEEP_LINK.TARGET_HOST}, got: ${parsed.hostname}`);
+  }
+
+  // Strip credentials
+  parsed.username = '';
+  parsed.password = '';
+
+  // Validate path has an allowed prefix (or is root)
+  const pathLower = parsed.pathname.toLowerCase();
+  const hasAllowedPath =
+    pathLower === '/' ||
+    DEEP_LINK.ALLOWED_PATH_PREFIXES.some((prefix) => pathLower.startsWith(prefix));
+
+  if (!hasAllowedPath) {
+    throw new Error(`Deep link path not allowed: ${parsed.pathname}`);
+  }
+
+  return parsed.toString();
 }

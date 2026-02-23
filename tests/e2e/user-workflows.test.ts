@@ -87,8 +87,8 @@ test.describe('User Workflows', () => {
     test('should show unread count badge', async ({ electronApp, mainWindow }) => {
       // Simulate receiving messages (would happen naturally in production)
       await mainWindow.evaluate(() => {
-        if ((window as any).gchat) {
-          (window as any).gchat.sendUnreadCount(3);
+        if ((window as any).googlechat) {
+          (window as any).googlechat.sendUnreadCount(3);
         }
       });
 

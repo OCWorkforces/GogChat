@@ -10,8 +10,8 @@ test.describe('IPC Communication', () => {
   test('should handle unread count updates', async ({ electronApp, mainWindow }) => {
     // Send unread count from renderer
     await mainWindow.evaluate((channels) => {
-      if ((window as any).gchat) {
-        (window as any).gchat.sendUnreadCount(5);
+      if ((window as any).googlechat) {
+        (window as any).googlechat.sendUnreadCount(5);
       }
     }, IPC_CHANNELS);
 
@@ -27,8 +27,8 @@ test.describe('IPC Communication', () => {
   test('should handle favicon changes', async ({ electronApp, mainWindow }) => {
     // Send favicon change from renderer
     await mainWindow.evaluate((channels) => {
-      if ((window as any).gchat) {
-        (window as any).gchat.sendFaviconChanged('https://example.com/favicon.ico');
+      if ((window as any).googlechat) {
+        (window as any).googlechat.sendFaviconChanged('https://example.com/favicon.ico');
       }
     }, IPC_CHANNELS);
 
@@ -40,8 +40,8 @@ test.describe('IPC Communication', () => {
   test('should handle notification clicks', async ({ electronApp, mainWindow }) => {
     // Send notification click from renderer
     await mainWindow.evaluate((channels) => {
-      if ((window as any).gchat) {
-        (window as any).gchat.sendNotificationClicked();
+      if ((window as any).googlechat) {
+        (window as any).googlechat.sendNotificationClicked();
       }
     }, IPC_CHANNELS);
 
@@ -57,8 +57,8 @@ test.describe('IPC Communication', () => {
   test('should handle online status checks', async ({ electronApp, mainWindow }) => {
     // Request online status check
     await mainWindow.evaluate((channels) => {
-      if ((window as any).gchat) {
-        (window as any).gchat.checkIfOnline();
+      if ((window as any).googlechat) {
+        (window as any).googlechat.checkIfOnline();
       }
     }, IPC_CHANNELS);
 
@@ -77,7 +77,7 @@ test.describe('IPC Communication', () => {
     // In real app, this would focus search input
     // Here we just verify the handler exists
     const hasSearchHandler = await mainWindow.evaluate((channels) => {
-      return (window as any).gchat?.onSearchShortcut !== undefined;
+      return (window as any).googlechat?.onSearchShortcut !== undefined;
     }, IPC_CHANNELS);
 
     expect(hasSearchHandler).toBe(true);
@@ -89,9 +89,9 @@ test.describe('IPC Communication', () => {
 
     for (const count of invalidCounts) {
       await mainWindow.evaluate((count) => {
-        if ((window as any).gchat) {
+        if ((window as any).googlechat) {
           try {
-            (window as any).gchat.sendUnreadCount(count);
+            (window as any).googlechat.sendUnreadCount(count);
           } catch {
             // Expected to fail validation
           }
@@ -110,8 +110,8 @@ test.describe('IPC Communication', () => {
     for (let i = 0; i < 20; i++) {
       promises.push(
         mainWindow.evaluate((i) => {
-          if ((window as any).gchat) {
-            (window as any).gchat.sendUnreadCount(i);
+          if ((window as any).googlechat) {
+            (window as any).googlechat.sendUnreadCount(i);
           }
         }, i)
       );

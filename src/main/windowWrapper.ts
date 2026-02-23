@@ -14,6 +14,7 @@ export default (url: string): BrowserWindow => {
       webSecurity: false, // DISABLED for Google Chat compatibility
       allowRunningInsecureContent: false,
       disableBlinkFeatures: 'Auxclick',
+      backgroundThrottling: false, // Keep badge/notification updates alive when hidden
       preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
     },
     icon: getIconCache().getIcon('resources/icons/normal/256.png'),
@@ -32,22 +33,24 @@ export default (url: string): BrowserWindow => {
   // which blocks all of Google Chat's inline scripts and freezes the loading screen.
   const installHeaderFix = () => {
     const ses = window.webContents.session;
-    ses.webRequest.onHeadersReceived((details, callback) => {
-      const responseHeaders = { ...details.responseHeaders };
-      const url = details.url.toLowerCase();
-      const isGoogleDomain =
-        url.includes('google.com') ||
-        url.includes('gstatic.com') ||
-        url.includes('googleapis.com') ||
-        url.includes('googleusercontent.com');
-      if (isGoogleDomain) {
+    ses.webRequest.onHeadersReceived(
+      {
+        urls: [
+          '*://*.google.com/*',
+          '*://*.gstatic.com/*',
+          '*://*.googleapis.com/*',
+          '*://*.googleusercontent.com/*',
+        ],
+      },
+      (details, callback) => {
+        const responseHeaders = { ...details.responseHeaders };
         delete responseHeaders['cross-origin-embedder-policy'];
         delete responseHeaders['cross-origin-opener-policy'];
         delete responseHeaders['Cross-Origin-Embedder-Policy'];
         delete responseHeaders['Cross-Origin-Opener-Policy'];
+        callback({ responseHeaders });
       }
-      callback({ responseHeaders });
-    });
+    );
     log.debug('[Security] COEP/COOP header stripping installed');
   };
 

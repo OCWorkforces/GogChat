@@ -24,8 +24,8 @@ const handleOnlineStatus = (online: boolean) => {
  * Handle check connectivity button click from offline.html
  */
 const handleCheckOnline = () => {
-  if (window.gchat?.checkIfOnline) {
-    window.gchat.checkIfOnline();
+  if (window.googlechat?.checkIfOnline) {
+    window.googlechat.checkIfOnline();
   }
 };
 
@@ -35,8 +35,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('app:checkIfOnline', handleCheckOnline);
 
   // Listen to online status from main process
-  if (window.gchat?.onOnlineStatus) {
-    unsubscribe = window.gchat.onOnlineStatus(handleOnlineStatus);
+  if (window.googlechat?.onOnlineStatus) {
+    unsubscribe = window.googlechat.onOnlineStatus(handleOnlineStatus);
   }
 });
 

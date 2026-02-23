@@ -46,7 +46,7 @@ export function getPackageInfo(): Readonly<PackageInfo> {
       log.error('[PackageInfo] Failed to load package.json:', error);
       // Return minimal fallback to prevent crashes
       packageInfo = {
-        name: 'gchat',
+        name: 'googlechat',
         productName: 'Google Chat',
         version: '0.0.0',
         description: 'Google Chat',

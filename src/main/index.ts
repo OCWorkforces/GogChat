@@ -6,6 +6,7 @@ import { compareStorePerformance } from './utils/configProfiler.js';
 import path from 'path';
 import windowWrapper from './windowWrapper.js';
 import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
+import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import environment from '../environment.js';
 // Critical features only - loaded synchronously
 import overrideUserAgent from './features/userAgent.js';
@@ -17,6 +18,7 @@ import { initializeStore, getStore } from './config.js';
 import type { CachedStore } from './utils/configCache.js';
 import { getDeduplicator } from './utils/ipcDeduplicator.js';
 import { getRateLimiter } from './utils/rateLimiter.js';
+import { createTrackedTimeout } from './utils/resourceCleanup.js';
 import type { StoreType } from '../shared/types.js';
 import type Store from 'electron-store';
 
@@ -106,6 +108,24 @@ featureManager.registerAll([
     },
     {
       description: 'Single instance restoration handler',
+    }
+  ),
+
+  createFeature(
+    'deepLinkHandler',
+    'ui',
+    async ({ mainWindow }) => {
+      const module = await import('./features/deepLinkHandler.js');
+      if (mainWindow) {
+        module.default(mainWindow);
+      }
+    },
+    {
+      cleanup: async () => {
+        const module = await import('./features/deepLinkHandler.js');
+        module.cleanupDeepLinkHandler();
+      },
+      description: 'Custom protocol (googlechat://) handler',
     }
   ),
 
@@ -335,6 +355,9 @@ featureManager.registerAll([
 ]);
 
 if (enforceSingleInstance()) {
+  // Register deep link listener BEFORE app.ready (macOS fires open-url early)
+  setupDeepLinkListener();
+
   app
     .whenReady()
     .then(async () => {
@@ -351,11 +374,6 @@ if (enforceSingleInstance()) {
         log.error('[Main] Failed to initialize error handler:', error);
       }
 
-      // ===== PRE-INITIALIZATION =====
-      // Pre-load icons to improve startup performance
-      getIconCache().warmCache();
-      perfMonitor.mark('icons-cached', 'Icons pre-loaded');
-
       // ===== SECURITY PHASE =====
       // Initialize security features first (sequential)
       await featureManager.initializePhase('security');
@@ -370,6 +388,11 @@ if (enforceSingleInstance()) {
 
       // Update feature context with mainWindow
       featureManager.updateContext({ mainWindow });
+
+      // ===== POST-WINDOW ICON WARMUP =====
+      // Warm icon cache after window creation (256.png already loaded on-demand by windowWrapper)
+      getIconCache().warmCache();
+      perfMonitor.mark('icons-cached', 'Icons pre-loaded');
 
       // ===== UI PHASE =====
       // Initialize UI features (parallel for performance)
@@ -413,9 +436,13 @@ if (enforceSingleInstance()) {
 
           // ⚡ OPTIMIZATION: Warm caches on idle (after all features loaded)
           // This runs after a short delay to not interfere with user interaction
-          setTimeout(() => {
-            warmCachesOnIdle();
-          }, 5000); // 5 second delay
+          createTrackedTimeout(
+            () => {
+              warmCachesOnIdle();
+            },
+            5000,
+            'idle-cache-warming'
+          );
         })();
       });
     })

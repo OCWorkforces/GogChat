@@ -177,14 +177,13 @@ class PerformanceMonitor {
     peak: MemorySnapshot;
   } | null {
     if (this.memorySnapshots.length === 0) return null;
-
-    const current = this.memorySnapshots[this.memorySnapshots.length - 1];
-    const initial = this.memorySnapshots[0];
+    // Safe to use ! since we checked length > 0
+    const current = this.memorySnapshots[this.memorySnapshots.length - 1]!;
+    const initial = this.memorySnapshots[0]!;
     const peak = this.memorySnapshots.reduce(
       (max, snap) => (snap.heapUsed > max.heapUsed ? snap : max),
       initial
     );
-
     return { initial, current, peak };
   }
 

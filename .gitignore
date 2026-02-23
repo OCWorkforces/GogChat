@@ -47,3 +47,5 @@ node_modules/
 /lib/
 /*.deb
 coverage/
+
+.build-history.json

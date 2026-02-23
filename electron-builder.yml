@@ -1,9 +1,16 @@
 # Electron Builder Configuration
 # https://www.electron.build/configuration/configuration
 
-appId: com.ccworkforce.gchat
+appId: com.ccworkforce.googlechat
 productName: Google Chat
-copyright: Copyright © 2025 CCWorkforce
+copyright: Copyright © 2026 CCWorkforce
+
+# Protocol handler for deep linking
+protocols:
+  name: 'Google Chat'
+  schemes:
+    - googlechat
+    - https
 
 # Directories
 directories:
@@ -15,42 +22,41 @@ files:
   - lib/**/*
   - node_modules/**/*
   - package.json
-  - "!**/*.map"
-  - "!**/*.test.{ts,js}"
-  - "!**/*.spec.{ts,js}"
-  - "!src/**/*"
-  - "!.github/**/*"
-  - "!coverage/**/*"
-  - "!debian/**/*"
-  - "!mac/**/*"
-  - "!windows/**/*"
-  - "!.git/**/*"
-  - "!.vscode/**/*"
-  - "!.idea/**/*"
-  - "!tests/**/*"
-  - "!scripts/**/*"
-  - "!**/*.md"
-  - "!tsconfig.json"
-  - "!vitest.config.ts"
-  - "!playwright.config.ts"
-  - "!eslint.config.js"
-  - "!.prettierrc.json"
-  - "!.editorconfig"
-  - "!.npmrc"
-  - "!.gitignore"
-  - "!.gitattributes"
-  - "!.DS_Store"
-  - "!package-lock.json"
-  - "!entitlements.mac.*.plist"
-  - "!electron-builder*.yml"
-  - "!rsbuild.config.ts"
-  - "!build-macOS-*.sh"
+  - '!**/*.map'
+  - '!**/*.test.{ts,js}'
+  - '!**/*.spec.{ts,js}'
+  - '!src/**/*'
+  - '!.github/**/*'
+  - '!coverage/**/*'
+  - '!debian/**/*'
+  - '!mac/**/*'
+  - '!windows/**/*'
+  - '!.git/**/*'
+  - '!.vscode/**/*'
+  - '!.idea/**/*'
+  - '!tests/**/*'
+  - '!scripts/**/*'
+  - '!**/*.md'
+  - '!tsconfig.json'
+  - '!vitest.config.ts'
+  - '!playwright.config.ts'
+  - '!eslint.config.js'
+  - '!.prettierrc.json'
+  - '!.editorconfig'
+  - '!.npmrc'
+  - '!.gitignore'
+  - '!.gitattributes'
+  - '!.DS_Store'
+  - '!package-lock.json'
+  - '!entitlements.mac.*.plist'
+  - '!electron-builder*.yml'
+  - '!rsbuild.config.ts'
+  - '!build-macOS-*.sh'
 
 # Compression settings
 compression: maximum
 asar: true
 afterSign: scripts/notarize.js
-
 
 # macOS Configuration
 mac:
@@ -60,10 +66,9 @@ mac:
     - target: dmg
   gatekeeperAssess: false
 
-
 # DMG Configuration
 dmg:
-  title: "${productName} ${version}"
+  title: '${productName} ${version}'
   icon: resources/icons/normal/mac.icns
   iconSize: 100
   window:
@@ -89,4 +94,4 @@ dmg:
 #   repo: GChat
 
 # Additional metadata
-artifactName: "${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}"
+artifactName: '${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}'

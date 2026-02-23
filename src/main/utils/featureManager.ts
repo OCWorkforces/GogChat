@@ -170,6 +170,7 @@ export class FeatureManager {
     // Execute batches sequentially, features within each batch in parallel
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
+      if (!batch) continue;
       const batchStartTime = Date.now();
 
       log.debug(

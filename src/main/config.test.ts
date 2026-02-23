@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock electron
 vi.mock('electron', () => ({
   app: {
-    getName: () => 'gchat',
+    getName: () => 'googlechat',
     getPath: (name: string) => `/fake/path/${name}`,
     getAppPath: () => '/fake/app/path',
   },
@@ -26,7 +26,7 @@ vi.mock('electron-log', () => ({
 // Mock packageInfo to avoid file system access
 vi.mock('./utils/packageInfo', () => ({
   getPackageInfo: vi.fn(() => ({
-    name: 'gchat',
+    name: 'googlechat',
     productName: 'Google Chat',
     version: '0.0.0',
     description: 'Google Chat',
@@ -120,7 +120,7 @@ import crypto from 'crypto';
 describe('Encryption Key Generation', () => {
   it('should use app-specific data for encryption key', () => {
     const hash = crypto.createHash('sha256');
-    hash.update('gchat-/fake/path/userData');
+    hash.update('googlechat-/fake/path/userData');
     const expectedKey = hash.digest('hex');
 
     // The key should be deterministic based on app name and user data path
