@@ -123,6 +123,18 @@ export default defineConfig({
       config.experiments = config.experiments || {};
       config.experiments.outputModule = true; // Enable output module experiment
 
+      // Persistent filesystem cache for faster incremental dev builds
+      // Only enabled in dev mode — production builds must always be clean
+      if (!isProduction) {
+        config.cache = {
+          type: 'filesystem',
+          buildDependencies: {
+            // Invalidate cache when this config file changes
+            config: [new URL(import.meta.url).pathname],
+          },
+        };
+      }
+
       // Optimization settings
       config.optimization = config.optimization || {};
       config.optimization.minimize = isProduction;
