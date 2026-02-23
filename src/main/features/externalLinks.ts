@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, HandlerDetails, shell } from 'electron';
 import log from 'electron-log';
 import { URL_PATTERNS, TIMING } from '../../shared/constants.js';
 import { validateExternalURL, isWhitelistedHost } from '../../shared/validators.js';
+import { createTrackedInterval } from '../utils/resourceCleanup.js';
 
 let guardAgainstExternalLinks = true;
 const RE_GUARD_IN_MINUTES = TIMING.EXTERNAL_LINKS_REGUARD / (60 * 1000);
@@ -154,12 +155,13 @@ const stopReGuardTimer = () => {
 };
 
 const startReGuardTimer = () => {
-  interval = setInterval(
+  interval = createTrackedInterval(
     () => {
       guardAgainstExternalLinks = true;
       logGuardStatus();
     },
-    1000 * 60 * RE_GUARD_IN_MINUTES
+    1000 * 60 * RE_GUARD_IN_MINUTES,
+    'externalLinks-reguard-timer'
   );
 };
 

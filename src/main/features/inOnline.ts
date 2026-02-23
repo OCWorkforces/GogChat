@@ -61,7 +61,7 @@ const checkForInternet = async (window: BrowserWindow) => {
     const canChat = await checkIfOnline();
 
     if (!canChat) {
-      const offlinePagePath = path.join(app.getAppPath(), 'src/offline/index.html');
+      const offlinePagePath = path.join(app.getAppPath(), 'lib/offline/index.html');
       await window.loadURL(`file://${offlinePagePath}`);
       showOfflineNotification(window);
       log.warn('[Connectivity] Loaded offline page - no internet connection');

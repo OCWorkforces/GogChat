@@ -233,10 +233,7 @@ const storeProxy = new Proxy({} as Store<StoreType> | CachedStore<StoreType>, {
     return value;
   },
   set(_target, prop, value) {
-    // @ts-expect-error - Dynamic property access
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    getStore()[prop] = value;
-    return true;
+    return Reflect.set(getStore(), prop, value);
   },
   has(_target, prop) {
     return prop in getStore();

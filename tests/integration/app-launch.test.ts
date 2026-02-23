@@ -28,7 +28,7 @@ test.describe('App Launch', () => {
     expect(security.contextIsolation).toBe(true);
     expect(security.nodeIntegration).toBe(false);
     expect(security.sandbox).toBe(true);
-    expect(security.webSecurity).toBe(true);
+    expect(security.webSecurity).toBe(false); // Disabled for Google Chat compatibility
   });
 
   test('should load Google Chat URL', async ({ mainWindow }) => {
