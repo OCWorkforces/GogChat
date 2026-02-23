@@ -45,7 +45,7 @@ export default (window: BrowserWindow) => {
             window.show();
             log.debug('[Notification] Window shown from notification click');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           log.error('[Notification] Failed to handle notification click:', error);
         }
       });
@@ -71,7 +71,7 @@ export default (window: BrowserWindow) => {
         try {
           notification.close();
           log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
-        } catch (error) {
+        } catch (error: unknown) {
           log.error('[Notification] Failed to auto-dismiss notification:', error);
         }
       }, TIMING.NOTIFICATION_AUTO_DISMISS);
@@ -90,7 +90,7 @@ export default (window: BrowserWindow) => {
           timeout,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       log.error('[Notification] Failed to create notification:', error);
     }
   };
@@ -109,7 +109,7 @@ export default (window: BrowserWindow) => {
         window.show();
         log.debug('[Notification] Window shown from notification click');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       log.error('[Notification] Failed to handle notification click:', error);
     }
   };
@@ -137,7 +137,7 @@ export function cleanupNotificationHandler(): void {
     ipcMain.removeAllListeners(IPC_CHANNELS.NOTIFICATION_CLICKED);
 
     log.info('[Notification] Notification handler cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Notification] Failed to cleanup notification handler:', error);
   }
 }

@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import { createHash } from 'crypto';
 import type { StoreType } from '../shared/types.js';
-import Store from 'electron-store';
+import Store, { Schema } from 'electron-store';
 import { addCacheLayer, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';
 import { getPackageInfo } from './utils/packageInfo.js';
@@ -21,8 +21,7 @@ function getEncryptionKey(): string {
 }
 
 // Schema definition for electron-store
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const schema: any = {
+const schema: Schema<StoreType> = {
   window: {
     type: 'object',
     properties: {
@@ -30,10 +29,10 @@ const schema: any = {
         type: 'object',
         properties: {
           x: {
-            type: 'number',
+            type: ['number', 'null'] as const,
           },
           y: {
-            type: 'number',
+            type: ['number', 'null'] as const,
           },
           width: {
             type: 'number',
@@ -55,7 +54,13 @@ const schema: any = {
       },
     },
     default: {
-      bounds: {},
+      bounds: {
+        x: null,
+        y: null,
+        width: 800,
+        height: 600,
+      },
+      isMaximized: false,
     },
   },
   app: {
@@ -86,7 +91,14 @@ const schema: any = {
         default: false,
       },
     },
-    default: {},
+    default: {
+      autoCheckForUpdates: true,
+      autoLaunchAtLogin: true,
+      startHidden: false,
+      hideMenuBar: false,
+      disableSpellChecker: false,
+      suppressPasskeyDialog: false,
+    },
   },
   _meta: {
     type: 'object',
@@ -129,7 +141,6 @@ export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
 
   // Create store with encryption
   let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     schema,
     encryptionKey: getEncryptionKey(),
   });

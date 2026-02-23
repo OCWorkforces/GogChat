@@ -5,6 +5,7 @@
  */
 
 import { logger } from './logger.js';
+import { toError } from './errorHandler.js';
 
 /**
  * Deduplication configuration
@@ -103,11 +104,11 @@ export class IPCDeduplicator {
         }
         return result;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         // Reject all waiting promises
         const entry = this.cache.get(key);
         if (entry) {
-          entry.resolvers.forEach(({ reject }) => reject(error as Error));
+          entry.resolvers.forEach(({ reject }) => reject(toError(error)));
         }
         throw error;
       })

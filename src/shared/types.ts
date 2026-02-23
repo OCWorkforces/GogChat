@@ -103,8 +103,10 @@ export interface NotificationData {
 /**
  * IPC event handler type
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type IPCHandler<T = any> = (event: Electron.IpcMainEvent, data: T) => void | Promise<void>;
+export type IPCHandler<T = unknown> = (
+  event: Electron.IpcMainEvent,
+  data: T
+) => void | Promise<void>;
 
 /**
  * Validated IPC message wrapper
@@ -189,3 +191,73 @@ export interface PerformanceMetrics {
   memoryUsage?: NodeJS.MemoryUsage;
   domObserverCount: number;
 }
+
+/**
+ * Branded type for nominal typing — prevents mixing structurally-identical primitive types.
+ * Wrap a primitive with a unique brand to make it distinguishable at compile time.
+ *
+ * @example
+ *   type UserId = Branded<string, 'UserId'>;
+ *   type RoomId = Branded<string, 'RoomId'>;
+ *   declare function getRoom(id: RoomId): void;
+ *   const uid = 'abc' as UserId;
+ *   getRoom(uid); // Error: Argument of type 'UserId' is not assignable to parameter of type 'RoomId'
+ */
+export type Branded<T, Brand extends string> = T & { readonly __brand: Brand };
+
+/**
+ * A URL string that has been validated by validateExternalURL() or validateFaviconURL().
+ * Use this type to distinguish raw strings from validated URLs in function signatures.
+ */
+export type ValidatedURL = Branded<string, 'ValidatedURL'>;
+
+/**
+ * Typed response wrapper for IPC reply/invoke handlers.
+ * Discriminated union — check `success` before accessing `data` or `error`.
+ *
+ * @example
+ *   const response: IPCResponse<number> = { success: true, data: 42 };
+ *   if (response.success) { console.log(response.data); } // number
+ *   else { console.error(response.error); } // string
+ */
+export type IPCResponse<T> = { success: true; data: T } | { success: false; error: string };
+
+/**
+ * Maps each IPC channel string to its expected payload type.
+ * Use this to enforce handler signature alignment with channel contracts.
+ *
+ * @example
+ *   type Payload = IPCChannelPayloadMap[typeof IPC_CHANNELS.UNREAD_COUNT]; // number
+ */
+export interface IPCChannelPayloadMap {
+  // renderer → main
+  unreadCount: number;
+  faviconChanged: string;
+  notificationShow: NotificationData;
+  notificationClicked: void;
+  checkIfOnline: void;
+  passkeyAuthFailed: PasskeyFailureData;
+  // main → renderer
+  searchShortcut: void;
+  onlineStatus: boolean;
+}
+
+/**
+ * Recursive dot-notation key paths for a nested object type.
+ * Enables type-safe access to nested config keys (e.g. 'app.autoCheckForUpdates').
+ *
+ * Depth-limited to 3 levels to avoid infinite recursion on circular or very deep types.
+ *
+ * @example
+ *   type Keys = StoreKeyPaths<StoreType>
+ *   // 'window' | 'app' | '_meta' | 'window.bounds' | 'window.isMaximized'
+ *   // | 'window.bounds.x' | 'window.bounds.y' | 'window.bounds.width' | ...
+ *   // | 'app.autoCheckForUpdates' | 'app.startHidden' | ...
+ */
+export type StoreKeyPaths<T extends Record<string, unknown>> = {
+  [K in keyof T & string]:
+    | K
+    | (NonNullable<T[K]> extends Record<string, unknown>
+        ? `${K}.${StoreKeyPaths<NonNullable<T[K]>>}`
+        : never);
+}[keyof T & string];

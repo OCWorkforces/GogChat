@@ -61,7 +61,7 @@ export function cleanupTrayIcon(): void {
     }
 
     log.info('[TrayIcon] Tray icon cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[TrayIcon] Failed to cleanup tray icon:', error);
   }
 }

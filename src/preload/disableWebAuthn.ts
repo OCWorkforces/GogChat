@@ -28,7 +28,7 @@ if (typeof navigator !== 'undefined') {
         configurable: false,
       });
       console.log('[Preload] WebAuthn/U2F disabled via property override');
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('[Preload] Failed to disable WebAuthn/U2F:', e);
     }
   }

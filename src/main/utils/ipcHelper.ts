@@ -5,8 +5,10 @@
  */
 
 import { ipcMain, IpcMainEvent, BrowserWindow, IpcMainInvokeEvent } from 'electron';
+import type { IPCResponse } from '../../shared/types.js';
 import { getRateLimiter } from './rateLimiter.js';
 import { logger } from './logger.js';
+import { toError, toErrorMessage } from './errorHandler.js';
 
 /**
  * Configuration for creating a secure IPC handler
@@ -77,8 +79,8 @@ export function createSecureIPCHandler<T>(config: IPCHandlerConfig<T>): () => vo
 
         // Execute handler with validated data
         await handler(validated, event);
-      } catch (error) {
-        const err = error as Error;
+      } catch (error: unknown) {
+        const err = toError(error);
 
         if (!silent) {
           log.error(`Handler failed: ${channel}`, err.message);
@@ -129,7 +131,10 @@ export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, 
           if (!silent) {
             log.warn(`Rate limited: ${channel}`);
           }
-          event.reply(responseChannel, { error: 'Rate limited' });
+          event.reply(responseChannel, {
+            success: false,
+            error: 'Rate limited',
+          } satisfies IPCResponse<R>);
           return;
         }
 
@@ -145,16 +150,19 @@ export function createSecureReplyHandler<T, R>(config: IPCReplyHandlerConfig<T, 
         const response = await handler(validated, event);
 
         // Send reply
-        event.reply(responseChannel, { success: true, data: response });
-      } catch (error) {
-        const err = error as Error;
+        event.reply(responseChannel, { success: true, data: response } satisfies IPCResponse<R>);
+      } catch (error: unknown) {
+        const err = toError(error);
 
         if (!silent) {
           log.error(`Reply handler failed: ${channel}`, err.message);
         }
 
         // Send error reply
-        event.reply(responseChannel, { error: err.message });
+        event.reply(responseChannel, {
+          success: false,
+          error: err.message,
+        } satisfies IPCResponse<R>);
 
         // Call custom error handler if provided
         if (onError) {
@@ -203,8 +211,8 @@ export function createSecureInvokeHandler<T, R>(config: IPCInvokeHandlerConfig<T
 
       // Execute handler and return response
       return await handler(validated, event);
-    } catch (error) {
-      const err = error as Error;
+    } catch (error: unknown) {
+      const err = toError(error);
 
       if (!silent) {
         log.error(`Invoke handler failed: ${channel}`, err.message);
@@ -247,8 +255,8 @@ export function createBroadcastHandler<T>(config: {
           window.webContents.send(config.channel, validated);
         }
       });
-    } catch (error) {
-      logger.ipc.error(`Broadcast failed: ${config.channel}`, error);
+    } catch (error: unknown) {
+      logger.ipc.error(`Broadcast failed: ${config.channel}`, toErrorMessage(error));
     }
   };
 }
@@ -271,8 +279,8 @@ export function sendToWindow<T>(
     const validated = validator ? validator(data) : data;
     window.webContents.send(channel, validated);
     return true;
-  } catch (error) {
-    logger.ipc.error(`Failed to send to window: ${channel}`, error);
+  } catch (error: unknown) {
+    logger.ipc.error(`Failed to send to window: ${channel}`, toErrorMessage(error));
     return false;
   }
 }
@@ -377,6 +385,8 @@ export const commonValidators = {
     return data;
   },
 
-  /** Pass-through validator (no validation) */
-  passthrough: <T>(data: unknown): T => data as T,
+  /** No-op validator for void/empty channels */
+  noData: (_data: unknown): void => {
+    /* Intentionally empty - for channels with no payload */
+  },
 };

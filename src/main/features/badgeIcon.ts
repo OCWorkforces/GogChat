@@ -1,3 +1,4 @@
+import { toErrorMessage } from '../utils/errorHandler.js';
 import { ipcMain, app, BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants.js';
@@ -26,7 +27,7 @@ const decideIcon = (href: string): IconType => {
  * Update badge icon for macOS
  * Uses dock badge to display unread count
  */
-const updateBadgeIcon = (window: BrowserWindow, count: number) => {
+const updateBadgeIcon = (_window: BrowserWindow, count: number) => {
   // macOS: Use dock badge
   app.setBadgeCount(count);
   log.debug(`[BadgeIcon] Dock badge updated: ${count}`);
@@ -41,7 +42,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
 
   // ⚡ OPTIMIZATION: Deduplicated favicon handler to prevent redundant updates
   // Validate favicon URL and check rate limit
-  const faviconChangedHandler = (evt: Electron.IpcMainEvent, href: string) => {
+  const faviconChangedHandler = (_evt: Electron.IpcMainEvent, href: string) => {
     // Deduplicate rapid favicon changes (e.g., during page load)
     void deduplicator.deduplicate(
       `${IPC_CHANNELS.FAVICON_CHANGED}:${href}`,
@@ -69,8 +70,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
           } else {
             log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
           }
-        } catch (error) {
-          log.error('[BadgeIcon] Failed to process favicon change:', error);
+        } catch (error: unknown) {
+          log.error('[BadgeIcon] Failed to process favicon change:', toErrorMessage(error));
         }
         // Return void to satisfy async function requirement
         return Promise.resolve();
@@ -82,7 +83,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
   // ⚡ OPTIMIZATION: Deduplicated unread count handler
   // Validate unread count and check rate limit
   // Uses cached badge icons for Windows
-  const unreadCountHandler = (event: Electron.IpcMainEvent, count: number) => {
+  const unreadCountHandler = (_event: Electron.IpcMainEvent, count: number) => {
     // Deduplicate rapid count changes (e.g., multiple messages arriving at once)
     void deduplicator.deduplicate(
       `${IPC_CHANNELS.UNREAD_COUNT}:${count}`,
@@ -101,8 +102,8 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
           updateBadgeIcon(window, validatedCount);
 
           log.debug(`[BadgeIcon] Unread count updated: ${validatedCount}`);
-        } catch (error) {
-          log.error('[BadgeIcon] Failed to update unread count:', error);
+        } catch (error: unknown) {
+          log.error('[BadgeIcon] Failed to update unread count:', toErrorMessage(error));
         }
         // Return void to satisfy async function requirement
         return Promise.resolve();
@@ -124,7 +125,7 @@ export function cleanupBadgeIcon(): void {
     ipcMain.removeAllListeners(IPC_CHANNELS.FAVICON_CHANGED);
     ipcMain.removeAllListeners(IPC_CHANNELS.UNREAD_COUNT);
     log.info('[BadgeIcon] Badge icon cleaned up');
-  } catch (error) {
-    log.error('[BadgeIcon] Failed to cleanup badge icon:', error);
+  } catch (error: unknown) {
+    log.error('[BadgeIcon] Failed to cleanup badge icon:', toErrorMessage(error));
   }
 }

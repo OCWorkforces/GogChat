@@ -49,7 +49,7 @@ export function cleanupCloseToTray(window: BrowserWindow): void {
     willQuit = false;
 
     log.info('[CloseToTray] Close to tray cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[CloseToTray] Failed to cleanup close to tray:', error);
   }
 }

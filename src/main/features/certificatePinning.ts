@@ -100,7 +100,7 @@ let certificateErrorHandler:
  * Prevents MITM attacks on Google domains
  */
 export default function setupCertificatePinning(): void {
-  certificateErrorHandler = (event, webContents, url, error, certificate, callback) => {
+  certificateErrorHandler = (event, _webContents, url, error, certificate, callback) => {
     // Prevent default behavior
     event.preventDefault();
 
@@ -151,7 +151,7 @@ export function cleanupCertificatePinning(): void {
     }
 
     log.info('[CertPinning] Certificate pinning cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[CertPinning] Failed to cleanup certificate pinning:', error);
   }
 }

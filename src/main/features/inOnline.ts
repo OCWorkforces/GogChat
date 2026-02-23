@@ -24,7 +24,7 @@ const checkIfOnline = async (
 
     clearTimeout(timeoutId);
     return response.ok;
-  } catch (error) {
+  } catch (error: unknown) {
     log.debug(
       '[Connectivity] Offline or fetch failed:',
       error instanceof Error ? error.message : 'Unknown error'
@@ -66,7 +66,7 @@ const checkForInternet = async (window: BrowserWindow) => {
       showOfflineNotification(window);
       log.warn('[Connectivity] Loaded offline page - no internet connection');
     }
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Connectivity] Failed to check internet:', error);
   }
 };
@@ -95,7 +95,7 @@ export default (_window: BrowserWindow) => {
         event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
 
         log.debug(`[Connectivity] Online status: ${online}`);
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[Connectivity] Failed to handle checkIfOnline:', error);
         // Reply with false on error
         event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
@@ -114,7 +114,7 @@ export function cleanupConnectivityHandler(): void {
     log.debug('[Connectivity] Cleaning up connectivity handler');
     ipcMain.removeAllListeners(IPC_CHANNELS.CHECK_IF_ONLINE);
     log.info('[Connectivity] Connectivity handler cleaned up');
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Connectivity] Failed to cleanup connectivity handler:', error);
   }
 }
