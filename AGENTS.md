@@ -1,12 +1,12 @@
 # OpenGChat — Project Knowledge Base
 
-**Generated:** 2026-02-22
-**Commit:** be06076
+**Generated:** 2026-02-24
+**Commit:** 563a52c
 **Branch:** upstream
 
 ## OVERVIEW
 
-Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Intel x64 + Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`).
+Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Intel x64 + Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
 
 ## STRUCTURE
 
@@ -14,25 +14,27 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 OpenGChat/
 ├── src/
 │   ├── main/           # Electron main process (Node.js env, ESM output)
-│   │   ├── index.ts    # App entry: init order matters (security first)
-│   │   ├── windowWrapper.ts  # BrowserWindow factory
+│   │   ├── index.ts    # App entry: feature manager with phased init (security→critical→ui→deferred)
+│   │   ├── windowWrapper.ts  # BrowserWindow factory (sandbox:true, contextIsolation:true)
 │   │   ├── config.ts   # AES-256-GCM encrypted electron-store
 │   │   ├── features/   # 18 lazy-loaded feature modules
 │   │   └── utils/      # 13 security/perf utility modules
 │   ├── preload/        # contextBridge scripts (CJS output — sandbox: true)
-│   ├── shared/         # Cross-process: types, constants, validators
+│   ├── shared/         # Cross-process contracts: types, constants, validators
 │   ├── offline/        # Standalone offline page (no IPC access)
 │   └── urls.ts         # Google Chat URL constants
 ├── scripts/
-│   └── build-rsbuild.js  # Dual-build (main=ESM, preload=CJS)
+│   ├── build-rsbuild.js  # Dual-build (main=ESM, preload=CJS)
+│   ├── lint.sh         # Combined ESLint + Prettier
+│   └── notarize.js     # Apple notarization hook
 ├── rsbuild.config.js   # ESM config; preload build overrides to CJS
 ├── tests/              # Vitest (unit) + Playwright (integration/e2e/perf)
-├── mac/                # DMG build scripts → see mac/AGENTS.md
+├── mac/                # DMG build documentation → see mac/AGENTS.md
 ├── resources/          # Icons (.icns, .png, .svg)
 └── lib/                # Build output (gitignored)
     ├── main/           # ESM .js files
     ├── preload/        # CJS .js files
-    ├── chunks/         # Dynamic import chunks (features)
+    ├── chunks/         # Dynamic import chunks (deferred features)
     └── offline/
 ```
 
@@ -74,18 +76,19 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
    → trayIcon → appMenu → singleInstance restore → windowState
    → externalLinks → notifications → badgeIcon → closeToTray
 5. setImmediate() — deferred:
-   openAtLogin → appUpdates → contextMenu → firstLaunch
+   openAtLogin → appUpdates → contextMenu → firstLaunch → badgeIcons
 ```
 
 ## CONVENTIONS
 
 - **Package manager**: `npm` only (no yarn/pnpm)
+- **Node version**: 24.13.0+ (engineStrict enforced)
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
 - **New settings**: Update `StoreType` in `shared/types.ts` → add schema in `config.ts`
 - **IPC handler pattern**: rate limit → validate → handle → catch (see `src/main/AGENTS.md`)
-- **Feature priority**: CRITICAL=security, HIGH=UI, MEDIUM=standard, LOW=optional, DEFERRED=async
+- **Feature priority**: SECURITY→CRITICAL→UI→DEFERRED phases via featureManager
 - **Singletons**: All util managers expose `getXxx()` factory + `destroyXxx()` cleanup
-- **esbuild commands**: Kept as backup (`build:esbuild:*`) — **do not use**, use `build:dev/prod`
+- **TypeScript strict**: `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`
 
 ## ANTI-PATTERNS
 
@@ -94,16 +97,16 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 - **Never** add feature logic directly in `index.ts` — create `features/myFeature.ts`
 - **Never** hardcode IPC channel strings — use `IPC_CHANNELS` from `shared/constants.ts`
 - **Never** call `setInterval`/`setTimeout` without tracking via `resourceCleanup.ts`
-- **Never** run esbuild build commands (legacy)
 - **Never** modify preload build to output ESM — `sandbox: true` requires CJS
 - **Never** remove `cleanDistPath: false` from preload build config
 - **Never** open external URLs with `shell.openExternal()` without `validateExternalURL()` first
+- **Never** use bare `setTimeout`/`setInterval` — always use `createTrackedTimeout`/`createTrackedInterval`
 
 ## SECURITY LAYERS (defense-in-depth)
 
 - `contextIsolation: true` + `sandbox: true` + `nodeIntegration: false` in BrowserWindow
 - All IPC: `rateLimiter.isAllowed()` + `validators.ts` + try-catch
-- Certificate pinning for all Google domains (initialized before network)
+- Certificate pinning for all Google domains (initialized at module level, before app.ready)
 - AES-256-GCM encrypted `electron-store` for config
 - URL whitelist enforcement for navigation + `shell.openExternal()`
 - CSP via `webRequest.onHeadersReceived` — strips COEP/COOP headers
@@ -116,9 +119,10 @@ npm install
 npm run build:dev      # dev build (~0.25s)
 npm run build:prod     # prod build (~0.31s)
 npm run build:watch    # watch mode
+npm run build:analyze  # bundle analysis (ANALYZE=true)
 npm start              # prod build + launch Electron
 npm test               # all tests (Vitest + Playwright)
-npm run test:unit      # Vitest unit tests only
+npm run test:run       # Vitest single run
 npm run test:coverage  # coverage report
 npm run build:mac      # both Intel + ARM DMGs (production)
 ```
@@ -126,8 +130,19 @@ npm run build:mac      # both Intel + ARM DMGs (production)
 ## NOTES
 
 - Platform: **macOS only** (Intel x64 + Apple Silicon arm64)
-- Electron 38.2.2 / Node.js 22.19.0 / Chromium 140
+- Electron 40.6.0 / Node.js 24.13.0 / Chromium-based
 - Dynamic imports in `index.ts` → deferred features land in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload loaded with `contextIsolation: false` (intentional exception)
 - Google Chat DOM selectors in `shared/constants.ts` `SELECTORS` — may break if Google updates HTML
 - Config encrypted at `~/Library/Application Support/GChat/` (macOS)
+- Build history tracked in `.build-history.json` (last 20 builds)
+- Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
+
+## COMPLEXITY CENTERS (500+ lines)
+
+| File                                | Lines | Purpose                                      |
+| ----------------------------------- | ----- | -------------------------------------------- |
+| `src/main/index.ts`                 | 619   | App entry, feature registration, phased init |
+| `src/main/utils/featureManager.ts`  | 566   | Feature lifecycle, dependency resolution     |
+| `tests/mocks/electron.ts`           | 546   | Complete Electron mock for unit tests        |
+| `src/main/utils/resourceCleanup.ts` | 442   | Tracked intervals/timeouts/listeners         |

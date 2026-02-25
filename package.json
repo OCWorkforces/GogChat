@@ -54,7 +54,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
     "cross-env": "^10.1.0",
-    "electron": "^40.6.0",
+    "electron": "^40.6.1",
     "electron-builder": "^26.8.1",
     "esbuild": "^0.27.3",
     "eslint": "^10.0.2",
@@ -76,6 +76,6 @@
   },
   "engineStrict": true,
   "engines": {
-    "node": ">=24.13.0"
+    "node": ">=24.13.1"
   }
 }
