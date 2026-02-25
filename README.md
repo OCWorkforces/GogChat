@@ -46,7 +46,7 @@ Get the latest release for your platform:
 
 ### Prerequisites
 
-- Bun >= 1.2.9 (Node.js >= 24.13.1 embedded by Electron)
+- Bun >= 1.3.9 (Node.js >= 24.13.1 embedded by Electron)
 
 ### Setup
 
