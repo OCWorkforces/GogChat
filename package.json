@@ -1,25 +1,26 @@
 {
   "name": "googlechat",
   "productName": "Google Chat",
-  "version": "3.4.4",
+  "version": "3.4.5",
   "description": "Google Chat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
   "homepage": "https://github.com/CCWorkforce/GChat",
   "author": "CCWorkforce",
+  "packageManager": "bun@1.3.9",
   "type": "module",
   "main": "lib/main/index.js",
   "sideEffects": false,
   "scripts": {
-    "prestart": "npm run build:prod",
+    "prestart": "bun run build:prod",
     "start": "electron .",
     "clean:dist": "rimraf ./dist",
     "clean:lib": "rimraf ./lib",
-    "build:dev": "node scripts/build-rsbuild.js --dev",
-    "build:prod": "node scripts/build-rsbuild.js",
-    "build:watch": "node scripts/build-rsbuild.js --dev --watch",
-    "build:analyze": "cross-env ANALYZE=true NODE_ENV=production node scripts/build-rsbuild.js",
-    "prets": "npm run clean:lib",
+    "build:dev": "bun scripts/build-rsbuild.js --dev",
+    "build:prod": "bun scripts/build-rsbuild.js",
+    "build:watch": "bun scripts/build-rsbuild.js --dev --watch",
+    "build:analyze": "ANALYZE=true NODE_ENV=production bun scripts/build-rsbuild.js",
+    "prets": "bun run clean:lib",
     "ts": "tsc",
     "test": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs",
     "test:ui": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs --ui",
@@ -53,7 +54,6 @@
     "@typescript-eslint/parser": "^8.56.1",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
-    "cross-env": "^10.1.0",
     "electron": "^40.6.1",
     "electron-builder": "^26.8.1",
     "esbuild": "^0.27.3",
@@ -76,6 +76,7 @@
   },
   "engineStrict": true,
   "engines": {
-    "node": ">=24.13.1"
+    "node": ">=24.13.1",
+    "bun": ">=1.2.9"
   }
 }
