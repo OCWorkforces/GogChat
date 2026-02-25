@@ -1,0 +1,3 @@
+[install]
+# Trust Electron ecosystem packages that run post-install scripts
+trustedDependencies = ["electron", "electron-builder", "@electron/notarize", "esbuild"]

@@ -104,22 +104,24 @@ echo ""
 # Pre-flight checks
 print_step "Running pre-flight checks..."
 
-# Check Node.js version (requires >= 22)
-_NODE_MAJOR=$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')
-if [ "${_NODE_MAJOR}" -lt 22 ]; then
-    print_error "Node.js >= 22 is required (found $(node --version))"
+# Check Bun version (requires >= 1.2)
+_BUN_VERSION=$(bun --version 2>/dev/null || echo '0.0.0')
+_BUN_MAJOR=$(echo "$_BUN_VERSION" | cut -d. -f1)
+_BUN_MINOR=$(echo "$_BUN_VERSION" | cut -d. -f2)
+if [ "${_BUN_MAJOR}" -lt 1 ] || ([ "${_BUN_MAJOR}" -eq 1 ] && [ "${_BUN_MINOR}" -lt 2 ]); then
+    print_error "Bun >= 1.2 is required (found ${_BUN_VERSION})"
     exit 1
 fi
 
 # Check node_modules exists
 if [ ! -d "./node_modules" ]; then
-    print_error "node_modules not found — run 'npm install' first"
+    print_error "node_modules not found — run 'bun install' first"
     exit 1
 fi
 
 # Check electron-builder is available
-if ! npx electron-builder --version > /dev/null 2>&1; then
-    print_error "electron-builder not found — run 'npm install' first"
+if ! bunx electron-builder --version > /dev/null 2>&1; then
+    print_error "electron-builder not found — run 'bun install' first"
     exit 1
 fi
 
@@ -135,7 +137,7 @@ print_success "Pre-flight checks passed"
 
 # Extract version from package.json
 print_step "Extracting version from package.json..."
-PACKAGE_VERSION=$(node -p "require('./package.json').version")
+PACKAGE_VERSION=$(bun -p "require('./package.json').version")
 if [ -z "$PACKAGE_VERSION" ]; then
     print_error "Failed to extract version from package.json"
     exit 1
@@ -171,7 +173,7 @@ echo ""
 
 # Step 2: Build production code with Rsbuild
 print_step "Step 2/3: Building production code with Rsbuild..."
-npm run build:prod
+bun run build:prod
 print_success "Production build complete"
 echo ""
 
@@ -214,7 +216,7 @@ run_electron_builder() {
     local target_arch="$1"
     echo ""
     echo "  → Starting electron-builder for macOS ${target_arch}..."
-    npx electron-builder --mac --"${target_arch}" --config ${CONFIG_FILES}
+    bunx electron-builder --mac --"${target_arch}" --config ${CONFIG_FILES}
 }
 
 # Run electron-builder with appropriate architecture flags

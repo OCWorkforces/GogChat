@@ -53,16 +53,16 @@ run_check() {
 
 # ESLint
 if [ "$FIX_MODE" = true ]; then
-  run_check "ESLint (fixing)" npx eslint "src/**/*.ts" "scripts/**/*.js" --fix || true
+  run_check "ESLint (fixing)" bunx eslint "src/**/*.ts" "scripts/**/*.js" --fix || true
 else
-  run_check "ESLint" npx eslint "src/**/*.ts" "scripts/**/*.js" || true
+  run_check "ESLint" bunx eslint "src/**/*.ts" "scripts/**/*.js" || true
 fi
 
 # Prettier
 if [ "$FIX_MODE" = true ]; then
-  run_check "Prettier (fixing)" npx prettier --write "src/**/*.{ts,js,json}" "scripts/**/*.js" "*.{json,md}" || true
+  run_check "Prettier (fixing)" bunx prettier --write "src/**/*.{ts,js,json}" "scripts/**/*.js" "*.{json,md}" || true
 else
-  run_check "Prettier" npx prettier --check "src/**/*.{ts,js,json}" "scripts/**/*.js" "*.{json,md}" || true
+  run_check "Prettier" bunx prettier --check "src/**/*.{ts,js,json}" "scripts/**/*.js" "*.{json,md}" || true
 fi
 
 # Summary

@@ -11,7 +11,7 @@ echo "🔍 Running linting checks before push..."
 echo ""
 
 # Run the linting script
-if npm run lint:all; then
+if bun run lint:all; then
   echo ""
   echo "✅ All linting checks passed. Proceeding with push..."
   echo ""
@@ -19,7 +19,7 @@ if npm run lint:all; then
 else
   echo ""
   echo "❌ Linting checks failed. Push blocked."
-  echo "💡 Fix the issues manually or run: npm run lint:all:fix"
+  echo "💡 Fix the issues manually or run: bun run lint:all:fix"
   echo ""
   exit 1
 fi
