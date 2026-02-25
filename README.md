@@ -46,40 +46,42 @@ Get the latest release for your platform:
 
 ### Prerequisites
 
-- Node.js >= 22.0.0
+- Bun >= 1.2.9 (Node.js >= 24.13.1 embedded by Electron)
 
 ### Setup
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Install git hooks (pre-push linting)
-npm run hooks:install
+bun run hooks:install
 
 # Run in development mode
-npm start
+bun run start
 
 # Run tests
-npm run test:run
+bun run test:run
 
 # Build for macOS
-npm run pack:mac      # macOS Intel (x64)
-npm run pack:mac-arm  # macOS ARM (Apple Silicon)
+bun run pack:mac      # macOS Intel (x64)
+bun run pack:mac-arm  # macOS ARM (Apple Silicon)
 ```
+
 
 ### Testing
 
 ```bash
 # Run unit tests
-npm run test:run
+bun run test:run
 
 # Run tests with coverage
-npm run test:coverage
+bun run test:coverage
 
 # Run tests in watch mode
-npm test
+bun run test
 ```
+
 
 ### Git Hooks
 
@@ -87,7 +89,7 @@ The project includes a pre-push hook that runs linting checks before allowing co
 
 ```bash
 # Install git hooks
-npm run hooks:install
+bun run hooks:install
 
 # The pre-push hook will automatically run:
 # - ESLint checks
@@ -95,12 +97,13 @@ npm run hooks:install
 
 # If linting fails, the push will be blocked
 # Fix issues manually or run:
-npm run lint:all:fix
+bun run lint:all:fix
 ```
+
 
 **How it works:**
 
-- Pre-push hook runs `npm run lint:all` before every push
+- Pre-push hook runs `bun run lint:all` before every push
 - If linting passes ✅, push proceeds
 - If linting fails ❌, push is blocked and you'll see specific errors
 - Hooks are stored in `scripts/hooks/` and can be version controlled
@@ -109,10 +112,11 @@ npm run lint:all:fix
 
 ```bash
 # macOS Intel (x64)
-npm run build:mac-dmg
+bun run build:mac-dmg
 
 # macOS ARM (Apple Silicon)
-npm run build:mac-arm-dmg
+bun run build:mac-arm-dmg
+
 
 # Build only the x64 DMG via the unified script
 ./build-macOS-dmg.sh --environment stable --arch x64

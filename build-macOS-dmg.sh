@@ -104,12 +104,13 @@ echo ""
 # Pre-flight checks
 print_step "Running pre-flight checks..."
 
-# Check Bun version (requires >= 1.2)
+# Check Bun version (requires >= 1.2.9)
 _BUN_VERSION=$(bun --version 2>/dev/null || echo '0.0.0')
 _BUN_MAJOR=$(echo "$_BUN_VERSION" | cut -d. -f1)
 _BUN_MINOR=$(echo "$_BUN_VERSION" | cut -d. -f2)
-if [ "${_BUN_MAJOR}" -lt 1 ] || ([ "${_BUN_MAJOR}" -eq 1 ] && [ "${_BUN_MINOR}" -lt 2 ]); then
-    print_error "Bun >= 1.2 is required (found ${_BUN_VERSION})"
+_BUN_PATCH=$(echo "$_BUN_VERSION" | cut -d. -f3)
+if [ "${_BUN_MAJOR}" -lt 1 ] || ([ "${_BUN_MAJOR}" -eq 1 ] && [ "${_BUN_MINOR}" -lt 2 ]) || ([ "${_BUN_MAJOR}" -eq 1 ] && [ "${_BUN_MINOR}" -eq 2 ] && [ "${_BUN_PATCH}" -lt 9 ]); then
+    print_error "Bun >= 1.2.9 is required (found ${_BUN_VERSION})"
     exit 1
 fi
 

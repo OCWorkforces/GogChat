@@ -81,7 +81,7 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 
 ## CONVENTIONS
 
-- **Package manager**: `npm` only (no yarn/pnpm)
+- **Package manager**: `bun` only (no yarn/pnpm/npm)
 - **Node version**: 24.13.0+ (engineStrict enforced)
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
 - **New settings**: Update `StoreType` in `shared/types.ts` → add schema in `config.ts`
@@ -115,17 +115,19 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 ## COMMANDS
 
 ```bash
-npm install
-npm run build:dev      # dev build (~0.25s)
-npm run build:prod     # prod build (~0.31s)
-npm run build:watch    # watch mode
-npm run build:analyze  # bundle analysis (ANALYZE=true)
-npm start              # prod build + launch Electron
-npm test               # all tests (Vitest + Playwright)
-npm run test:run       # Vitest single run
-npm run test:coverage  # coverage report
-npm run build:mac      # both Intel + ARM DMGs (production)
+```bash
+bun install
+bun run build:dev      # dev build (~0.25s)
+bun run build:prod     # prod build (~0.31s)
+bun run build:watch    # watch mode
+bun run build:analyze  # bundle analysis (ANALYZE=true)
+bun run start          # prod build + launch Electron
+bun run test           # all tests (Vitest + Playwright)
+bun run test:run       # Vitest single run
+bun run test:coverage  # coverage report
+bun run build:mac      # both Intel + ARM DMGs (production)
 ```
+
 
 ## NOTES
 

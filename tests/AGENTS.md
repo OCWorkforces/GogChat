@@ -92,11 +92,11 @@ test('IPC flow works', async ({ electronApp, mainWindow }) => {
 ## COMMANDS
 
 ```bash
-npm test                    # all tiers
-npm run test:unit           # Vitest only
-npm run test:coverage       # coverage report → coverage/index.html
-npx vitest run tests/unit/features/badgeIcon.test.ts  # single file
-PWDEBUG=1 npx playwright test  # headed debug mode
+bun run test                    # all tiers
+bun run test:unit           # Vitest only
+bun run test:coverage       # coverage report → coverage/index.html
+bunx vitest run tests/unit/features/badgeIcon.test.ts  # single file
+PWDEBUG=1 bunx playwright test  # headed debug mode
 ```
 
 ## ANTI-PATTERNS

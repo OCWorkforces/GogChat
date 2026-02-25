@@ -20,11 +20,11 @@ mac/
 
 | Task                  | File / Command                              | Notes                                            |
 | --------------------- | ------------------------------------------- | ------------------------------------------------ |
-| Build DMG (both)      | `npm run build:mac`                         | Calls `build-macOS-dmg.sh --environment production` |
-| Build DMG (Intel)     | `npm run build:mac:x64`                     | x64 only                                         |
-| Build DMG (ARM)       | `npm run build:mac:arm64`                   | arm64 only                                       |
-| Dev build (both)      | `npm run build:mac:dev`                     | `--environment develop`                          |
-| Pack only (no DMG)    | `npm run pack:mac:x64` / `pack:mac:arm64`   | Creates `.app` without DMG                       |
+| Build DMG (both)      | `bun run build:mac`                         | Calls `build-macOS-dmg.sh --environment production` |
+| Build DMG (Intel)     | `bun run build:mac:x64`                     | x64 only                                         |
+| Build DMG (ARM)       | `bun run build:mac:arm64`                   | arm64 only                                       |
+| Dev build (both)      | `bun run build:mac:dev`                     | `--environment develop`                          |
+| Pack only (no DMG)    | `bun run pack:mac:x64` / `pack:mac:arm64`   | Creates `.app` without DMG                       |
 | DMG configuration     | `electron-builder.yml`                      | Compression, icon, window layout, artifact names |
 | Build logic           | `build-macOS-dmg.sh`                        | Bash script: clean → build → package → checksum  |
 | Artifact naming       | `electron-builder.yml` `artifactName`       | Uses `${env.BUILD_ENV}` for environment suffix   |
@@ -36,18 +36,18 @@ mac/
 # From project root
 
 # Production DMG (both architectures)
-npm run build:mac
+bun run build:mac
 
 # Production DMG (single architecture)
-npm run build:mac:x64
-npm run build:mac:arm64
+bun run build:mac:x64
+bun run build:mac:arm64
 
 # Dev DMG (for testing, uses --environment develop)
-npm run build:mac:dev
+bun run build:mac:dev
 
 # Pack only (creates .app bundle, no DMG) — used for smoke-testing packaging
-npm run pack:mac:x64
-npm run pack:mac:arm64
+bun run pack:mac:x64
+bun run pack:mac:arm64
 ```
 
 ## HOW THE BUILD PIPELINE WORKS
@@ -56,9 +56,9 @@ npm run pack:mac:arm64
 build-macOS-dmg.sh
   ├── 1. Unmount any stale DMG volumes (hdiutil detach)
   ├── 2. Clean ./dist and ./lib
-  ├── 3. npm run build:prod  (Rsbuild: ESM main + CJS preload → lib/)
+  ├── 3. bun run build:prod  (Rsbuild: ESM main + CJS preload → lib/)
   ├── 4. export BUILD_ENV="${ENVIRONMENT}"
-  └── 5. npx electron-builder --mac --{arch} --config electron-builder.yml
+  └── 5. bunx electron-builder --mac --{arch} --config electron-builder.yml
            └── Creates: dist/Google Chat-v{VERSION}-macOS-{arch}-{BUILD_ENV}.dmg
 ```
 
@@ -131,4 +131,4 @@ mac:
 - **NEVER** call `electron-builder` directly without `export BUILD_ENV=...` — artifact names will contain empty env segment
 - **NEVER** modify a DMG while it is mounted — will get "Resource busy" error
 - **NEVER** skip `-force` on `hdiutil detach` — Finder may hold volume handles
-- **NEVER** run pack steps without building first (`npm run build:prod`) — stale or missing `lib/` output
+- **NEVER** run pack steps without building first (`bun run build:prod`) — stale or missing `lib/` output
