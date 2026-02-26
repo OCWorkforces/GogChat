@@ -33,12 +33,9 @@
     "lint:all": "bash ./scripts/lint.sh",
     "lint:all:fix": "bash ./scripts/lint.sh --fix",
     "hooks:install": "bash ./scripts/install-hooks.sh",
-    "pack:mac:x64": "electron-builder --mac --x64 --dir",
     "pack:mac:arm64": "electron-builder --mac --arm64 --dir",
     "build:mac": "bash ./build-macOS-dmg.sh --environment production",
     "build:mac:dev": "bash ./build-macOS-dmg.sh --environment develop",
-    "build:mac:x64": "bash ./build-macOS-dmg.sh --environment production --arch x64",
-    "build:mac:x64:dev": "bash ./build-macOS-dmg.sh --environment develop --arch x64",
     "build:mac:arm64": "bash ./build-macOS-dmg.sh --environment production --arch arm64",
     "build:mac:arm64:dev": "bash ./build-macOS-dmg.sh --environment develop --arch arm64"
   },

@@ -20,11 +20,9 @@ mac/
 
 | Task                  | File / Command                              | Notes                                            |
 | --------------------- | ------------------------------------------- | ------------------------------------------------ |
-| Build DMG (both)      | `bun run build:mac`                         | Calls `build-macOS-dmg.sh --environment production` |
-| Build DMG (Intel)     | `bun run build:mac:x64`                     | x64 only                                         |
-| Build DMG (ARM)       | `bun run build:mac:arm64`                   | arm64 only                                       |
-| Dev build (both)      | `bun run build:mac:dev`                     | `--environment develop`                          |
-| Pack only (no DMG)    | `bun run pack:mac:x64` / `pack:mac:arm64`   | Creates `.app` without DMG                       |
+| Build DMG             | `bun run build:mac`                         | Calls `build-macOS-dmg.sh --environment production` (arm64) |
+| Build DMG (dev)       | `bun run build:mac:dev`                     | `--environment develop`                          |
+| Pack only (no DMG)    | `bun run pack:mac:arm64`                    | Creates `.app` without DMG                       |
 | DMG configuration     | `electron-builder.yml`                      | Compression, icon, window layout, artifact names |
 | Build logic           | `build-macOS-dmg.sh`                        | Bash script: clean → build → package → checksum  |
 | Artifact naming       | `electron-builder.yml` `artifactName`       | Uses `${env.BUILD_ENV}` for environment suffix   |
@@ -35,18 +33,16 @@ mac/
 ```bash
 # From project root
 
-# Production DMG (both architectures)
+# Production DMG (arm64 — default)
 bun run build:mac
 
-# Production DMG (single architecture)
-bun run build:mac:x64
+# Production DMG (arm64 explicit)
 bun run build:mac:arm64
 
 # Dev DMG (for testing, uses --environment develop)
 bun run build:mac:dev
 
 # Pack only (creates .app bundle, no DMG) — used for smoke-testing packaging
-bun run pack:mac:x64
 bun run pack:mac:arm64
 ```
 
@@ -70,7 +66,7 @@ Artifacts follow this pattern (defined in `electron-builder.yml`):
 ${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}
 ```
 
-Example: `Google Chat-v3.3.6-macOS-x64-production.dmg`
+Example: `Google Chat-v3.3.6-macOS-arm64-production.dmg`
 
 `BUILD_ENV` is exported by `build-macOS-dmg.sh` before invoking electron-builder. **Do not call electron-builder directly without exporting this variable** — artifact names will be malformed.
 
@@ -83,8 +79,7 @@ Code signing is **opt-in** via the `--enable-code-sign` flag. Without it, `CSC_I
 
 ```bash
 # Without flag: signing skipped (default)
-bash build-macOS-dmg.sh --environment production --arch x64
-# → ⚠ Code signing: disabled (pass --enable-code-sign to enable)
+bash build-macOS-dmg.sh --environment production
 
 # With flag: signing attempted (requires CSC_LINK + credentials)
 bash build-macOS-dmg.sh --environment production --enable-code-sign

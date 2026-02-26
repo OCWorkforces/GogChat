@@ -2,20 +2,14 @@
 
 Example Usage
 
-## Build both architectures for production
+## Build ARM64 for production
 
 ```bash
 ./build-macOS-dmg.sh --environment production
 ```
 
-## Build only Intel for testing
+## Build Apple Silicon (explicit)
 
 ```bash
-./build-macOS-dmg.sh --environment develop --arch x64
-```
-
-## Build only Apple Silicon
-
-```bash
-./build-macOS-dmg.sh --environment staging --arch arm64
+./build-macOS-dmg.sh --environment staging
 ```

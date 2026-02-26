@@ -4,6 +4,7 @@
  * Remove unused Electron locales to reduce package size
  * Keeps only en-US locale, removes all others (100+ languages)
  * Expected savings: 15-25MB
+ * Note: ARM64 only - Intel x64 is no longer supported
  */
 
 import fs from 'fs';
@@ -14,24 +15,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Parse command line arguments
-const [, , platform, arch] = process.argv;
+const [, , platform] = process.argv;
 
-if (!platform || !arch) {
-  console.error('Usage: node remove-locales.js <platform> <arch>');
-  console.error('Example: node remove-locales.js mac x64');
+if (!platform) {
+  console.error('Usage: node remove-locales.js <platform>');
+  console.error('Example: node remove-locales.js mac');
   process.exit(1);
 }
 
 // macOS locales to keep (.lproj directories)
 const KEEP_LPROJ = ['en.lproj', 'en-US.lproj', 'en_US.lproj'];
 
-// Get the locales directory path for macOS
-function getLocalesPath(platform, arch) {
+// Get the locales directory path for macOS (arm64 only)
+function getLocalesPath(platform) {
   const distDir = path.join(__dirname, '..', 'dist');
 
   if (platform === 'mac' || platform === 'darwin') {
-    const archSuffix = arch === 'arm64' ? 'arm64' : 'x64';
-    const appPath = path.join(distDir, `Google Chat-darwin-${archSuffix}`, 'Google Chat.app');
+    const appPath = path.join(distDir, 'Google Chat-darwin-arm64', 'Google Chat.app');
     // On macOS, locale files are in .lproj directories in Resources
     return {
       path: path.join(
@@ -73,10 +73,10 @@ function getDirectorySize(dirPath) {
 
 // Main function
 function removeUnusedLocales() {
-  const localesInfo = getLocalesPath(platform, arch);
+  const localesInfo = getLocalesPath(platform);
   const localesPath = localesInfo.path;
 
-  console.log(`[Locale Cleanup] Platform: ${platform}, Arch: ${arch}`);
+  console.log(`[Locale Cleanup] Platform: ${platform}, Arch: arm64`);
   console.log(`[Locale Cleanup] Locales path: ${localesPath}`);
 
   if (!fs.existsSync(localesPath)) {

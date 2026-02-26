@@ -6,7 +6,7 @@
 
 ## OVERVIEW
 
-Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Intel x64 + Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
+Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
 
 ## STRUCTURE
 
@@ -125,13 +125,13 @@ bun run start          # prod build + launch Electron
 bun run test           # all tests (Vitest + Playwright)
 bun run test:run       # Vitest single run
 bun run test:coverage  # coverage report
-bun run build:mac      # both Intel + ARM DMGs (production)
+bun run build:mac      # ARM64 DMG (production)
 ```
 
 
 ## NOTES
 
-- Platform: **macOS only** (Intel x64 + Apple Silicon arm64)
+- Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 40.6.0 / Node.js 24.13.0 / Chromium-based
 - Dynamic imports in `index.ts` → deferred features land in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload loaded with `contextIsolation: false` (intentional exception)

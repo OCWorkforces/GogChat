@@ -37,10 +37,11 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 
 ## Download
 
-Get the latest release for your platform:
+Get the latest release:
 
-- **macOS Intel (x64)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
-- **macOS ARM (Apple Silicon)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
+- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
+
+> **Requirement:** Apple Silicon (M1 or later) is required.
 
 ## Development
 
@@ -64,8 +65,7 @@ bun run start
 bun run test:run
 
 # Build for macOS
-bun run pack:mac      # macOS Intel (x64)
-bun run pack:mac-arm  # macOS ARM (Apple Silicon)
+bun run build:mac  # ARM64 DMG
 ```
 
 
@@ -111,30 +111,20 @@ bun run lint:all:fix
 ### Building Installers
 
 ```bash
-# macOS Intel (x64)
-bun run build:mac-dmg
+# Build ARM64 DMG
+bun run build:mac
 
-# macOS ARM (Apple Silicon)
-bun run build:mac-arm-dmg
-
-
-# Build only the x64 DMG via the unified script
-./build-macOS-dmg.sh --environment stable --arch x64
-
-# Build only the ARM64 DMG via the unified script
-./build-macOS-dmg.sh --environment stable --arch arm64
-
-# Build both x64 and ARM64 DMGs in one go (default behavior)
-./build-macOS-dmg.sh --environment stable
+# Build via unified script
+./build-macOS-dmg.sh --environment production
 ```
 
 ## CI/CD
 
 This project uses GitHub Actions for automated building and testing:
 
-- **Build Workflow**: Runs on every push and PR, builds for macOS (Intel & ARM)
+- **Build Workflow**: Runs on every push and PR, builds for macOS (ARM64)
 - **Release Workflow**: Automatically creates releases when tags are pushed
-- **Platforms**: macOS Intel (x64) and macOS ARM (Apple Silicon)
+- **Platform**: macOS Apple Silicon (arm64)
 
 ### Creating a Release
 
