@@ -68,7 +68,6 @@ bun run test:run
 bun run build:mac  # ARM64 DMG
 ```
 
-
 ### Testing
 
 ```bash
@@ -81,7 +80,6 @@ bun run test:coverage
 # Run tests in watch mode
 bun run test
 ```
-
 
 ### Git Hooks
 
@@ -99,7 +97,6 @@ bun run hooks:install
 # Fix issues manually or run:
 bun run lint:all:fix
 ```
-
 
 **How it works:**
 

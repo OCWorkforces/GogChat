@@ -114,7 +114,7 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 
 ## COMMANDS
 
-```bash
+````bash
 ```bash
 bun install
 bun run build:dev      # dev build (~0.25s)
@@ -126,8 +126,7 @@ bun run test           # all tests (Vitest + Playwright)
 bun run test:run       # Vitest single run
 bun run test:coverage  # coverage report
 bun run build:mac      # ARM64 DMG (production)
-```
-
+````
 
 ## NOTES
 
