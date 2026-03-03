@@ -1,7 +1,7 @@
 {
   "name": "googlechat",
   "productName": "Google Chat",
-  "version": "3.4.6",
+  "version": "3.4.7",
   "description": "Google Chat",
   "private": true,
   "repository": "https://github.com/CCWorkforce/GChat",
@@ -43,7 +43,7 @@
     "@electron/notarize": "^3.1.1",
     "@eslint/js": "^10.0.1",
     "@rsbuild/core": "^1.7.3",
-    "@rspack/core": "^1.7.6",
+    "@rspack/core": "^1.7.7",
     "@tsconfig/node24": "^24.0.4",
     "@types/auto-launch": "^5.0.5",
     "@types/throttle-debounce": "^5.0.2",
