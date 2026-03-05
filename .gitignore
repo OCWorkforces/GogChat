@@ -49,3 +49,5 @@ node_modules/
 coverage/
 
 .build-history.json
+package-lock.json
+package-lock.json

@@ -106,11 +106,13 @@ class IconCacheManager {
     const commonIcons = [
       'resources/icons/normal/256.png', // Main window icon
       'resources/icons/normal/64.png', // About panel icon
-      'resources/icons/normal/16.png', // Tray icon (macOS)
-      'resources/icons/normal/32.png', // Tray icon (Windows/Linux)
-      'resources/icons/offline/16.png', // Offline tray icon (macOS)
-      'resources/icons/offline/32.png', // Offline tray icon (Windows/Linux)
+      'resources/icons/normal/16.png', // Favicon size
+      'resources/icons/normal/32.png', // Favicon size
+      'resources/icons/offline/16.png', // Offline indicator (macOS)
+      'resources/icons/offline/32.png', // Offline indicator
       'resources/icons/badge/16.png', // Badge overlay icon
+      'resources/icons/tray/iconTemplate.png', // Tray icon (light/dark mode)
+      'resources/icons/tray/iconTemplate@2x.png', // Tray icon Retina
     ];
 
     let loaded = 0;

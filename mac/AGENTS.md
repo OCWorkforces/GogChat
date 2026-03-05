@@ -20,11 +20,9 @@ mac/
 
 | Task                  | File / Command                              | Notes                                            |
 | --------------------- | ------------------------------------------- | ------------------------------------------------ |
-| Build DMG (both)      | `npm run build:mac`                         | Calls `build-macOS-dmg.sh --environment production` |
-| Build DMG (Intel)     | `npm run build:mac:x64`                     | x64 only                                         |
-| Build DMG (ARM)       | `npm run build:mac:arm64`                   | arm64 only                                       |
-| Dev build (both)      | `npm run build:mac:dev`                     | `--environment develop`                          |
-| Pack only (no DMG)    | `npm run pack:mac:x64` / `pack:mac:arm64`   | Creates `.app` without DMG                       |
+| Build DMG             | `bun run build:mac`                         | Calls `build-macOS-dmg.sh --environment production` (arm64) |
+| Build DMG (dev)       | `bun run build:mac:dev`                     | `--environment develop`                          |
+| Pack only (no DMG)    | `bun run pack:mac:arm64`                    | Creates `.app` without DMG                       |
 | DMG configuration     | `electron-builder.yml`                      | Compression, icon, window layout, artifact names |
 | Build logic           | `build-macOS-dmg.sh`                        | Bash script: clean → build → package → checksum  |
 | Artifact naming       | `electron-builder.yml` `artifactName`       | Uses `${env.BUILD_ENV}` for environment suffix   |
@@ -35,19 +33,17 @@ mac/
 ```bash
 # From project root
 
-# Production DMG (both architectures)
-npm run build:mac
+# Production DMG (arm64 — default)
+bun run build:mac
 
-# Production DMG (single architecture)
-npm run build:mac:x64
-npm run build:mac:arm64
+# Production DMG (arm64 explicit)
+bun run build:mac:arm64
 
 # Dev DMG (for testing, uses --environment develop)
-npm run build:mac:dev
+bun run build:mac:dev
 
 # Pack only (creates .app bundle, no DMG) — used for smoke-testing packaging
-npm run pack:mac:x64
-npm run pack:mac:arm64
+bun run pack:mac:arm64
 ```
 
 ## HOW THE BUILD PIPELINE WORKS
@@ -56,9 +52,9 @@ npm run pack:mac:arm64
 build-macOS-dmg.sh
   ├── 1. Unmount any stale DMG volumes (hdiutil detach)
   ├── 2. Clean ./dist and ./lib
-  ├── 3. npm run build:prod  (Rsbuild: ESM main + CJS preload → lib/)
+  ├── 3. bun run build:prod  (Rsbuild: ESM main + CJS preload → lib/)
   ├── 4. export BUILD_ENV="${ENVIRONMENT}"
-  └── 5. npx electron-builder --mac --{arch} --config electron-builder.yml
+  └── 5. bunx electron-builder --mac --{arch} --config electron-builder.yml
            └── Creates: dist/Google Chat-v{VERSION}-macOS-{arch}-{BUILD_ENV}.dmg
 ```
 
@@ -70,7 +66,7 @@ Artifacts follow this pattern (defined in `electron-builder.yml`):
 ${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}
 ```
 
-Example: `Google Chat-v3.3.6-macOS-x64-production.dmg`
+Example: `Google Chat-v3.3.6-macOS-arm64-production.dmg`
 
 `BUILD_ENV` is exported by `build-macOS-dmg.sh` before invoking electron-builder. **Do not call electron-builder directly without exporting this variable** — artifact names will be malformed.
 
@@ -83,8 +79,7 @@ Code signing is **opt-in** via the `--enable-code-sign` flag. Without it, `CSC_I
 
 ```bash
 # Without flag: signing skipped (default)
-bash build-macOS-dmg.sh --environment production --arch x64
-# → ⚠ Code signing: disabled (pass --enable-code-sign to enable)
+bash build-macOS-dmg.sh --environment production
 
 # With flag: signing attempted (requires CSC_LINK + credentials)
 bash build-macOS-dmg.sh --environment production --enable-code-sign
@@ -131,4 +126,4 @@ mac:
 - **NEVER** call `electron-builder` directly without `export BUILD_ENV=...` — artifact names will contain empty env segment
 - **NEVER** modify a DMG while it is mounted — will get "Resource busy" error
 - **NEVER** skip `-force` on `hdiutil detach` — Finder may hold volume handles
-- **NEVER** run pack steps without building first (`npm run build:prod`) — stale or missing `lib/` output
+- **NEVER** run pack steps without building first (`bun run build:prod`) — stale or missing `lib/` output

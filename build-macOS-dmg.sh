@@ -2,7 +2,7 @@
 
 ##
 # Unified build script for macOS DMG installers
-# Supports both Intel (x64) and Apple Silicon (arm64) architectures
+# Supports Apple Silicon (arm64) only
 # This script uses electron-builder for packaging and DMG creation
 ##
 
@@ -20,6 +20,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
 
 # Function to print colored output
 print_step() {
@@ -41,18 +42,14 @@ print_error() {
 # Error trap — prints failing line number for fast diagnosis
 trap 'print_error "Build failed at line ${LINENO} (exit code: $?)"; exit 1' ERR
 
+
 # Parse command line arguments
 ENVIRONMENT=""
-ARCH="both"  # Default to building both architectures
 ENABLE_CODE_SIGN=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --environment)
             ENVIRONMENT="$2"
-            shift 2
-            ;;
-        --arch)
-            ARCH="$2"
             shift 2
             ;;
         --enable-code-sign)
@@ -61,65 +58,57 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             print_error "Unknown argument: $1"
-            echo "Usage: $0 --environment <environment> [--arch <x64|arm64|both>] [--enable-code-sign]"
+            echo "Usage: $0 --environment <environment> [--enable-code-sign]"
             echo ""
             echo "Arguments:"
             echo "  --environment <env>   Required. Environment name (e.g., production, develop, staging)"
-            echo "  --arch <arch>         Optional. Architecture to build (x64, arm64, or both). Default: both"
             echo "  --enable-code-sign    Optional. Enable macOS code signing (requires CSC_LINK env var)"
             echo ""
             echo "Examples:"
-            echo "  $0 --environment production              # Build both architectures (no signing)"
-            echo "  $0 --environment develop --arch x64      # Build only Intel"
-            echo "  $0 --environment production --enable-code-sign  # Build with code signing"
+            echo "  $0 --environment production              # Build ARM64 DMG (no signing)"
+            echo "  $0 --environment production --enable-code-sign  # Build ARM64 DMG with code signing"
             exit 1
             ;;
     esac
 done
 
+
 # Validate environment argument
 if [ -z "$ENVIRONMENT" ]; then
     print_error "Missing required argument: --environment"
-    echo "Usage: $0 --environment <environment> [--arch <x64|arm64|both>]"
+    echo "Usage: $0 --environment <environment> [--enable-code-sign]"
     echo "Example: $0 --environment production"
     exit 1
 fi
 
-# Validate arch argument
-case "$ARCH" in
-    x64|arm64|both)
-        # Valid architecture
-        ;;
-    *)
-        print_error "Invalid architecture: $ARCH"
-        echo "Valid options: x64, arm64, both"
-        exit 1
-        ;;
-esac
-
 print_success "Environment: ${ENVIRONMENT}"
-print_success "Architecture: ${ARCH}"
+print_success "Architecture: arm64 (Apple Silicon)"
 echo ""
+
 
 # Pre-flight checks
 print_step "Running pre-flight checks..."
 
-# Check Node.js version (requires >= 22)
-_NODE_MAJOR=$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')
-if [ "${_NODE_MAJOR}" -lt 22 ]; then
-    print_error "Node.js >= 22 is required (found $(node --version))"
+# Check Bun version (requires >= 1.3.9)
+_BUN_VERSION=$(bun --version 2>/dev/null || echo '0.0.0')
+_BUN_MAJOR=$(echo "$_BUN_VERSION" | cut -d. -f1)
+_BUN_MINOR=$(echo "$_BUN_VERSION" | cut -d. -f2)
+_BUN_PATCH=$(echo "$_BUN_VERSION" | cut -d. -f3)
+if [ "${_BUN_MAJOR}" -lt 1 ] || ([ "${_BUN_MAJOR}" -eq 1 ] && [ "${_BUN_MINOR}" -lt 3 ]) || ([ "${_BUN_MAJOR}" -eq 1 ] && [ "${_BUN_MINOR}" -eq 3 ] && [ "${_BUN_PATCH}" -lt 9 ]); then
+    print_error "Bun >= 1.3.9 is required (found ${_BUN_VERSION})"
     exit 1
 fi
 
+
 # Check node_modules exists
 if [ ! -d "./node_modules" ]; then
-    print_error "node_modules not found — run 'npm install' first"
+    print_error "node_modules not found — run 'bun install' first"
     exit 1
 fi
 
 # Check electron-builder is available
-if ! npx electron-builder --version > /dev/null 2>&1; then
-    print_error "electron-builder not found — run 'npm install' first"
+if ! bunx electron-builder --version > /dev/null 2>&1; then
+    print_error "electron-builder not found — run 'bun install' first"
     exit 1
 fi
 
@@ -133,15 +122,17 @@ fi
 print_success "Pre-flight checks passed"
 
 
+
 # Extract version from package.json
 print_step "Extracting version from package.json..."
-PACKAGE_VERSION=$(node -p "require('./package.json').version")
+PACKAGE_VERSION=$(bun -p "require('./package.json').version")
 if [ -z "$PACKAGE_VERSION" ]; then
     print_error "Failed to extract version from package.json"
     exit 1
 fi
 print_success "Version: ${PACKAGE_VERSION}"
 echo ""
+
 
 # Step 1: Clean previous builds
 print_step "Step 1/3: Cleaning previous builds..."
@@ -169,29 +160,21 @@ fi
 print_success "Clean complete"
 echo ""
 
+
 # Step 2: Build production code with Rsbuild
 print_step "Step 2/3: Building production code with Rsbuild..."
-npm run build:prod
+bun run build:prod
 print_success "Production build complete"
 echo ""
+
 
 # Step 3: Package and create DMG with electron-builder
 print_step "Step 3/3: Packaging app and creating DMG with electron-builder..."
 
-# Display what will be built
-case "$ARCH" in
-    x64)
-        echo "  → Building for macOS Intel (x64) only..."
-        ;;
-    arm64)
-        echo "  → Building for macOS Apple Silicon (arm64) only..."
-        ;;
-    both)
-        echo "  → Building for both Intel (x64) and Apple Silicon (arm64)..."
-        ;;
-esac
-echo "  → This will package the app and create the DMG installer(s)"
+echo "  → Building for macOS Apple Silicon (arm64)..."
+echo "  → This will package the app and create the DMG installer"
 echo ""
+
 
 # Set BUILD_ENV environment variable for artifact naming
 export BUILD_ENV="${ENVIRONMENT}"
@@ -209,31 +192,15 @@ else
     CONFIG_FILES="electron-builder.yml"
 fi
 
-# Helper to run electron-builder for a specific architecture
-run_electron_builder() {
-    local target_arch="$1"
-    echo ""
-    echo "  → Starting electron-builder for macOS ${target_arch}..."
-    npx electron-builder --mac --"${target_arch}" --config ${CONFIG_FILES}
-}
 
-# Run electron-builder with appropriate architecture flags
-case "$ARCH" in
-    x64)
-        run_electron_builder "x64"
-        ;;
-    arm64)
-        run_electron_builder "arm64"
-        ;;
-    both)
-        run_electron_builder "x64"
-        run_electron_builder "arm64"
-        ;;
-esac
+echo ""
+echo "  → Starting electron-builder for macOS arm64..."
+bunx electron-builder --mac --arm64 --config ${CONFIG_FILES}
 
 
 print_success "Packaging and DMG creation complete"
 echo ""
+
 
 # Step 4: Find and report generated DMG files
 print_step "Step 4/4: Locating generated DMG file(s)..."
@@ -251,6 +218,7 @@ DMG_COUNT=$(echo "$DMG_FILES" | wc -l | tr -d ' ')
 print_success "Found ${DMG_COUNT} DMG file(s)"
 echo ""
 
+
 # Build Summary
 echo "════════════════════════════════════════════════════════════════"
 echo "  Build Summary"
@@ -258,19 +226,13 @@ echo "════════════════════════�
 echo ""
 echo "  Package Version:  ${PACKAGE_VERSION}"
 echo "  Environment:      ${ENVIRONMENT}"
-echo "  Architecture(s):  ${ARCH}"
+echo "  Architecture:     arm64 (Apple Silicon)"
 echo ""
+
 
 # List all generated DMG files with details
 while IFS= read -r dmg_file; do
-    ARCH_TYPE="unknown"
-    if [[ "$dmg_file" =~ x64 ]]; then
-        ARCH_TYPE="Intel x64"
-    elif [[ "$dmg_file" =~ arm64 ]]; then
-        ARCH_TYPE="Apple Silicon ARM64"
-    fi
-
-    echo "  Platform:         macOS (${ARCH_TYPE})"
+    echo "  Platform:         macOS (Apple Silicon ARM64)"
     echo "  Output Location:  ${dmg_file}"
     echo "  File Size:        $(du -sh "$dmg_file" | awk '{print $1}')"
     echo ""
@@ -294,6 +256,7 @@ while IFS= read -r dmg_file; do
 done <<< "$DMG_FILES"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
+
 
 # Build duration
 BUILD_END_TIME=$(date +%s)

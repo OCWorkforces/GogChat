@@ -37,48 +37,48 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 
 ## Download
 
-Get the latest release for your platform:
+Get the latest release:
 
-- **macOS Intel (x64)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
-- **macOS ARM (Apple Silicon)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
+- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/CCWorkforce/GChat/releases/latest)
+
+> **Requirement:** Apple Silicon (M1 or later) is required.
 
 ## Development
 
 ### Prerequisites
 
-- Node.js >= 22.0.0
+- Bun >= 1.3.9 (Node.js >= 24.13.1 embedded by Electron)
 
 ### Setup
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Install git hooks (pre-push linting)
-npm run hooks:install
+bun run hooks:install
 
 # Run in development mode
-npm start
+bun run start
 
 # Run tests
-npm run test:run
+bun run test:run
 
 # Build for macOS
-npm run pack:mac      # macOS Intel (x64)
-npm run pack:mac-arm  # macOS ARM (Apple Silicon)
+bun run build:mac  # ARM64 DMG
 ```
 
 ### Testing
 
 ```bash
 # Run unit tests
-npm run test:run
+bun run test:run
 
 # Run tests with coverage
-npm run test:coverage
+bun run test:coverage
 
 # Run tests in watch mode
-npm test
+bun run test
 ```
 
 ### Git Hooks
@@ -87,7 +87,7 @@ The project includes a pre-push hook that runs linting checks before allowing co
 
 ```bash
 # Install git hooks
-npm run hooks:install
+bun run hooks:install
 
 # The pre-push hook will automatically run:
 # - ESLint checks
@@ -95,12 +95,12 @@ npm run hooks:install
 
 # If linting fails, the push will be blocked
 # Fix issues manually or run:
-npm run lint:all:fix
+bun run lint:all:fix
 ```
 
 **How it works:**
 
-- Pre-push hook runs `npm run lint:all` before every push
+- Pre-push hook runs `bun run lint:all` before every push
 - If linting passes ✅, push proceeds
 - If linting fails ❌, push is blocked and you'll see specific errors
 - Hooks are stored in `scripts/hooks/` and can be version controlled
@@ -108,29 +108,20 @@ npm run lint:all:fix
 ### Building Installers
 
 ```bash
-# macOS Intel (x64)
-npm run build:mac-dmg
+# Build ARM64 DMG
+bun run build:mac
 
-# macOS ARM (Apple Silicon)
-npm run build:mac-arm-dmg
-
-# Build only the x64 DMG via the unified script
-./build-macOS-dmg.sh --environment stable --arch x64
-
-# Build only the ARM64 DMG via the unified script
-./build-macOS-dmg.sh --environment stable --arch arm64
-
-# Build both x64 and ARM64 DMGs in one go (default behavior)
-./build-macOS-dmg.sh --environment stable
+# Build via unified script
+./build-macOS-dmg.sh --environment production
 ```
 
 ## CI/CD
 
 This project uses GitHub Actions for automated building and testing:
 
-- **Build Workflow**: Runs on every push and PR, builds for macOS (Intel & ARM)
+- **Build Workflow**: Runs on every push and PR, builds for macOS (ARM64)
 - **Release Workflow**: Automatically creates releases when tags are pushed
-- **Platforms**: macOS Intel (x64) and macOS ARM (Apple Silicon)
+- **Platform**: macOS Apple Silicon (arm64)
 
 ### Creating a Release
 

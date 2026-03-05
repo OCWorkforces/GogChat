@@ -48,6 +48,10 @@ files:
   - '!.gitattributes'
   - '!.DS_Store'
   - '!package-lock.json'
+  - '!bun.lock'
+  - '!bunfig.toml'
+  - '!bun.lock'
+  - '!bunfig.toml'
   - '!entitlements.mac.*.plist'
   - '!electron-builder*.yml'
   - '!rsbuild.config.ts'
@@ -62,6 +66,7 @@ afterSign: scripts/notarize.js
 mac:
   category: public.app-category.social-networking
   icon: resources/icons/normal/mac.icns
+  minimumSystemVersion: "11.0"
   target:
     - target: dmg
   gatekeeperAssess: false

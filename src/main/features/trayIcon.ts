@@ -1,49 +1,72 @@
-import { app, BrowserWindow, Menu, Tray } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, NativeImage } from 'electron';
 import log from 'electron-log';
-import { getIconCache } from '../utils/iconCache.js';
+import path from 'path';
 
 // Store tray icon reference for cleanup
 let trayIconInstance: Tray | null = null;
 
+/**
+ * Get the tray icon image
+ * Uses macOS Template naming convention for automatic light/dark mode support
+ * @returns NativeImage for the tray icon
+ */
+function getTrayIconImage(): NativeImage {
+  // macOS uses Template images for automatic dark/light mode adaptation
+  // The file must be named with 'Template' suffix
+  const iconPath = path.join(app.getAppPath(), 'resources/icons/tray/iconTemplate.png');
+  return nativeImage.createFromPath(iconPath);
+}
+
 export default (window: BrowserWindow) => {
-  // macOS uses 16px tray icons
-  const size = 16;
-  trayIconInstance = new Tray(getIconCache().getIcon(`resources/icons/offline/${size}.png`));
+  const trayIcon = getTrayIconImage();
+  trayIconInstance = new Tray(trayIcon);
 
-  const handleIconClick = () => {
-    // macOS: Hide only if visible AND focused (stricter condition)
-    const shouldHide = window.isVisible() && window.isFocused();
-
-    if (shouldHide) {
-      app.hide();
+  const handleOpenClick = () => {
+    if (window.isMinimized()) {
+      window.restore();
     } else {
       window.show();
     }
+    window.focus();
+  };
+
+  const handleAboutClick = () => {
+    app.showAboutPanel();
+  };
+
+  const handleQuitClick = () => {
+    // The running webpage can prevent the app from quitting via window.onbeforeunload handler
+    // So let's use exit() instead of quit()
+    app.exit();
   };
 
   trayIconInstance.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: 'Toggle',
-        click: handleIconClick,
+        label: 'Open Google Chat',
+        click: handleOpenClick,
+      },
+      {
+        type: 'separator',
+      },
+      {
+        label: 'About',
+        click: handleAboutClick,
       },
       {
         type: 'separator',
       },
       {
         label: 'Quit',
-        click: () => {
-          // The running webpage can prevent the app from quiting via window.onbeforeunload handler
-          // So lets use exit() instead of quit()
-          app.exit();
-        },
+        click: handleQuitClick,
       },
     ])
   );
 
   trayIconInstance.setToolTip('Google Chat');
 
-  // macOS: Click events handled by context menu only (OS convention)
+  // macOS: Click on tray icon shows the window
+  trayIconInstance.on('click', handleOpenClick);
 
   return trayIconInstance;
 };

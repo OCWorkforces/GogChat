@@ -6,7 +6,7 @@
 
 ## OVERVIEW
 
-Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Intel x64 + Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
+Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
 
 ## STRUCTURE
 
@@ -81,7 +81,7 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 
 ## CONVENTIONS
 
-- **Package manager**: `npm` only (no yarn/pnpm)
+- **Package manager**: `bun` only (no yarn/pnpm/npm)
 - **Node version**: 24.13.0+ (engineStrict enforced)
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
 - **New settings**: Update `StoreType` in `shared/types.ts` → add schema in `config.ts`
@@ -114,22 +114,23 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 
 ## COMMANDS
 
+````bash
 ```bash
-npm install
-npm run build:dev      # dev build (~0.25s)
-npm run build:prod     # prod build (~0.31s)
-npm run build:watch    # watch mode
-npm run build:analyze  # bundle analysis (ANALYZE=true)
-npm start              # prod build + launch Electron
-npm test               # all tests (Vitest + Playwright)
-npm run test:run       # Vitest single run
-npm run test:coverage  # coverage report
-npm run build:mac      # both Intel + ARM DMGs (production)
-```
+bun install
+bun run build:dev      # dev build (~0.25s)
+bun run build:prod     # prod build (~0.31s)
+bun run build:watch    # watch mode
+bun run build:analyze  # bundle analysis (ANALYZE=true)
+bun run start          # prod build + launch Electron
+bun run test           # all tests (Vitest + Playwright)
+bun run test:run       # Vitest single run
+bun run test:coverage  # coverage report
+bun run build:mac      # ARM64 DMG (production)
+````
 
 ## NOTES
 
-- Platform: **macOS only** (Intel x64 + Apple Silicon arm64)
+- Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 40.6.0 / Node.js 24.13.0 / Chromium-based
 - Dynamic imports in `index.ts` → deferred features land in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload loaded with `contextIsolation: false` (intentional exception)
