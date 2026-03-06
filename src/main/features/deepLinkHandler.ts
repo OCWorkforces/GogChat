@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
-import { validateDeepLinkURL } from '../../shared/validators.js';
+import { validateDeepLinkURL, validateExternalURL } from '../../shared/validators.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let windowRef: BrowserWindow | null = null;
@@ -60,8 +60,9 @@ function processPendingDeepLink(): void {
 
 function openInDefaultBrowser(url: string): void {
   try {
+    const sanitizedUrl = validateExternalURL(url);
     log.info(`[DeepLink] Opening external URL in default browser: ${sanitizeUrlForLog(url)}`);
-    void shell.openExternal(url);
+    void shell.openExternal(sanitizedUrl);
   } catch (error: unknown) {
     log.error('[DeepLink] Failed to open external URL:', error);
   }
@@ -112,7 +113,6 @@ function registerProtocolClient(protocol: string): void {
 
 export function registerDeepLinkProtocol(): void {
   registerProtocolClient(DEEP_LINK.PROTOCOL);
-  registerProtocolClient('https');
 }
 
 export default function initDeepLinkHandler(window: BrowserWindow): void {

@@ -7,7 +7,7 @@ import urls from './urls';
 
 describe('URLs', () => {
   it('should export appUrl', () => {
-    expect(urls.appUrl).toBe('https://mail.google.com/chat/u/0');
+    expect(urls.appUrl).toBe('https://chat.google.com');
   });
 
   it('should export logoutUrl with correct format', () => {

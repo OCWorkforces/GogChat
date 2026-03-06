@@ -16,20 +16,13 @@
 // This must run before Google's auth scripts execute
 if (typeof navigator !== 'undefined') {
   try {
-    // @ts-expect-error - Intentionally deleting WebAuthn API
-    delete navigator.credentials;
-    console.log('[Preload] WebAuthn/U2F disabled to prevent auth stuck issues');
-  } catch {
-    // Some browsers don't allow deletion, try setting to undefined
-    try {
-      Object.defineProperty(navigator, 'credentials', {
-        value: undefined,
-        writable: false,
-        configurable: false,
-      });
-      console.log('[Preload] WebAuthn/U2F disabled via property override');
-    } catch (e: unknown) {
-      console.warn('[Preload] Failed to disable WebAuthn/U2F:', e);
-    }
+    Object.defineProperty(navigator, 'credentials', {
+      value: undefined,
+      writable: false,
+      configurable: false,
+    });
+    console.log('[Preload] WebAuthn/U2F disabled via property override');
+  } catch (e: unknown) {
+    console.warn('[Preload] Failed to disable WebAuthn/U2F:', e);
   }
 }

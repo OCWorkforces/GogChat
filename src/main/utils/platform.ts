@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import os from 'os';
 import type Store from 'electron-store';
 import type { StoreType } from '../../shared/types.js';
+import { validateExternalURL } from '../../shared/validators.js';
 import { logger } from './logger.js';
 
 // ESM __dirname replacement
@@ -103,7 +104,12 @@ export function openNewGitHubIssue(options: {
 
   const issueUrl = `${baseUrl}?${params.toString()}`;
 
-  void shell.openExternal(issueUrl);
+  try {
+    const sanitizedUrl = validateExternalURL(issueUrl);
+    void shell.openExternal(sanitizedUrl);
+  } catch (error: unknown) {
+    logger.feature('Platform').error('Failed to open GitHub issue URL', error);
+  }
 }
 
 /**

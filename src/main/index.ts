@@ -25,6 +25,8 @@ import type Store from 'electron-store';
 import { getFeatureManager, createFeature, createLazyFeature } from './utils/featureManager.js';
 import { initializeErrorHandler } from './utils/errorHandler.js';
 
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS ??= 'true';
+
 /**
  * Type guard to check if a store has cache enabled
  * @param store - The store to check
@@ -425,8 +427,10 @@ if (enforceSingleInstance()) {
 
           // Export metrics in development
           if (environment.isDev) {
-            log.info('[Main] Running config store performance analysis...');
-            compareStorePerformance();
+            if (process.env.ENABLE_CONFIG_PROFILING === 'true') {
+              log.info('[Main] Running config store performance analysis...');
+              compareStorePerformance();
+            }
 
             // Export performance metrics to JSON
             perfMonitor.exportToJSON(

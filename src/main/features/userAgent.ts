@@ -1,24 +1,15 @@
-import { WebRequestFilter, OnBeforeSendHeadersListenerDetails, session } from 'electron';
+import { app } from 'electron';
 
-// Let's use Chrome version as Firefox version, rather than using a hard coded version
-const firefoxVersion = parseInt(String(process.versions.chrome)).toFixed(1);
+const REDUCED_MAC_PLATFORM_TOKEN = 'Macintosh; Intel Mac OS X 10_15_7';
+const CHROME_ENGINE = 'AppleWebKit/537.36 (KHTML, like Gecko)';
 
-// Prevent Google from tracking if the website is running inside Electron
-export const userAgentString = `Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:${firefoxVersion}) Gecko/20100101 Firefox/${firefoxVersion}`;
+export function buildUserAgentString(chromeVersion: string | undefined): string {
+  const normalizedVersion = chromeVersion?.trim() || '0.0.0.0';
+  return `Mozilla/5.0 (${REDUCED_MAC_PLATFORM_TOKEN}) ${CHROME_ENGINE} Chrome/${normalizedVersion} Safari/537.36`;
+}
+
+export const userAgentString = buildUserAgentString(process.versions.chrome);
 
 export default () => {
-  const filter: WebRequestFilter = {
-    urls: ['*://*/*'],
-  };
-
-  session.defaultSession.webRequest.onBeforeSendHeaders(
-    filter,
-    (details: OnBeforeSendHeadersListenerDetails, callback) => {
-      details.requestHeaders['User-Agent'] = userAgentString;
-
-      callback({
-        requestHeaders: details.requestHeaders,
-      });
-    }
-  );
+  app.userAgentFallback = userAgentString;
 };
