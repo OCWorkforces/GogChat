@@ -113,7 +113,6 @@ function registerProtocolClient(protocol: string): void {
 
 export function registerDeepLinkProtocol(): void {
   registerProtocolClient(DEEP_LINK.PROTOCOL);
-  registerProtocolClient('https');
 }
 
 export default function initDeepLinkHandler(window: BrowserWindow): void {

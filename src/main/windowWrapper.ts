@@ -1,5 +1,6 @@
 import path from 'path';
 import { app, BrowserWindow } from 'electron';
+import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import store from './config.js';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache.js';
@@ -16,6 +17,14 @@ function getHostname(value: string): string | null {
 
 function isBenignRendererConsoleMessage(message: string, sourceId: string): boolean {
   if (message.includes('Electron Security Warning (Disabled webSecurity)')) {
+    return true;
+  }
+
+  if (message.includes('Deprecated API for given entry type.')) {
+    return true;
+  }
+
+  if (message.includes('WARNING!') || message.includes('Using this console may allow attackers')) {
     return true;
   }
 
@@ -125,14 +134,13 @@ export default (url: string): BrowserWindow => {
     window.webContents.session.setSpellCheckerEnabled(!store.get('app.disableSpellChecker'));
   });
 
-  window.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    if (isBenignRendererConsoleMessage(message, sourceId)) {
-      log.debug(`[Renderer:suppressed] ${message} (${sourceId}:${line})`);
+  window.webContents.on('console-message', (event: Event<WebContentsConsoleMessageEventParams>) => {
+    if (isBenignRendererConsoleMessage(event.message, event.sourceId)) {
+      log.debug(`[Renderer:suppressed] ${event.message} (${event.sourceId}:${event.lineNumber})`);
       return;
     }
 
-    const levelName = ['verbose', 'info', 'warning', 'error'][level] ?? 'unknown';
-    log.info(`[Renderer:${levelName}] ${message} (${sourceId}:${line})`);
+    log.info(`[Renderer:${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`);
   });
   window.webContents.on(
     'did-fail-load',
