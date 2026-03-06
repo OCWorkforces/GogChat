@@ -14,8 +14,8 @@ vi.mock('electron', () => ({
 // Mock urls
 vi.mock('./urls', () => ({
   default: {
-    appUrl: 'https://mail.google.com/chat/u/0',
-    logoutUrl: 'https://www.google.com/accounts/Logout?continue=https://mail.google.com/chat/u/0',
+    appUrl: 'https://chat.google.com',
+    logoutUrl: 'https://www.google.com/accounts/Logout?continue=https://chat.google.com',
   },
 }));
 
@@ -29,7 +29,7 @@ describe('Environment', () => {
   it('should include URLs from urls module', async () => {
     const environment = await import('./environment');
 
-    expect(environment.default.appUrl).toBe('https://mail.google.com/chat/u/0');
+    expect(environment.default.appUrl).toBe('https://chat.google.com');
     expect(environment.default.logoutUrl).toBeDefined();
   });
 

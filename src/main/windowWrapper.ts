@@ -4,6 +4,59 @@ import store from './config.js';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache.js';
 
+const BENIGN_CSP_BLOCKED_HOSTS = new Set(['accounts.google.com', 'ogs.google.com']);
+
+function getHostname(value: string): string | null {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isBenignRendererConsoleMessage(message: string, sourceId: string): boolean {
+  if (message.includes('Electron Security Warning (Disabled webSecurity)')) {
+    return true;
+  }
+
+  if (
+    message.includes(
+      'allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing'
+    ) &&
+    sourceId.includes('studio.workspace.google.com')
+  ) {
+    return true;
+  }
+
+  const cspFrameAncestorsMatch = message.match(
+    /^Framing '([^']+)' violates the following Content Security Policy directive:/
+  );
+  if (!cspFrameAncestorsMatch) {
+    return false;
+  }
+
+  const blockedUrl = cspFrameAncestorsMatch[1];
+  if (!blockedUrl) {
+    return false;
+  }
+
+  const blockedHostname = getHostname(blockedUrl);
+  return blockedHostname !== null && BENIGN_CSP_BLOCKED_HOSTS.has(blockedHostname);
+}
+
+function isBenignSubframeLoadFailure(
+  errorCode: number,
+  validatedURL: string,
+  isMainFrame: boolean
+): boolean {
+  if (isMainFrame || errorCode !== -27) {
+    return false;
+  }
+
+  const hostname = getHostname(validatedURL);
+  return hostname !== null && BENIGN_CSP_BLOCKED_HOSTS.has(hostname);
+}
+
 export default (url: string): BrowserWindow => {
   const window = new BrowserWindow({
     webPreferences: {
@@ -73,12 +126,24 @@ export default (url: string): BrowserWindow => {
   });
 
   window.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (isBenignRendererConsoleMessage(message, sourceId)) {
+      log.debug(`[Renderer:suppressed] ${message} (${sourceId}:${line})`);
+      return;
+    }
+
     const levelName = ['verbose', 'info', 'warning', 'error'][level] ?? 'unknown';
     log.info(`[Renderer:${levelName}] ${message} (${sourceId}:${line})`);
   });
   window.webContents.on(
     'did-fail-load',
     (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (isBenignSubframeLoadFailure(errorCode, validatedURL, isMainFrame)) {
+        log.debug(
+          `[Load] Suppressed expected subframe failure: ${errorDescription} (${errorCode}) - ${validatedURL}`
+        );
+        return;
+      }
+
       log.error(
         `[Load] FAILED ${isMainFrame ? '(main frame)' : '(subframe)'}: ${errorDescription} (${errorCode}) — ${validatedURL}`
       );

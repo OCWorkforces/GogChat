@@ -7,6 +7,7 @@ import aboutPanel from './aboutPanel.js';
 import store from '../config.js';
 import { toggleExternalLinksGuard } from './externalLinks.js';
 import environment from '../../environment.js';
+import { IPC_CHANNELS } from '../../shared/constants.js';
 import { openNewGitHubIssue, debugInfo } from '../utils/platform.js';
 import { getPackageInfo } from '../utils/packageInfo.js';
 
@@ -84,7 +85,7 @@ export default (window: BrowserWindow) => {
           label: 'Search',
           accelerator: 'CommandOrControl+F',
           click: () => {
-            window.webContents.send('searchShortcut');
+            window.webContents.send(IPC_CHANNELS.SEARCH_SHORTCUT);
           },
         },
         {
