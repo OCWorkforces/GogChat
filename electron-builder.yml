@@ -1,9 +1,9 @@
 # Electron Builder Configuration
 # https://www.electron.build/configuration/configuration
 
-appId: com.ccworkforce.googlechat
+appId: com.ocworkforce.googlechat
 productName: Google Chat
-copyright: Copyright © 2026 CCWorkforce
+copyright: Copyright © 2026 OCWorkforce
 
 # Protocol handler for deep linking
 protocols:
@@ -95,7 +95,7 @@ dmg:
 # Example: provider: github (uses GitHub Releases)
 # publish:
 #   provider: github
-#   owner: CCWorkforce
+#   owner: OCWorkforce
 #   repo: GChat
 
 # Additional metadata
