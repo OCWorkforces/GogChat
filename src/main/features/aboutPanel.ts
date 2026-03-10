@@ -2,7 +2,22 @@ import { app, BrowserWindow } from 'electron';
 import os from 'os';
 import { getPackageInfo } from '../utils/packageInfo.js';
 
-export default (mainWindow: BrowserWindow) => {
+let aboutWindow: BrowserWindow | null = null;
+
+const focusAboutWindow = (window: BrowserWindow): void => {
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  window.focus();
+};
+
+export default (mainWindow: BrowserWindow): void => {
+  // If About window already exists, focus it instead of creating a new one
+  if (aboutWindow && !aboutWindow.isDestroyed()) {
+    focusAboutWindow(aboutWindow);
+    return;
+  }
+
   const packageJson = getPackageInfo();
   const platform = [os.type(), os.release(), os.arch()].join(', ');
 
@@ -15,15 +30,20 @@ export default (mainWindow: BrowserWindow) => {
 
   app.showAboutPanel();
 
-  // Set the About panel to always on top after it's shown
-  // Find the About panel by excluding the main window
+  // Find the newly created About panel and track it
   setImmediate(() => {
     const allWindows = BrowserWindow.getAllWindows();
-    const aboutWindow = allWindows.find(
+    aboutWindow = allWindows.find(
       (win) => win.id !== mainWindow.id && !win.isDestroyed(),
-    );
+    ) ?? null;
+
     if (aboutWindow) {
       aboutWindow.setAlwaysOnTop(true, 'floating');
+
+      // Clear reference when window is closed
+      aboutWindow.once('closed', () => {
+        aboutWindow = null;
+      });
     }
   });
 };
