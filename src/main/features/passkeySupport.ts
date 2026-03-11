@@ -3,41 +3,59 @@
  * Detects when passkey authentication fails and provides guidance to users on macOS
  */
 
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS } from '../../shared/constants.js';
-import type { PasskeyFailureData } from '../../shared/types.js';
-import { getRateLimiter } from '../utils/rateLimiter.js';
+import {
+  isSafeObject,
+  validateAppleSystemPreferencesURL,
+  validatePasskeyFailureData,
+} from '../../shared/validators.js';
+import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import store from '../config.js';
 
-export default (window: BrowserWindow) => {
-  const rateLimiter = getRateLimiter();
+let passkeySupportCleanup: (() => void) | null = null;
 
+function parsePasskeyFailureData(data: unknown): { errorType: string; timestamp: number } {
+  if (!isSafeObject(data)) {
+    throw new Error('Passkey failure data must be a plain object');
+  }
+
+  const validated = validatePasskeyFailureData(data.errorType);
+
+  return {
+    errorType: validated.errorType,
+    timestamp:
+      typeof data.timestamp === 'number' && Number.isFinite(data.timestamp)
+        ? data.timestamp
+        : validated.timestamp,
+  };
+}
+
+export default (window: BrowserWindow) => {
   // Only enable on macOS
   if (process.platform !== 'darwin') {
     log.debug('[Passkey Support] Not enabled on this platform');
     return;
   }
 
-  const passkeyFailedHandler = (_event: Electron.IpcMainEvent, data: PasskeyFailureData) => {
-    // Rate limiting - max 1 dialog per 30 seconds to avoid spam
-    if (!rateLimiter.isAllowed(IPC_CHANNELS.PASSKEY_AUTH_FAILED, 1 / 30)) {
-      log.warn('[Passkey Support] Rate limited');
-      return;
-    }
+  passkeySupportCleanup = createSecureIPCHandler({
+    channel: IPC_CHANNELS.PASSKEY_AUTH_FAILED,
+    validator: parsePasskeyFailureData,
+    rateLimit: 1 / 30,
+    description: 'Passkey auth failed',
+    onError: (error) => {
+      log.warn('[Passkey Support] Invalid passkey failure payload:', error);
+    },
+    handler: async (validatedData) => {
+      if (store.get('app.suppressPasskeyDialog')) {
+        log.debug('[Passkey Support] Dialog suppressed by user preference');
+        return;
+      }
 
-    // Check if user has suppressed the dialog
-    if (store.get('app.suppressPasskeyDialog')) {
-      log.debug('[Passkey Support] Dialog suppressed by user preference');
-      return;
-    }
-
-    // Handle async operation without making handler async
-    void (async () => {
       try {
-        log.info('[Passkey Support] Passkey authentication failed:', data.errorType);
+        log.info('[Passkey Support] Passkey authentication failed:', validatedData.errorType);
 
-        // Show helpful dialog with instructions
         const response = await dialog.showMessageBox(window, {
           type: 'info',
           title: 'Passkey Authentication Requires Permissions',
@@ -57,19 +75,16 @@ export default (window: BrowserWindow) => {
           noLink: true,
         });
 
-        // Handle button clicks
         if (response.response === 0) {
-          // Open System Settings - Privacy & Security pane
-          // Note: macOS 13+ uses different URL scheme than older versions
           const settingsURL = 'x-apple.systempreferences:com.apple.preference.security?Privacy';
 
           try {
-            await shell.openExternal(settingsURL);
+            const validatedSettingsURL = validateAppleSystemPreferencesURL(settingsURL);
+            await shell.openExternal(validatedSettingsURL);
             log.info('[Passkey Support] Opened System Settings');
           } catch (error: unknown) {
             log.error('[Passkey Support] Failed to open System Settings:', error);
 
-            // Fallback: try to open System Settings app directly
             try {
               await shell.openPath('/System/Applications/System Settings.app');
               log.info('[Passkey Support] Opened System Settings app (fallback)');
@@ -78,18 +93,14 @@ export default (window: BrowserWindow) => {
             }
           }
         } else if (response.response === 2) {
-          // Don't show again
           store.set('app.suppressPasskeyDialog', true);
           log.info('[Passkey Support] User suppressed future dialogs');
         }
-        // response === 1 means "Use Password Instead" - just close the dialog
       } catch (error: unknown) {
         log.error('[Passkey Support] Error handling passkey failure:', error);
       }
-    })();
-  };
-
-  ipcMain.on(IPC_CHANNELS.PASSKEY_AUTH_FAILED, passkeyFailedHandler);
+    },
+  });
 
   log.info('[Passkey Support] Feature initialized');
 };
@@ -100,7 +111,10 @@ export default (window: BrowserWindow) => {
 export function cleanupPasskeySupport(): void {
   try {
     log.debug('[Passkey Support] Cleaning up passkey support handler');
-    ipcMain.removeAllListeners(IPC_CHANNELS.PASSKEY_AUTH_FAILED);
+    if (passkeySupportCleanup) {
+      passkeySupportCleanup();
+      passkeySupportCleanup = null;
+    }
     log.info('[Passkey Support] Passkey support cleaned up');
   } catch (error: unknown) {
     log.error('[Passkey Support] Failed to cleanup passkey support:', error);

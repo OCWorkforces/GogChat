@@ -8,6 +8,7 @@ import {
   validateUnreadCount,
   validateFaviconURL,
   validateExternalURL,
+  validateAppleSystemPreferencesURL,
   validateBoolean,
   validateString,
   sanitizeHTML,
@@ -178,6 +179,33 @@ describe('validateExternalURL', () => {
   it('should reject URLs exceeding max length', () => {
     const longURL = 'https://example.com/' + 'a'.repeat(5000);
     expect(() => validateExternalURL(longURL)).toThrow('URL too long');
+  });
+});
+
+describe('validateAppleSystemPreferencesURL', () => {
+  it('should accept approved System Settings privacy URL', () => {
+    const url = 'x-apple.systempreferences:com.apple.preference.security?Privacy';
+    expect(validateAppleSystemPreferencesURL(url)).toBe(url);
+  });
+
+  it('should accept approved System Settings security URL', () => {
+    const url = 'x-apple.systempreferences:com.apple.preference.security';
+    expect(validateAppleSystemPreferencesURL(url)).toBe(url);
+  });
+
+  it('should reject unapproved System Settings URLs', () => {
+    expect(() =>
+      validateAppleSystemPreferencesURL('x-apple.systempreferences:com.apple.preference.network')
+    ).toThrow('Unapproved System Settings URL');
+  });
+
+  it('should reject non-string values', () => {
+    expect(() => validateAppleSystemPreferencesURL(null)).toThrow(
+      'System Settings URL must be a string'
+    );
+    expect(() => validateAppleSystemPreferencesURL(undefined)).toThrow(
+      'System Settings URL must be a string'
+    );
   });
 });
 
