@@ -1,8 +1,8 @@
 {
   "name": "googlechat",
   "productName": "Google Chat",
-  "version": "3.5.0",
-  "description": "Google Chat",
+  "version": "3.5.1",
+  "description": "Unofficial Google Chat desktop client built with Electron and Rust.",
   "private": true,
   "repository": "https://github.com/OCWorkforce/GChat",
   "homepage": "https://github.com/OCWorkforce/GChat",
