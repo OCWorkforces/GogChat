@@ -50,7 +50,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
     channel: IPC_CHANNELS.FAVICON_CHANGED,
     validator: validateFaviconURL,
     description: 'Badge favicon changed',
-    handler: async (validatedHref) => {
+    handler: (validatedHref) => {
       // Deduplicate rapid favicon changes (e.g., during page load)
       void deduplicator.deduplicate(
         `${IPC_CHANNELS.FAVICON_CHANGED}:${validatedHref}`,
@@ -92,7 +92,7 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
     channel: IPC_CHANNELS.UNREAD_COUNT,
     validator: validateUnreadCount,
     description: 'Badge unread count updated',
-    handler: async (validatedCount) => {
+    handler: (validatedCount) => {
       // Deduplicate rapid count changes (e.g., multiple messages arriving at once)
       void deduplicator.deduplicate(
         `${IPC_CHANNELS.UNREAD_COUNT}:${validatedCount}`,
