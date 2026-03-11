@@ -1,8 +1,12 @@
-import { BrowserWindow, ipcMain, IpcMainEvent, Notification } from 'electron';
+import { BrowserWindow, Notification } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING, RATE_LIMITS } from '../../shared/constants.js';
 import { validateNotificationData } from '../../shared/validators.js';
+import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
+
+let notificationShowCleanup: (() => void) | null = null;
+let notificationClickedCleanup: (() => void) | null = null;
 
 // Store active notifications and their timeouts
 const activeNotifications = new Map<
@@ -14,108 +18,103 @@ const activeNotifications = new Map<
 >();
 
 export default (window: BrowserWindow) => {
-  const rateLimiter = getRateLimiter();
+  void getRateLimiter();
 
   // Handle notification creation
-  const notificationShowHandler = (_event: IpcMainEvent, data: unknown) => {
-    try {
-      // Rate limit check
-      if (!rateLimiter.isAllowed(IPC_CHANNELS.NOTIFICATION_SHOW, RATE_LIMITS.IPC_NOTIFICATION)) {
-        log.warn('[Notification] Notification creation rate limited');
-        return;
-      }
+  notificationShowCleanup = createSecureIPCHandler({
+    channel: IPC_CHANNELS.NOTIFICATION_SHOW,
+    validator: validateNotificationData,
+    rateLimit: RATE_LIMITS.IPC_NOTIFICATION,
+    description: 'Notification show',
+    handler: (validated) => {
+      try {
+        log.debug('[Notification] Creating notification:', validated.title);
 
-      // Validate notification data
-      const validated = validateNotificationData(data);
-      log.debug('[Notification] Creating notification:', validated.title);
-
-      // Create native Electron notification
-      const notification = new Notification({
-        title: validated.title,
-        body: validated.body,
-        icon: validated.icon,
-        silent: false,
-      });
-
-      // Handle notification click
-      notification.on('click', () => {
-        try {
-          // Bring window to focus if hidden or not focused
-          if (!window.isVisible() || !window.isFocused()) {
-            window.show();
-            log.debug('[Notification] Window shown from notification click');
-          }
-        } catch (error: unknown) {
-          log.error('[Notification] Failed to handle notification click:', error);
-        }
-      });
-
-      // Handle notification close
-      notification.on('close', () => {
-        // Clean up from active notifications map
-        if (validated.tag) {
-          const entry = activeNotifications.get(validated.tag);
-          if (entry) {
-            clearTimeout(entry.timeout);
-            activeNotifications.delete(validated.tag);
-          }
-        }
-        log.debug('[Notification] Notification closed:', validated.title);
-      });
-
-      // Show the notification
-      notification.show();
-
-      // Set up auto-dismiss timeout (10 seconds)
-      const timeout = setTimeout(() => {
-        try {
-          notification.close();
-          log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
-        } catch (error: unknown) {
-          log.error('[Notification] Failed to auto-dismiss notification:', error);
-        }
-      }, TIMING.NOTIFICATION_AUTO_DISMISS);
-
-      // Store notification and timeout for cleanup
-      if (validated.tag) {
-        // If there's already a notification with this tag, close it first
-        const existing = activeNotifications.get(validated.tag);
-        if (existing) {
-          clearTimeout(existing.timeout);
-          existing.notification.close();
-        }
-
-        activeNotifications.set(validated.tag, {
-          notification,
-          timeout,
+        // Create native Electron notification
+        const notification = new Notification({
+          title: validated.title,
+          body: validated.body,
+          icon: validated.icon,
+          silent: false,
         });
+
+        // Handle notification click
+        notification.on('click', () => {
+          try {
+            // Bring window to focus if hidden or not focused
+            if (!window.isVisible() || !window.isFocused()) {
+              window.show();
+              log.debug('[Notification] Window shown from notification click');
+            }
+          } catch (error: unknown) {
+            log.error('[Notification] Failed to handle notification click:', error);
+          }
+        });
+
+        // Handle notification close
+        notification.on('close', () => {
+          // Clean up from active notifications map
+          if (validated.tag) {
+            const entry = activeNotifications.get(validated.tag);
+            if (entry) {
+              clearTimeout(entry.timeout);
+              activeNotifications.delete(validated.tag);
+            }
+          }
+          log.debug('[Notification] Notification closed:', validated.title);
+        });
+
+        // Show the notification
+        notification.show();
+
+        // Set up auto-dismiss timeout (10 seconds)
+        const timeout = setTimeout(() => {
+          try {
+            notification.close();
+            log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
+          } catch (error: unknown) {
+            log.error('[Notification] Failed to auto-dismiss notification:', error);
+          }
+        }, TIMING.NOTIFICATION_AUTO_DISMISS);
+
+        // Store notification and timeout for cleanup
+        if (validated.tag) {
+          // If there's already a notification with this tag, close it first
+          const existing = activeNotifications.get(validated.tag);
+          if (existing) {
+            clearTimeout(existing.timeout);
+            existing.notification.close();
+          }
+
+          activeNotifications.set(validated.tag, {
+            notification,
+            timeout,
+          });
+        }
+      } catch (error: unknown) {
+        log.error('[Notification] Failed to create notification:', error);
       }
-    } catch (error: unknown) {
-      log.error('[Notification] Failed to create notification:', error);
-    }
-  };
+    },
+  });
 
   // Handle notification click from preload (legacy support)
-  const notificationClickedHandler = (_event: IpcMainEvent) => {
-    try {
-      // Rate limit check (max 5 clicks per second)
-      if (!rateLimiter.isAllowed(IPC_CHANNELS.NOTIFICATION_CLICKED, 5)) {
-        log.warn('[Notification] Notification click rate limited');
-        return;
+  notificationClickedCleanup = createSecureIPCHandler({
+    channel: IPC_CHANNELS.NOTIFICATION_CLICKED,
+    validator: () => undefined,
+    rateLimit: 5,
+    description: 'Notification clicked',
+    handler: () => {
+      try {
+        // Bring window to focus if hidden or not focused
+        if (!window.isVisible() || !window.isFocused()) {
+          window.show();
+          log.debug('[Notification] Window shown from notification click');
+        }
+      } catch (error: unknown) {
+        log.error('[Notification] Failed to handle notification click:', error);
       }
-
-      // Bring window to focus if hidden or not focused
-      if (!window.isVisible() || !window.isFocused()) {
-        window.show();
-        log.debug('[Notification] Window shown from notification click');
-      }
-    } catch (error: unknown) {
-      log.error('[Notification] Failed to handle notification click:', error);
-    }
-  };
-
-  ipcMain.on(IPC_CHANNELS.NOTIFICATION_SHOW, notificationShowHandler);
-  ipcMain.on(IPC_CHANNELS.NOTIFICATION_CLICKED, notificationClickedHandler);
+    },
+  });
 };
 
 /**
@@ -133,8 +132,15 @@ export function cleanupNotificationHandler(): void {
     activeNotifications.clear();
 
     // Remove IPC listeners
-    ipcMain.removeAllListeners(IPC_CHANNELS.NOTIFICATION_SHOW);
-    ipcMain.removeAllListeners(IPC_CHANNELS.NOTIFICATION_CLICKED);
+    if (notificationShowCleanup) {
+      notificationShowCleanup();
+      notificationShowCleanup = null;
+    }
+
+    if (notificationClickedCleanup) {
+      notificationClickedCleanup();
+      notificationClickedCleanup = null;
+    }
 
     log.info('[Notification] Notification handler cleaned up');
   } catch (error: unknown) {

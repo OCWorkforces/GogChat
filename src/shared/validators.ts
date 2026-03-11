@@ -128,6 +128,23 @@ export function validateExternalURL(url: unknown): string {
   return parsed.toString();
 }
 
+export function validateAppleSystemPreferencesURL(url: unknown): string {
+  if (typeof url !== 'string') {
+    throw new Error('System Settings URL must be a string');
+  }
+
+  const allowed = new Set([
+    'x-apple.systempreferences:com.apple.preference.security?Privacy',
+    'x-apple.systempreferences:com.apple.preference.security',
+  ]);
+
+  if (!allowed.has(url)) {
+    throw new Error('Unapproved System Settings URL');
+  }
+
+  return url;
+}
+
 /**
  * Validates if a URL belongs to a whitelisted host
  * @param url - URL to check

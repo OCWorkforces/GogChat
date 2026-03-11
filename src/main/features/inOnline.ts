@@ -1,9 +1,12 @@
-import { BrowserWindow, ipcMain, Notification, app, IpcMainEvent } from 'electron';
+import { BrowserWindow, Notification, app, IpcMainEvent } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING } from '../../shared/constants.js';
+import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
 import { getIconCache } from '../utils/iconCache.js';
+
+let checkIfOnlineCleanup: (() => void) | null = null;
 
 /**
  * Check internet connectivity using native fetch
@@ -78,32 +81,42 @@ export default (_window: BrowserWindow) => {
   const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent connectivity check spam
-  const checkIfOnlineHandler = (event: IpcMainEvent) => {
-    // Rate limit check (allow 1 check per second max)
-    if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
-      log.warn('[Connectivity] Check if online rate limited');
-      return;
-    }
-
-    // Handle async operation without making handler async
-    void (async () => {
-      try {
-        log.debug('[Connectivity] Checking online status...');
-        const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
-
-        // Reply with online status
-        event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
-
-        log.debug(`[Connectivity] Online status: ${online}`);
-      } catch (error: unknown) {
-        log.error('[Connectivity] Failed to handle checkIfOnline:', error);
-        // Reply with false on error
-        event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+  checkIfOnlineCleanup = createSecureIPCHandler({
+    channel: IPC_CHANNELS.CHECK_IF_ONLINE,
+    validator: () => undefined,
+    rateLimit: 1,
+    description: 'Connectivity check',
+    handler: (_data, event) => {
+      if (!('reply' in event)) {
+        return;
       }
-    })();
-  };
 
-  ipcMain.on(IPC_CHANNELS.CHECK_IF_ONLINE, checkIfOnlineHandler);
+      const mainEvent = event as IpcMainEvent;
+
+      // Rate limit check (allow 1 check per second max)
+      if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
+        log.warn('[Connectivity] Check if online rate limited');
+        return;
+      }
+
+      // Handle async operation without making handler async
+      void (async () => {
+        try {
+          log.debug('[Connectivity] Checking online status...');
+          const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
+
+          // Reply with online status
+          mainEvent.reply(IPC_CHANNELS.ONLINE_STATUS, online);
+
+          log.debug(`[Connectivity] Online status: ${online}`);
+        } catch (error: unknown) {
+          log.error('[Connectivity] Failed to handle checkIfOnline:', error);
+          // Reply with false on error
+          mainEvent.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+        }
+      })();
+    },
+  });
 };
 
 /**
@@ -112,7 +125,10 @@ export default (_window: BrowserWindow) => {
 export function cleanupConnectivityHandler(): void {
   try {
     log.debug('[Connectivity] Cleaning up connectivity handler');
-    ipcMain.removeAllListeners(IPC_CHANNELS.CHECK_IF_ONLINE);
+    if (checkIfOnlineCleanup) {
+      checkIfOnlineCleanup();
+      checkIfOnlineCleanup = null;
+    }
     log.info('[Connectivity] Connectivity handler cleaned up');
   } catch (error: unknown) {
     log.error('[Connectivity] Failed to cleanup connectivity handler:', error);
