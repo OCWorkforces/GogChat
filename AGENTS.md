@@ -1,9 +1,7 @@
 # GiChat — Project Knowledge Base
 
 **Generated:** 2026-03-11
-**Commit:** 5d31d3d
-**Branch:** electrobun-engine
-
+**Commit:** 7aaa6b6
 ## OVERVIEW
 
 Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.

@@ -1,8 +1,6 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-02-22
-**Parent docs:** `../AGENTS.md` (project)
-
+**Generated:** 2026-03-11
 ## OVERVIEW
 
 4 test tiers: **unit** (Vitest, isolated), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`, `fullyParallel: false`.
