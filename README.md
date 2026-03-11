@@ -1,11 +1,4 @@
-# GChat
-
-[![Build & Test](https://github.com/OCWorkforce/GChat/actions/workflows/build.yml/badge.svg)](https://github.com/OCWorkforce/GChat/actions/workflows/build.yml)
-[![Release](https://github.com/OCWorkforce/GChat/actions/workflows/release.yml/badge.svg)](https://github.com/OCWorkforce/GChat/actions/workflows/release.yml)
-[![License](https://img.shields.io/github/license/OCWorkforce/GChat)](LICENSE)
-[![Version](https://img.shields.io/github/package-json/v/OCWorkforce/GChat)](package.json)
-
-🌾 🥳 🌋 🏰 🌅 🌕 Google Chat Desktop App - Electron Powered 🌖 🌔 🌈 🏆 👑
+# GiChat
 
 A secure, feature-rich desktop application for Google Chat with native OS integrations and enterprise-grade security.
 
@@ -39,7 +32,7 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 
 Get the latest release:
 
-- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforce/GChat/releases/latest)
+- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforce/GiChat/releases/latest)
 
 > **Requirement:** Apple Silicon (M1 or later) is required.
 

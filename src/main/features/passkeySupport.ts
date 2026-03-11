@@ -43,13 +43,13 @@ export default (window: BrowserWindow) => {
           title: 'Passkey Authentication Requires Permissions',
           message: 'Passkey login requires additional system permissions',
           detail:
-            'To enable Touch ID and passkey authentication in GChat:\n\n' +
+            'To enable Touch ID and passkey authentication in GiChat:\n\n' +
             '1. Click "Open System Settings" below\n' +
             '2. Navigate to Privacy & Security\n' +
-            '3. Grant GChat permissions for:\n' +
+            '3. Grant GiChat permissions for:\n' +
             '   • Accessibility (or)\n' +
             '   • Input Monitoring\n' +
-            '4. Restart GChat and try again\n\n' +
+            '4. Restart GiChat and try again\n\n' +
             'Alternatively, you can use password-based authentication.',
           buttons: ['Open System Settings', 'Use Password Instead', "Don't Show Again"],
           defaultId: 0,

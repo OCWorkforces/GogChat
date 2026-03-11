@@ -5,7 +5,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { GChatBridgeAPI } from '../shared/types.js';
+import type { GiChatBridgeAPI } from '../shared/types.js';
 import { IPC_CHANNELS } from '../shared/constants.js';
 import {
   validateUnreadCount,
@@ -17,7 +17,7 @@ import {
  * Expose secure API to renderer process via window.googlechat
  * This API is the ONLY way renderer can communicate with main process
  */
-const api: GChatBridgeAPI = {
+const api: GiChatBridgeAPI = {
   // Send messages to main process (with validation)
   sendUnreadCount: (count: number) => {
     try {
