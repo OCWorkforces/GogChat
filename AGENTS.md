@@ -1,8 +1,8 @@
 # GiChat — Project Knowledge Base
 
-**Generated:** 2026-02-24
-**Commit:** 563a52c
-**Branch:** upstream
+**Generated:** 2026-03-11
+**Commit:** 5d31d3d
+**Branch:** electrobun-engine
 
 ## OVERVIEW
 
@@ -139,11 +139,12 @@ bun run build:mac      # ARM64 DMG (production)
 - Build history tracked in `.build-history.json` (last 20 builds)
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 
-## COMPLEXITY CENTERS (500+ lines)
+## COMPLEXITY CENTERS (400+ lines)
 
 | File                                | Lines | Purpose                                      |
 | ----------------------------------- | ----- | -------------------------------------------- |
-| `src/main/index.ts`                 | 619   | App entry, feature registration, phased init |
+| `src/main/index.ts`                 | 623   | App entry, feature registration, phased init |
 | `src/main/utils/featureManager.ts`  | 566   | Feature lifecycle, dependency resolution     |
 | `tests/mocks/electron.ts`           | 546   | Complete Electron mock for unit tests        |
 | `src/main/utils/resourceCleanup.ts` | 442   | Tracked intervals/timeouts/listeners         |
+| `src/shared/validators.ts`          | 402   | Input sanitization for all IPC channels      |
