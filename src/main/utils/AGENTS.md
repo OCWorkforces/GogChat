@@ -1,8 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-02-22
-
-## OVERVIEW
+**Generated:** 2026-03-11
 
 13 utility modules. Security-critical and performance-critical. All singletons follow `getXxx()` / `destroyXxx()` pattern. All are registered with `resourceCleanup.ts` for graceful shutdown.
 

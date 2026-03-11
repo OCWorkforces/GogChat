@@ -1,8 +1,6 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-02-22
-**Parent docs:** `../AGENTS.md` (build), `../../AGENTS.md` (project)
-
+**Generated:** 2026-03-11
 ## OVERVIEW
 
 Bridge between Electron main process and Google Chat renderer. 8 scripts compiled as **CJS** (required — `sandbox: true` blocks ESM). All loaded via `index.ts` as single bundle; `overrideNotifications.ts` is the sole exception.

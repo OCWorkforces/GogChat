@@ -1,8 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-02-22
-
-## OVERVIEW
+**Generated:** 2026-03-11
 
 18 self-contained feature modules. Each exports a default function. Some are loaded synchronously in `app.whenReady()`, others deferred via `setImmediate()`. `featureManager.ts` provides an optional structured manager (not yet used in main `index.ts` — migration in progress).
 

@@ -1,8 +1,6 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-02-22
-**Parent docs:** `../../AGENTS.md` (project)
-
+**Generated:** 2026-03-11
 ## OVERVIEW
 
 3 source files. Single source of truth for all cross-process contracts. Changes here propagate to both Electron main and preload bundles. **Edit this before touching IPC handlers or preload scripts.**

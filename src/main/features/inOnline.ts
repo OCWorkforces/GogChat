@@ -1,4 +1,4 @@
-import { BrowserWindow, Notification, app, IpcMainEvent } from 'electron';
+import { BrowserWindow, Notification, app } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING } from '../../shared/constants.js';
@@ -90,9 +90,6 @@ export default (_window: BrowserWindow) => {
       if (!('reply' in event)) {
         return;
       }
-
-      const mainEvent = event as IpcMainEvent;
-
       // Rate limit check (allow 1 check per second max)
       if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
         log.warn('[Connectivity] Check if online rate limited');
@@ -106,13 +103,13 @@ export default (_window: BrowserWindow) => {
           const online = await checkIfOnline(TIMING.CONNECTIVITY_CHECK);
 
           // Reply with online status
-          mainEvent.reply(IPC_CHANNELS.ONLINE_STATUS, online);
+          event.reply(IPC_CHANNELS.ONLINE_STATUS, online);
 
           log.debug(`[Connectivity] Online status: ${online}`);
         } catch (error: unknown) {
           log.error('[Connectivity] Failed to handle checkIfOnline:', error);
           // Reply with false on error
-          mainEvent.reply(IPC_CHANNELS.ONLINE_STATUS, false);
+          event.reply(IPC_CHANNELS.ONLINE_STATUS, false);
         }
       })();
     },
