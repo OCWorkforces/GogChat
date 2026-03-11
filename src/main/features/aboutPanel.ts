@@ -33,9 +33,7 @@ export default (mainWindow: BrowserWindow): void => {
   // Find the newly created About panel and track it
   setImmediate(() => {
     const allWindows = BrowserWindow.getAllWindows();
-    aboutWindow = allWindows.find(
-      (win) => win.id !== mainWindow.id && !win.isDestroyed(),
-    ) ?? null;
+    aboutWindow = allWindows.find((win) => win.id !== mainWindow.id && !win.isDestroyed()) ?? null;
 
     if (aboutWindow) {
       aboutWindow.setAlwaysOnTop(true, 'floating');
