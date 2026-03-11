@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Pre-push hook for GChat
+# Pre-push hook for GiChat
 # Runs linting checks before allowing a push
 # If linting fails, the push will be blocked
 

@@ -96,7 +96,7 @@ dmg:
 # publish:
 #   provider: github
 #   owner: OCWorkforce
-#   repo: GChat
+#   repo: GiChat
 
 # Additional metadata
 artifactName: '${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}'

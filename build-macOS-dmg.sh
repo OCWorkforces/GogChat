@@ -8,7 +8,7 @@
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
-echo "------ Open GChat - macOS DMG Build Script ------"
+echo "------ Open GiChat - macOS DMG Build Script ------"
 
 # Record build start time for elapsed time reporting
 BUILD_START_TIME=$(date +%s)

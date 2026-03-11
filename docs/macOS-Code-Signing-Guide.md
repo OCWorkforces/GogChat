@@ -1,4 +1,4 @@
-# macOS Code Signing & Notarization Guide for OpenGChat
+# macOS Code Signing & Notarization Guide for GiChat
 
 **Purpose:** This document provides a complete step-by-step guide to set up macOS code signing and notarization for distributing signed DMG files outside the Mac App Store.
 
@@ -214,7 +214,7 @@ Apple requires an app-specific password (not your Apple ID password) for notariz
 
 4. Click the **"+"** button
 
-5. Enter a label like **"GChat Notarization"**
+5. Enter a label like **"GiChat Notarization"**
 
 6. Click **"Create"**
 
@@ -288,7 +288,7 @@ Add the following secrets to your GitHub repository:
 Your project already has the infrastructure in place:
 
 ```
-OpenGChat/
+GiChat/
 ├── build-macOS-dmg.sh          # Unified build script (use --enable-code-sign)
 ├── electron-builder.yml         # Base configuration
 ├── electron-builder.sign.yml    # Code signing extensions (merged when signing enabled)
@@ -652,4 +652,4 @@ xcrun notarytool history \
 ---
 
 _Last updated: February 2026_
-_For OpenGChat v3.4.5+_
+_For GiChat v3.4.5+_

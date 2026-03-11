@@ -1,4 +1,4 @@
-# OpenGChat — Project Knowledge Base
+# GiChat — Project Knowledge Base
 
 **Generated:** 2026-02-24
 **Commit:** 563a52c
@@ -11,7 +11,7 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 ## STRUCTURE
 
 ```
-OpenGChat/
+GiChat/
 ├── src/
 │   ├── main/           # Electron main process (Node.js env, ESM output)
 │   │   ├── index.ts    # App entry: feature manager with phased init (security→critical→ui→deferred)
@@ -47,12 +47,12 @@ OpenGChat/
 | IPC channel names | `src/shared/constants.ts`                        | `IPC_CHANNELS` const           |
 | Input validation  | `src/shared/validators.ts`                       | All IPC must go through here   |
 | Config schema     | `src/shared/types.ts` + `src/main/config.ts`     | Update both                    |
-| window.gchat API  | `src/preload/index.ts` + `src/shared/types.ts`   | `GChatBridgeAPI`               |
+| window.gichat API  | `src/preload/index.ts` + `src/shared/types.ts`   | `GiChatBridgeAPI`               |
 | Build system      | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                      |
 | DMG packaging     | `mac/`                                           | See `mac/AGENTS.md`            |
 | Test helpers      | `tests/helpers/electron-test.ts`                 | Playwright fixtures            |
 | Electron mocks    | `tests/mocks/electron.ts`                        | For unit tests                 |
-| Log files         | `~/Library/Logs/GChat/main.log`                  | macOS path                     |
+| Log files         | `~/Library/Logs/GiChat/main.log`                  | macOS path                     |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -135,7 +135,7 @@ bun run build:mac      # ARM64 DMG (production)
 - Dynamic imports in `index.ts` → deferred features land in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload loaded with `contextIsolation: false` (intentional exception)
 - Google Chat DOM selectors in `shared/constants.ts` `SELECTORS` — may break if Google updates HTML
-- Config encrypted at `~/Library/Application Support/GChat/` (macOS)
+- Config encrypted at `~/Library/Application Support/GiChat/` (macOS)
 - Build history tracked in `.build-history.json` (last 20 builds)
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 

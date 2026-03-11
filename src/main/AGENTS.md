@@ -89,4 +89,4 @@ To add setting: (1) `StoreType` in `../../shared/types.ts` → (2) schema entry 
 ## WINDOW LIFECYCLE & LOGGING
 
  `mainWindow`: module-level global, lives full app lifetime. Close-to-tray: `window.hide()` (not destroy). `activate` restores window. `window-all-closed` → `app.quit()`.
- Logger scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.feature('Name')`. Log file: `~/Library/Logs/GChat/main.log`. **Never log** passwords or credential-bearing URLs.
+ Logger scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.feature('Name')`. Log file: `~/Library/Logs/GiChat/main.log`. **Never log** passwords or credential-bearing URLs.

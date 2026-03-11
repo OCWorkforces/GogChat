@@ -35,13 +35,13 @@ TIMING; // WINDOW_STATE_SAVE=500ms, CONNECTIVITY_CHECK=5000ms,
 
 BADGE; // MAX_COUNT=9999, CACHE_LIMIT=99
 
-FAVICON_PATTERNS; // Regex: NORMAL, BADGE — detect GChat state from favicon URL
+FAVICON_PATTERNS; // Regex: NORMAL, BADGE — detect GiChat state from favicon URL
 ```
 
 ## KEY EXPORTS FROM `types.ts`
 
 ```typescript
-GChatBridgeAPI; // window.gchat interface — source of truth for preload API
+GiChatBridgeAPI; // window.gichat interface — source of truth for preload API
 StoreType; // electron-store schema — { window: WindowState, app: AppConfig }
 AppConfig; // autoCheckForUpdates, autoLaunchAtLogin, startHidden,
 // hideMenuBar, disableSpellChecker, suppressPasskeyDialog
@@ -71,7 +71,7 @@ UnreadCountData; // { count, timestamp }
 1. `constants.ts` — add to `IPC_CHANNELS`
 2. `types.ts` — add data interface (e.g. `NewFeatureData`)
 3. `validators.ts` — add `validateNewFeatureData()` using `isSafeObject` + existing validators
-4. Preload: `ipcRenderer.send(IPC_CHANNELS.NEW_FEATURE, data)` + expose on `GChatBridgeAPI`
+4. Preload: `ipcRenderer.send(IPC_CHANNELS.NEW_FEATURE, data)` + expose on `GiChatBridgeAPI`
 5. Main: `ipcMain.on(IPC_CHANNELS.NEW_FEATURE, (_, raw) => { validate → handle → catch })`
 
 ## WORKFLOW: ADDING CONFIG FIELD

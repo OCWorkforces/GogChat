@@ -11,7 +11,7 @@ Bridge between Electron main process and Google Chat renderer. 8 scripts compile
 
 | File                       | Purpose                                                    | Direction     |
 | -------------------------- | ---------------------------------------------------------- | ------------- |
-| `index.ts`                 | `contextBridge` → `window.gchat` API                       | —             |
+| `index.ts`                 | `contextBridge` → `window.gichat` API                       | —             |
 | `faviconChanged.ts`        | MutationObserver on `<head>` → favicon changes             | renderer→main |
 | `unreadCount.ts`           | MutationObserver on `document.body` → DOM badge            | renderer→main |
 | `offline.ts`               | Online/offline bridge; redirect on reconnect               | bidirectional |
@@ -20,7 +20,7 @@ Bridge between Electron main process and Google Chat renderer. 8 scripts compile
 | `overrideNotifications.ts` | Intercepts `window.Notification`; adds click handler       | renderer→main |
 | `disableWebAuthn.ts`       | Disables WebAuthn per config                               | —             |
 
-## WINDOW.GCHAT API (`GChatBridgeAPI`)
+## WINDOW.GICHAT API (`GiChatBridgeAPI`)
 
 Defined in `../shared/types.ts`. Source of truth — update types first, then implement here.
 
@@ -66,7 +66,7 @@ window.addEventListener('beforeunload', cleanup);
 offline.html button → window.dispatchEvent('app:checkIfOnline')
   → offline.ts → ipcRenderer.send('checkIfOnline')
   → main checks net → ipcRenderer.on('onlineStatus', online)
-  → online=true → window.location = GCHAT_URL
+  → online=true → window.location = GICHAT_URL
   → online=false → location.reload()
 ```
 
@@ -78,7 +78,7 @@ Offline page uses `window.dispatchEvent` (no direct IPC access from offline.html
 2. Use `ipcRenderer` (not `contextBridge`) for IPC — contextBridge only in `index.ts`
 3. Add `import './newFeature.js'` to `index.ts` (`.js` extension — built CJS)
 4. Add IPC channel to `../shared/constants.ts` `IPC_CHANNELS`
-5. If exposing to renderer, extend `GChatBridgeAPI` in `../shared/types.ts`
+5. If exposing to renderer, extend `GiChatBridgeAPI` in `../shared/types.ts`
 
 ## IPC CHANNEL NAMES
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Linting and formatting script for GChat
+# Linting and formatting script for GiChat
 # Usage: ./scripts/lint.sh [--fix]
 
 set -e
@@ -24,7 +24,7 @@ if [[ "$1" == "--fix" ]]; then
 fi
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Open GChat Linting and Formatting${NC}"
+echo -e "${BLUE}  Open GiChat Linting and Formatting${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
