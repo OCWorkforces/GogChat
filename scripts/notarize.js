@@ -51,7 +51,7 @@ export default async function notarizing(context) {
   console.log(`[Notarize] Notarizing ${appPath}...`);
 
   await notarize({
-    appBundleId: 'com.ocworkforce.googlechat',
+    appBundleId: 'com.ocworkforce.gogchat',
     appPath,
     appleId,
     appleIdPassword: appleAppSpecificPassword,

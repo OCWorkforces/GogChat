@@ -43,7 +43,7 @@ export default (window: BrowserWindow) => {
   trayIconInstance.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: 'Open Google Chat',
+        label: 'Open GogChat',
         click: handleOpenClick,
       },
       {
@@ -63,7 +63,7 @@ export default (window: BrowserWindow) => {
     ])
   );
 
-  trayIconInstance.setToolTip('Google Chat');
+  trayIconInstance.setToolTip('GogChat');
 
   // macOS: Click on tray icon shows the window
   trayIconInstance.on('click', handleOpenClick);

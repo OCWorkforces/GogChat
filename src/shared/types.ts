@@ -122,7 +122,7 @@ export interface ValidatedIPCMessage<T> {
 /**
  * Context Bridge API exposed to renderer
  */
-export interface GiChatBridgeAPI {
+export interface GogChatBridgeAPI {
   // Send messages to main process
   sendUnreadCount: (count: number) => void;
   sendFaviconChanged: (href: string) => void;
@@ -140,7 +140,7 @@ export interface GiChatBridgeAPI {
  */
 declare global {
   interface Window {
-    googlechat: GiChatBridgeAPI;
+    gogchat: GogChatBridgeAPI;
   }
 }
 

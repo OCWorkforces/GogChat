@@ -21,7 +21,7 @@ export const IPC_CHANNELS = {
 } as const;
 
 /**
- * DOM selectors for Google Chat elements
+ * DOM selectors for GogChat elements
  * These may need updating if Google changes their HTML structure
  */
 export const SELECTORS = {
@@ -68,7 +68,7 @@ export const ICON_TYPES = {
 } as const;
 
 /**
- * Favicon URL patterns for detecting Google Chat state
+ * Favicon URL patterns for detecting GogChat state
  */
 export const FAVICON_PATTERNS = {
   NORMAL: /favicon_chat_r2|favicon_chat_new_non_notif_r2/,
@@ -117,9 +117,9 @@ export const URL_PATTERNS = {
  */
 export const DEEP_LINK = {
   /** Custom protocol scheme (without colon) */
-  PROTOCOL: 'googlechat',
+  PROTOCOL: 'gogchat',
   /** Full protocol prefix for URL matching */
-  PREFIX: 'googlechat://',
+  PREFIX: 'gogchat://',
   /** Target host for deep link navigation */
   TARGET_HOST: 'chat.google.com',
   /** Target origin for constructed URLs */

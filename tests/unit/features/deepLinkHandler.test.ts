@@ -22,10 +22,10 @@ vi.mock('electron-log', () => ({
 import { extractDeepLinkFromArgv, cleanupDeepLinkHandler } from '../../../src/main/features/deepLinkHandler';
 
 describe('extractDeepLinkFromArgv', () => {
-  it('should extract googlechat:// URL from argv', () => {
-    const argv = ['/path/to/electron', '--some-flag', 'googlechat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10'];
+  it('should extract gogchat:// URL from argv', () => {
+    const argv = ['/path/to/electron', '--some-flag', 'gogchat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10'];
     const result = extractDeepLinkFromArgv(argv);
-    expect(result).toBe('googlechat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
+    expect(result).toBe('gogchat://room/AAAA9BixgjY/EypiKwiqrS0?cls=10');
   });
 
   it('should return null when no deep link is present', () => {
@@ -39,14 +39,14 @@ describe('extractDeepLinkFromArgv', () => {
     expect(result).toBeNull();
   });
 
-  it('should return the first googlechat:// URL if multiple exist', () => {
+  it('should return the first gogchat:// URL if multiple exist', () => {
     const argv = [
       '/path/to/electron',
-      'googlechat://room/first',
-      'googlechat://room/second',
+      'gogchat://room/first',
+      'gogchat://room/second',
     ];
     const result = extractDeepLinkFromArgv(argv);
-    expect(result).toBe('googlechat://room/first');
+    expect(result).toBe('gogchat://room/first');
   });
 });
 

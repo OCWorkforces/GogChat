@@ -19,8 +19,8 @@ const emitFaviconChanged = (href: string) => {
   previousHref = href;
 
   // Use the secure API exposed via contextBridge
-  if (window.googlechat?.sendFaviconChanged) {
-    window.googlechat.sendFaviconChanged(href);
+  if (window.gogchat?.sendFaviconChanged) {
+    window.gogchat.sendFaviconChanged(href);
   }
 };
 

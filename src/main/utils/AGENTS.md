@@ -47,7 +47,7 @@ const cleanup = createSecureIPCHandler({
 ```
 
 ## LOGGER SCOPES
-Scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.config`, `logger.window`, `logger.feature('Name').child('sub')`. Dev=debug, Prod=warn/console+info/file. Log: `~/Library/Logs/GiChat/main.log`. **Never log** credentials.
+Scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.config`, `logger.window`, `logger.feature('Name').child('sub')`. Dev=debug, Prod=warn/console+info/file. Log: `~/Library/Logs/GogChat/main.log`. **Never log** credentials.
 
 ## RESOURCE CLEANUP
 

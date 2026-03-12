@@ -8,7 +8,7 @@
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
-echo "------ Open GiChat - macOS DMG Build Script ------"
+echo "------ Open GogChat - macOS DMG Build Script ------"
 
 # Record build start time for elapsed time reporting
 BUILD_START_TIME=$(date +%s)
@@ -138,7 +138,7 @@ echo ""
 print_step "Step 1/3: Cleaning previous builds..."
 
 # Unmount any existing DMG volumes that might be mounted
-MOUNTED_VOLUMES=$(mount | grep "Google Chat" | awk '{print $3}' || true)
+MOUNTED_VOLUMES=$(mount | grep "GogChat" | awk '{print $3}' || true)
 if [ ! -z "$MOUNTED_VOLUMES" ]; then
     print_warning "Unmounting existing DMG volumes..."
     while IFS= read -r volume; do

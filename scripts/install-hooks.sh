@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install git hooks for GiChat
+# Install git hooks for GogChat
 # This script copies hooks from scripts/hooks/ to .git/hooks/
 
 set -e

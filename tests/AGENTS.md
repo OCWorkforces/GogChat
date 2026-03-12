@@ -81,7 +81,7 @@ describe('myFunction', () => {
 import { test, expect, waitForIPC } from '../helpers/electron-test';
 
 test('IPC flow works', async ({ electronApp, mainWindow }) => {
-  await mainWindow.evaluate(() => window.gichat.sendUnreadCount(5));
+  await mainWindow.evaluate(() => window.GogChat.sendUnreadCount(5));
   const count = await waitForIPC(electronApp, 'unreadCount', 5000);
   expect(count).toBe(5);
 });

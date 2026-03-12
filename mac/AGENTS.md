@@ -53,7 +53,7 @@ build-macOS-dmg.sh
   ├── 3. bun run build:prod  (Rsbuild: ESM main + CJS preload → lib/)
   ├── 4. export BUILD_ENV="${ENVIRONMENT}"
   └── 5. bunx electron-builder --mac --{arch} --config electron-builder.yml
-           └── Creates: dist/Google Chat-v{VERSION}-macOS-{arch}-{BUILD_ENV}.dmg
+           └── Creates: dist/GogChat-v{VERSION}-macOS-{arch}-{BUILD_ENV}.dmg
 ```
 
 ## ARTIFACT NAMING
@@ -64,7 +64,7 @@ Artifacts follow this pattern (defined in `electron-builder.yml`):
 ${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}
 ```
 
-Example: `Google Chat-v3.3.6-macOS-arm64-production.dmg`
+Example: `GogChat-v3.3.6-macOS-arm64-production.dmg`
 
 `BUILD_ENV` is exported by `build-macOS-dmg.sh` before invoking electron-builder. **Do not call electron-builder directly without exporting this variable** — artifact names will be malformed.
 

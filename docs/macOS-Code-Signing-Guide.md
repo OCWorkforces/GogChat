@@ -1,4 +1,4 @@
-# macOS Code Signing & Notarization Guide for GiChat
+# macOS Code Signing & Notarization Guide for GogChat
 
 **Purpose:** This document provides a complete step-by-step guide to set up macOS code signing and notarization for distributing signed DMG files outside the Mac App Store.
 
@@ -214,7 +214,7 @@ Apple requires an app-specific password (not your Apple ID password) for notariz
 
 4. Click the **"+"** button
 
-5. Enter a label like **"GiChat Notarization"**
+5. Enter a label like **"GogChat Notarization"**
 
 6. Click **"Create"**
 
@@ -288,7 +288,7 @@ Add the following secrets to your GitHub repository:
 Your project already has the infrastructure in place:
 
 ```
-GiChat/
+GogChat/
 ├── build-macOS-dmg.sh          # Unified build script (use --enable-code-sign)
 ├── electron-builder.yml         # Base configuration
 ├── electron-builder.sign.yml    # Code signing extensions (merged when signing enabled)
@@ -407,8 +407,8 @@ jobs:
 codesign -vvv --deep --strict dist/mac-arm64/Google\ Chat.app
 
 # Expected output:
-# dist/mac-arm64/Google Chat.app: valid on disk
-# dist/mac-arm64/Google Chat.app: satisfies its Designated Requirement
+# dist/mac-arm64/GogChat.app: valid on disk
+# dist/mac-arm64/GogChat.app: satisfies its Designated Requirement
 ```
 
 ### Step 8.2: Verify Notarization
@@ -418,14 +418,14 @@ codesign -vvv --deep --strict dist/mac-arm64/Google\ Chat.app
 spctl --assess --verbose --type execute dist/mac-arm64/Google\ Chat.app
 
 # Expected output:
-# dist/mac-arm64/Google Chat.app: accepted
+# dist/mac-arm64/GogChat.app: accepted
 # source=Notarized Developer ID
 
 # Or check the stapled ticket
 stapler validate dist/mac-arm64/Google\ Chat.app
 
 # Expected output:
-# Processing: dist/mac-arm64/Google Chat.app
+# Processing: dist/mac-arm64/GogChat.app
 # The validate action worked!
 ```
 
@@ -499,7 +499,7 @@ Error: No identity found for signing
 2. Check entitlements are properly applied
 3. Re-sign with `--deep` flag:
    ```bash
-   codesign --deep --force --verify --verbose --sign "Developer ID Application: Your Name" --options runtime --timestamp "Google Chat.app"
+   codesign --deep --force --verify --verbose --sign "Developer ID Application: Your Name" --options runtime --timestamp "GogChat.app"
    ```
 
 ### Problem: Notarization fails with "missing secure timestamp"
@@ -589,11 +589,11 @@ export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
 security find-identity -v -p codesigning
 
 # Verify app signature
-codesign -vvv --deep --strict "Google Chat.app"
+codesign -vvv --deep --strict "GogChat.app"
 
 # Check notarization
-spctl --assess --verbose --type execute "Google Chat.app"
-stapler validate "Google Chat.app"
+spctl --assess --verbose --type execute "GogChat.app"
+stapler validate "GogChat.app"
 
 # Manual notarization (if needed)
 xcrun notarytool submit "app.zip" \
@@ -652,4 +652,4 @@ xcrun notarytool history \
 ---
 
 _Last updated: February 2026_
-_For GiChat v3.4.5+_
+_For GogChat v3.4.5+_

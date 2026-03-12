@@ -1,6 +1,6 @@
 /**
  * Search shortcut handler
- * Focuses the Google Chat search input when triggered from main process
+ * Focuses the GogChat search input when triggered from main process
  */
 
 import { SELECTORS } from '../shared/constants.js';
@@ -30,8 +30,8 @@ const handleSearchShortcut = () => {
 let unsubscribe: (() => void) | null = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-  if (window.googlechat?.onSearchShortcut) {
-    unsubscribe = window.googlechat.onSearchShortcut(handleSearchShortcut);
+  if (window.gogchat?.onSearchShortcut) {
+    unsubscribe = window.gogchat.onSearchShortcut(handleSearchShortcut);
   }
 });
 

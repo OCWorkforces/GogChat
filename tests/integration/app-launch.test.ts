@@ -9,7 +9,7 @@ test.describe('App Launch', () => {
   test('should launch the application successfully', async ({ electronApp, mainWindow }) => {
     // Check that app launched
     const appInfo = await getAppInfo(electronApp);
-    expect(appInfo.name).toBe('Google Chat');
+    expect(appInfo.name).toBe('GogChat');
     expect(appInfo.version).toBeTruthy();
 
     // Check main window is visible
@@ -18,7 +18,7 @@ test.describe('App Launch', () => {
 
     // Check window title
     const title = await mainWindow.title();
-    expect(title).toContain('Google Chat');
+    expect(title).toContain('GogChat');
   });
 
   test('should have correct security settings', async ({ electronApp }) => {
@@ -28,10 +28,10 @@ test.describe('App Launch', () => {
     expect(security.contextIsolation).toBe(true);
     expect(security.nodeIntegration).toBe(false);
     expect(security.sandbox).toBe(true);
-    expect(security.webSecurity).toBe(false); // Disabled for Google Chat compatibility
+    expect(security.webSecurity).toBe(false); // Disabled for GogChat compatibility
   });
 
-  test('should load Google Chat URL', async ({ mainWindow }) => {
+  test('should load GogChat URL', async ({ mainWindow }) => {
     // Wait for navigation
     await mainWindow.waitForLoadState('networkidle');
 

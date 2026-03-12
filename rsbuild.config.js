@@ -1,7 +1,7 @@
 import { defineConfig } from '@rsbuild/core';
 
 /**
- * Rsbuild configuration for GiChat Electron application
+ * Rsbuild configuration for GogChat Electron application
  *
  * This replaces the previous esbuild setup with Rspack-powered builds.
  * Key requirements:

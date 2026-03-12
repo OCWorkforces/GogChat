@@ -5,7 +5,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { GiChatBridgeAPI } from '../shared/types.js';
+import type { GogChatBridgeAPI } from '../shared/types.js';
 import { IPC_CHANNELS } from '../shared/constants.js';
 import {
   validateUnreadCount,
@@ -14,17 +14,17 @@ import {
 } from '../shared/validators.js';
 
 /**
- * Expose secure API to renderer process via window.googlechat
+ * Expose secure API to renderer process via window.gogchat
  * This API is the ONLY way renderer can communicate with main process
  */
-const api: GiChatBridgeAPI = {
+const api: GogChatBridgeAPI = {
   // Send messages to main process (with validation)
   sendUnreadCount: (count: number) => {
     try {
       const validated = validateUnreadCount(count);
       ipcRenderer.send(IPC_CHANNELS.UNREAD_COUNT, validated);
     } catch (error: unknown) {
-      console.error('[Google Chat API] Invalid unread count:', error);
+      console.error('[GogChat API] Invalid unread count:', error);
     }
   },
 
@@ -33,7 +33,7 @@ const api: GiChatBridgeAPI = {
       const validated = validateFaviconURL(href);
       ipcRenderer.send(IPC_CHANNELS.FAVICON_CHANGED, validated);
     } catch (error: unknown) {
-      console.error('[Google Chat API] Invalid favicon URL:', error);
+      console.error('[GogChat API] Invalid favicon URL:', error);
     }
   },
 
@@ -50,7 +50,7 @@ const api: GiChatBridgeAPI = {
       const validated = validatePasskeyFailureData(errorType);
       ipcRenderer.send(IPC_CHANNELS.PASSKEY_AUTH_FAILED, validated);
     } catch (error: unknown) {
-      console.error('[Google Chat API] Invalid passkey failure data:', error);
+      console.error('[GogChat API] Invalid passkey failure data:', error);
     }
   },
 
@@ -77,13 +77,13 @@ const api: GiChatBridgeAPI = {
 };
 
 // Expose API to renderer
-contextBridge.exposeInMainWorld('googlechat', api);
+contextBridge.exposeInMainWorld('gogchat', api);
 
 // Disable WebAuthn/U2F FIRST - must run before any Google auth scripts
 import './disableWebAuthn.js';
 
 // Now load feature-specific preload scripts
-// These will use the window.googlechat API we just exposed
+// These will use the window.gogchat API we just exposed
 import './faviconChanged.js';
 import './offline.js';
 import './passkeyMonitor.js';
