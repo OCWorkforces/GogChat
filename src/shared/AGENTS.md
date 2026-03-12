@@ -20,7 +20,7 @@ IPC_CHANNELS; // renderer→main: UNREAD_COUNT, FAVICON_CHANGED, NOTIFICATION_CL
 //                CHECK_IF_ONLINE, PASSKEY_AUTH_FAILED
 // main→renderer: SEARCH_SHORTCUT, ONLINE_STATUS
 
-SELECTORS; // Google Chat DOM selectors — FRAGILE, may break on Google HTML changes
+SELECTORS; // GogChat DOM selectors — FRAGILE, may break on Google HTML changes
 // CHAT_GROUP, SPACES_GROUP, UNREAD_HEADING, SEARCH_INPUT,
 // FAVICON_ICON, FAVICON_SHORTCUT
 
@@ -33,13 +33,13 @@ TIMING; // WINDOW_STATE_SAVE=500ms, CONNECTIVITY_CHECK=5000ms,
 
 BADGE; // MAX_COUNT=9999, CACHE_LIMIT=99
 
-FAVICON_PATTERNS; // Regex: NORMAL, BADGE — detect GiChat state from favicon URL
+FAVICON_PATTERNS; // Regex: NORMAL, BADGE — detect GogChat state from favicon URL
 ```
 
 ## KEY EXPORTS FROM `types.ts`
 
 ```typescript
-GiChatBridgeAPI; // window.gichat interface — source of truth for preload API
+GogChatBridgeAPI; // window.GogChat interface — source of truth for preload API
 StoreType; // electron-store schema — { window: WindowState, app: AppConfig }
 AppConfig; // autoCheckForUpdates, autoLaunchAtLogin, startHidden,
 // hideMenuBar, disableSpellChecker, suppressPasskeyDialog
@@ -69,7 +69,7 @@ UnreadCountData; // { count, timestamp }
 1. `constants.ts` — add to `IPC_CHANNELS`
 2. `types.ts` — add data interface (e.g. `NewFeatureData`)
 3. `validators.ts` — add `validateNewFeatureData()` using `isSafeObject` + existing validators
-4. Preload: `ipcRenderer.send(IPC_CHANNELS.NEW_FEATURE, data)` + expose on `GiChatBridgeAPI`
+4. Preload: `ipcRenderer.send(IPC_CHANNELS.NEW_FEATURE, data)` + expose on `GogChatBridgeAPI`
 5. Main: `ipcMain.on(IPC_CHANNELS.NEW_FEATURE, (_, raw) => { validate → handle → catch })`
 
 ## WORKFLOW: ADDING CONFIG FIELD
@@ -80,7 +80,7 @@ UnreadCountData; // { count, timestamp }
 
 ## SELECTORS ARE FRAGILE
 
-`SELECTORS` keys map to Google Chat's live DOM. If unread count or favicon monitoring breaks, these are the first suspects. Check Google Chat HTML for current `data-tooltip`, `role`, `name` attributes.
+`SELECTORS` keys map to GogChat's live DOM. If unread count or favicon monitoring breaks, these are the first suspects. Check GogChat HTML for current `data-tooltip`, `role`, `name` attributes.
 
 ## ANTI-PATTERNS
 

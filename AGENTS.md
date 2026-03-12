@@ -1,15 +1,15 @@
-# GiChat — Project Knowledge Base
+# GogChat — Project Knowledge Base
 
 **Generated:** 2026-03-11
 **Commit:** 7aaa6b6
 ## OVERVIEW
 
-Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
+Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
 
 ## STRUCTURE
 
 ```
-GiChat/
+GogChat/
 ├── src/
 │   ├── main/           # Electron main process (Node.js env, ESM output)
 │   │   ├── index.ts    # App entry: feature manager with phased init (security→critical→ui→deferred)
@@ -20,7 +20,7 @@ GiChat/
 │   ├── preload/        # contextBridge scripts (CJS output — sandbox: true)
 │   ├── shared/         # Cross-process contracts: types, constants, validators
 │   ├── offline/        # Standalone offline page (no IPC access)
-│   └── urls.ts         # Google Chat URL constants
+│   └── urls.ts         # GogChat URL constants
 ├── scripts/
 │   ├── build-rsbuild.js  # Dual-build (main=ESM, preload=CJS)
 │   ├── lint.sh         # Combined ESLint + Prettier
@@ -45,12 +45,12 @@ GiChat/
 | IPC channel names | `src/shared/constants.ts`                        | `IPC_CHANNELS` const           |
 | Input validation  | `src/shared/validators.ts`                       | All IPC must go through here   |
 | Config schema     | `src/shared/types.ts` + `src/main/config.ts`     | Update both                    |
-| window.gichat API  | `src/preload/index.ts` + `src/shared/types.ts`   | `GiChatBridgeAPI`               |
+| window.GogChat API  | `src/preload/index.ts` + `src/shared/types.ts`   | `GogChatBridgeAPI`               |
 | Build system      | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                      |
 | DMG packaging     | `mac/`                                           | See `mac/AGENTS.md`            |
 | Test helpers      | `tests/helpers/electron-test.ts`                 | Playwright fixtures            |
 | Electron mocks    | `tests/mocks/electron.ts`                        | For unit tests                 |
-| Log files         | `~/Library/Logs/GiChat/main.log`                  | macOS path                     |
+| Log files         | `~/Library/Logs/GogChat/main.log`                  | macOS path                     |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -132,8 +132,8 @@ bun run build:mac      # ARM64 DMG (production)
 - Electron 40.6.0 / Node.js 24.13.0 / Chromium-based
 - Dynamic imports in `index.ts` → deferred features land in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload loaded with `contextIsolation: false` (intentional exception)
-- Google Chat DOM selectors in `shared/constants.ts` `SELECTORS` — may break if Google updates HTML
-- Config encrypted at `~/Library/Application Support/GiChat/` (macOS)
+- GogChat DOM selectors in `shared/constants.ts` `SELECTORS` — may break if Google updates HTML
+- Config encrypted at `~/Library/Application Support/GogChat/` (macOS)
 - Build history tracked in `.build-history.json` (last 20 builds)
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 

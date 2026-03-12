@@ -31,7 +31,7 @@ function getLocalesPath(platform) {
   const distDir = path.join(__dirname, '..', 'dist');
 
   if (platform === 'mac' || platform === 'darwin') {
-    const appPath = path.join(distDir, 'Google Chat-darwin-arm64', 'Google Chat.app');
+    const appPath = path.join(distDir, 'GogChat-darwin-arm64', 'GogChat.app');
     // On macOS, locale files are in .lproj directories in Resources
     return {
       path: path.join(

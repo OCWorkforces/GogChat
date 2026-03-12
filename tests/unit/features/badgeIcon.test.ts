@@ -91,7 +91,7 @@ describe('Badge Icon Feature', () => {
 
           // Update tray tooltip
           if (tray) {
-            tray.setToolTip(`Google Chat - ${count} unread`);
+            tray.setToolTip(`GogChat - ${count} unread`);
           }
         } catch (error) {
           console.error('Failed to update badge:', error);
@@ -225,7 +225,7 @@ const mockBadgeFeature = {
       }
 
       if (tray) {
-        tray.setToolTip(`Google Chat - ${count} unread`);
+        tray.setToolTip(`GogChat - ${count} unread`);
       }
     };
 

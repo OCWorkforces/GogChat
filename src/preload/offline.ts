@@ -12,7 +12,7 @@ let unsubscribe: (() => void) | null = null;
  */
 const handleOnlineStatus = (online: boolean) => {
   if (online) {
-    // Back online - redirect to Google Chat
+    // Back online - redirect to GogChat
     window.location.replace(urls.appUrl);
   } else {
     // Still offline - reload offline page
@@ -24,8 +24,8 @@ const handleOnlineStatus = (online: boolean) => {
  * Handle check connectivity button click from offline.html
  */
 const handleCheckOnline = () => {
-  if (window.googlechat?.checkIfOnline) {
-    window.googlechat.checkIfOnline();
+  if (window.gogchat?.checkIfOnline) {
+    window.gogchat.checkIfOnline();
   }
 };
 
@@ -35,8 +35,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('app:checkIfOnline', handleCheckOnline);
 
   // Listen to online status from main process
-  if (window.googlechat?.onOnlineStatus) {
-    unsubscribe = window.googlechat.onOnlineStatus(handleOnlineStatus);
+  if (window.gogchat?.onOnlineStatus) {
+    unsubscribe = window.gogchat.onOnlineStatus(handleOnlineStatus);
   }
 });
 

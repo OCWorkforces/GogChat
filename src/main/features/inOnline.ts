@@ -41,7 +41,7 @@ const checkIfOnline = async (
  */
 const showOfflineNotification = (window: BrowserWindow) => {
   const notification = new Notification({
-    title: 'Google Chat',
+    title: 'GogChat',
     body: `You are offline.\nCheck your internet connection.`,
     silent: true,
     timeoutType: 'default',

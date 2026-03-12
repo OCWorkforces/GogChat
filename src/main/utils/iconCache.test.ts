@@ -9,7 +9,7 @@ import path from 'path';
 vi.mock('electron', () => ({
   app: {
     getAppPath: () => path.join(__dirname, '../../..'),
-    getName: () => 'googlechat',
+    getName: () => 'gogchat',
     getPath: (name: string) => `/fake/path/${name}`,
   },
   nativeImage: {

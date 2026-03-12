@@ -73,7 +73,7 @@ export default (url: string): BrowserWindow => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: false, // DISABLED for Google Chat compatibility
+      webSecurity: false, // DISABLED for GogChat compatibility
       allowRunningInsecureContent: false,
       disableBlinkFeatures: 'Auxclick',
       backgroundThrottling: false, // Keep badge/notification updates alive when hidden
@@ -84,15 +84,15 @@ export default (url: string): BrowserWindow => {
     minHeight: 570,
     minWidth: 480,
     center: true,
-    title: 'Google Chat',
+    title: 'GogChat',
     backgroundColor: '#E8EAED',
     autoHideMenuBar: store.get('app.hideMenuBar') as boolean,
   });
 
-  // Strip COEP/COOP headers that block cross-origin embedding in Google Chat.
+  // Strip COEP/COOP headers that block cross-origin embedding in GogChat.
   // We intentionally do NOT replace Google's own CSP — doing so (especially with
   // a nonce) causes 'unsafe-inline' to be silently ignored per the CSP3 spec,
-  // which blocks all of Google Chat's inline scripts and freezes the loading screen.
+  // which blocks all of GogChat's inline scripts and freezes the loading screen.
   const installHeaderFix = () => {
     const ses = window.webContents.session;
     ses.webRequest.onHeadersReceived(

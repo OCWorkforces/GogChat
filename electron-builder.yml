@@ -1,15 +1,15 @@
 # Electron Builder Configuration
 # https://www.electron.build/configuration/configuration
 
-appId: com.ocworkforce.googlechat
-productName: Google Chat
+appId: com.ocworkforce.gogchat
+productName: GogChat
 copyright: Copyright © 2026 OCWorkforce
 
 # Protocol handler for deep linking
 protocols:
-  name: 'Google Chat'
+  name: 'GogChat'
   schemes:
-    - googlechat
+    - gogchat
     - https
 
 # Directories
@@ -96,7 +96,7 @@ dmg:
 # publish:
 #   provider: github
 #   owner: OCWorkforce
-#   repo: GiChat
+#   repo: GogChat
 
 # Additional metadata
 artifactName: '${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}'

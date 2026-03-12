@@ -16,7 +16,7 @@ import {
 test.describe('User Workflows', () => {
   test.describe('Sign In and Navigation', () => {
     test('should complete sign-in flow', async ({ mainWindow }) => {
-      // Wait for Google Chat to load
+      // Wait for GogChat to load
       await mainWindow.waitForLoadState('networkidle');
 
       // Check for sign-in elements (would be actual Google sign-in in production)
@@ -87,8 +87,8 @@ test.describe('User Workflows', () => {
     test('should show unread count badge', async ({ electronApp, mainWindow }) => {
       // Simulate receiving messages (would happen naturally in production)
       await mainWindow.evaluate(() => {
-        if ((window as any).googlechat) {
-          (window as any).googlechat.sendUnreadCount(3);
+        if ((window as any).gogchat) {
+          (window as any).gogchat.sendUnreadCount(3);
         }
       });
 
@@ -143,7 +143,7 @@ test.describe('User Workflows', () => {
       // Go back online
       await goOnline(mainWindow);
 
-      // Should reload Google Chat
+      // Should reload GogChat
       await mainWindow.waitForLoadState('networkidle');
       const url = await mainWindow.url();
       expect(url).toContain('mail.google.com/chat');
@@ -261,7 +261,7 @@ test.describe('User Workflows', () => {
       const link = await mainWindow.locator('#test-external-link');
       await link.click();
 
-      // Should not navigate away from Google Chat
+      // Should not navigate away from GogChat
       await mainWindow.waitForTimeout(1000);
       const url = await mainWindow.url();
       expect(url).toContain('mail.google.com');

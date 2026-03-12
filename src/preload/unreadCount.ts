@@ -1,6 +1,6 @@
 /**
  * Unread count tracker - Now using MutationObserver for better performance
- * Monitors Google Chat sidebar for unread message counts
+ * Monitors GogChat sidebar for unread message counts
  */
 
 import { SELECTORS } from '../shared/constants.js';
@@ -10,7 +10,7 @@ let observer: MutationObserver | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Extract unread message count from Google Chat DOM
+ * Extract unread message count from GogChat DOM
  */
 const getMessageCount = (): number => {
   let counter = 0;
@@ -49,8 +49,8 @@ const emitCount = () => {
   previousCount = count;
 
   // Use secure API exposed via contextBridge
-  if (window.googlechat?.sendUnreadCount) {
-    window.googlechat.sendUnreadCount(count);
+  if (window.gogchat?.sendUnreadCount) {
+    window.gogchat.sendUnreadCount(count);
   }
 };
 
@@ -70,7 +70,7 @@ const initObserver = () => {
 
   // Create observer for document.body changes with debounced callback
   observer = new MutationObserver(() => {
-    // Debounce rapid mutations — Google Chat fires many during typing/rendering
+    // Debounce rapid mutations — GogChat fires many during typing/rendering
     if (debounceTimer !== null) {
       return;
     }

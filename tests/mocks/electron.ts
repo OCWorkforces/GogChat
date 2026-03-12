@@ -265,7 +265,7 @@ export class MockApp extends EventEmitter {
   }
 
   getName(): string {
-    return 'Google Chat';
+    return 'GogChat';
   }
 
   getVersion(): string {

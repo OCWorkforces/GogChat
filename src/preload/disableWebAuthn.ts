@@ -1,7 +1,7 @@
 /**
  * Disable WebAuthn/U2F to prevent authentication stuck issues
  *
- * Problem: Google Chat tries to use U2F/WebAuthn for 2FA when it detects
+ * Problem: GogChat tries to use U2F/WebAuthn for 2FA when it detects
  * browser support. However, Electron doesn't properly handle U2F prompts,
  * causing the app to get stuck at "checking your identity" screen.
  *

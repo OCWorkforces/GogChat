@@ -1,6 +1,6 @@
-# GiChat
+# GogChat
 
-A secure, feature-rich desktop application for Google Chat with native OS integrations and enterprise-grade security.
+A secure, feature-rich desktop application for GogChat with native OS integrations and enterprise-grade security.
 
 ## Features
 
@@ -32,7 +32,7 @@ A secure, feature-rich desktop application for Google Chat with native OS integr
 
 Get the latest release:
 
-- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforce/GiChat/releases/latest)
+- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforce/GogChat/releases/latest)
 
 > **Requirement:** Apple Silicon (M1 or later) is required.
 
