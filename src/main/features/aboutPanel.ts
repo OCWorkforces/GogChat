@@ -22,8 +22,8 @@ export default (mainWindow: BrowserWindow): void => {
   const platform = [os.type(), os.release(), os.arch()].join(', ');
 
   app.setAboutPanelOptions({
-    applicationName: 'Google Chat',
-    applicationVersion: app.getVersion(),
+    applicationName: packageJson.productName,
+    applicationVersion: packageJson.version,
     copyright: `Developed by ${packageJson.author}`,
     version: platform,
   });

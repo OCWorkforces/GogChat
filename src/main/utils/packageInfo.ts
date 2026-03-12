@@ -48,11 +48,11 @@ export function getPackageInfo(): Readonly<PackageInfo> {
       packageInfo = {
         name: 'googlechat',
         productName: 'Google Chat',
-        version: '0.0.0',
+        version: '1.0.0',
         description: 'Google Chat',
-        repository: '',
-        homepage: '',
-        author: '',
+        repository: 'https://github.com/OCWorkforce/GiChat',
+        homepage: 'https://github.com/OCWorkforce/GiChat',
+        author: 'OCWorkforce Engineers',
       };
     }
   }
