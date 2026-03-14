@@ -60,7 +60,13 @@ files:
 # Compression settings
 compression: maximum
 asar: true
-afterSign: scripts/notarize.js
+
+# Locale optimization - keep only English (backup to after-pack.cjs)
+electronLanguages:
+  - en-US
+  - en
+afterPack: scripts/after-pack.cjs
+afterSign: scripts/notarize.cjs
 
 # macOS Configuration
 mac:
@@ -89,7 +95,8 @@ dmg:
       path: /Applications
   # Optional: Custom background
   # background: resources/dmg-background.png
-  format: UDZO
+  format: ULFO
+  shrink: true
 
 # Auto-update: configure a real provider here when ready.
 # Example: provider: github (uses GitHub Releases)

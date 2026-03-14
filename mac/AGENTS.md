@@ -93,7 +93,7 @@ export APPLE_TEAM_ID="YOURTEAMID"
 export APPLE_APP_SPECIFIC_PASSWORD="app-specific-password"
 ```
 
-See `scripts/notarize.js` for the notarization hook (invoked by electron-builder's `afterSign`).
+See `scripts/notarize.cjs` for the notarization hook (invoked by electron-builder's `afterSign`).
 
 
 ## HARDENED RUNTIME AND TEAM ID MISMATCH

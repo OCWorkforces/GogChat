@@ -56,7 +56,7 @@
 │     - hardenedRuntime: true                                             │
 │     - entitlements.mac.plist applied                                    │
 │                      ↓                                                  │
-│  4. afterSign hook: scripts/notarize.js                                 │
+│  4. afterSign hook: scripts/notarize.cjs                                │
 │     - Uploads to Apple using APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD     │
 │     - Waits for Apple's malware scan                                    │
 │     - Staples the notarization ticket                                   │
@@ -275,9 +275,9 @@ Add the following secrets to your GitHub repository:
 | `CSC_LINK`                    | electron-builder | Path to .p12 certificate                                     |
 | `CSC_KEY_PASSWORD`            | electron-builder | Password to decrypt .p12                                     |
 | `CSC_IDENTITY_AUTO_DISCOVERY` | electron-builder | Set to `false` to disable auto-discovery (used in local dev) |
-| `APPLE_ID`                    | notarize.js      | Apple ID for notarization                                    |
-| `APPLE_TEAM_ID`               | notarize.js      | Team ID for notarization                                     |
-| `APPLE_APP_SPECIFIC_PASSWORD` | notarize.js      | App-specific password for notarization                       |
+| `APPLE_ID`                    | notarize.cjs     | Apple ID for notarization                                    |
+| `APPLE_TEAM_ID`               | notarize.cjs     | Team ID for notarization                                     |
+| `APPLE_APP_SPECIFIC_PASSWORD` | notarize.cjs     | App-specific password for notarization                       |
 
 ---
 
@@ -295,7 +295,7 @@ GogChat/
 ├── entitlements.mac.plist       # App entitlements
 ├── entitlements.mac.inherit.plist
 └── scripts/
-    └── notarize.js              # After-sign notarization hook
+    └── notarize.cjs           # After-sign notarization hook
 ```
 
 ### Step 7.1: Build with Code Signing
@@ -337,7 +337,7 @@ When you run with `--enable-code-sign`:
    - Applies hardened runtime and entitlements
 
 4. **Notarization hook runs:**
-   - `scripts/notarize.js` is triggered by `afterSign` hook
+   - `scripts/notarize.cjs` is triggered by `afterSign` hook
    - Uploads signed app to Apple
    - Waits for malware scan (5-15 minutes)
    - Staples notarization ticket to app
@@ -542,7 +542,7 @@ Error: Notarization of MacOS applications using altool has been decommissioned. 
 ```
 
 **Solution:**
-Your `scripts/notarize.js` already uses the correct API. Ensure you're using `@electron/notarize` version 3.x+.
+Your `scripts/notarize.cjs` already uses the correct API. Ensure you're using `@electron/notarize` version 3.x+.
 
 ### Problem: CSC_LINK in GitHub Actions not working
 
@@ -628,7 +628,7 @@ xcrun notarytool history \
 | `electron-builder.sign.yml`      | Code signing extensions               |
 | `entitlements.mac.plist`         | App entitlements (JIT, network, etc.) |
 | `entitlements.mac.inherit.plist` | Entitlements for child processes      |
-| `scripts/notarize.js`            | Notarization after-sign hook          |
+| `scripts/notarize.cjs`           | Notarization after-sign hook          |
 
 ---
 

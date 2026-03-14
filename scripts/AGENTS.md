@@ -13,7 +13,7 @@ Build system, linting, and development tooling. The dual-build architecture is t
 | ------------------- | ------------------------------------------------------ |
 | `build-rsbuild.js`  | Dual-build orchestrator: ESM main + CJS preload        |
 | `lint.sh`           | Combined ESLint + Prettier runner                      |
-| `notarize.js`       | Apple notarization hook for electron-builder afterSign |
+| `notarize.cjs`      | Apple notarization hook for electron-builder afterSign |
 | `remove-locales.js` | Removes non-EN locales from asar for size reduction    |
 | `install-hooks.sh`  | Installs git pre-push hook                             |
 | `hooks/pre-push`    | Git hook that blocks push if lint fails                |
@@ -65,7 +65,7 @@ bun run build:watch  # Starts both builds with watch enabled
 
 Runs ESLint + Prettier. Pre-push hook calls this automatically.
 
-## NOTARIZATION (`notarize.js`)
+## NOTARIZATION (`notarize.cjs`)
 
 Called by electron-builder's `afterSign` hook. Requirements:
 
