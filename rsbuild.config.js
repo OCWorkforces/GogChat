@@ -52,11 +52,33 @@ export default defineConfig({
       jsOptions: {
         minimizerOptions: {
           compress: {
-            passes: 2,
-            drop_console: true, // Drop console logs in production
+            passes: 3,
+            drop_console: true,
             drop_debugger: true,
+            pure_funcs: ['console.log', 'console.info', 'console.debug'],
+            ecma: 2020,
+            arrows: true,
+            collapse_vars: true,
+            comparisons: true,
+            computed_props: true,
+            hoist_funs: true,
+            hoist_props: true,
+            inline: 2,
+            loops: true,
+            negate_iife: true,
+            properties: true,
+            reduce_funcs: true,
+            reduce_vars: true,
+            switches: true,
+            typeofs: true,
           },
-          mangle: true,
+          mangle: {
+            toplevel: true,
+            safari10: false,
+          },
+          format: {
+            comments: false,
+          },
         },
       },
     } : false,

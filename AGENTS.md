@@ -24,7 +24,7 @@ GogChat/
 ├── scripts/
 │   ├── build-rsbuild.js  # Dual-build (main=ESM, preload=CJS)
 │   ├── lint.sh         # Combined ESLint + Prettier
-│   └── notarize.js     # Apple notarization hook
+│   └── notarize.cjs    # Apple notarization hook
 ├── rsbuild.config.js   # ESM config; preload build overrides to CJS
 ├── tests/              # Vitest (unit) + Playwright (integration/e2e/perf)
 ├── mac/                # DMG build documentation → see mac/AGENTS.md
