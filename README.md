@@ -142,14 +142,20 @@ This application implements multiple layers of security:
 
 For detailed security information, see [SECURITY.md](SECURITY.md).
 
-## Architecture
+## Tech Stack
 
-For detailed architecture documentation, see [CLAUDE.md](CLAUDE.md).
+| Layer    | Tech            |
+| -------- | --------------- |
+| Runtime  | Electron 41     |
+| Language | TypeScript 5.9  |
+| Build    | Rslib + Rsbuild |
+| Calendar | Swift EventKit  |
+| Test     | Vitest 4        |
+
+## Contact
+
+If you have any questions or encounter issues, feel free to reach out to [kennydizi@ocworkforces.com](mailto:kennydizi@ocworkforces.com)
 
 ## License
 
-See [LICENSE](LICENSE) file for details.
-
-## Credits
-
-Built with [Electron](https://www.electronjs.org/) and enhanced with [Claude Code](https://claude.com/claude-code).
+MIT
