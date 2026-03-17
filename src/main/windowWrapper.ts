@@ -1,5 +1,5 @@
 import path from 'path';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Notification } from 'electron';
 import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import store from './config.js';
 import log from 'electron-log';
@@ -126,6 +126,23 @@ export default (url: string): BrowserWindow => {
       callback(false);
     }
   });
+
+  // Proactively trigger macOS notification permission dialog at startup.
+  // Electron's Notification internally calls UNUserNotificationCenter.requestAuthorization
+  // on first .show(). If permission was already granted/denied, the notification
+  // flashes briefly and is closed — minimal disruption.
+  if (Notification.isSupported()) {
+    const permNotification = new Notification({
+      title: 'GogChat',
+      body: 'Notifications enabled',
+      silent: true,
+    });
+    permNotification.on('show', () => {
+      permNotification.close();
+    });
+    permNotification.show();
+    log.info('[Notification] Triggered macOS notification permission request at startup');
+  }
 
   window.once('ready-to-show', () => {
     if (!store.get('app.startHidden')) {
