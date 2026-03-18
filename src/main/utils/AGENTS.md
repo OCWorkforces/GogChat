@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-03-11
+**Generated:** 2026-03-18
 
 13 utility modules. Security-critical and performance-critical. All singletons follow `getXxx()` / `destroyXxx()` pattern. All are registered with `resourceCleanup.ts` for graceful shutdown.
 
@@ -12,14 +12,14 @@
 | `ipcHelper.ts`          | Secure IPC handler factories       | `getIPCManager()`     | `IPCHandlerConfig<T>`             |
 | `ipcDeduplicator.ts`    | Dedup rapid same-key requests      | `getDeduplicator()`   | 100ms default window              |
 | `logger.ts`             | Scoped structured logging          | `logger.*`            | wraps electron-log                |
-| `platform.ts`           | Cross-platform abstractions        | `getPlatformUtils()`  | `PlatformConfig`                  |
-| `iconCache.ts`          | NativeImage preload cache          | `getIconCache()`      | warms 7 icons at startup          |
-| `packageInfo.ts`        | package.json singleton             | direct import         | frozen typed object               |
-| `configCache.ts`        | In-memory layer for electron-store | direct import         | disabled in test env              |
-| `configProfiler.ts`     | Dev-only store perf profiler       | —                     | runs in dev mode only             |
-| `performanceMonitor.ts` | Startup timing markers             | direct import         | ~0.01ms overhead                  |
+| `platform.ts`           | macOS platform utils               | `getPlatformUtils()`  | `PlatformConfig`                  |
+| `iconCache.ts`          | NativeImage preload cache          | `getIconCache()`      | warms 9 icons at startup          |
+| `packageInfo.ts`        | package.json singleton             | `getPackageInfo()`    | frozen typed object               |
+| `configCache.ts`        | In-memory layer for electron-store | `addCacheLayer()`     | disabled in test env              |
+| `configProfiler.ts`     | Dev-only store perf profiler       | —                     | `ENABLE_CONFIG_PROFILING=true`    |
+| `performanceMonitor.ts` | Startup timing + memory snapshots  | `getPerformanceMonitor()` | `perfMonitor` convenience export |
 | `featureManager.ts`     | Feature lifecycle orchestrator     | `getFeatureManager()` | see `features/AGENTS.md`          |
-| `errorHandler.ts`       | Structured error utilities         | —                     |                                   |
+| `errorHandler.ts`       | Structured error wrapping          | `getErrorHandler()`   | `wrapAsync`, `wrapSync`           |
 | `resourceCleanup.ts`    | Interval/listener/task cleanup     | `getCleanupManager()` | phases: intervals→listeners→tasks |
 
 ## RATE LIMITER
@@ -37,13 +37,29 @@ Defaults from `../../shared/constants.ts` `RATE_LIMITS`: `IPC_DEFAULT=10`, `IPC_
 Prefer over raw `ipcMain.on()` — bakes in rate limiting, validation, cleanup:
 
 ```typescript
+// One-way handler (fire-and-forget):
 const cleanup = createSecureIPCHandler({
   channel: IPC_CHANNELS.UNREAD_COUNT,
   validator: commonValidators.isNumber,
   handler: (count) => updateBadge(count),
   rateLimit: 5,
 });
-// cleanup() removes the listener
+
+// Request/reply:
+const cleanup = createSecureReplyHandler({
+  channel: IPC_CHANNELS.CHECK_IF_ONLINE,
+  replyChannel: IPC_CHANNELS.ONLINE_STATUS,
+  validator: commonValidators.noData,
+  handler: async () => checkNetwork(),
+});
+
+// Promise-based (ipcMain.handle):
+const cleanup = createSecureInvokeHandler({
+  channel: IPC_CHANNELS.GET_CONFIG,
+  validator: commonValidators.isString,
+  handler: async (key) => store.get(key),
+});
+// All factories return cleanup() that removes the listener
 ```
 
 ## LOGGER SCOPES
@@ -60,6 +76,22 @@ registerCleanupTask('DB close', async () => db.close(), /* critical */ true);
 ```
 
 `setupWindowCleanup(window)` + `setupAppCleanup()` — call immediately after window creation.
+
+## ERROR HANDLER
+
+Wraps feature init and async operations with structured error context:
+
+```typescript
+// Wrap feature initialization:
+await initializeFeature('myFeature', async () => { ... }, 'deferred');
+
+// Wrap async operations:
+await getErrorHandler().wrapAsync({ feature: 'BadgeIcon', operation: 'update' }, async () => {
+  await doRiskyThing();
+});
+```
+
+Global handlers: `unhandledRejection` (log only), `uncaughtException` → graceful `app.quit()`.
 
 ## PLATFORM UTILS
 

@@ -1,10 +1,10 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-03-11
-**Commit:** 7aaa6b6
+**Generated:** 2026-03-18
+**Commit:** d006c1a
 ## OVERVIEW
 
-Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 40.6.0 / Node.js 24.13.0 / Chromium-based.
+Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Electron 41 / Node.js 24.13.0 / Chromium-based.
 
 ## STRUCTURE
 
@@ -12,10 +12,10 @@ Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeS
 GogChat/
 ├── src/
 │   ├── main/           # Electron main process (Node.js env, ESM output)
-│   │   ├── index.ts    # App entry: feature manager with phased init (security→critical→ui→deferred)
+│   │   ├── index.ts    # App entry: featureManager + phased init (security→critical→ui→deferred)
 │   │   ├── windowWrapper.ts  # BrowserWindow factory (sandbox:true, contextIsolation:true)
 │   │   ├── config.ts   # AES-256-GCM encrypted electron-store
-│   │   ├── features/   # 18 lazy-loaded feature modules
+│   │   ├── features/   # 21 lazy-loaded feature modules
 │   │   └── utils/      # 13 security/perf utility modules
 │   ├── preload/        # contextBridge scripts (CJS output — sandbox: true)
 │   ├── shared/         # Cross-process contracts: types, constants, validators
@@ -69,12 +69,15 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 1. setupCertificatePinning()      ← BEFORE any network (app not ready yet)
 2. reportExceptions()             ← catch startup errors
 3. enforceSingleInstance()        ← exits if duplicate
-4. app.whenReady() — critical path:
-   userAgent → windowWrapper → offlineHandlers → connectivity
-   → trayIcon → appMenu → singleInstance restore → windowState
-   → externalLinks → notifications → badgeIcon → closeToTray
-5. setImmediate() — deferred:
-   openAtLogin → appUpdates → contextMenu → firstLaunch → badgeIcons
+4. featureManager.registerAll([...])  ← register all 21 features with phase + lazy import
+5. setupDeepLinkListener()        ← before app.ready (open-url event)
+6. app.whenReady() — critical + ui phases:
+   userAgent → windowWrapper → singleInstance → deepLinkHandler
+7. featureManager.initializePhase('deferred') — via setImmediate():
+   trayIcon → appMenu → badgeIcons → windowState → passkeySupport
+   → handleNotification → inOnline → externalLinks → closeToTray
+   → openAtLogin → appUpdates → contextMenu → firstLaunch
+   → enforceMacOSAppLocation
 ```
 
 ## CONVENTIONS
@@ -112,7 +115,6 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 
 ## COMMANDS
 
-````bash
 ```bash
 bun install
 bun run build:dev      # dev build (~0.25s)
@@ -124,12 +126,12 @@ bun run test           # all tests (Vitest + Playwright)
 bun run test:run       # Vitest single run
 bun run test:coverage  # coverage report
 bun run build:mac      # ARM64 DMG (production)
-````
+```
 
 ## NOTES
 
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
-- Electron 40.6.0 / Node.js 24.13.0 / Chromium-based
+- Electron 41 / Node.js 24.13.0 / Chromium-based
 - Dynamic imports in `index.ts` → deferred features land in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload loaded with `contextIsolation: false` (intentional exception)
 - GogChat DOM selectors in `shared/constants.ts` `SELECTORS` — may break if Google updates HTML
@@ -137,12 +139,16 @@ bun run build:mac      # ARM64 DMG (production)
 - Build history tracked in `.build-history.json` (last 20 builds)
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 
-## COMPLEXITY CENTERS (400+ lines)
+## COMPLEXITY CENTERS (300+ lines)
 
-| File                                | Lines | Purpose                                      |
-| ----------------------------------- | ----- | -------------------------------------------- |
-| `src/main/index.ts`                 | 623   | App entry, feature registration, phased init |
-| `src/main/utils/featureManager.ts`  | 566   | Feature lifecycle, dependency resolution     |
-| `tests/mocks/electron.ts`           | 546   | Complete Electron mock for unit tests        |
-| `src/main/utils/resourceCleanup.ts` | 442   | Tracked intervals/timeouts/listeners         |
-| `src/shared/validators.ts`          | 402   | Input sanitization for all IPC channels      |
+| File                                  | Lines | Purpose                                      |
+| ------------------------------------- | ----- | -------------------------------------------- |
+| `src/main/index.ts`                   | 623   | App entry, feature registration, phased init |
+| `src/main/utils/featureManager.ts`    | 566   | Feature lifecycle, dependency resolution     |
+| `src/main/utils/ipcDeduplicator.ts`   | 321   | IPC request deduplication                    |
+| `src/main/utils/platform.ts`          | 338   | macOS platform utils, enforceMacOSAppLocation |
+| `src/main/utils/performanceMonitor.ts`| 334   | Startup timing markers, memory snapshots     |
+| `tests/mocks/electron.ts`             | 546   | Complete Electron mock for unit tests        |
+| `src/main/utils/resourceCleanup.ts`   | 442   | Tracked intervals/timeouts/listeners         |
+| `src/shared/validators.ts`            | 402   | Input sanitization for all IPC channels      |
+| `src/main/utils/ipcHelper.ts`         | 392   | Secure IPC handler factories                 |

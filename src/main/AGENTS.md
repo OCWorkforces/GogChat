@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-03-11
+**Generated:** 2026-03-18
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling.
 
@@ -18,33 +18,31 @@ Electron main process. Node.js environment with full system access. Owns app lif
 
 ```
 BEFORE app.ready:
-  setupCertificatePinning()   ← network cert validation; MUST precede any HTTP
+  setupCertificatePinning()   ← MUST precede any HTTP
   reportExceptions()           ← catches startup panics
-  enforceSingleInstance()      ← exits process if duplicate running
+  enforceSingleInstance()      ← exits if duplicate running
+  featureManager.registerAll([...])  ← registers all 21 features
+  setupDeepLinkListener()      ← open-url event (before app.ready)
 
-app.whenReady() — critical (blocking):
+app.whenReady() — critical + ui phases (blocking):
   userAgent override
   windowWrapper() → mainWindow
-  setupOfflineHandlers()
-  checkForInternet()
-  createTrayIcon()
-  setupAppMenu()
-  restoreFirstInstance() handler
-  setupWindowState()
-  setupExternalLinks()
-  setupNotifications()
-  setupBadgeIcon()
-  setupCloseToTray()
+  featureManager.initializePhase('critical')  ← userAgent
+  featureManager.initializePhase('ui')        ← singleInstance, deepLinkHandler
 
 setImmediate() — deferred (non-blocking):
-  autoLaunch, appUpdates, contextMenu, firstLaunch
+  featureManager.initializePhase('deferred'):
+  trayIcon, appMenu, badgeIcons, windowState, passkeySupport,
+  handleNotification, inOnline, externalLinks, closeToTray,
+  openAtLogin, appUpdates, contextMenu, firstLaunch,
+  enforceMacOSAppLocation
 ```
 
 **New feature placement rules:**
 
-- Security-critical → before/during app.ready
-- UI-critical → in app.whenReady() chain
-- Nice-to-have → in setImmediate()
+- Security-critical → `security` phase (before app.ready)
+- UI-critical → `critical` or `ui` phase (inside app.whenReady)
+- Nice-to-have → `deferred` phase (setImmediate after window ready)
 
 ## IPC HANDLER PATTERN (MANDATORY)
 
