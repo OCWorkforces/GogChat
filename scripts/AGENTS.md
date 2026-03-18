@@ -1,6 +1,6 @@
 # scripts/ — Build & Development Tools
 
-**Generated:** 2026-03-11
+**Generated:** 2026-03-18
 **Parent docs:** `../AGENTS.md` (project)
 
 ## OVERVIEW
@@ -9,14 +9,16 @@ Build system, linting, and development tooling. The dual-build architecture is t
 
 ## FILES
 
-| File                | Purpose                                                |
-| ------------------- | ------------------------------------------------------ |
-| `build-rsbuild.js`  | Dual-build orchestrator: ESM main + CJS preload        |
-| `lint.sh`           | Combined ESLint + Prettier runner                      |
-| `notarize.cjs`      | Apple notarization hook for electron-builder afterSign |
-| `remove-locales.js` | Removes non-EN locales from asar for size reduction    |
-| `install-hooks.sh`  | Installs git pre-push hook                             |
-| `hooks/pre-push`    | Git hook that blocks push if lint fails                |
+| File                                    | Purpose                                                          |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| `build-rsbuild.js`                      | Dual-build orchestrator: ESM main + CJS preload                  |
+| `lint.sh`                               | Combined ESLint + Prettier runner                                |
+| `notarize.cjs`                          | Apple notarization hook for electron-builder `afterSign`         |
+| `after-pack.cjs`                        | electron-builder `afterPack` hook: strips debug symbols, removes non-EN locales from Electron Framework, reports final bundle size |
+| `remove-locales.js`                     | Removes non-EN locales from asar for size reduction              |
+| `generate-google-chat-icons.mjs`        | Generates all icon variants (tray/normal/badge/offline PNGs + `mac.icns`) using `sharp` + SVG path math |
+| `install-hooks.sh`                      | Installs git pre-push hook                                       |
+| `hooks/pre-push`                        | Git hook that blocks push if lint fails                          |
 
 ## CRITICAL: DUAL-BUILD ARCHITECTURE
 
@@ -74,6 +76,36 @@ Called by electron-builder's `afterSign` hook. Requirements:
 - `APPLE_APP_SPECIFIC_PASSWORD`
 
 Gracefully skips when `CSC_IDENTITY_AUTO_DISCOVERY=false` (local dev builds).
+
+## AFTER-PACK HOOK (`after-pack.cjs`)
+
+Called by electron-builder's `afterPack` hook. **macOS ARM64 only** — skips silently on other architectures.
+
+Operations (in order):
+1. Remove `.DS_Store` and AppleDouble `._*` files
+2. Strip debug symbols from Electron Framework binary (`strip -x -S`)
+3. Strip 4 Electron Helper app binaries
+4. Strip main executable
+5. Remove non-`en.lproj` locale folders from Electron Framework resources
+6. Report final `.app` bundle size
+
+Arch detection: `context.arch === 3` (enum) or `"arm64"` (string).
+
+## ICON GENERATOR (`generate-google-chat-icons.mjs`)
+
+Standalone ESM script. Run manually when icon assets need regeneration.
+
+```bash
+bun scripts/generate-google-chat-icons.mjs
+```
+
+Outputs:
+- `resources/icons/tray/iconTemplate.png` + `@2x.png` — macOS Template (monochrome, system-tinted)
+- `resources/icons/normal/{16,32,48,64,256}.png` + `scalable.svg` + `mac.icns`
+- `resources/icons/badge/{16,32,48,64,256}.png` — red notification dot variant
+- `resources/icons/offline/{16,32,48,64,256}.png` — greyed-out variant
+
+Uses `sharp` for SVG→PNG rasterization and macOS `iconutil` for `.icns` generation (macOS only — `.icns` step skipped elsewhere).
 
 ## COMMANDS
 
