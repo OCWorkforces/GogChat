@@ -28,6 +28,16 @@ function isBenignRendererConsoleMessage(message: string, sourceId: string): bool
     return true;
   }
 
+  // When we strip frame-ancestors from CSP, Chromium falls back to X-Frame-Options
+  // and warns about the deprecated ALLOW-FROM directive. The header is ignored
+  // (frame loads fine), so this is purely cosmetic noise.
+  if (
+    message.includes("Invalid 'X-Frame-Options' header encountered when loading") &&
+    message.includes("is not a recognized directive")
+  ) {
+    return true;
+  }
+
   if (
     message.includes(
       'allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing'
@@ -38,7 +48,7 @@ function isBenignRendererConsoleMessage(message: string, sourceId: string): bool
   }
 
   const cspFrameAncestorsMatch = message.match(
-    /^Framing '([^']+)' violates the following Content Security Policy directive:/
+    /^Framing '([^']+)' violates the following (?:report-only )?Content Security Policy directive:/
   );
   if (!cspFrameAncestorsMatch) {
     return false;
@@ -66,6 +76,38 @@ function isBenignSubframeLoadFailure(
   return hostname !== null && BENIGN_CSP_BLOCKED_HOSTS.has(hostname);
 }
 
+/**
+ * Check if a Node.js process warning is a benign Electron URL load failure.
+ * Electron emits these via process.emitWarning() when subframes fail to load,
+ * which bypasses our did-fail-load handler and goes directly to stderr.
+ */
+function isBenignElectronUrlWarning(message: string): boolean {
+  const match = message.match(
+    /Failed to load URL: (.+) with error: ERR_BLOCKED_BY_RESPONSE/
+  );
+  if (!match) return false;
+
+  const hostname = getHostname(match[1]!);
+  return hostname !== null && BENIGN_CSP_BLOCKED_HOSTS.has(hostname);
+}
+
+/**
+ * Suppress Electron's internal Node.js process warnings for benign subframe
+ * load failures. Adding a 'warning' listener disables Node.js default stderr
+ * output for ALL warnings, so non-benign warnings are re-printed manually.
+ */
+process.on('warning', (warning: Error) => {
+  if (isBenignElectronUrlWarning(warning.message)) {
+    log.debug(
+      `[Load] Suppressed Electron process warning: ${warning.message.split('\n')[0]}`
+    );
+    return;
+  }
+  // Non-benign warnings: re-print to stderr since adding a 'warning'
+  // listener disables Node.js default stderr output for warnings
+  process.stderr.write(`${warning.name}: ${warning.message}\n`);
+});
+
 export default (url: string): BrowserWindow => {
   const window = new BrowserWindow({
     webPreferences: {
@@ -90,9 +132,14 @@ export default (url: string): BrowserWindow => {
   });
 
   // Strip COEP/COOP headers that block cross-origin embedding in GogChat.
-  // We intentionally do NOT replace Google's own CSP — doing so (especially with
-  // a nonce) causes 'unsafe-inline' to be silently ignored per the CSP3 spec,
-  // which blocks all of GogChat's inline scripts and freezes the loading screen.
+  // We intentionally do NOT wholesale replace Google's own CSP — doing so
+  // (especially with a nonce) causes 'unsafe-inline' to be silently ignored
+  // per the CSP3 spec, which blocks all of GogChat's inline scripts.
+  // However, we surgically remove frame-ancestors from CSP on responses from
+  // BENIGN_CSP_BLOCKED_HOSTS. These hosts set frame-ancestors to
+  // studio.workspace.google.com, which causes ERR_BLOCKED_BY_RESPONSE when
+  // embedded inside chat.google.com. Removing the directive allows the
+  // subframes to load without affecting any other CSP protections.
   const installHeaderFix = () => {
     const ses = window.webContents.session;
     ses.webRequest.onHeadersReceived(
@@ -110,6 +157,34 @@ export default (url: string): BrowserWindow => {
         delete responseHeaders['cross-origin-opener-policy'];
         delete responseHeaders['Cross-Origin-Embedder-Policy'];
         delete responseHeaders['Cross-Origin-Opener-Policy'];
+
+        // Strip frame-ancestors from CSP for benign hosts to prevent
+        // subframe load failures (ERR_BLOCKED_BY_RESPONSE)
+        const requestHostname = getHostname(details.url);
+        if (requestHostname !== null && BENIGN_CSP_BLOCKED_HOSTS.has(requestHostname)) {
+          for (const key of ['content-security-policy', 'Content-Security-Policy']) {
+            const csp = responseHeaders[key];
+            if (Array.isArray(csp)) {
+              responseHeaders[key] = csp
+                .map(policy =>
+                  policy.replace(/frame-ancestors\s+[^;]*;?/g, '').trim()
+                )
+                .filter(Boolean);
+              if (responseHeaders[key]!.length === 0) {
+                delete responseHeaders[key];
+              }
+            }
+          }
+
+          // Also strip X-Frame-Options for these hosts. Since we removed
+          // frame-ancestors from CSP, the ALLOW-FROM directive is the only
+          // remaining framing restriction — and it's deprecated/ignored by
+          // Chromium, causing noisy console warnings with no security benefit.
+          delete responseHeaders['x-frame-options'];
+          delete responseHeaders['X-Frame-Options'];
+
+        }
+
         callback({ responseHeaders });
       }
     );

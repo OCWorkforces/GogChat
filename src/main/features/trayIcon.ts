@@ -1,25 +1,25 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, NativeImage } from 'electron';
+import { app, BrowserWindow, Menu, Tray, NativeImage } from 'electron';
 import log from 'electron-log';
-import path from 'path';
+import { getIconCache } from '../utils/iconCache.js';
 
 // Store tray icon reference for cleanup
 let trayIconInstance: Tray | null = null;
 
 /**
- * Get the tray icon image
+ * Get the tray icon image from the icon cache
  * Uses macOS Template naming convention for automatic light/dark mode support
  * @returns NativeImage for the tray icon
  */
 function getTrayIconImage(): NativeImage {
   // macOS uses Template images for automatic dark/light mode adaptation
   // The file must be named with 'Template' suffix
-  const iconPath = path.join(app.getAppPath(), 'resources/icons/tray/iconTemplate.png');
-  return nativeImage.createFromPath(iconPath);
+  return getIconCache().getIcon('resources/icons/tray/iconTemplate.png');
 }
 
 export default (window: BrowserWindow) => {
   const trayIcon = getTrayIconImage();
   trayIconInstance = new Tray(trayIcon);
+  trayIconInstance.setIgnoreDoubleClickEvents(true);
 
   const handleOpenClick = () => {
     if (window.isMinimized()) {
