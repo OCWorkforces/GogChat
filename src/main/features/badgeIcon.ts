@@ -64,14 +64,14 @@ export default (window: BrowserWindow, trayIcon: Tray) => {
             // Determine icon type
             const type = decideIcon(validatedHref);
 
-            // Only update tray icon if type changed (optimization)
-            if (type !== currentTrayIconType) {
+            // macOS: Keep the Template tray icon permanently (dock badge handles unread state)
+            // Only switch tray icon on non-macOS platforms
+            if (process.platform !== 'darwin' && type !== currentTrayIconType) {
               currentTrayIconType = type;
-              // macOS uses 16px tray icons
               const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
               trayIcon.setImage(icon);
               log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
-            } else {
+            } else if (process.platform !== 'darwin') {
               log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
             }
           } catch (error: unknown) {

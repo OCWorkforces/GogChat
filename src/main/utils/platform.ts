@@ -200,7 +200,7 @@ export class PlatformUtils {
    * Uses Template for automatic dark/light mode adaptation
    */
   getTrayIconPath(): string {
-    return join(__dirname, '../../../resources/icons/normal/trayTemplate.png');
+    return join(__dirname, '../../../resources/icons/tray/iconTemplate.png');
   }
 
   /**
