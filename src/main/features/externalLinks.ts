@@ -204,8 +204,26 @@ export default (window: BrowserWindow) => {
 
   window.webContents.setWindowOpenHandler(handleRedirect);
   window.webContents.on('will-navigate', (event, url) => {
+    const currentHost = extractHostname(window.webContents.getURL());
+
+    // Handle Chat account routing
     if (extractHostname(url) === 'chat.google.com' && routeAccountUrl(window, url)) {
       event.preventDefault();
+      return;
+    }
+
+    // Block and open externally all non-whitelisted URLs
+    if (guardAgainstExternalLinks && shouldOpenExternally(url, currentHost)) {
+      event.preventDefault();
+      setImmediate(() => {
+        try {
+          const sanitizedURL = validateExternalURL(url);
+          void shell.openExternal(sanitizedURL);
+          log.info('[ExternalLinks] will-navigate: Opened external URL:', sanitizedURL);
+        } catch (error: unknown) {
+          log.error('[ExternalLinks] will-navigate: Failed to open external URL:', error);
+        }
+      });
     }
   });
 };
