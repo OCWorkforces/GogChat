@@ -7,7 +7,7 @@
       "dependencies": {
         "@rslib/core": "^0.20.0",
         "auto-launch": "^5.0.6",
-        "electron-context-menu": "^4.1.1",
+        "electron-context-menu": "^4.1.2",
         "electron-log": "^5.4.3",
         "electron-store": "^11.0.2",
         "electron-unhandled": "^5.0.0",
@@ -589,7 +589,7 @@
 
     "electron-builder-squirrel-windows": ["electron-builder-squirrel-windows@26.8.1", "", { "dependencies": { "app-builder-lib": "26.8.1", "builder-util": "26.8.1", "electron-winstaller": "5.4.0" } }, "sha512-o288fIdgPLHA76eDrFADHPoo7VyGkDCYbLV1GzndaMSAVBoZrGvM9m2IehdcVMzdAZJ2eV9bgyissQXHv5tGzA=="],
 
-    "electron-context-menu": ["electron-context-menu@4.1.1", "", { "dependencies": { "cli-truncate": "^4.0.0", "electron-dl": "^4.0.0", "electron-is-dev": "^3.0.1" } }, "sha512-kebXha4K2DmR7zrKpO8muzXlUAdhgqQIT7DpPeT4cAKZugwCB/NbuEuT+1SDjOH9vXJYjWK2UQuFvnVw0u0lHg=="],
+    "electron-context-menu": ["electron-context-menu@4.1.2", "", { "dependencies": { "cli-truncate": "^4.0.0", "electron-dl": "^4.0.0", "electron-is-dev": "^3.0.1" } }, "sha512-9xYTUV0oRqKL50N9W71IrXNdVRB0LuBp3R1zkUdUc2wfIa2/QZwYYj5RLuO7Tn7ZSLVIaO3X6u+EIBK+cBvzrQ=="],
 
     "electron-dl": ["electron-dl@4.0.0", "", { "dependencies": { "ext-name": "^5.0.0", "pupa": "^3.1.0", "unused-filename": "^4.0.1" } }, "sha512-USiB9816d2JzKv0LiSbreRfTg5lDk3lWh0vlx/gugCO92ZIJkHVH0UM18EHvKeadErP6Xn4yiTphWzYfbA2Ong=="],
 
