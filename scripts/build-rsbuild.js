@@ -114,6 +114,22 @@ function getAllFiles(dirPath) {
   return allFiles;
 }
 
+function copyOfflineAssets() {
+  const offlineSrcDir = path.join(__dirname, '../src/offline');
+  const offlineDistDir = path.join(__dirname, '../lib/offline');
+  const assets = ['index.html', 'index.css'];
+
+  fs.mkdirSync(offlineDistDir, { recursive: true });
+
+  for (const asset of assets) {
+    const source = path.join(offlineSrcDir, asset);
+    const destination = path.join(offlineDistDir, asset);
+    fs.copyFileSync(source, destination);
+  }
+
+  console.log('[Build] Copied offline HTML assets');
+}
+
 /**
  * Track bundle size history with chunk-level details
  */
@@ -324,6 +340,7 @@ async function build() {
     } else {
       await mainRsbuild.build();
       await preloadRsbuild.build();
+      copyOfflineAssets();
       const endTime = Date.now();
       const duration = ((endTime - startTime) / 1000).toFixed(2);
       console.log(`[Build] ✅ Compilation completed in ${duration}s`);

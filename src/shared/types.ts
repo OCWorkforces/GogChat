@@ -43,6 +43,29 @@ export interface WindowState {
 }
 
 /**
+ * Account-scoped window bounds for multi-account sessions
+ */
+export interface AccountWindowBounds {
+  x: number | null;
+  y: number | null;
+  width: number;
+  height: number;
+}
+
+/**
+ * Account-scoped window state for per-account BrowserWindows
+ */
+export interface AccountWindowState {
+  bounds: AccountWindowBounds;
+  isMaximized: boolean;
+}
+
+/**
+ * Maps account index to account window state
+ */
+export type AccountWindowsMap = Record<number, AccountWindowState>;
+
+/**
  * Application configuration
  */
 export interface AppConfig {
@@ -71,6 +94,7 @@ export interface StoreType extends Record<string, unknown> {
   window: WindowState;
   app: AppConfig;
   _meta?: StoreMetadata;
+  accountWindows?: AccountWindowsMap;
 }
 
 /**

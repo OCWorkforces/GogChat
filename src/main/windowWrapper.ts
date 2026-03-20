@@ -104,7 +104,7 @@ process.on('warning', (warning: Error) => {
   process.stderr.write(`${warning.name}: ${warning.message}\n`);
 });
 
-export default (url: string): BrowserWindow => {
+export default (url: string, partition?: string): BrowserWindow => {
   const window = new BrowserWindow({
     webPreferences: {
       autoplayPolicy: 'user-gesture-required',
@@ -116,6 +116,7 @@ export default (url: string): BrowserWindow => {
       disableBlinkFeatures: 'Auxclick',
       backgroundThrottling: false, // Keep badge/notification updates alive when hidden
       preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
+      partition: partition ?? undefined,
     },
     icon: getIconCache().getIcon('resources/icons/normal/256.png'),
     show: false,

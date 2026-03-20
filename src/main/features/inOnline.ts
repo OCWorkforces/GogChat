@@ -1,4 +1,5 @@
 import { BrowserWindow, Notification, app } from 'electron';
+import fs from 'fs';
 import path from 'path';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING } from '../../shared/constants.js';
@@ -65,6 +66,14 @@ const checkForInternet = async (window: BrowserWindow) => {
 
     if (!canChat) {
       const offlinePagePath = path.join(app.getAppPath(), 'lib/offline/index.html');
+      if (!fs.existsSync(offlinePagePath)) {
+        log.error(
+          `[Connectivity] Offline page missing at ${offlinePagePath} - staying on current page`
+        );
+        showOfflineNotification(window);
+        return;
+      }
+
       await window.loadURL(`file://${offlinePagePath}`);
       showOfflineNotification(window);
       log.warn('[Connectivity] Loaded offline page - no internet connection');

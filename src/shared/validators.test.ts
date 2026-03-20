@@ -15,8 +15,9 @@ import {
   isWhitelistedHost,
   isSafeObject,
   validateDeepLinkURL,
+  isAuthenticatedChatUrl,
+  isGoogleAuthUrl,
 } from './validators';
-
 describe('validateUnreadCount', () => {
   it('should accept valid counts within range', () => {
     expect(validateUnreadCount(0)).toBe(0);
@@ -484,5 +485,103 @@ describe('validateDeepLinkURL', () => {
   it('should throw on disallowed path prefix', () => {
     expect(() => validateDeepLinkURL('gogchat://admin/settings')).toThrow('path not allowed');
     expect(() => validateDeepLinkURL('gogchat://api/v1/data')).toThrow('path not allowed');
+  });
+});
+
+describe('isAuthenticatedChatUrl', () => {
+  // --- Authenticated URLs (should return true) ---
+
+  it('should return true for chat.google.com with /u/0/', () => {
+    expect(isAuthenticatedChatUrl('https://chat.google.com/u/0/')).toBe(true);
+  });
+
+  it('should return true for chat.google.com with /u/1 (no trailing slash)', () => {
+    expect(isAuthenticatedChatUrl('https://chat.google.com/u/1')).toBe(true);
+  });
+
+  it('should return true for chat.google.com with /u/0 and a deeper path', () => {
+    expect(isAuthenticatedChatUrl('https://chat.google.com/u/0/room/AAAA9BixgjY')).toBe(true);
+  });
+
+  it('should return true for mail.google.com with /chat/u/0/', () => {
+    expect(isAuthenticatedChatUrl('https://mail.google.com/chat/u/0/')).toBe(true);
+  });
+
+  it('should return true for mail.google.com with /chat/u/1/r/abc', () => {
+    expect(isAuthenticatedChatUrl('https://mail.google.com/chat/u/1/r/abc')).toBe(true);
+  });
+
+  // --- Unauthenticated / non-Chat URLs (should return false) ---
+
+  it('should return false for chat.google.com bare landing page (no /u/N)', () => {
+    expect(isAuthenticatedChatUrl('https://chat.google.com/')).toBe(false);
+    expect(isAuthenticatedChatUrl('https://chat.google.com')).toBe(false);
+  });
+
+  it('should return false for accounts.google.com login URL', () => {
+    expect(isAuthenticatedChatUrl('https://accounts.google.com/signin/v2/identifier')).toBe(false);
+    expect(isAuthenticatedChatUrl('https://accounts.google.com/o/oauth2/auth')).toBe(false);
+  });
+
+  it('should return false for mail.google.com non-chat path', () => {
+    expect(isAuthenticatedChatUrl('https://mail.google.com/mail/u/0/')).toBe(false);
+  });
+
+  it('should return false for invalid or non-string inputs', () => {
+    expect(isAuthenticatedChatUrl('')).toBe(false);
+    expect(isAuthenticatedChatUrl('not a url')).toBe(false);
+    expect(isAuthenticatedChatUrl(null)).toBe(false);
+    expect(isAuthenticatedChatUrl(undefined)).toBe(false);
+    expect(isAuthenticatedChatUrl(42)).toBe(false);
+  });
+
+  it('should return false for http (non-https) authenticated-looking URLs', () => {
+    expect(isAuthenticatedChatUrl('http://chat.google.com/u/0/')).toBe(false);
+  });
+});
+
+describe('isGoogleAuthUrl', () => {
+  // --- Positive cases (should return true) ---
+
+  it('should return true for accounts.google.com signin URL', () => {
+    expect(isGoogleAuthUrl('https://accounts.google.com/signin/v2/identifier')).toBe(true);
+  });
+
+  it('should return true for accounts.google.com OAuth URL', () => {
+    expect(isGoogleAuthUrl('https://accounts.google.com/o/oauth2/auth')).toBe(true);
+  });
+
+  it('should return true for bare accounts.google.com (with trailing slash)', () => {
+    expect(isGoogleAuthUrl('https://accounts.google.com/')).toBe(true);
+  });
+
+  it('should return true for bare accounts.google.com (no trailing slash)', () => {
+    expect(isGoogleAuthUrl('https://accounts.google.com')).toBe(true);
+  });
+
+  // --- Negative cases (should return false) ---
+
+  it('should return false for http (non-https) accounts.google.com URL', () => {
+    expect(isGoogleAuthUrl('http://accounts.google.com/signin')).toBe(false);
+  });
+
+  it('should return false for a subdomain of accounts.google.com', () => {
+    expect(isGoogleAuthUrl('https://sub.accounts.google.com/signin')).toBe(false);
+  });
+
+  it('should return false for chat.google.com', () => {
+    expect(isGoogleAuthUrl('https://chat.google.com/u/0/')).toBe(false);
+  });
+
+  it('should return false for mail.google.com', () => {
+    expect(isGoogleAuthUrl('https://mail.google.com/chat/u/0/')).toBe(false);
+  });
+
+  it('should return false for invalid or non-string inputs', () => {
+    expect(isGoogleAuthUrl('')).toBe(false);
+    expect(isGoogleAuthUrl('not a url')).toBe(false);
+    expect(isGoogleAuthUrl(null)).toBe(false);
+    expect(isGoogleAuthUrl(undefined)).toBe(false);
+    expect(isGoogleAuthUrl(42)).toBe(false);
   });
 });

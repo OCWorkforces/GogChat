@@ -1,8 +1,19 @@
 import { BrowserWindow, dialog, HandlerDetails, shell } from 'electron';
 import log from 'electron-log';
 import { URL_PATTERNS, TIMING } from '../../shared/constants.js';
-import { validateExternalURL, isWhitelistedHost } from '../../shared/validators.js';
+import {
+  validateExternalURL,
+  isWhitelistedHost,
+  isGoogleAuthUrl,
+} from '../../shared/validators.js';
 import { createTrackedInterval } from '../utils/resourceCleanup.js';
+import { watchBootstrapAccount } from './bootstrapPromotion.js';
+import {
+  createAccountWindow,
+  getAccountIndex,
+  getWindowForAccount,
+  getAccountWindowManager,
+} from '../utils/accountWindowManager.js';
 
 let guardAgainstExternalLinks = true;
 const RE_GUARD_IN_MINUTES = TIMING.EXTERNAL_LINKS_REGUARD / (60 * 1000);
@@ -38,6 +49,74 @@ function isValidHttpURL(input: string): boolean {
   } catch {
     return false;
   }
+}
+
+function getAccountIndexFromUrl(input: string): number {
+  try {
+    const parsed = new URL(input);
+    const match = parsed.pathname.match(/^\/u\/(\d+)(?:\/|$)/);
+    return match ? Number(match[1]) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function routeAccountUrl(window: BrowserWindow, url: string): boolean {
+  const targetAccountIndex = getAccountIndexFromUrl(url);
+  const currentAccountIndex = getAccountIndex(window) ?? 0;
+
+  if (targetAccountIndex === currentAccountIndex) {
+    return false;
+  }
+
+  const manager = getAccountWindowManager();
+  const existingWindow = getWindowForAccount(targetAccountIndex);
+
+  // If the target window exists and is a bootstrap window currently on a Google
+  // auth URL, just show/focus it — do NOT call loadURL again so we don't interrupt
+  // an in-flight sign-in flow.
+  if (
+    existingWindow &&
+    !existingWindow.isDestroyed() &&
+    manager.isBootstrap(targetAccountIndex) &&
+    isGoogleAuthUrl(existingWindow.webContents.getURL())
+  ) {
+    if (existingWindow.isMinimized()) {
+      existingWindow.restore();
+    }
+    existingWindow.show();
+    existingWindow.focus();
+    log.info(
+      `[ExternalLinks] Bootstrap auth window already active for account ${targetAccountIndex} — skipping loadURL`
+    );
+    return true;
+  }
+
+  const targetWindow = existingWindow ?? createAccountWindow(url, targetAccountIndex);
+
+  // Mark newly created secondary-account windows as bootstrap so subsequent
+  // routing calls know an auth flow may be in progress.
+  if (!existingWindow) {
+    manager.markAsBootstrap(targetAccountIndex);
+    watchBootstrapAccount(targetAccountIndex);
+    log.debug(`[ExternalLinks] Marked new account ${targetAccountIndex} window as bootstrap`);
+  }
+
+  if (targetWindow.isMinimized()) {
+    targetWindow.restore();
+  }
+
+  targetWindow.show();
+  targetWindow.focus();
+  if (targetWindow.webContents.getURL() !== url) {
+    void targetWindow.loadURL(url);
+  }
+
+  log.info(
+    `[ExternalLinks] Routed account URL to isolated window: ${currentAccountIndex} -> ${targetAccountIndex}`
+  );
+
+  return true;
 }
 
 /**
@@ -87,6 +166,10 @@ export default (window: BrowserWindow) => {
     try {
       const currentHost = extractHostname(window.webContents.getURL());
 
+      if (extractHostname(url) === 'chat.google.com' && routeAccountUrl(window, url)) {
+        return ACTION_DENIED;
+      }
+
       // Check if should open externally
       if (shouldOpenExternally(url, currentHost)) {
         setImmediate(() => {
@@ -113,6 +196,11 @@ export default (window: BrowserWindow) => {
   };
 
   window.webContents.setWindowOpenHandler(handleRedirect);
+  window.webContents.on('will-navigate', (event, url) => {
+    if (extractHostname(url) === 'chat.google.com' && routeAccountUrl(window, url)) {
+      event.preventDefault();
+    }
+  });
 };
 
 const toggleExternalLinksGuard = (window: BrowserWindow) => {
