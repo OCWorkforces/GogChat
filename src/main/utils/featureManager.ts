@@ -13,6 +13,8 @@
  */
 
 import { BrowserWindow, Tray } from 'electron';
+import type { AccountWindowManager } from './accountWindowManager.js';
+
 import log from 'electron-log';
 import { getErrorHandler } from './errorHandler.js';
 
@@ -32,6 +34,7 @@ export type FeaturePriority = 'security' | 'critical' | 'ui' | 'deferred';
 export interface FeatureContext {
   mainWindow?: BrowserWindow;
   trayIcon?: Tray;
+  accountWindowManager?: AccountWindowManager;
 }
 
 /**

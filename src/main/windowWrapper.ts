@@ -33,7 +33,7 @@ function isBenignRendererConsoleMessage(message: string, sourceId: string): bool
   // (frame loads fine), so this is purely cosmetic noise.
   if (
     message.includes("Invalid 'X-Frame-Options' header encountered when loading") &&
-    message.includes("is not a recognized directive")
+    message.includes('is not a recognized directive')
   ) {
     return true;
   }
@@ -82,9 +82,7 @@ function isBenignSubframeLoadFailure(
  * which bypasses our did-fail-load handler and goes directly to stderr.
  */
 function isBenignElectronUrlWarning(message: string): boolean {
-  const match = message.match(
-    /Failed to load URL: (.+) with error: ERR_BLOCKED_BY_RESPONSE/
-  );
+  const match = message.match(/Failed to load URL: (.+) with error: ERR_BLOCKED_BY_RESPONSE/);
   if (!match) return false;
 
   const hostname = getHostname(match[1]!);
@@ -98,9 +96,7 @@ function isBenignElectronUrlWarning(message: string): boolean {
  */
 process.on('warning', (warning: Error) => {
   if (isBenignElectronUrlWarning(warning.message)) {
-    log.debug(
-      `[Load] Suppressed Electron process warning: ${warning.message.split('\n')[0]}`
-    );
+    log.debug(`[Load] Suppressed Electron process warning: ${warning.message.split('\n')[0]}`);
     return;
   }
   // Non-benign warnings: re-print to stderr since adding a 'warning'
@@ -108,18 +104,19 @@ process.on('warning', (warning: Error) => {
   process.stderr.write(`${warning.name}: ${warning.message}\n`);
 });
 
-export default (url: string): BrowserWindow => {
+export default (url: string, partition?: string): BrowserWindow => {
   const window = new BrowserWindow({
     webPreferences: {
       autoplayPolicy: 'user-gesture-required',
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: false, // DISABLED for GogChat compatibility
+      webSecurity: true,
       allowRunningInsecureContent: false,
       disableBlinkFeatures: 'Auxclick',
       backgroundThrottling: false, // Keep badge/notification updates alive when hidden
       preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
+      partition: partition ?? undefined,
     },
     icon: getIconCache().getIcon('resources/icons/normal/256.png'),
     show: false,
@@ -166,9 +163,7 @@ export default (url: string): BrowserWindow => {
             const csp = responseHeaders[key];
             if (Array.isArray(csp)) {
               responseHeaders[key] = csp
-                .map(policy =>
-                  policy.replace(/frame-ancestors\s+[^;]*;?/g, '').trim()
-                )
+                .map((policy) => policy.replace(/frame-ancestors\s+[^;]*;?/g, '').trim())
                 .filter(Boolean);
               if (responseHeaders[key]!.length === 0) {
                 delete responseHeaders[key];
@@ -182,7 +177,6 @@ export default (url: string): BrowserWindow => {
           // Chromium, causing noisy console warnings with no security benefit.
           delete responseHeaders['x-frame-options'];
           delete responseHeaders['X-Frame-Options'];
-
         }
 
         callback({ responseHeaders });
@@ -226,6 +220,25 @@ export default (url: string): BrowserWindow => {
     window.webContents.session.setSpellCheckerEnabled(!store.get('app.disableSpellChecker'));
   });
 
+  window.on('show', () => {
+    log.info(`[Window] show visible=${window.isVisible()} focused=${window.isFocused()}`);
+  });
+  window.on('hide', () => {
+    log.info(`[Window] hide visible=${window.isVisible()} focused=${window.isFocused()}`);
+  });
+  window.on('focus', () => {
+    log.info(`[Window] focus visible=${window.isVisible()} focused=${window.isFocused()}`);
+  });
+  window.on('blur', () => {
+    log.info(`[Window] blur visible=${window.isVisible()} focused=${window.isFocused()}`);
+  });
+  window.on('minimize', () => {
+    log.info(`[Window] minimize visible=${window.isVisible()} focused=${window.isFocused()}`);
+  });
+  window.on('restore', () => {
+    log.info(`[Window] restore visible=${window.isVisible()} focused=${window.isFocused()}`);
+  });
+
   window.webContents.on('console-message', (event: Event<WebContentsConsoleMessageEventParams>) => {
     if (isBenignRendererConsoleMessage(event.message, event.sourceId)) {
       log.debug(`[Renderer:suppressed] ${event.message} (${event.sourceId}:${event.lineNumber})`);
@@ -254,6 +267,17 @@ export default (url: string): BrowserWindow => {
   });
   window.webContents.on('did-navigate', (_event, navUrl, httpResponseCode) => {
     log.info(`[Nav] did-navigate: ${navUrl} (HTTP ${httpResponseCode})`);
+  });
+  window.webContents.on('render-process-gone', (_event, details) => {
+    log.error(
+      `[Renderer] render-process-gone reason=${details.reason} exitCode=${details.exitCode}`
+    );
+  });
+  window.webContents.on('unresponsive', () => {
+    log.warn('[Renderer] unresponsive');
+  });
+  window.webContents.on('responsive', () => {
+    log.info('[Renderer] responsive');
   });
 
   installHeaderFix();

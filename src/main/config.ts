@@ -122,6 +122,51 @@ const schema: Schema<StoreType> = {
       lastUpdated: Date.now(),
     },
   },
+  accountWindows: {
+    type: 'object',
+    additionalProperties: {
+      type: 'object',
+      properties: {
+        bounds: {
+          type: 'object',
+          properties: {
+            x: {
+              type: ['number', 'null'] as const,
+            },
+            y: {
+              type: ['number', 'null'] as const,
+            },
+            width: {
+              type: 'number',
+            },
+            height: {
+              type: 'number',
+            },
+          },
+          default: {
+            x: null,
+            y: null,
+            width: 800,
+            height: 600,
+          },
+        },
+        isMaximized: {
+          type: 'boolean',
+          default: false,
+        },
+      },
+      default: {
+        bounds: {
+          x: null,
+          y: null,
+          width: 800,
+          height: 600,
+        },
+        isMaximized: false,
+      },
+    },
+    default: {},
+  },
 };
 
 /**

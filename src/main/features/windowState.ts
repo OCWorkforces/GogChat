@@ -1,8 +1,9 @@
 import { throttle, debounce } from 'throttle-debounce';
-import { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import store from '../config.js';
 import { TIMING } from '../../shared/constants.js';
+import type { WindowState } from '../../shared/types.js';
+import { getWindowForAccount } from '../utils/accountWindowManager.js';
 
 // Store handlers for cleanup
 let debouncedSaveHandler: ReturnType<typeof debounce<() => void>> | null = null;
@@ -12,11 +13,23 @@ let readyToShowHandler: (() => void) | null = null;
 let maximizeHandler: (() => void) | null = null;
 let unmaximizeHandler: (() => void) | null = null;
 
-export default (window: BrowserWindow) => {
+interface WindowStateContext {
+  accountWindowManager?: unknown;
+}
+
+export default (_context: WindowStateContext) => {
   try {
+    // Resolve window from account-0 (preserving current single-window behavior)
+    const window = getWindowForAccount(0);
+    if (!window) {
+      log.warn('[WindowState] No window available for account-0');
+      return;
+    }
+
     // Restore previous window state
     if (store.has('window')) {
-      const windowState = store.get('window');
+      const windowState = store.get('window') as WindowState | undefined;
+      if (!windowState) return;
       const bounds = windowState.bounds;
       // Validate bounds have all required properties as numbers
       if (
@@ -108,9 +121,11 @@ export default (window: BrowserWindow) => {
 /**
  * Cleanup function for window state feature
  */
-export function cleanupWindowState(window: BrowserWindow): void {
+export function cleanupWindowState(_context: WindowStateContext): void {
   try {
     log.debug('[WindowState] Cleaning up window state listeners');
+    // Resolve window from account-0 for cleanup
+    const win = getWindowForAccount(0);
 
     // Cancel any pending throttled/debounced calls
     if (debouncedSaveHandler) {
@@ -124,24 +139,24 @@ export function cleanupWindowState(window: BrowserWindow): void {
     }
 
     // Remove event listeners
-    if (!window.isDestroyed()) {
+    if (win && !win.isDestroyed()) {
       if (readyToShowHandler) {
-        window.removeListener('ready-to-show', readyToShowHandler);
+        win.removeListener('ready-to-show', readyToShowHandler);
       }
       if (debouncedSaveHandler) {
-        window.removeListener('close', debouncedSaveHandler);
+        win.removeListener('close', debouncedSaveHandler);
       }
       if (throttledResizeHandler) {
-        window.removeListener('resize', throttledResizeHandler);
+        win.removeListener('resize', throttledResizeHandler);
       }
       if (throttledMoveHandler) {
-        window.removeListener('move', throttledMoveHandler);
+        win.removeListener('move', throttledMoveHandler);
       }
       if (maximizeHandler) {
-        window.removeListener('maximize', maximizeHandler);
+        win.removeListener('maximize', maximizeHandler);
       }
       if (unmaximizeHandler) {
-        window.removeListener('unmaximize', unmaximizeHandler);
+        win.removeListener('unmaximize', unmaximizeHandler);
       }
     }
 

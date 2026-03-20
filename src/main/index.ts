@@ -4,7 +4,6 @@ import { perfMonitor } from './utils/performanceMonitor.js';
 import { compareStorePerformance } from './utils/configProfiler.js';
 
 import path from 'path';
-import windowWrapper from './windowWrapper.js';
 import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
 import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import environment from '../environment.js';
@@ -24,8 +23,18 @@ import type Store from 'electron-store';
 
 import { getFeatureManager, createFeature, createLazyFeature } from './utils/featureManager.js';
 import { initializeErrorHandler } from './utils/errorHandler.js';
+import {
+  getAccountWindowManager,
+  createAccountWindow,
+  getWindowForAccount,
+  destroyAccountWindowManager,
+  getMostRecentWindow,
+} from './utils/accountWindowManager.js';
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS ??= 'true';
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 /**
  * Type guard to check if a store has cache enabled
@@ -103,10 +112,9 @@ featureManager.registerAll([
   createFeature(
     'singleInstance',
     'ui',
-    ({ mainWindow }) => {
-      if (mainWindow) {
-        restoreFirstInstance(mainWindow);
-      }
+    ({ accountWindowManager }) => {
+      // Pass account window manager for dynamic window lookup on second-instance
+      restoreFirstInstance({ accountWindowManager });
     },
     {
       description: 'Single instance restoration handler',
@@ -116,11 +124,10 @@ featureManager.registerAll([
   createFeature(
     'deepLinkHandler',
     'ui',
-    async ({ mainWindow }) => {
+    async ({ accountWindowManager }) => {
       const module = await import('./features/deepLinkHandler.js');
-      if (mainWindow) {
-        module.default(mainWindow);
-      }
+      // Pass account window manager for dynamic window lookup
+      module.default({ accountWindowManager });
     },
     {
       cleanup: async () => {
@@ -128,6 +135,22 @@ featureManager.registerAll([
         module.cleanupDeepLinkHandler();
       },
       description: 'Custom protocol (gogchat://) handler',
+    }
+  ),
+
+  createFeature(
+    'bootstrapPromotion',
+    'ui',
+    async () => {
+      const module = await import('./features/bootstrapPromotion.js');
+      module.default();
+    },
+    {
+      cleanup: async () => {
+        const module = await import('./features/bootstrapPromotion.js');
+        module.cleanupBootstrapPromotion();
+      },
+      description: 'Bootstrap window promotion after first login',
     }
   ),
 
@@ -200,10 +223,9 @@ featureManager.registerAll([
     async () => {
       const module = await import('./features/windowState.js');
       return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-          }
+        default: ({ accountWindowManager }) => {
+          // Pass account window manager for dynamic window resolution
+          module.default({ accountWindowManager });
         },
       };
     },
@@ -354,6 +376,22 @@ featureManager.registerAll([
       description: 'macOS app location enforcement',
     }
   ),
+
+  // Bootstrap promotion - promotes account-0 from login landing to authenticated session
+  createLazyFeature(
+    'bootstrapPromotion',
+    'deferred',
+    async () => {
+      const module = await import('./features/bootstrapPromotion.js');
+      return {
+        default: () => module.default(),
+        cleanup: () => module.cleanupBootstrapPromotion(),
+      };
+    },
+    {
+      description: 'Promotes bootstrap window after first login',
+    }
+  ),
 ]);
 
 if (enforceSingleInstance()) {
@@ -384,12 +422,24 @@ if (enforceSingleInstance()) {
       // Initialize critical features (sequential)
       await featureManager.initializePhase('critical');
 
-      // Create main window (not a feature, core app functionality)
-      mainWindow = windowWrapper(environment.appUrl);
+      // ===== ACCOUNT WINDOW MANAGER INITIALIZATION =====
+      // Initialize account window manager and create account-0 window
+      const accountWindowManager = getAccountWindowManager();
+      perfMonitor.mark('account-manager-init', 'Account window manager initialized');
+
+      // Create account-0 window (primary window)
+      createAccountWindow(environment.appUrl, 0);
+      accountWindowManager.markAsBootstrap(0);
       perfMonitor.mark('window-created', 'Main window created');
 
-      // Update feature context with mainWindow
-      featureManager.updateContext({ mainWindow });
+      // Get the created window and use it as mainWindow for features
+      // This preserves single-window behavior for account-0 while preparing for multi-account
+      mainWindow = getWindowForAccount(0);
+
+      // Update feature context with mainWindow and account manager
+      // Convert null to undefined to match FeatureContext type signature
+      featureManager.updateContext({ mainWindow: mainWindow ?? undefined, accountWindowManager });
+      perfMonitor.mark('account-0-ready', 'Account-0 window ready');
 
       // ===== POST-WINDOW ICON WARMUP =====
       // Warm icon cache after window creation (256.png already loaded on-demand by windowWrapper)
@@ -508,6 +558,14 @@ app.on('before-quit', () => {
     // FeatureManager handles cleanup in reverse initialization order
     void featureManager.cleanup();
 
+    // Cleanup account window manager
+    try {
+      destroyAccountWindowManager();
+      log.info('[Main] Account window manager cleaned up');
+    } catch (error) {
+      log.debug('[Main] Account window manager cleanup skipped:', error);
+    }
+
     log.info('[Main] Feature cleanup completed');
 
     // ⚡ OPTIMIZATION: Comprehensive cache statistics logging
@@ -617,7 +675,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (mainWindow) {
-    mainWindow.show();
+  // Always get fresh window reference — mainWindow may be stale after account switches
+  const windowToShow = getMostRecentWindow() ?? mainWindow;
+  if (windowToShow && !windowToShow.isDestroyed()) {
+    windowToShow.show();
   }
 });

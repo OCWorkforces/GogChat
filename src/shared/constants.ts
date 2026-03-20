@@ -29,6 +29,9 @@ export const SELECTORS = {
   CHAT_GROUP: 'div[data-tooltip="Chat"][role="group"]',
   SPACES_GROUP: 'div[data-tooltip="Spaces"][role="group"]',
   UNREAD_HEADING: 'span[role="heading"]',
+  UNREAD_BADGE_CONTAINER: '.RuSDjb',
+  UNREAD_BADGE: '.OK1FOb',
+  UNREAD_BADGE_ALT: '.zY9JEf',
 
   // Search functionality
   SEARCH_INPUT: 'input[name="q"]',

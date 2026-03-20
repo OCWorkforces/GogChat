@@ -1,11 +1,30 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, shell } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/validators.js';
+import {
+  createAccountWindow,
+  getMostRecentWindow,
+  getWindowForAccount,
+} from '../utils/accountWindowManager.js';
 
 let pendingDeepLinkUrl: string | null = null;
-let windowRef: BrowserWindow | null = null;
 let openUrlListenerRegistered = false;
+
+function getAccountIndexFromUrl(url: string): number {
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/^\/u\/(\d+)(?:\/|$)/);
+    return match ? Number(match[1]) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function getTargetWindow(url: string) {
+  const accountIndex = getAccountIndexFromUrl(url);
+  return getWindowForAccount(accountIndex) ?? createAccountWindow(url, accountIndex);
+}
 
 function sanitizeUrlForLog(url: string): string {
   try {
@@ -21,6 +40,8 @@ export function processDeepLink(url: string): void {
     log.info(`[DeepLink] Received deep link: ${sanitizeUrlForLog(url)}`);
     const validatedUrl = validateDeepLinkURL(url);
 
+    // Get window dynamically via account window manager
+    const windowRef = getTargetWindow(validatedUrl);
     if (!windowRef || windowRef.isDestroyed()) {
       log.info('[DeepLink] Window not ready, buffering URL');
       pendingDeepLinkUrl = validatedUrl;
@@ -34,6 +55,8 @@ export function processDeepLink(url: string): void {
 }
 
 function navigateToUrl(url: string): void {
+  // Get window dynamically via account window manager
+  const windowRef = getTargetWindow(url) ?? getMostRecentWindow();
   if (!windowRef || windowRef.isDestroyed()) {
     log.warn('[DeepLink] Cannot navigate — window unavailable');
     return;
@@ -115,9 +138,9 @@ export function registerDeepLinkProtocol(): void {
   registerProtocolClient(DEEP_LINK.PROTOCOL);
 }
 
-export default function initDeepLinkHandler(window: BrowserWindow): void {
+export default function initDeepLinkHandler(_context: { accountWindowManager?: unknown }): void {
   try {
-    windowRef = window;
+    // No longer storing window reference - use dynamic lookup via account window manager
     registerDeepLinkProtocol();
     processPendingDeepLink();
     log.info('[DeepLink] Deep link handler initialized');
@@ -140,7 +163,7 @@ export function cleanupDeepLinkHandler(): void {
   try {
     log.debug('[DeepLink] Cleaning up deep link handler');
     pendingDeepLinkUrl = null;
-    windowRef = null;
+    // No longer clearing windowRef since we use dynamic lookup
     log.info('[DeepLink] Deep link handler cleaned up');
   } catch (error: unknown) {
     log.error('[DeepLink] Failed to cleanup:', error);

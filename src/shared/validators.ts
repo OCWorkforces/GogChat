@@ -400,3 +400,99 @@ export function validateDeepLinkURL(url: unknown): string {
 
   return parsed.toString();
 }
+
+/**
+ * Detects whether a URL represents an authenticated Google Chat session.
+ *
+ * Returns true only when the URL contains an account-index path segment (`/u/N`)
+ * on either `chat.google.com` or `mail.google.com` (the latter hosting Chat at
+ * `/chat`).  Bare landing pages, `accounts.google.com` login URLs, non-Chat paths,
+ * and anything that cannot be parsed as a valid URL all return false.
+ *
+ * @param url - URL to inspect (string or unknown; non-strings return false)
+ * @returns true if the URL looks like an authenticated Chat session
+ *
+ * @example
+ * isAuthenticatedChatUrl('https://chat.google.com/u/0/')          // true
+ * isAuthenticatedChatUrl('https://mail.google.com/chat/u/1/r/abc') // true
+ * isAuthenticatedChatUrl('https://chat.google.com/')               // false (no /u/N)
+ * isAuthenticatedChatUrl('https://accounts.google.com/signin')     // false (login page)
+ */
+export function isAuthenticatedChatUrl(url: unknown): boolean {
+  if (typeof url !== 'string') {
+    return false;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+
+  // Must be HTTPS
+  if (parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  const { hostname, pathname } = parsed;
+
+  // Accepted host + path combinations:
+  //   chat.google.com  — path starts with /u/<digits>
+  //   mail.google.com  — path starts with /chat/u/<digits>
+  const AUTH_PATH_RE = /^\/u\/\d+(\/|$)/;
+  const MAIL_CHAT_PATH_RE = /^\/chat\/u\/\d+(\/|$)/;
+
+  if (hostname === 'chat.google.com') {
+    return AUTH_PATH_RE.test(pathname);
+  }
+
+  if (hostname === 'mail.google.com') {
+    return MAIL_CHAT_PATH_RE.test(pathname);
+  }
+
+  return false;
+}
+
+/**
+ * Detects whether a URL is a Google Accounts authentication page.
+ *
+ * Returns true only when the URL is HTTPS on `accounts.google.com` (exact
+ * hostname — subdomains are rejected).  Any path is accepted, including
+ * the bare origin.  Non-strings and unparseable values all return false.
+ *
+ * Use this to detect when a window is mid-auth-flow so navigation is not
+ * interrupted.
+ *
+ * @param url - URL to inspect (string or unknown; non-strings return false)
+ * @returns true if the URL is on accounts.google.com over HTTPS
+ *
+ * @example
+ * isGoogleAuthUrl('https://accounts.google.com/signin/v2/identifier') // true
+ * isGoogleAuthUrl('https://accounts.google.com/o/oauth2/auth')        // true
+ * isGoogleAuthUrl('https://accounts.google.com/')                     // true
+ * isGoogleAuthUrl('https://accounts.google.com')                      // true
+ * isGoogleAuthUrl('http://accounts.google.com/signin')                // false (not HTTPS)
+ * isGoogleAuthUrl('https://sub.accounts.google.com/signin')           // false (subdomain)
+ * isGoogleAuthUrl('https://chat.google.com/u/0/')                     // false (wrong host)
+ */
+export function isGoogleAuthUrl(url: unknown): boolean {
+  if (typeof url !== 'string') {
+    return false;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+
+  // Must be HTTPS
+  if (parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  // Exact hostname — subdomains are not accepted
+  return parsed.hostname === 'accounts.google.com';
+}

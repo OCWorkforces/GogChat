@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from 'electron';
+import { app } from 'electron';
 import log from 'electron-log';
 import { extractDeepLinkFromArgv, processDeepLink } from './deepLinkHandler.js';
+import { getMostRecentWindow } from '../utils/accountWindowManager.js';
 
 const enforceSingleInstance = (): boolean => {
   const gotTheLock = app.requestSingleInstanceLock();
@@ -13,9 +14,11 @@ const enforceSingleInstance = (): boolean => {
   return gotTheLock;
 };
 
-const restoreFirstInstance = (window: BrowserWindow) => {
+const restoreFirstInstance = (_context: { accountWindowManager?: unknown }) => {
   app.on('second-instance', (_event, argv) => {
     // Someone tried to run a second instance, we should focus our window.
+    // Use getMostRecentWindow() to get the current window dynamically
+    const window = getMostRecentWindow();
     if (window) {
       if (window.isMinimized()) {
         window.restore();
