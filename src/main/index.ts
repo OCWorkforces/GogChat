@@ -28,6 +28,7 @@ import {
   createAccountWindow,
   getWindowForAccount,
   destroyAccountWindowManager,
+  getMostRecentWindow,
 } from './utils/accountWindowManager.js';
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS ??= 'true';
@@ -674,7 +675,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (mainWindow) {
-    mainWindow.show();
+  // Always get fresh window reference — mainWindow may be stale after account switches
+  const windowToShow = getMostRecentWindow() ?? mainWindow;
+  if (windowToShow && !windowToShow.isDestroyed()) {
+    windowToShow.show();
   }
 });
