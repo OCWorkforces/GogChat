@@ -111,6 +111,13 @@ function routeAccountUrl(window: BrowserWindow, url: string): boolean {
     void targetWindow.loadURL(url);
   }
 
+  // After showing new window, restore source window to front so user doesn't lose
+  // access to their main window. This prevents the new window from stealing focus permanently.
+  if (!window.isDestroyed() && window !== targetWindow) {
+    window.show();
+    window.focus();
+  }
+
   log.info(
     `[ExternalLinks] Routed account URL to isolated window: ${currentAccountIndex} -> ${targetAccountIndex}`
   );
