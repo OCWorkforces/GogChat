@@ -31,7 +31,6 @@
 import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { isAuthenticatedChatUrl } from '../../shared/validators.js';
-import environment from '../../environment.js';
 import { getAccountWindowManager } from '../utils/accountWindowManager.js';
 
 // ─── module-level cleanup refs ────────────────────────────────────────────────
@@ -144,12 +143,13 @@ export function watchBootstrapAccount(accountIndex: number): () => void {
         mgr.promoteBootstrap(accountIndex);
       }
 
-      // For account-0, reload the main window to the authenticated Chat URL so
-      // the UI transitions from the landing page to the real Chat shell.
       if (accountIndex === 0) {
         const mainWindow = mgr.getAccountWindow(0);
         if (mainWindow && !mainWindow.isDestroyed()) {
-          void mainWindow.loadURL(environment.appUrl);
+          const currentUrl = mainWindow.webContents.getURL();
+          if (currentUrl !== url) {
+            void mainWindow.loadURL(url);
+          }
         }
       }
 

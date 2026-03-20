@@ -111,7 +111,7 @@ export default (url: string, partition?: string): BrowserWindow => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: false, // DISABLED for GogChat compatibility
+      webSecurity: true,
       allowRunningInsecureContent: false,
       disableBlinkFeatures: 'Auxclick',
       backgroundThrottling: false, // Keep badge/notification updates alive when hidden

@@ -70,6 +70,13 @@ function routeAccountUrl(window: BrowserWindow, url: string): boolean {
   }
 
   const manager = getAccountWindowManager();
+  if (manager.isBootstrap(currentAccountIndex)) {
+    log.debug(
+      `[ExternalLinks] Source window account-${currentAccountIndex} is bootstrap - allowing redirect to /u/${targetAccountIndex}/`
+    );
+    return false;
+  }
+
   const existingWindow = getWindowForAccount(targetAccountIndex);
 
   // If the target window exists and is a bootstrap window currently on a Google
