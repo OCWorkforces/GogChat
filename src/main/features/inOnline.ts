@@ -16,17 +16,15 @@ let checkIfOnlineCleanup: (() => void) | null = null;
 const checkIfOnline = async (
   timeout: number = TIMING.CONNECTIVITY_CHECK_FAST
 ): Promise<boolean> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  try {
     const response = await fetch('https://www.google.com/generate_204', {
       method: 'HEAD',
       signal: controller.signal,
       cache: 'no-cache',
     });
-
-    clearTimeout(timeoutId);
     return response.ok;
   } catch (error: unknown) {
     log.debug(
@@ -34,6 +32,8 @@ const checkIfOnline = async (
       error instanceof Error ? error.message : 'Unknown error'
     );
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 
@@ -65,6 +65,16 @@ const checkForInternet = async (window: BrowserWindow) => {
     const canChat = await checkIfOnline();
 
     if (!canChat) {
+      log.debug('[Connectivity] Initial connectivity probe failed; confirming offline state...');
+
+      const confirmedOffline = !(await checkIfOnline(TIMING.CONNECTIVITY_CHECK));
+      if (!confirmedOffline) {
+        log.info(
+          '[Connectivity] Connectivity restored on confirmation probe; staying on current page'
+        );
+        return;
+      }
+
       const offlinePagePath = path.join(app.getAppPath(), 'lib/offline/index.html');
       if (!fs.existsSync(offlinePagePath)) {
         log.error(

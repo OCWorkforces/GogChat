@@ -124,6 +124,10 @@ function copyOfflineAssets() {
   for (const asset of assets) {
     const source = path.join(offlineSrcDir, asset);
     const destination = path.join(offlineDistDir, asset);
+    if (!fs.existsSync(source)) {
+      console.warn(`[Build] Warning: Offline asset not found, skipping: ${source}`);
+      continue;
+    }
     fs.copyFileSync(source, destination);
   }
 
@@ -324,6 +328,7 @@ async function build() {
     const preloadRsbuild = await createRsbuild({ rsbuildConfig: preloadRsbuildConfig });
     if (isWatch) {
       console.log('[Build] Starting watch mode...');
+      copyOfflineAssets();
       const mainResult = await mainRsbuild.build({ watch: true });
       const preloadResult = await preloadRsbuild.build({ watch: true });
       console.log('[Build] ✅ Watching for changes... (press Ctrl+C to stop)');
