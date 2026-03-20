@@ -107,7 +107,6 @@ function routeAccountUrl(window: BrowserWindow, url: string): boolean {
   }
 
   targetWindow.show();
-  targetWindow.focus();
   if (targetWindow.webContents.getURL() !== url) {
     void targetWindow.loadURL(url);
   }
