@@ -43,11 +43,12 @@ describe('SELECTORS', () => {
 
   it('should use valid CSS selector syntax', () => {
     Object.values(SELECTORS).forEach((selector) => {
-      // Skip placeholder values that are marked as TODO
       if (selector === 'TODO_INSPECT_DOM') {
         return;
       }
-      expect(selector).toMatch(/^[a-z[\]=":\-,\s]+$/i);
+      // Allow common CSS selector characters: alphanumerics, dots, brackets, equals, quotes, dashes, underscores, colons, spaces, hashes, single quotes
+      const cssSelectorRegex = /^[\w=\"\[\]\.\-'\s:#]+$/;
+      expect(selector).toMatch(cssSelectorRegex);
     });
   });
 

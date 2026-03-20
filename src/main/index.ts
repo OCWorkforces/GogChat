@@ -26,6 +26,9 @@ import { getFeatureManager, createFeature, createLazyFeature } from './utils/fea
 import { initializeErrorHandler } from './utils/errorHandler.js';
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS ??= 'true';
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 /**
  * Type guard to check if a store has cache enabled

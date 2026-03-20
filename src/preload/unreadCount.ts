@@ -1,6 +1,10 @@
 /**
- * Unread count tracker - Now using MutationObserver for better performance
+ * Unread count tracker - Updated for new Google Chat UI (2025+)
  * Monitors GogChat sidebar for unread message counts
+ *
+ * NEW SELECTOR LOGIC: Google Chat now uses:
+ * - RuSDjb containers with OK1FOb/zY9JEf badge children
+ * - aria-label="N unread message" on the badge element
  */
 
 import { SELECTORS } from '../shared/constants.js';
@@ -9,46 +13,66 @@ let previousCount = -1;
 let observer: MutationObserver | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+type UnreadSnapshot = {
+  count: number;
+  containers: number;
+  matchedBadges: number;
+};
+
 /**
  * Extract unread message count from GogChat DOM
+ * UPDATED: New Google Chat UI uses RuSDjb containers with OK1FOb badges
  */
-const getMessageCount = (): number => {
+const getMessageCount = (): UnreadSnapshot => {
   let counter = 0;
+  let matchedBadges = 0;
 
-  // Find Chat and Spaces groups
-  const targets = document.body.querySelectorAll(
-    [SELECTORS.CHAT_GROUP, SELECTORS.SPACES_GROUP].join(',')
-  );
+  const containers = document.querySelectorAll(SELECTORS.UNREAD_BADGE_CONTAINER);
 
-  targets.forEach((target) => {
-    // Find the unread count span (next sibling of heading)
-    const heading = target.querySelector(SELECTORS.UNREAD_HEADING);
-    const countSpan = heading?.nextElementSibling;
+  containers.forEach((container) => {
+    const primaryBadge = container.querySelector(SELECTORS.UNREAD_BADGE);
+    const altBadge = container.querySelector(SELECTORS.UNREAD_BADGE_ALT);
 
-    if (countSpan?.textContent) {
-      const count = Number(countSpan.textContent);
-      if (!isNaN(count)) {
-        counter += count;
+    const badge = primaryBadge || altBadge;
+    if (badge) {
+      const ariaLabel = badge.getAttribute('aria-label') || badge.getAttribute('aria') || '';
+      if (ariaLabel.toLowerCase().includes('unread')) {
+        matchedBadges += 1;
+        const text = badge.textContent?.trim();
+        if (text) {
+          const count = Number(text);
+          if (!isNaN(count) && count > 0) {
+            counter += count;
+          }
+        }
       }
     }
   });
 
-  return counter;
+  return {
+    count: counter,
+    containers: containers.length,
+    matchedBadges,
+  };
 };
 
 /**
  * Emit unread count to main process (only if changed)
  */
 const emitCount = () => {
-  const count = getMessageCount();
+  const snapshot = getMessageCount();
+  const { count } = snapshot;
 
   if (previousCount === count) {
-    return; // No change, skip IPC call
+    return;
   }
+
+  console.info(
+    `[UnreadCount] count=${count} previous=${previousCount} containers=${snapshot.containers} matched=${snapshot.matchedBadges} hidden=${document.hidden} visibility=${document.visibilityState}`
+  );
 
   previousCount = count;
 
-  // Use secure API exposed via contextBridge
   if (window.gogchat?.sendUnreadCount) {
     window.gogchat.sendUnreadCount(count);
   }
@@ -57,20 +81,20 @@ const emitCount = () => {
 /**
  * Initialize MutationObserver to watch for sidebar changes
  * Replaces 1-second polling with reactive observation
- * ⚡ PERF: 200ms debounce batches rapid DOM mutations (typing, UI updates)
+ * PERF: 200ms debounce batches rapid DOM mutations (typing, UI updates)
  */
 const initObserver = () => {
-  // Clean up existing observer
   if (observer) {
     observer.disconnect();
   }
 
-  // Initial count check
+  console.info(
+    `[UnreadCount] observer-init hidden=${document.hidden} visibility=${document.visibilityState}`
+  );
+
   emitCount();
 
-  // Create observer for document.body changes with debounced callback
   observer = new MutationObserver(() => {
-    // Debounce rapid mutations — GogChat fires many during typing/rendering
     if (debounceTimer !== null) {
       return;
     }
@@ -80,20 +104,21 @@ const initObserver = () => {
     }, 200);
   });
 
-  // Observe changes to body
   if (document.body) {
     observer.observe(document.body, {
-      childList: true, // Watch for added/removed nodes
-      subtree: true, // Watch all descendants
-      characterData: true, // Watch for text changes (count updates)
+      childList: true,
+      subtree: true,
+      characterData: true,
     });
   }
 };
 
 /**
- * ✅ SECURITY FIX: Cleanup to prevent memory leaks
+ * Cleanup to prevent memory leaks
  */
 const cleanup = () => {
+  console.info('[UnreadCount] observer-cleanup');
+
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer);
     debounceTimer = null;
@@ -104,8 +129,13 @@ const cleanup = () => {
   }
 };
 
-// Initialize when DOM is ready
+window.addEventListener('visibilitychange', () => {
+  console.info(
+    `[UnreadCount] visibility-change hidden=${document.hidden} visibility=${document.visibilityState}`
+  );
+  emitCount();
+});
+
 window.addEventListener('DOMContentLoaded', initObserver);
 
-// Clean up observer when page unloads
 window.addEventListener('beforeunload', cleanup);
