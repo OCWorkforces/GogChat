@@ -1,7 +1,7 @@
 {
   "name": "gogchat",
   "productName": "GogChat",
-  "version": "3.7.0",
+  "version": "3.7.1",
   "description": "Unofficial Google Chat desktop client built with Electron and Rust.",
   "private": true,
   "repository": "https://github.com/OCWorkforce/GogChat",
