@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-03-18
+**Generated:** 2026-03-21
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling.
 
@@ -9,7 +9,8 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Task                   | File               | Notes                                                   |
 | ---------------------- | ------------------ | ------------------------------------------------------- |
 | App init sequence      | `index.ts`         | Order is security-critical — see init table below       |
-| BrowserWindow creation | `windowWrapper.ts` | One window, reused app lifetime                         |
+| Multi-account mgr      | `utils/accountWindowManager.ts` | Per-account windows + bootstrap                  |
+| BrowserWindow creation | `windowWrapper.ts` | Per-account factory with partition support            |
 | Encrypted config       | `config.ts`        | AES-256-GCM; schema paired with `../../shared/types.ts` |
 | Feature modules        | `features/`        | See `features/AGENTS.md`                                |
 | Utility modules        | `utils/`           | See `utils/AGENTS.md`                                   |
@@ -27,8 +28,12 @@ BEFORE app.ready:
 app.whenReady() — critical + ui phases (blocking):
   userAgent override
   windowWrapper() → mainWindow
-  featureManager.initializePhase('critical')  ← userAgent
-  featureManager.initializePhase('ui')        ← singleInstance, deepLinkHandler
+  featureManager.initializePhase('security') → 'critical'
+  accountWindowManager → createAccountWindow(url, 0) → markAsBootstrap(0)
+  featureManager.updateContext({ mainWindow, accountWindowManager })
+  iconCache.warmCache()
+  featureManager.initializePhase('ui'):
+    singleInstance → deepLinkHandler → bootstrapPromotion
 
 setImmediate() — deferred (non-blocking):
   featureManager.initializePhase('deferred'):
@@ -43,6 +48,7 @@ setImmediate() — deferred (non-blocking):
 - Security-critical → `security` phase (before app.ready)
 - UI-critical → `critical` or `ui` phase (inside app.whenReady)
 - Nice-to-have → `deferred` phase (setImmediate after window ready)
+- Multi-account features must use `accountWindowManager` for window creation — never use `BrowserWindow` directly
 
 ## IPC HANDLER PATTERN (MANDATORY)
 
@@ -72,6 +78,7 @@ store.set('app.startHidden', true);
 ```
 
 To add setting: (1) `StoreType` in `../../shared/types.ts` → (2) schema entry in `config.ts`.
+Common keys: `app.*`, `accountWindows` (type `AccountWindowsMap`), `features.*`, `window.*`.
 
 ## ANTI-PATTERNS
 
@@ -81,8 +88,10 @@ To add setting: (1) `StoreType` in `../../shared/types.ts` → (2) schema entry 
 - **Never** access `mainWindow` without null-check (`mainWindow?.webContents`)
 - **Never** move certificate pinning after app.ready
 - **Never** modify window security settings (contextIsolation, sandbox, nodeIntegration)
+- **Never** destroy a window without unregistering from `accountWindowManager`
+- **Never** interrupt a bootstrap window mid-auth-flow with `loadURL` — check `isGoogleAuthUrl()` first
 
 ## WINDOW LIFECYCLE & LOGGING
 
- `mainWindow`: module-level global, lives full app lifetime. Close-to-tray: `window.hide()` (not destroy). `activate` restores window. `window-all-closed` → `app.quit()`.
+ `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown calls `destroyAccountWindowManager()` after `featureManager.cleanup()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`.
  Logger scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.feature('Name')`. Log file: `~/Library/Logs/GogChat/main.log`. **Never log** passwords or credential-bearing URLs.
