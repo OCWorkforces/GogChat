@@ -1,13 +1,14 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-03-18
+**Generated:** 2026-03-21
 
-13 utility modules. Security-critical and performance-critical. All singletons follow `getXxx()` / `destroyXxx()` pattern. All are registered with `resourceCleanup.ts` for graceful shutdown.
+14 utility modules. Security-critical and performance-critical. All singletons follow `getXxx()` / `destroyXxx()` pattern. All are registered with `resourceCleanup.ts` for graceful shutdown.
 
 ## MODULE INVENTORY
 
 | File                    | Purpose                            | Singleton             | Key type                          |
-| ----------------------- | ---------------------------------- | --------------------- | --------------------------------- |
+#PN|| ----------------------- | ---------------------------------- | --------------------- | --------------------------------- |
+#ZW|| `accountWindowManager.ts` | Multi-account BrowserWindow management | `getAccountWindowManager()` | `AccountWindowManager` class with bootstrap tracking |
 | `rateLimiter.ts`        | IPC DoS prevention                 | `getRateLimiter()`    | sliding-window per channel        |
 | `ipcHelper.ts`          | Secure IPC handler factories       | `getIPCManager()`     | `IPCHandlerConfig<T>`             |
 | `ipcDeduplicator.ts`    | Dedup rapid same-key requests      | `getDeduplicator()`   | 100ms default window              |
@@ -21,6 +22,21 @@
 | `featureManager.ts`     | Feature lifecycle orchestrator     | `getFeatureManager()` | see `features/AGENTS.md`          |
 | `errorHandler.ts`       | Structured error wrapping          | `getErrorHandler()`   | `wrapAsync`, `wrapSync`           |
 | `resourceCleanup.ts`    | Interval/listener/task cleanup     | `getCleanupManager()` | phases: intervals→listeners→tasks |
+
+## ACCOUNT WINDOW MANAGER
+
+```typescript
+const mgr = getAccountWindowManager();
+const win = mgr.createAccountWindow('https://chat.google.com', 0);
+mgr.markAsBootstrap(0);  // Mark as pre-auth login window
+mgr.promoteBootstrap(0); // After auth completes
+const state = mgr.getAccountWindowState(0);
+mgr.saveAccountWindowState(0);
+const idx = mgr.getAccountIndex(someWindow);
+mgr.destroyAll();
+```
+
+Per-account session partitions: `persist:account-N`. Bootstrap tracking: `markAsBootstrap()` -> `promoteBootstrap()` -> `isBootstrap()`. Window auto-unregisters on `closed` event. Conveniences: `createAccountWindow()`, `getWindowForAccount()`, `getMostRecentWindow()`.
 
 ## RATE LIMITER
 

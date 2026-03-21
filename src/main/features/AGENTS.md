@@ -1,8 +1,8 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-03-18
+**Generated:** 2026-03-21
 
-21 self-contained feature modules. All registered via `featureManager.registerAll()` in `index.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`.
+20+ self-contained feature modules. All registered via `featureManager.registerAll()` in `index.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account sessions via bootstrap window promotion.
 
 ## FEATURE CONTRACT
 
@@ -24,16 +24,17 @@ Each feature is registered with `createFeature()` (static import) or `createLazy
 | `certificatePinning.ts`   | `security` | —       | none (cert-error event)                                                           |
 | `reportExceptions.ts`     | `security` | —       | none                                                                              |
 | `userAgent.ts`            | `critical` | —       | none                                                                              |
-| `singleInstance.ts`       | `ui`       | —       | none (second-instance event)                                                      |
-| `deepLinkHandler.ts`      | `ui`       | —       | none (open-url event); `setupDeepLinkListener()` called manually before app.ready |
+| `singleInstance.ts`       | `ui`       | —       | none (second-instance event); receives `{ accountWindowManager }` context         |
+| `deepLinkHandler.ts`      | `ui`       | `cleanupDeepLinkHandler()`, `extractDeepLinkFromArgv()` | none (open-url event); `setupDeepLinkListener()` called manually before app.ready; receives `{ accountWindowManager }` context |
+| `bootstrapPromotion.ts`   | `ui`       | cleanup function | none (webContents events: did-navigate, did-create-window)                          |
 | `trayIcon.ts`             | `deferred` | `Tray`  | none                                                                              |
 | `appMenu.ts`              | `deferred` | —       | `SEARCH_SHORTCUT` (sends)                                                         |
 | `badgeIcon.ts`            | `deferred` | —       | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens)                                       |
-| `windowState.ts`          | `deferred` | —       | none (throttled writes)                                                           |
-| `passkeySupport.ts`       | `deferred` | —       | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                                            |
-| `handleNotification.ts`   | `deferred` | —       | `NOTIFICATION_SHOW` (listens)                                                     |
-| `inOnline.ts`             | `deferred` | —       | `CHECK_IF_ONLINE` (listens), `ONLINE_STATUS` (sends)                              |
-| `externalLinks.ts`        | `deferred` | —       | none (will-navigate event)                                                        |
+| `windowState.ts`          | `deferred` | —       | none (throttled writes); uses `accountWindowManager` for per-account state        |
+| `passkeySupport.ts`       | `deferred` | —       | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                                           |
+| `handleNotification.ts`   | `deferred` | —       | `NOTIFICATION_SHOW` (listens)                                                      |
+| `inOnline.ts`             | `deferred` | —       | `CHECK_IF_ONLINE` (listens), `ONLINE_STATUS` (sends)                               |
+| `externalLinks.ts`        | `deferred` | —       | none (will-navigate event); routes to per-account windows via `createAccountWindow`; exports `toggleExternalLinksGuard` |
 | `closeToTray.ts`          | `deferred` | —       | none                                                                              |
 | `openAtLogin.ts`          | `deferred` | —       | none                                                                              |
 | `appUpdates.ts`           | `deferred` | —       | none                                                                              |
@@ -64,6 +65,11 @@ Each feature is registered with `createFeature()` (static import) or `createLazy
 - `appMenu.ts` imports `autoLaunch()` from `openAtLogin.ts` directly
 - `appMenu.ts` imports `toggleExternalLinksGuard()` from `externalLinks.ts` directly
 - `singleInstance.ts` calls `processDeepLink()` from `deepLinkHandler.ts` for second-instance args
+- `singleInstance.ts` receives `accountWindowManager` via context for dynamic window lookup
+- `deepLinkHandler.ts` receives `accountWindowManager` via context
+- `externalLinks.ts` depends on `bootstrapPromotion.ts` (`watchBootstrapAccount`) for bootstrap window tracking
+- `externalLinks.ts` depends on `accountWindowManager.ts` (`createAccountWindow`, `markAsBootstrap`) for per-account window creation
+- `windowState.ts` depends on `accountWindowManager.ts` (`saveAccountWindowState`) for per-account state persistence
 - `aboutPanel.ts` is called imperatively from `appMenu.ts`, not via featureManager
 
 ## ANTI-PATTERNS
@@ -73,6 +79,7 @@ Each feature is registered with `createFeature()` (static import) or `createLazy
 - **Never** skip error handling — feature failure must not crash the app
 - **Never** store mutable state in module scope without cleanup registration
 - **Never** access `ctx.mainWindow` without null/destroyed check in async callbacks
+- **Never** route to an account window that is mid-auth-flow without checking `isGoogleAuthUrl()`
 - **`passkeySupport.ts`** is macOS-only — guarded with `process.platform !== 'darwin'`
 
 ## DYNAMIC IMPORTS

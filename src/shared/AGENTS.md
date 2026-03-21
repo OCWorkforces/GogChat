@@ -1,9 +1,9 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-03-11
+**Generated:** 2026-03-21
 ## OVERVIEW
 
-3 source files. Single source of truth for all cross-process contracts. Changes here propagate to both Electron main and preload bundles. **Edit this before touching IPC handlers or preload scripts.**
+5 source files: `constants.ts`, `types.ts`, `validators.ts`, `environment.ts`, `urls.ts`. Single source of truth for all cross-process contracts. Changes here propagate to both Electron main and preload bundles. **Edit this before touching IPC handlers or preload scripts.**
 
 ## FILES
 
@@ -34,6 +34,9 @@ TIMING; // WINDOW_STATE_SAVE=500ms, CONNECTIVITY_CHECK=5000ms,
 BADGE; // MAX_COUNT=9999, CACHE_LIMIT=99
 
 FAVICON_PATTERNS; // Regex: NORMAL, BADGE — detect GogChat state from favicon URL
+
+DEEP_LINK;       // gogchat:// protocol config, allowed path prefixes
+URL_PATTERNS;    // GMAIL_PREFIX, CHAT_PREFIX, DOWNLOAD patterns
 ```
 
 ## KEY EXPORTS FROM `types.ts`
@@ -48,6 +51,13 @@ IconType; // 'offline' | 'normal' | 'badge'
 PasskeyFailureData; // { errorType, timestamp }
 FaviconData; // { href, type: IconType, timestamp }
 UnreadCountData; // { count, timestamp }
+AccountWindowState; // Per-account window state for multi-account BrowserWindows
+AccountWindowsMap;  // Maps account index → AccountWindowState
+IPCResponse<T>;     // Discriminated union for IPC replies
+IPCChannelPayloadMap; // Maps IPC channel string → payload type
+Branded<T, Brand>;  // Nominal typing — prevents mixing structurally-identical types
+ValidatedURL;       // URL validated by validateExternalURL/validateFaviconURL
+StoreMetadata;      // Cache versioning for store invalidation
 ```
 
 ## KEY EXPORTS FROM `validators.ts`
@@ -62,7 +72,12 @@ UnreadCountData; // { count, timestamp }
 | `validateString(v, maxLen)`     | Type check + length limit (default 1000)                 |
 | `isSafeObject(v)`               | Prevents prototype pollution — checks plain object only  |
 | `sanitizeHTML(html)`            | XSS — escapes &, <, >, ", ', /                           |
-| `validatePasskeyFailureData(v)` | Whitelist of known WebAuthn error types                  |
+| `validatePasskeyFailureData(v)` | Whitelist of known WebAuthn error types          |
+| `isAuthenticatedChatUrl(v)` | Non-auth URLs, wrong protocol, no /u/N path         |
+| `isGoogleAuthUrl(v)`        | Non-HTTPS, subdomains, wrong hostname              |
+| `validateDeepLinkURL(v)`    | Invalid protocol, path not in ALLOWED_PATH_PREFIXES |
+| `validateNotificationData(v)` | title>500, body>5000, invalid icon URL            |
+| `validateAppleSystemPreferencesURL(v)` | Non-exact match (whitelist-only)        |
 
 ## WORKFLOW: ADDING NEW IPC CHANNEL
 

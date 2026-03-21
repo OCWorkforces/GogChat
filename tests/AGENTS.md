@@ -1,11 +1,18 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-03-11
+**Generated:** 2026-03-21
 ## OVERVIEW
 
 4 test tiers: **unit** (Vitest, isolated), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`, `fullyParallel: false`.
 
 ## STRUCTURE
+
+Unit tests are colocated with source files:
+
+- `src/main/features/*.test.ts`
+- `src/main/utils/*.test.ts`
+
+Physical layout:
 
 ```
 tests/
@@ -20,6 +27,8 @@ tests/
 ```
 
 ## HELPERS: `helpers/electron-test.ts`
+
+Test files that need multi-account window fixtures import `createAccountWindow` directly from `src/main/utils/accountWindowManager.ts`.
 
 Exports Playwright `test` with fixtures: `electronApp`, `mainWindow`, `appPath`.
 
