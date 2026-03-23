@@ -678,6 +678,10 @@ app.on('activate', () => {
   // Always get fresh window reference — mainWindow may be stale after account switches
   const windowToShow = getMostRecentWindow() ?? mainWindow;
   if (windowToShow && !windowToShow.isDestroyed()) {
+    if (windowToShow.isMinimized()) {
+      windowToShow.restore();
+    }
     windowToShow.show();
+    windowToShow.focus();
   }
 });

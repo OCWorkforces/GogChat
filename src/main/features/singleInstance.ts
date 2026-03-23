@@ -24,6 +24,7 @@ const restoreFirstInstance = (_context: { accountWindowManager?: unknown }) => {
         window.restore();
       }
       window.show();
+      window.focus();
     }
 
     // Check if second instance was launched with a deep link
