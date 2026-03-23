@@ -376,22 +376,6 @@ featureManager.registerAll([
       description: 'macOS app location enforcement',
     }
   ),
-
-  // Bootstrap promotion - promotes account-0 from login landing to authenticated session
-  createLazyFeature(
-    'bootstrapPromotion',
-    'deferred',
-    async () => {
-      const module = await import('./features/bootstrapPromotion.js');
-      return {
-        default: () => module.default(),
-        cleanup: () => module.cleanupBootstrapPromotion(),
-      };
-    },
-    {
-      description: 'Promotes bootstrap window after first login',
-    }
-  ),
 ]);
 
 if (enforceSingleInstance()) {
