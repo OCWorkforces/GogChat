@@ -1,7 +1,7 @@
 # GogChat — Project Knowledge Base
 
 **Generated:** 2026-03-21
-**Commit:** e5c96a9
+**Commit:** 764db42
 ## OVERVIEW
 
 Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions. Electron 41 / Node.js 24.13.0 / Chromium-based.
@@ -159,7 +159,7 @@ bun run build:mac      # ARM64 DMG (production)
 | File                                  | Lines | Purpose                                      |
 | ------------------------------------- | ----- | -------------------------------------------- |
 | `src/main/index.ts`                   | 667   | App entry, feature registration, phased init |
-| `src/main/utils/featureManager.ts`    | 566   | Feature lifecycle, dependency resolution     |
+| `src/main/utils/featureManager.ts`    | 569   | Feature lifecycle, dependency resolution     |
 | `src/main/utils/accountWindowManager.ts` | 396 | Multi-account BrowserWindow management   |
 | `src/main/utils/resourceCleanup.ts`   | 442   | Tracked intervals/timeouts/listeners         |
 | `src/shared/validators.ts`            | 498   | Input sanitization for all IPC channels      |
