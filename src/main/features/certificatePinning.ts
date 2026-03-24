@@ -106,8 +106,8 @@ function isCertPinningDisabled(): boolean {
   try {
     const configPath = path.join(app.getPath('userData'), 'config.json');
     if (fs.existsSync(configPath)) {
-      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      if (raw?.app?.disableCertPinning === true) {
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+      if ((raw?.app as Record<string, unknown>)?.disableCertPinning === true) {
         return true;
       }
     }

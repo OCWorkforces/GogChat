@@ -104,7 +104,6 @@ featureManager.registerAll([
     description: 'Custom User-Agent override',
   }),
 
-
   // ===== UI PHASE =====
   // Minimal UI - only single instance handler synchronous
   createFeature(

@@ -12,7 +12,7 @@ import { isGoogleAuthUrl } from '../../shared/validators.js';
 import log from 'electron-log';
 import windowWrapper from '../windowWrapper.js';
 import store from '../config.js';
-import type { AccountWindowState, AccountWindowsMap } from '../../shared/types.js';
+import type { AccountWindowState } from '../../shared/types.js';
 
 /**
  * Account window registration entry
@@ -41,8 +41,11 @@ export class AccountWindowManager {
    * Tracks event listeners attached to windows so they can be removed on re-register.
    * Prevents stale closures from firing with wrong accountIndex on focus/show events.
    */
-  private windowListeners = new Map<BrowserWindow, { focus: () => void; show: () => void; closed: () => void }>();
-   /**
+  private windowListeners = new Map<
+    BrowserWindow,
+    { focus: () => void; show: () => void; closed: () => void }
+  >();
+  /**
    * Reverse index for O(1) webContents.id → accountIndex lookup.
    * Used by getAccountForWebContents() to avoid O(n) iteration.
    */
@@ -92,7 +95,11 @@ export class AccountWindowManager {
     window.on('show', showHandler);
     window.on('closed', closedHandler);
 
-    this.windowListeners.set(window, { focus: focusHandler, show: showHandler, closed: closedHandler });
+    this.windowListeners.set(window, {
+      focus: focusHandler,
+      show: showHandler,
+      closed: closedHandler,
+    });
     this.webContentsToAccountIndex.set(window.webContents.id, accountIndex);
     log.info(`[AccountWindowManager] Registered window for account ${accountIndex}`);
   }
@@ -324,7 +331,7 @@ export class AccountWindowManager {
     const bounds = window.getBounds();
     const isMaximized = window.isMaximized();
 
-    const accountWindows = (store.get('accountWindows') ?? {}) as AccountWindowsMap;
+    const accountWindows = store.get('accountWindows') ?? {};
     accountWindows[accountIndex] = {
       bounds: {
         x: bounds.x,
@@ -345,7 +352,7 @@ export class AccountWindowManager {
    * @returns The saved window state or default
    */
   getAccountWindowState(accountIndex: number): AccountWindowState | null {
-    const accountWindows = store.get('accountWindows') as AccountWindowsMap | undefined;
+    const accountWindows = store.get('accountWindows');
     return accountWindows?.[accountIndex] ?? null;
   }
 

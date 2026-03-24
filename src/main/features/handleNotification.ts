@@ -69,14 +69,18 @@ export default (window: BrowserWindow) => {
         notification.show();
 
         // Set up auto-dismiss timeout (10 seconds)
-        const timeout = createTrackedTimeout(() => {
-          try {
-            notification.close();
-            log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
-          } catch (error: unknown) {
-            log.error('[Notification] Failed to auto-dismiss notification:', error);
-          }
-        }, TIMING.NOTIFICATION_AUTO_DISMISS, 'notification-auto-dismiss');
+        const timeout = createTrackedTimeout(
+          () => {
+            try {
+              notification.close();
+              log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
+            } catch (error: unknown) {
+              log.error('[Notification] Failed to auto-dismiss notification:', error);
+            }
+          },
+          TIMING.NOTIFICATION_AUTO_DISMISS,
+          'notification-auto-dismiss'
+        );
 
         // Store notification and timeout for cleanup
         if (validated.tag) {

@@ -2,8 +2,7 @@
  * Unit tests for encryption key management using SafeStorage
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as fs from 'node:fs';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as path from 'node:path';
 
 // Track file system mock state

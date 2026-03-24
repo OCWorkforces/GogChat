@@ -47,7 +47,7 @@ describe('SELECTORS', () => {
         return;
       }
       // Allow common CSS selector characters: alphanumerics, dots, brackets, equals, quotes, dashes, underscores, colons, spaces, hashes, single quotes
-      const cssSelectorRegex = /^[\w=\"\[\]\.\-'\s:#]+$/;
+      const cssSelectorRegex = /^[\w="[\].\-'\s:#]+$/;
       expect(selector).toMatch(cssSelectorRegex);
     });
   });

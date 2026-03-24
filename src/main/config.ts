@@ -3,11 +3,14 @@ import Store, { Schema } from 'electron-store';
 import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';
 import { getPackageInfo } from './utils/packageInfo.js';
-import { getOrCreateEncryptionKey, needsMigration, completeMigration } from './utils/encryptionKey.js';
+import {
+  getOrCreateEncryptionKey,
+  needsMigration,
+  completeMigration,
+} from './utils/encryptionKey.js';
 
 // ⚡ OPTIMIZATION: Cache version for invalidation on app updates
 const CACHE_VERSION = '1.0.0';
-
 
 // Schema definition for electron-store
 const schema: Schema<StoreType> = {
@@ -210,7 +213,7 @@ export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
 
         // Import data into new store
         for (const [key, value] of Object.entries(allData)) {
-          store.set(key as keyof StoreType, value as StoreType[keyof StoreType]);
+          store.set(key as keyof StoreType, value);
         }
         log.info('[Config] Migration to SafeStorage encryption complete');
       }

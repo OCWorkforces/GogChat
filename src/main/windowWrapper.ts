@@ -165,7 +165,7 @@ export default (url: string, partition?: string): BrowserWindow => {
               responseHeaders[key] = csp
                 .map((policy) => policy.replace(/frame-ancestors\s+[^;]*;?/g, '').trim())
                 .filter(Boolean);
-              if (responseHeaders[key]!.length === 0) {
+              if (responseHeaders[key].length === 0) {
                 delete responseHeaders[key];
               }
             }
