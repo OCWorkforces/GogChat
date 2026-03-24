@@ -167,7 +167,7 @@ describe('Encryption Key Module', () => {
 
       const { completeMigration } = await import('./encryptionKey');
 
-      const result = completeMigration('legacykey123');
+      const result = completeMigration();
       expect(result).toBeNull();
     });
 
@@ -181,7 +181,7 @@ describe('Encryption Key Module', () => {
 
       const { completeMigration } = await import('./encryptionKey');
 
-      const result = completeMigration('legacykey123');
+      const result = completeMigration();
       expect(result).toBeNull();
     });
 
@@ -191,7 +191,7 @@ describe('Encryption Key Module', () => {
 
       const { completeMigration } = await import('./encryptionKey');
 
-      const result = completeMigration('legacykey123');
+      const result = completeMigration();
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(64); // New 256-bit key as hex
