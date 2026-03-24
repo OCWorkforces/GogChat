@@ -46,10 +46,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || steps.create-tag.outputs.tag_name != ''
         run: bun run build:mac:arm64
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Verify build artifacts
         if: always() && (startsWith(github.ref, 'refs/tags/') || steps.create-tag.outputs.tag_name != '')
