@@ -4,6 +4,8 @@
  */
 
 import { app, Certificate } from 'electron';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import log from 'electron-log';
 
 /**
@@ -18,6 +20,7 @@ const TRUSTED_GOOGLE_ISSUERS = [
   'GTS Root R4',
   'GTS CA 1C3',
   'GTS CA 1D4',
+  'GTS CA 1O1',
   'GlobalSign',
 ];
 
@@ -96,10 +99,37 @@ let certificateErrorHandler:
   | null = null;
 
 /**
+ * Check if certificate pinning is disabled via config file
+ * Uses direct file read since store may not be initialized yet (runs before app.ready)
+ */
+function isCertPinningDisabled(): boolean {
+  try {
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    if (fs.existsSync(configPath)) {
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+      if ((raw?.app as Record<string, unknown>)?.disableCertPinning === true) {
+        return true;
+      }
+    }
+  } catch {
+    // Can't read config, continue with pinning
+  }
+  return false;
+}
+
+/**
  * Initialize certificate pinning
  * Prevents MITM attacks on Google domains
  */
 export default function setupCertificatePinning(): void {
+  // Kill switch: check config before registering handler
+  if (isCertPinningDisabled()) {
+    log.warn(
+      '[CertPinning] Certificate pinning is DISABLED via config — all Google domain certificates will be allowed'
+    );
+    return;
+  }
+
   certificateErrorHandler = (event, _webContents, url, error, certificate, callback) => {
     // Prevent default behavior
     event.preventDefault();

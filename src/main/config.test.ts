@@ -11,6 +11,11 @@ vi.mock('electron', () => ({
     getPath: (name: string) => `/fake/path/${name}`,
     getAppPath: () => '/fake/app/path',
   },
+  safeStorage: {
+    isEncryptionAvailable: vi.fn(() => false),
+    encryptString: vi.fn((str: string) => Buffer.from(`encrypted:${str}`)),
+    decryptString: vi.fn((buffer: Buffer) => buffer.toString().replace('encrypted:', '')),
+  },
 }));
 
 // Mock electron-log

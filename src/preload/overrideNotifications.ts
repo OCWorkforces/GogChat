@@ -1,6 +1,7 @@
 // https://github.com/jiahaog/nativefier/blob/cf11a71a7c6efd366266fcf39ac6fc49783dd8c7/app/src/preload.ts#L23
 import { ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants.js';
+import { validateNotificationData } from '../shared/validators.js';
 
 // This feature requires contextIsolation to be disabled on BrowserWindow
 // When contextIsolation is enabled, we can not override any global (window.X) API
@@ -55,13 +56,24 @@ class MockNotification extends EventTarget {
     // Store this instance for click handling
     notificationInstances.set(this._id, { onclick: this.onclick });
 
-    // Send notification data to main process
-    ipcRenderer.send(IPC_CHANNELS.NOTIFICATION_SHOW, {
+    // Defense-in-depth: validate before sending to main process.
+    // Main-side handler also validates via createSecureIPCHandler,
+    // but preload-side validation catches bad data early — especially
+    // important since this script runs with contextIsolation: false.
+    const notificationData = {
       title: this.title,
       body: this.body,
       icon: this.icon,
       tag: this.tag,
-    });
+    };
+
+    try {
+      validateNotificationData(notificationData);
+      ipcRenderer.send(IPC_CHANNELS.NOTIFICATION_SHOW, notificationData);
+    } catch (error: unknown) {
+      console.error('[overrideNotifications] Invalid notification data:', error);
+      return;
+    }
 
     // Simulate show event
     setTimeout(() => {

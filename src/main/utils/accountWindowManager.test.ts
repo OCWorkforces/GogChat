@@ -5,6 +5,7 @@
  * getBootstrapAccounts, and cleanup paths (unregisterAccount, destroyAll).
  */
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 vi.mock('electron', () => require('../../../tests/mocks/electron'));
 vi.mock('electron-log', () => ({
   default: {
@@ -350,4 +351,3 @@ describe('AccountWindowManager — createAccountWindow auth-flow guard', () => {
     });
   });
 });
-

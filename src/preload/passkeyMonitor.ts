@@ -25,11 +25,7 @@ function reportPasskeyFailure(errorName: string): void {
   }
 
   // Check if window.gogchat API is available
-  if (
-    typeof window !== 'undefined' &&
-    window.gogchat &&
-    window.gogchat.reportPasskeyFailure
-  ) {
+  if (typeof window !== 'undefined' && window.gogchat && window.gogchat.reportPasskeyFailure) {
     hasReportedFailure = true;
     window.gogchat.reportPasskeyFailure(errorName);
     console.debug('[Passkey Monitor] Reported failure:', errorName);

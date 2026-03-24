@@ -12,7 +12,7 @@ import { isGoogleAuthUrl } from '../../shared/validators.js';
 import log from 'electron-log';
 import windowWrapper from '../windowWrapper.js';
 import store from '../config.js';
-import type { AccountWindowState, AccountWindowsMap } from '../../shared/types.js';
+import type { AccountWindowState } from '../../shared/types.js';
 
 /**
  * Account window registration entry
@@ -37,6 +37,19 @@ export class AccountWindowManager {
    * (kept and re-labelled as a real account) or closed after login.
    */
   private bootstrapAccounts = new Set<number>();
+  /**
+   * Tracks event listeners attached to windows so they can be removed on re-register.
+   * Prevents stale closures from firing with wrong accountIndex on focus/show events.
+   */
+  private windowListeners = new Map<
+    BrowserWindow,
+    { focus: () => void; show: () => void; closed: () => void }
+  >();
+  /**
+   * Reverse index for O(1) webContents.id → accountIndex lookup.
+   * Used by getAccountForWebContents() to avoid O(n) iteration.
+   */
+  private webContentsToAccountIndex = new Map<number, number>();
 
   /**
    * Register a BrowserWindow for a specific account index
@@ -60,18 +73,34 @@ export class AccountWindowManager {
 
     this.windows.set(accountIndex, entry);
     this.reverseLookup.set(window, accountIndex);
-    this.mostRecentAccountIndex = accountIndex;
+    // Remove old listeners if re-registering (prevents listener leak)
+    const existingListeners = this.windowListeners.get(window);
+    if (existingListeners) {
+      window.removeListener('focus', existingListeners.focus);
+      window.removeListener('show', existingListeners.show);
+      window.removeListener('closed', existingListeners.closed);
+    }
 
-    window.on('focus', () => {
+    const focusHandler = () => {
       this.mostRecentAccountIndex = accountIndex;
-    });
-    window.on('show', () => {
+    };
+    const showHandler = () => {
       this.mostRecentAccountIndex = accountIndex;
-    });
-    window.on('closed', () => {
+    };
+    const closedHandler = () => {
       this.unregisterAccount(accountIndex);
-    });
+    };
 
+    window.on('focus', focusHandler);
+    window.on('show', showHandler);
+    window.on('closed', closedHandler);
+
+    this.windowListeners.set(window, {
+      focus: focusHandler,
+      show: showHandler,
+      closed: closedHandler,
+    });
+    this.webContentsToAccountIndex.set(window.webContents.id, accountIndex);
     log.info(`[AccountWindowManager] Registered window for account ${accountIndex}`);
   }
 
@@ -106,13 +135,8 @@ export class AccountWindowManager {
   }
 
   getAccountForWebContents(webContentsId: number): number | null {
-    for (const [accountIndex, entry] of this.windows) {
-      if (entry.window.webContents.id === webContentsId) {
-        return accountIndex;
-      }
-    }
-
-    return null;
+    const index = this.webContentsToAccountIndex.get(webContentsId);
+    return index !== undefined ? index : null;
   }
 
   /**
@@ -182,6 +206,20 @@ export class AccountWindowManager {
   unregisterAccount(accountIndex: number): void {
     const entry = this.windows.get(accountIndex);
     if (entry) {
+      // Clean up event listeners
+      const listeners = this.windowListeners.get(entry.window);
+      if (listeners && !entry.window.isDestroyed()) {
+        entry.window.removeListener('focus', listeners.focus);
+        entry.window.removeListener('show', listeners.show);
+        entry.window.removeListener('closed', listeners.closed);
+      }
+      this.windowListeners.delete(entry.window);
+
+      // Clean up webContents reverse index
+      if (!entry.window.isDestroyed()) {
+        this.webContentsToAccountIndex.delete(entry.window.webContents.id);
+      }
+
       this.reverseLookup.delete(entry.window);
       this.windows.delete(accountIndex);
       this.bootstrapAccounts.delete(accountIndex);
@@ -293,7 +331,7 @@ export class AccountWindowManager {
     const bounds = window.getBounds();
     const isMaximized = window.isMaximized();
 
-    const accountWindows = (store.get('accountWindows') ?? {}) as AccountWindowsMap;
+    const accountWindows = store.get('accountWindows') ?? {};
     accountWindows[accountIndex] = {
       bounds: {
         x: bounds.x,
@@ -314,7 +352,7 @@ export class AccountWindowManager {
    * @returns The saved window state or default
    */
   getAccountWindowState(accountIndex: number): AccountWindowState | null {
-    const accountWindows = store.get('accountWindows') as AccountWindowsMap | undefined;
+    const accountWindows = store.get('accountWindows');
     return accountWindows?.[accountIndex] ?? null;
   }
 
@@ -323,6 +361,9 @@ export class AccountWindowManager {
    */
   destroyAll(): void {
     log.info(`[AccountWindowManager] Destroying ${this.windows.size} account windows`);
+
+    // Clear webContents reverse index first
+    this.webContentsToAccountIndex.clear();
 
     for (const entry of this.windows.values()) {
       if (!entry.window.isDestroyed()) {
@@ -333,13 +374,13 @@ export class AccountWindowManager {
     this.windows.clear();
     this.reverseLookup.clear();
     this.bootstrapAccounts.clear();
-    this.mostRecentAccountIndex = null;
-    this.reverseLookup.clear();
+    this.windowListeners.clear();
     this.mostRecentAccountIndex = null;
   }
 }
 
 // Singleton instance
+
 let accountWindowManager: AccountWindowManager | null = null;
 
 /**

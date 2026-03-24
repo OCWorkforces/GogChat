@@ -21,7 +21,7 @@ const autoLaunch = (): AutoLaunch => {
   return autoLaunchInstance;
 };
 
-export default ({ mainWindow }: { mainWindow?: BrowserWindow }) => {
+export default ({ mainWindow }: { mainWindow?: BrowserWindow | null }) => {
   if (environment.isDev) return;
 
   autoLaunchInstance = autoLaunch();

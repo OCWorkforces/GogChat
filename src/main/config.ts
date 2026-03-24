@@ -1,24 +1,16 @@
-import { app } from 'electron';
-import { createHash } from 'crypto';
 import type { StoreType } from '../shared/types.js';
 import Store, { Schema } from 'electron-store';
-import { addCacheLayer, type CachedStore } from './utils/configCache.js';
+import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';
 import { getPackageInfo } from './utils/packageInfo.js';
+import {
+  getOrCreateEncryptionKey,
+  needsMigration,
+  completeMigration,
+} from './utils/encryptionKey.js';
 
 // ⚡ OPTIMIZATION: Cache version for invalidation on app updates
 const CACHE_VERSION = '1.0.0';
-
-/**
- * Generate encryption key from app-specific data
- * This creates a consistent key per machine/user
- * Encrypts sensitive configuration data at rest
- */
-function getEncryptionKey(): string {
-  // Use app name + user data path to generate consistent key per installation
-  const keyMaterial = `${app.getName()}-${app.getPath('userData')}`;
-  return createHash('sha256').update(keyMaterial).digest('hex');
-}
 
 // Schema definition for electron-store
 const schema: Schema<StoreType> = {
@@ -90,6 +82,10 @@ const schema: Schema<StoreType> = {
         type: 'boolean',
         default: false,
       },
+      disableCertPinning: {
+        type: 'boolean',
+        default: false,
+      },
     },
     default: {
       autoCheckForUpdates: true,
@@ -98,6 +94,7 @@ const schema: Schema<StoreType> = {
       hideMenuBar: false,
       disableSpellChecker: false,
       suppressPasskeyDialog: false,
+      disableCertPinning: false,
     },
   },
   _meta: {
@@ -178,17 +175,53 @@ let storeInstance: Store<StoreType> | CachedStore<StoreType> | null = null;
 /**
  * Initialize the electron-store instance
  * Now uses static import with ESM
+ *
+ * Migration strategy:
+ * - If SafeStorage is available but key file doesn't exist while config does,
+ *   we need to migrate from the legacy deterministic key to SafeStorage.
+ * - Migration is done by exporting all data, creating new store with new key,
+ *   and re-importing the data.
  */
 export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
   if (storeInstance) {
     return storeInstance;
   }
 
+  // Get or create encryption key (SafeStorage-backed or legacy)
+  const encryptionKey = getOrCreateEncryptionKey();
+
   // Create store with encryption
   let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
     schema,
-    encryptionKey: getEncryptionKey(),
+    encryptionKey,
   });
+
+  // Migration: if SafeStorage is available but we opened with legacy key
+  if (needsMigration()) {
+    try {
+      log.info('[Config] Starting migration from legacy to SafeStorage encryption');
+      const newKey = completeMigration();
+      if (newKey) {
+        // Export all data from old store
+        const allData = { ...store.store }; // electron-store exposes .store for raw data
+
+        // Create new store with new key
+        store = new Store<StoreType>({
+          schema,
+          encryptionKey: newKey,
+        });
+
+        // Import data into new store
+        for (const [key, value] of Object.entries(allData)) {
+          store.set(key as keyof StoreType, value);
+        }
+        log.info('[Config] Migration to SafeStorage encryption complete');
+      }
+    } catch (error: unknown) {
+      log.error('[Config] Migration failed, continuing with legacy key:', error);
+      // Continue with the legacy-key store - data is still accessible
+    }
+  }
 
   /**
    * Enable caching layer for improved performance
@@ -229,9 +262,9 @@ function validateAndUpdateCacheVersion(store: Store<StoreType> | CachedStore<Sto
         `[Config] Cache invalidation triggered - Cache version: ${storedCacheVersion} → ${CACHE_VERSION}, App version: ${storedAppVersion} → ${currentAppVersion}`
       );
 
-      // Clear cache if it has the clearCache method (CachedStore)
-      if (typeof (store as CachedStore<StoreType>).clearCache === 'function') {
-        (store as CachedStore<StoreType>).clearCache();
+      // Clear cache if store has caching layer
+      if (isCachedStore(store)) {
+        store.clearCache();
         log.info('[Config] In-memory cache cleared');
       }
 

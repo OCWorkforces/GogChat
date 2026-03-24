@@ -1,7 +1,8 @@
 # GogChat — Project Knowledge Base
 
 **Generated:** 2026-03-21
-**Commit:** e5c96a9
+**Commit:** 764db42
+
 ## OVERVIEW
 
 Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions. Electron 41 / Node.js 24.13.0 / Chromium-based.
@@ -38,20 +39,20 @@ GogChat/
 
 ## WHERE TO LOOK
 
-| Task              | Location                                         | Notes                          |
-| ----------------- | ------------------------------------------------ | ------------------------------ |
-| App init order    | `src/main/index.ts`                              | Security → critical → deferred |
-| Multi-account mgr | `src/main/utils/accountWindowManager.ts`        | Per-account windows + bootstrap |
-| Add new feature   | `src/main/features/`                             | See `features/AGENTS.md`       |
-| IPC channel names | `src/shared/constants.ts`                        | `IPC_CHANNELS` const           |
-| Input validation  | `src/shared/validators.ts`                       | All IPC must go through here   |
-| Config schema     | `src/shared/types.ts` + `src/main/config.ts`     | Update both                    |
-| window.gogchat API | `src/preload/index.ts` + `src/shared/types.ts`   | `GogChatBridgeAPI`             |
-| Build system      | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                      |
-| DMG packaging     | `mac/`                                           | See `mac/AGENTS.md`            |
-| Test helpers      | `tests/helpers/electron-test.ts`                 | Playwright fixtures            |
-| Electron mocks    | `tests/mocks/electron.ts`                        | For unit tests                 |
-| Log files         | `~/Library/Logs/GogChat/main.log`                | macOS path                     |
+| Task               | Location                                         | Notes                           |
+| ------------------ | ------------------------------------------------ | ------------------------------- |
+| App init order     | `src/main/index.ts`                              | Security → critical → deferred  |
+| Multi-account mgr  | `src/main/utils/accountWindowManager.ts`         | Per-account windows + bootstrap |
+| Add new feature    | `src/main/features/`                             | See `features/AGENTS.md`        |
+| IPC channel names  | `src/shared/constants.ts`                        | `IPC_CHANNELS` const            |
+| Input validation   | `src/shared/validators.ts`                       | All IPC must go through here    |
+| Config schema      | `src/shared/types.ts` + `src/main/config.ts`     | Update both                     |
+| window.gogchat API | `src/preload/index.ts` + `src/shared/types.ts`   | `GogChatBridgeAPI`              |
+| Build system       | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                       |
+| DMG packaging      | `mac/`                                           | See `mac/AGENTS.md`             |
+| Test helpers       | `tests/helpers/electron-test.ts`                 | Playwright fixtures             |
+| Electron mocks     | `tests/mocks/electron.ts`                        | For unit tests                  |
+| Log files          | `~/Library/Logs/GogChat/main.log`                | macOS path                      |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -156,16 +157,16 @@ bun run build:mac      # ARM64 DMG (production)
 
 ## COMPLEXITY CENTERS (300+ lines)
 
-| File                                  | Lines | Purpose                                      |
-| ------------------------------------- | ----- | -------------------------------------------- |
-| `src/main/index.ts`                   | 667   | App entry, feature registration, phased init |
-| `src/main/utils/featureManager.ts`    | 566   | Feature lifecycle, dependency resolution     |
-| `src/main/utils/accountWindowManager.ts` | 396 | Multi-account BrowserWindow management   |
-| `src/main/utils/resourceCleanup.ts`   | 442   | Tracked intervals/timeouts/listeners         |
-| `src/shared/validators.ts`            | 498   | Input sanitization for all IPC channels      |
-| `src/main/utils/ipcHelper.ts`         | 392   | Secure IPC handler factories                 |
-| `src/main/utils/platform.ts`          | 338   | macOS platform utils, enforceMacOSAppLocation |
-| `src/main/utils/performanceMonitor.ts`| 334   | Startup timing markers, memory snapshots     |
-| `tests/mocks/electron.ts`             | 546   | Complete Electron mock for unit tests        |
-| `src/main/features/bootstrapPromotion.ts` | 249 | Bootstrap window auth detection/promotion  |
-| `src/main/utils/ipcDeduplicator.ts`   | 321   | IPC request deduplication                    |
+| File                                      | Lines | Purpose                                       |
+| ----------------------------------------- | ----- | --------------------------------------------- |
+| `src/main/index.ts`                       | 667   | App entry, feature registration, phased init  |
+| `src/main/utils/featureManager.ts`        | 569   | Feature lifecycle, dependency resolution      |
+| `src/main/utils/accountWindowManager.ts`  | 396   | Multi-account BrowserWindow management        |
+| `src/main/utils/resourceCleanup.ts`       | 442   | Tracked intervals/timeouts/listeners          |
+| `src/shared/validators.ts`                | 498   | Input sanitization for all IPC channels       |
+| `src/main/utils/ipcHelper.ts`             | 392   | Secure IPC handler factories                  |
+| `src/main/utils/platform.ts`              | 338   | macOS platform utils, enforceMacOSAppLocation |
+| `src/main/utils/performanceMonitor.ts`    | 334   | Startup timing markers, memory snapshots      |
+| `tests/mocks/electron.ts`                 | 546   | Complete Electron mock for unit tests         |
+| `src/main/features/bootstrapPromotion.ts` | 249   | Bootstrap window auth detection/promotion     |
+| `src/main/utils/ipcDeduplicator.ts`       | 321   | IPC request deduplication                     |

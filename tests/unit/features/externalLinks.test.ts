@@ -220,4 +220,19 @@ describe('routeAccountUrl — bootstrap guard', () => {
       (authWindow as unknown as Record<string, ReturnType<typeof vi.fn>>).loadURL
     ).not.toHaveBeenCalled();
   });
+
+  it('does NOT re-show or re-focus the source window after routing to secondary account', () => {
+    const targetWindow = makeWindow('https://chat.google.com/u/1/');
+    mockGetWindowForAccount.mockReturnValue(targetWindow);
+    mockIsBootstrap.mockReturnValue(false);
+
+    navigate(sourceWindow, 'https://chat.google.com/u/1/some-room');
+
+    // Source window should NOT be shown or focused — only the target window
+    expect(sourceWindow.show).not.toHaveBeenCalled();
+    expect(sourceWindow.focus).not.toHaveBeenCalled();
+    // Target window SHOULD be shown and focused
+    expect(targetWindow.show).toHaveBeenCalled();
+    expect(targetWindow.focus).toHaveBeenCalled();
+  });
 });

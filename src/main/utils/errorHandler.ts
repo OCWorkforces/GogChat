@@ -158,7 +158,10 @@ class ErrorHandler {
     if (this.config.gracefulShutdown) {
       log.error('[ErrorHandler] Critical error, initiating graceful shutdown');
 
-      // Give time for logs to flush
+      // NOTE: Intentionally bare setTimeout — cannot use createTrackedTimeout here
+      // because resourceCleanup.ts imports from errorHandler.ts (toErrorMessage),
+      // creating a circular dependency. This is acceptable since it only fires
+      // during critical shutdown (uncaughtException) when cleanup is moot anyway.
       setTimeout(() => {
         app.quit();
       }, 1000);

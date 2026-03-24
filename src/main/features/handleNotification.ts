@@ -4,6 +4,7 @@ import { IPC_CHANNELS, TIMING, RATE_LIMITS } from '../../shared/constants.js';
 import { validateNotificationData } from '../../shared/validators.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
+import { createTrackedTimeout } from '../utils/resourceCleanup.js';
 
 let notificationShowCleanup: (() => void) | null = null;
 let notificationClickedCleanup: (() => void) | null = null;
@@ -68,14 +69,18 @@ export default (window: BrowserWindow) => {
         notification.show();
 
         // Set up auto-dismiss timeout (10 seconds)
-        const timeout = setTimeout(() => {
-          try {
-            notification.close();
-            log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
-          } catch (error: unknown) {
-            log.error('[Notification] Failed to auto-dismiss notification:', error);
-          }
-        }, TIMING.NOTIFICATION_AUTO_DISMISS);
+        const timeout = createTrackedTimeout(
+          () => {
+            try {
+              notification.close();
+              log.debug('[Notification] Notification auto-dismissed after 10s:', validated.title);
+            } catch (error: unknown) {
+              log.error('[Notification] Failed to auto-dismiss notification:', error);
+            }
+          },
+          TIMING.NOTIFICATION_AUTO_DISMISS,
+          'notification-auto-dismiss'
+        );
 
         // Store notification and timeout for cleanup
         if (validated.tag) {
