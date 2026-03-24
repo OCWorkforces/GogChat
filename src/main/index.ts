@@ -189,6 +189,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['openAtLogin', 'externalLinks'],
       description: 'Application menu',
     }
   ),
@@ -227,6 +228,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['singleInstance', 'deepLinkHandler', 'bootstrapPromotion'],
       description: 'Window state persistence',
     }
   ),
@@ -304,6 +306,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['bootstrapPromotion'],
       description: 'External links handler',
     }
   ),
@@ -323,6 +326,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['trayIcon'],
       description: 'Close to tray behavior',
     }
   ),

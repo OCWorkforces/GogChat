@@ -269,7 +269,7 @@ export function validatePasskeyFailureData(errorType: unknown): {
 
   // Allow any error type but log if unexpected
   if (!allowedErrors.includes(validatedErrorType)) {
-    console.warn(`[Validator] Unexpected passkey error type: ${validatedErrorType}`);
+    console.warn('[validators]', `Unexpected passkey error type: ${validatedErrorType}`);
   }
 
   return {

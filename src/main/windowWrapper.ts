@@ -221,22 +221,22 @@ export default (url: string, partition?: string): BrowserWindow => {
   });
 
   window.on('show', () => {
-    log.info(`[Window] show visible=${window.isVisible()} focused=${window.isFocused()}`);
+    log.debug(`[Window] show visible=${window.isVisible()} focused=${window.isFocused()}`);
   });
   window.on('hide', () => {
-    log.info(`[Window] hide visible=${window.isVisible()} focused=${window.isFocused()}`);
+    log.debug(`[Window] hide visible=${window.isVisible()} focused=${window.isFocused()}`);
   });
   window.on('focus', () => {
-    log.info(`[Window] focus visible=${window.isVisible()} focused=${window.isFocused()}`);
+    log.debug(`[Window] focus visible=${window.isVisible()} focused=${window.isFocused()}`);
   });
   window.on('blur', () => {
-    log.info(`[Window] blur visible=${window.isVisible()} focused=${window.isFocused()}`);
+    log.debug(`[Window] blur visible=${window.isVisible()} focused=${window.isFocused()}`);
   });
   window.on('minimize', () => {
-    log.info(`[Window] minimize visible=${window.isVisible()} focused=${window.isFocused()}`);
+    log.debug(`[Window] minimize visible=${window.isVisible()} focused=${window.isFocused()}`);
   });
   window.on('restore', () => {
-    log.info(`[Window] restore visible=${window.isVisible()} focused=${window.isFocused()}`);
+    log.debug(`[Window] restore visible=${window.isVisible()} focused=${window.isFocused()}`);
   });
 
   window.webContents.on('console-message', (event: Event<WebContentsConsoleMessageEventParams>) => {
