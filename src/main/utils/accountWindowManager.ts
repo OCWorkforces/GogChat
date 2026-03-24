@@ -334,8 +334,6 @@ export class AccountWindowManager {
     this.reverseLookup.clear();
     this.bootstrapAccounts.clear();
     this.mostRecentAccountIndex = null;
-    this.reverseLookup.clear();
-    this.mostRecentAccountIndex = null;
   }
 }
 

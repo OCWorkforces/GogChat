@@ -17,7 +17,7 @@ import { initializeStore, getStore } from './config.js';
 import type { CachedStore } from './utils/configCache.js';
 import { getDeduplicator } from './utils/ipcDeduplicator.js';
 import { getRateLimiter } from './utils/rateLimiter.js';
-import { createTrackedTimeout } from './utils/resourceCleanup.js';
+import { createTrackedTimeout, registerCleanupTask } from './utils/resourceCleanup.js';
 import type { StoreType } from '../shared/types.js';
 import type Store from 'electron-store';
 
@@ -105,7 +105,6 @@ featureManager.registerAll([
     description: 'Custom User-Agent override',
   }),
 
-  // Offline handlers moved to deferred (not critical for initial render)
 
   // ===== UI PHASE =====
   // Minimal UI - only single instance handler synchronous
@@ -348,7 +347,10 @@ featureManager.registerAll([
       const module = await import('./features/contextMenu.js');
       return {
         default: () => {
-          module.default(); // Call and discard cleanup function
+          const cleanup = module.default();
+          if (typeof cleanup === 'function') {
+            registerCleanupTask('contextMenu', cleanup);
+          }
         },
       };
     },
