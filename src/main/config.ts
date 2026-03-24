@@ -194,6 +194,7 @@ export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
   let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
     schema,
     encryptionKey,
+    clearInvalidConfig: true,
   });
 
   // Migration: if SafeStorage is available but we opened with legacy key

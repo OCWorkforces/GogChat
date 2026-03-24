@@ -411,6 +411,16 @@ if (enforceSingleInstance()) {
       await featureManager.initializePhase('critical');
 
       // ===== ACCOUNT WINDOW MANAGER INITIALIZATION =====
+      // Ensure store is initialized after app.ready (safeStorage requires it on macOS)
+      // Safe to call again — no-op if already initialized at module level
+      try {
+        initializeStore();
+        log.info('[Main] Config store initialized');
+      } catch (error: unknown) {
+        log.error('[Main] Failed to initialize store after app.ready:', error);
+        throw error;
+      }
+
       // Initialize account window manager and create account-0 window
       const accountWindowManager = getAccountWindowManager();
       perfMonitor.mark('account-manager-init', 'Account window manager initialized');
