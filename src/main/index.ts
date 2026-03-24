@@ -422,8 +422,8 @@ if (enforceSingleInstance()) {
       mainWindow = getWindowForAccount(0);
 
       // Update feature context with mainWindow and account manager
-      // Convert null to undefined to match FeatureContext type signature
-      featureManager.updateContext({ mainWindow: mainWindow ?? undefined, accountWindowManager });
+      // Update feature context with mainWindow and account manager
+      featureManager.updateContext({ mainWindow, accountWindowManager });
       perfMonitor.mark('account-0-ready', 'Account-0 window ready');
 
       // ===== POST-WINDOW ICON WARMUP =====

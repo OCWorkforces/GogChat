@@ -1,6 +1,6 @@
 import type { StoreType } from '../shared/types.js';
 import Store, { Schema } from 'electron-store';
-import { addCacheLayer, type CachedStore } from './utils/configCache.js';
+import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';
 import { getPackageInfo } from './utils/packageInfo.js';
 import { getOrCreateEncryptionKey, needsMigration, completeMigration } from './utils/encryptionKey.js';
@@ -254,9 +254,9 @@ function validateAndUpdateCacheVersion(store: Store<StoreType> | CachedStore<Sto
         `[Config] Cache invalidation triggered - Cache version: ${storedCacheVersion} → ${CACHE_VERSION}, App version: ${storedAppVersion} → ${currentAppVersion}`
       );
 
-      // Clear cache if it has the clearCache method (CachedStore)
-      if (typeof (store as CachedStore<StoreType>).clearCache === 'function') {
-        (store as CachedStore<StoreType>).clearCache();
+      // Clear cache if store has caching layer
+      if (isCachedStore(store)) {
+        store.clearCache();
         log.info('[Config] In-memory cache cleared');
       }
 
