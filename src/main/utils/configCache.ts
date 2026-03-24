@@ -25,6 +25,15 @@ export interface CachedStore<T extends Record<string, unknown>> extends Store<T>
 }
 
 /**
+ * Type guard for CachedStore
+ */
+export function isCachedStore<T extends Record<string, unknown>>(
+  store: Store<T>
+): store is CachedStore<T> {
+  return typeof (store as CachedStore<T>).clearCache === 'function';
+}
+
+/**
  * Add caching layer to electron-store
  * @param store - electron-store instance
  * @returns Store with caching enabled

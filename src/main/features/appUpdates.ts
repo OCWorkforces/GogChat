@@ -2,10 +2,10 @@ import { setUpdateNotification, checkForUpdates } from 'electron-update-notifier
 import store from '../config.js';
 import { createTrackedInterval, createTrackedTimeout } from '../utils/resourceCleanup.js';
 
-let interval: NodeJS.Timeout;
+let interval: ReturnType<typeof setInterval> | null = null;
 
 export default () => {
-  clearInterval(interval);
+  if (interval) clearInterval(interval);
 
   const shouldCheckForUpdates = () => {
     return store.get('app.autoCheckForUpdates');

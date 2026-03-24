@@ -3,7 +3,7 @@
 **Generated:** 2026-03-21
 ## OVERVIEW
 
-5 source files: `constants.ts`, `types.ts`, `validators.ts`, `environment.ts`, `urls.ts`. Single source of truth for all cross-process contracts. Changes here propagate to both Electron main and preload bundles. **Edit this before touching IPC handlers or preload scripts.**
+3 source files: `constants.ts`, `types.ts`, `validators.ts`. Single source of truth for all cross-process contracts. Changes here propagate to both Electron main and preload bundles. **Edit this before touching IPC handlers or preload scripts.**
 
 ## FILES
 

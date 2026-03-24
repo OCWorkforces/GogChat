@@ -1,0 +1,631 @@
+/**
+ * Unit tests for ErrorHandler — centralized error handling
+ *
+ * Covers: toErrorMessage, toError, isError utilities, ErrorHandler class,
+ * wrapAsync, wrapSync, global handlers (unhandledRejection, uncaughtException),
+ * singleton pattern, context stack, and initializeFeature helper.
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock electron first - must come before any imports that use electron
+vi.mock('electron', () => ({
+  app: {
+    whenReady: vi.fn().mockResolvedValue(undefined),
+    quit: vi.fn(),
+  },
+  BrowserWindow: vi.fn().mockImplementation(() => ({
+    id: 1,
+    webContents: { send: vi.fn() },
+    show: vi.fn(),
+    hide: vi.fn(),
+    destroy: vi.fn(),
+    isDestroyed: vi.fn().mockReturnValue(false),
+  })),
+  Tray: vi.fn().mockImplementation(() => ({
+    setToolTip: vi.fn(),
+    setContextMenu: vi.fn(),
+    destroy: vi.fn(),
+  })),
+}));
+
+vi.mock('electron-log', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+describe('ErrorHandler', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  // ========================================================================
+  // Utility functions: toErrorMessage, toError, isError
+  // ========================================================================
+
+  describe('toErrorMessage', () => {
+    it('returns error.message for Error instances', async () => {
+      const { toErrorMessage } = await import('./errorHandler');
+      const error = new Error('test error message');
+      expect(toErrorMessage(error)).toBe('test error message');
+    });
+
+    it('returns string as-is for string errors', async () => {
+      const { toErrorMessage } = await import('./errorHandler');
+      expect(toErrorMessage('just a string error')).toBe('just a string error');
+    });
+
+    it('returns String() for unknown types', async () => {
+      const { toErrorMessage } = await import('./errorHandler');
+      expect(toErrorMessage(12345)).toBe('12345');
+      expect(toErrorMessage(null)).toBe('null');
+      expect(toErrorMessage(undefined)).toBe('undefined');
+      expect(toErrorMessage({ code: 'ERR' })).toBe('[object Object]');
+    });
+  });
+
+  describe('toError', () => {
+    it('returns Error instance unchanged', async () => {
+      const { toError } = await import('./errorHandler');
+      const error = new Error('original');
+      const result = toError(error);
+      expect(result).toBe(error);
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it('wraps string into Error instance', async () => {
+      const { toError } = await import('./errorHandler');
+      const result = toError('string error');
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('string error');
+    });
+
+    it('wraps unknown types into Error instance', async () => {
+      const { toError } = await import('./errorHandler');
+      const result = toError(42);
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('42');
+    });
+
+    it('converts objects to Error via toErrorMessage', async () => {
+      const { toError, toErrorMessage } = await import('./errorHandler');
+      // Objects with message property are passed through toErrorMessage
+      // since they are not instanceof Error
+      const result = toError({ message: 'custom error' });
+      expect(result).toBeInstanceOf(Error);
+      // toErrorMessage({ message: '...' }) returns '[object Object]'
+      expect(result.message).toBe(toErrorMessage({ message: 'custom error' }));
+    });
+  });
+
+  describe('isError', () => {
+    it('returns true for Error instances', async () => {
+      const { isError } = await import('./errorHandler');
+      expect(isError(new Error('test'))).toBe(true);
+    });
+
+    it('returns false for non-Error types', async () => {
+      const { isError } = await import('./errorHandler');
+      expect(isError('string')).toBe(false);
+      expect(isError(123)).toBe(false);
+      expect(isError(null)).toBe(false);
+      expect(isError(undefined)).toBe(false);
+      expect(isError({ message: 'error' })).toBe(false);
+      expect(isError({})).toBe(false);
+    });
+  });
+
+  // ========================================================================
+  // Singleton
+  // ========================================================================
+
+  describe('Singleton', () => {
+    it('getErrorHandler returns the same instance on repeated calls', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const instance1 = getErrorHandler();
+      const instance2 = getErrorHandler();
+      expect(instance1).toBe(instance2);
+    });
+
+    it('getErrorHandler returns different instances after resetModules', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const instance1 = getErrorHandler();
+      vi.resetModules();
+      const { getErrorHandler: getFresh } = await import('./errorHandler');
+      const instance2 = getFresh();
+      expect(instance1).not.toBe(instance2);
+    });
+
+    it('getErrorHandler accepts config on first call', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler({ gracefulShutdown: false });
+      expect(handler).toBeDefined();
+      vi.resetModules();
+      const { getErrorHandler: getFresh } = await import('./errorHandler');
+      const freshHandler = getFresh({ gracefulShutdown: true });
+      expect(freshHandler).toBeDefined();
+    });
+  });
+
+  // ========================================================================
+  // ErrorHandler.initialize()
+  // ========================================================================
+
+  describe('initialize()', () => {
+    it('is idempotent - second call logs warning', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      handler.initialize();
+      handler.initialize();
+
+      const warnCalls = log.default.warn.mock.calls;
+      expect(warnCalls.some((call) => call[0]?.includes('Already initialized'))).toBe(true);
+    });
+
+    it('logs initialization messages', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+
+      const handler = getErrorHandler();
+      handler.initialize();
+
+      const infoCalls = log.default.info.mock.calls;
+      expect(infoCalls.some((call) => call[0]?.includes('Initializing'))).toBe(true);
+      expect(infoCalls.some((call) => call[0]?.includes('initialized'))).toBe(true);
+    });
+  });
+
+  // ========================================================================
+  // Context stack: pushContext
+  // ========================================================================
+
+  describe('pushContext()', () => {
+    it('returns cleanup function that pops context', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      const cleanup1 = handler.pushContext({ feature: 'test1' });
+      const cleanup2 = handler.pushContext({ feature: 'test2' });
+
+      // Both cleanups should work without throwing
+      expect(typeof cleanup1).toBe('function');
+      expect(typeof cleanup2).toBe('function');
+
+      cleanup2();
+      cleanup1();
+    });
+
+    it('allows nested contexts', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      handler.pushContext({ feature: 'outer', phase: 'security' });
+      handler.pushContext({ feature: 'inner', operation: 'init' });
+
+      // Cleanup in reverse order
+      const innerCleanup = handler.pushContext({ feature: 'deepest' });
+      innerCleanup();
+    });
+  });
+
+  // ========================================================================
+  // handleFeatureError
+  // ========================================================================
+
+  describe('handleFeatureError()', () => {
+    it('logs error with feature name and phase', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      handler.handleFeatureError('myFeature', new Error('init failed'), 'critical');
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes("'myFeature'"))).toBe(true);
+      expect(errorCalls.some((call) => call[0]?.includes('critical'))).toBe(true);
+    });
+
+    it('handles string errors', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      handler.handleFeatureError('strError', 'string error message', 'ui');
+
+      const errorCalls = log.default.error.mock.calls;
+      // String error is passed as message property in the second argument object
+      expect(errorCalls.some((call) => call[1]?.message === 'string error message')).toBe(true);
+    });
+
+    it('handles unknown errors', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      handler.handleFeatureError('unknownErr', 42, 'deferred');
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.length).toBeGreaterThan(0);
+    });
+
+    it('works without phase', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      handler.handleFeatureError('noPhase', new Error('no phase'));
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes("'noPhase'"))).toBe(true);
+    });
+  });
+
+  // ========================================================================
+  // wrapAsync
+  // ========================================================================
+
+  describe('wrapAsync()', () => {
+    it('executes operation and returns result on success', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      const result = await handler.wrapAsync({ feature: 'test' }, async () => {
+        return 42;
+      });
+
+      expect(result).toBe(42);
+    });
+
+    it('re-throws error after logging', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      const error = new Error('async failed');
+      await expect(
+        handler.wrapAsync({ feature: 'asyncTest', phase: 'critical' }, async () => {
+          throw error;
+        })
+      ).rejects.toThrow('async failed');
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('asyncTest'))).toBe(true);
+    });
+
+    it('includes context in error logging', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      try {
+        await handler.wrapAsync(
+          { feature: 'contextTest', phase: 'ui', operation: 'update' },
+          async () => {
+            throw new Error('op failed');
+          }
+        );
+      } catch {
+        // expected to throw
+      }
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('contextTest'))).toBe(true);
+    });
+
+    it('works without optional context fields', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      const result = await handler.wrapAsync({}, async () => 'ok');
+      expect(result).toBe('ok');
+    });
+
+    it('handles async operation that returns promise', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      const result = await handler.wrapAsync({ feature: 'promiseTest' }, async () => {
+        return Promise.resolve('promised');
+      });
+
+      expect(result).toBe('promised');
+    });
+
+    it('cleans up context even when operation throws', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      // Should not throw when calling twice - context is cleaned up
+      try {
+        await handler.wrapAsync({ feature: 'cleanupTest' }, async () => {
+          throw new Error('first');
+        });
+      } catch {
+        // ignore
+      }
+
+      // Second call should still work
+      const result = await handler.wrapAsync({ feature: 'cleanupTest' }, async () => 'second');
+      expect(result).toBe('second');
+    });
+  });
+
+  // ========================================================================
+  // wrapSync
+  // ========================================================================
+
+  describe('wrapSync()', () => {
+    it('executes operation and returns result on success', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      const result = handler.wrapSync({ feature: 'syncTest' }, () => {
+        return 'sync result';
+      });
+
+      expect(result).toBe('sync result');
+    });
+
+    it('re-throws error after logging', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      const error = new Error('sync failed');
+      expect(() => {
+        handler.wrapSync({ feature: 'syncFail', phase: 'critical' }, () => {
+          throw error;
+        });
+      }).toThrow('sync failed');
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('syncFail'))).toBe(true);
+    });
+
+    it('includes context in error logging', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      try {
+        handler.wrapSync({ feature: 'syncContext', phase: 'ui', operation: 'compute' }, () => {
+          throw new Error('compute failed');
+        });
+      } catch {
+        // expected
+      }
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('syncContext'))).toBe(true);
+    });
+
+    it('works without optional context fields', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      const result = handler.wrapSync({}, () => 'ok');
+      expect(result).toBe('ok');
+    });
+
+    it('cleans up context even when operation throws', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const handler = getErrorHandler();
+
+      // First call throws
+      try {
+        handler.wrapSync({ feature: 'syncCleanup' }, () => {
+          throw new Error('first');
+        });
+      } catch {
+        // ignore
+      }
+
+      // Second call should still work - context was cleaned
+      const result = handler.wrapSync({ feature: 'syncCleanup' }, () => 'second');
+      expect(result).toBe('second');
+    });
+  });
+
+  // ========================================================================
+  // Global handlers: unhandledRejection, uncaughtException
+  // ========================================================================
+
+  describe('Global handlers', () => {
+    it('unhandledRejection handler logs reason', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+      handler.initialize();
+
+      // Get the unhandledRejection listener
+      const listeners = process.listeners('unhandledRejection') as Array<
+        (...args: unknown[]) => void
+      >;
+      const rejectionHandler = listeners[listeners.length - 1];
+
+      const reason = new Error('unhandled rejection error');
+      await rejectionHandler(reason, Promise.resolve());
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('Unhandled Promise Rejection'))).toBe(
+        true
+      );
+    });
+
+    it('unhandledRejection handles string reasons', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+      handler.initialize();
+
+      const listeners = process.listeners('unhandledRejection') as Array<
+        (...args: unknown[]) => void
+      >;
+      const rejectionHandler = listeners[listeners.length - 1];
+
+      await rejectionHandler('string rejection', Promise.resolve());
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('Unhandled Promise Rejection'))).toBe(
+        true
+      );
+    });
+
+    it('uncaughtException handler logs error and calls app.quit', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const electron = await import('electron');
+      const log = await import('electron-log');
+      const handler = getErrorHandler({ gracefulShutdown: true });
+      handler.initialize();
+
+      // Get the uncaughtException listener
+      const listeners = process.listeners('uncaughtException') as Array<
+        (...args: unknown[]) => void
+      >;
+      const exceptionHandler = listeners[listeners.length - 1];
+
+      const error = new Error('uncaught exception error');
+      exceptionHandler(error);
+
+      // Allow setTimeout (1000ms) to fire
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('Uncaught Exception'))).toBe(true);
+      expect(electron.app.quit).toHaveBeenCalled();
+    });
+
+    it('uncaughtException does not quit when gracefulShutdown is false', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const electron = await import('electron');
+      const handler = getErrorHandler({ gracefulShutdown: false });
+      handler.initialize();
+
+      const listeners = process.listeners('uncaughtException') as Array<
+        (...args: unknown[]) => void
+      >;
+      const exceptionHandler = listeners[listeners.length - 1];
+
+      const error = new Error('no shutdown');
+      exceptionHandler(error);
+
+      // Allow promise to settle
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(electron.app.quit).not.toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // initializeErrorHandler()
+  // ========================================================================
+
+  describe('initializeErrorHandler()', () => {
+    it('creates and initializes handler', async () => {
+      const { initializeErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+
+      initializeErrorHandler();
+
+      const infoCalls = log.default.info.mock.calls;
+      expect(infoCalls.some((call) => call[0]?.includes('Initializing'))).toBe(true);
+    });
+
+    it('accepts config option', async () => {
+      const { initializeErrorHandler } = await import('./errorHandler');
+      const electron = await import('electron');
+
+      initializeErrorHandler({ gracefulShutdown: false });
+
+      // Trigger uncaughtException to verify no quit
+      const listeners = process.listeners('uncaughtException') as Array<
+        (...args: unknown[]) => void
+      >;
+      const exceptionHandler = listeners[listeners.length - 1];
+      exceptionHandler(new Error('test'));
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(electron.app.quit).not.toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // initializeFeature()
+  // ========================================================================
+
+  describe('initializeFeature()', () => {
+    it('wraps feature initialization successfully', async () => {
+      const { initializeFeature } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const initFn = vi.fn().mockResolvedValue(undefined);
+
+      await initializeFeature('successFeature', initFn, 'critical');
+
+      expect(initFn).toHaveBeenCalled();
+      const debugCalls = log.default.debug.mock.calls;
+      expect(debugCalls.some((call) => call[0]?.includes("'successFeature'"))).toBe(true);
+    });
+
+    it('catches and logs errors without re-throwing', async () => {
+      const { initializeFeature } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const initFn = vi.fn().mockRejectedValue(new Error('init failed'));
+
+      // Should NOT throw
+      await expect(initializeFeature('failFeature', initFn, 'critical')).resolves.toBeUndefined();
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes('failFeature'))).toBe(true);
+    });
+
+    it('allows app to continue after feature failure', async () => {
+      const { initializeFeature } = await import('./errorHandler');
+      const initFn = vi.fn().mockRejectedValue(new Error('failed'));
+
+      // Should not throw - app continues
+      await expect(initializeFeature('optional', initFn, 'deferred')).resolves.toBeUndefined();
+    });
+
+    it('works without phase', async () => {
+      const { initializeFeature } = await import('./errorHandler');
+      const initFn = vi.fn().mockResolvedValue(undefined);
+
+      await initializeFeature('noPhase', initFn);
+
+      expect(initFn).toHaveBeenCalled();
+    });
+
+    it('works with sync init function', async () => {
+      const { initializeFeature } = await import('./errorHandler');
+      const initFn = vi.fn();
+
+      await initializeFeature('syncInit', initFn, 'ui');
+
+      expect(initFn).toHaveBeenCalled();
+    });
+
+    it('uses wrapAsync internally for async operations', async () => {
+      const { initializeFeature } = await import('./errorHandler');
+      const log = await import('electron-log');
+
+      await initializeFeature(
+        'asyncOp',
+        async () => {
+          await Promise.resolve();
+        },
+        'critical'
+      );
+
+      // Verify the handler was used
+      const debugCalls = log.default.debug.mock.calls;
+      expect(debugCalls.some((call) => call[0]?.includes('asyncOp'))).toBe(true);
+    });
+  });
+});

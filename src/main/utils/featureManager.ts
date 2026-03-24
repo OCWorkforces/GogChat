@@ -32,7 +32,7 @@ export type FeaturePriority = 'security' | 'critical' | 'ui' | 'deferred';
  * Provides access to app resources needed by features
  */
 export interface FeatureContext {
-  mainWindow?: BrowserWindow;
+  mainWindow?: BrowserWindow | null;
   trayIcon?: Tray;
   accountWindowManager?: AccountWindowManager;
 }

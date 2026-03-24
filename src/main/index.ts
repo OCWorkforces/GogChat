@@ -17,7 +17,7 @@ import { initializeStore, getStore } from './config.js';
 import type { CachedStore } from './utils/configCache.js';
 import { getDeduplicator } from './utils/ipcDeduplicator.js';
 import { getRateLimiter } from './utils/rateLimiter.js';
-import { createTrackedTimeout } from './utils/resourceCleanup.js';
+import { createTrackedTimeout, registerCleanupTask } from './utils/resourceCleanup.js';
 import type { StoreType } from '../shared/types.js';
 import type Store from 'electron-store';
 
@@ -31,7 +31,6 @@ import {
   getMostRecentWindow,
 } from './utils/accountWindowManager.js';
 
-process.env.ELECTRON_DISABLE_SECURITY_WARNINGS ??= 'true';
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -104,8 +103,6 @@ featureManager.registerAll([
   createFeature('userAgent', 'critical', () => overrideUserAgent(), {
     description: 'Custom User-Agent override',
   }),
-
-  // Offline handlers moved to deferred (not critical for initial render)
 
   // ===== UI PHASE =====
   // Minimal UI - only single instance handler synchronous
@@ -192,6 +189,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['openAtLogin', 'externalLinks'],
       description: 'Application menu',
     }
   ),
@@ -230,6 +228,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['singleInstance', 'deepLinkHandler', 'bootstrapPromotion'],
       description: 'Window state persistence',
     }
   ),
@@ -307,6 +306,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['bootstrapPromotion'],
       description: 'External links handler',
     }
   ),
@@ -326,6 +326,7 @@ featureManager.registerAll([
       };
     },
     {
+      dependencies: ['trayIcon'],
       description: 'Close to tray behavior',
     }
   ),
@@ -348,7 +349,10 @@ featureManager.registerAll([
       const module = await import('./features/contextMenu.js');
       return {
         default: () => {
-          module.default(); // Call and discard cleanup function
+          const cleanup = module.default();
+          if (typeof cleanup === 'function') {
+            registerCleanupTask('contextMenu', cleanup);
+          }
         },
       };
     },
@@ -374,22 +378,6 @@ featureManager.registerAll([
     },
     {
       description: 'macOS app location enforcement',
-    }
-  ),
-
-  // Bootstrap promotion - promotes account-0 from login landing to authenticated session
-  createLazyFeature(
-    'bootstrapPromotion',
-    'deferred',
-    async () => {
-      const module = await import('./features/bootstrapPromotion.js');
-      return {
-        default: () => module.default(),
-        cleanup: () => module.cleanupBootstrapPromotion(),
-      };
-    },
-    {
-      description: 'Promotes bootstrap window after first login',
     }
   ),
 ]);
@@ -437,8 +425,8 @@ if (enforceSingleInstance()) {
       mainWindow = getWindowForAccount(0);
 
       // Update feature context with mainWindow and account manager
-      // Convert null to undefined to match FeatureContext type signature
-      featureManager.updateContext({ mainWindow: mainWindow ?? undefined, accountWindowManager });
+      // Update feature context with mainWindow and account manager
+      featureManager.updateContext({ mainWindow, accountWindowManager });
       perfMonitor.mark('account-0-ready', 'Account-0 window ready');
 
       // ===== POST-WINDOW ICON WARMUP =====
@@ -548,33 +536,36 @@ function warmCachesOnIdle(): void {
 }
 
 // Log cache statistics and cleanup before app quits
-app.on('before-quit', () => {
-  try {
-    log.info('[Main] ========== Application Shutdown ==========');
+app.on('before-quit', (event) => {
+  event.preventDefault(); // Prevent immediate quit until cleanup is done
 
-    // ===== Use FeatureManager for coordinated cleanup =====
-    log.info('[Main] Cleaning up feature resources...');
-
-    // FeatureManager handles cleanup in reverse initialization order
-    void featureManager.cleanup();
-
-    // Cleanup account window manager
+  void (async () => {
     try {
-      destroyAccountWindowManager();
-      log.info('[Main] Account window manager cleaned up');
-    } catch (error) {
-      log.debug('[Main] Account window manager cleanup skipped:', error);
+      log.info('[Main] ========== Application Shutdown ==========');
+
+      // FeatureManager handles cleanup in reverse initialization order
+      log.info('[Main] Cleaning up feature resources...');
+      await featureManager.cleanup();
+      log.info('[Main] Feature cleanup completed');
+
+      // Cleanup account window manager AFTER feature cleanup
+      try {
+        destroyAccountWindowManager();
+        log.info('[Main] Account window manager cleaned up');
+      } catch (error: unknown) {
+        log.error('[Main] Account window manager cleanup failed:', error);
+      }
+
+      // Log comprehensive cache statistics
+      logComprehensiveCacheStatistics();
+
+      log.info('[Main] =====================================================');
+    } catch (error: unknown) {
+      log.error('[Main] Error during shutdown cleanup:', error);
+    } finally {
+      app.exit(); // Allow quit to proceed
     }
-
-    log.info('[Main] Feature cleanup completed');
-
-    // ⚡ OPTIMIZATION: Comprehensive cache statistics logging
-    logComprehensiveCacheStatistics();
-
-    log.info('[Main] =====================================================');
-  } catch (error: unknown) {
-    log.error('[Main] Error during shutdown cleanup:', error);
-  }
+  })();
 });
 
 /**
@@ -678,6 +669,10 @@ app.on('activate', () => {
   // Always get fresh window reference — mainWindow may be stale after account switches
   const windowToShow = getMostRecentWindow() ?? mainWindow;
   if (windowToShow && !windowToShow.isDestroyed()) {
+    if (windowToShow.isMinimized()) {
+      windowToShow.restore();
+    }
     windowToShow.show();
+    windowToShow.focus();
   }
 });

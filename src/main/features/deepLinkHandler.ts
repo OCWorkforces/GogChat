@@ -7,6 +7,7 @@ import {
   getMostRecentWindow,
   getWindowForAccount,
 } from '../utils/accountWindowManager.js';
+import { addTrackedListener } from '../utils/resourceCleanup.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;
@@ -97,7 +98,7 @@ export function setupDeepLinkListener(): void {
     return;
   }
 
-  app.on('open-url', (event, url) => {
+  const handler = (event: Electron.Event, url: string): void => {
     event.preventDefault();
     log.info(`[DeepLink] open-url event: ${sanitizeUrlForLog(url)}`);
 
@@ -108,7 +109,17 @@ export function setupDeepLinkListener(): void {
     } else {
       log.warn(`[DeepLink] Ignoring unrecognized URL scheme: ${sanitizeUrlForLog(url)}`);
     }
-  });
+  };
+
+  // Track via resourceCleanup for graceful shutdown
+  // Cast needed: addTrackedListener uses a generic EventTarget interface
+  // while Electron's app has strongly-typed overloads
+  addTrackedListener(
+    app as Parameters<typeof addTrackedListener>[0],
+    'open-url',
+    handler as Parameters<typeof addTrackedListener>[2],
+    'DeepLink open-url'
+  );
 
   openUrlListenerRegistered = true;
   log.info('[DeepLink] open-url listener registered');

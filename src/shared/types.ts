@@ -75,6 +75,7 @@ export interface AppConfig {
   hideMenuBar: boolean;
   disableSpellChecker: boolean;
   suppressPasskeyDialog: boolean;
+  disableCertPinning: boolean;
 }
 
 /**

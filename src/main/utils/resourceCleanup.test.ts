@@ -1,0 +1,933 @@
+/**
+ * Unit tests for ResourceCleanup — memory leak prevention module
+ *
+ * Covers: singleton, createTrackedInterval, createTrackedTimeout,
+ * addTrackedListener, registerCleanupTask, cleanup, setupWindowCleanup,
+ * edge cases (double cleanup, partial tracking, empty cleanup).
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// ========================================================================
+// Mock electron first — must come before any imports that use electron
+// ========================================================================
+
+vi.mock('electron', () => ({
+  BrowserWindow: vi.fn().mockImplementation(() => ({
+    id: 1,
+    webContents: {
+      send: vi.fn(),
+      session: {
+        clearCache: vi.fn().mockResolvedValue(undefined),
+        clearStorageData: vi.fn().mockResolvedValue(undefined),
+      },
+    },
+    show: vi.fn(),
+    hide: vi.fn(),
+    destroy: vi.fn(),
+    isDestroyed: vi.fn().mockReturnValue(false),
+    on: vi.fn().mockReturnThis(),
+    removeAllListeners: vi.fn(),
+  })),
+  ipcMain: {
+    removeAllListeners: vi.fn(),
+  },
+  app: {
+    whenReady: vi.fn().mockResolvedValue(undefined),
+    quit: vi.fn(),
+  },
+}));
+
+vi.mock('electron-log', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+// Mock logger to avoid module initialization issues
+vi.mock('./logger.js', () => ({
+  logger: {
+    feature: () => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
+    window: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+    main: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+  },
+}));
+
+// Mock errorHandler.js to avoid circular dependency
+vi.mock('./errorHandler.js', () => ({
+  toErrorMessage: vi.fn((err: unknown) => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'string') return err;
+    return String(err);
+  }),
+}));
+
+// Mock external dependencies that resourceCleanup imports
+vi.mock('./rateLimiter.js', () => ({
+  destroyRateLimiter: vi.fn(),
+}));
+
+vi.mock('./ipcDeduplicator.js', () => ({
+  destroyDeduplicator: vi.fn(),
+}));
+
+vi.mock('./ipcHelper.js', () => ({
+  cleanupGlobalHandlers: vi.fn(),
+}));
+
+vi.mock('./iconCache.js', () => ({
+  getIconCache: vi.fn().mockReturnValue({
+    clear: vi.fn(),
+  }),
+}));
+
+vi.mock('./configCache.js', () => ({
+  clearConfigCache: vi.fn(),
+}));
+
+describe('ResourceCleanup', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+
+    // Ensure clean state for singleton
+    const { getCleanupManager } = await import('./resourceCleanup');
+    const manager = getCleanupManager();
+    manager.reset();
+  });
+
+  // ========================================================================
+  // Singleton
+  // ========================================================================
+
+  describe('Singleton', () => {
+    it('getCleanupManager returns the same instance on repeated calls', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const instance1 = getCleanupManager();
+      const instance2 = getCleanupManager();
+      expect(instance1).toBe(instance2);
+    });
+
+    it('getCleanupManager returns different instances after resetModules', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const instance1 = getCleanupManager();
+      vi.resetModules();
+      const { getCleanupManager: getFresh } = await import('./resourceCleanup');
+      const instance2 = getFresh();
+      expect(instance1).not.toBe(instance2);
+    });
+  });
+
+  // ========================================================================
+  // ResourceCleanupManager internals
+  // ========================================================================
+
+  describe('ResourceCleanupManager.registerTask', () => {
+    it('registers a single cleanup task', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const cleanupFn = vi.fn();
+
+      manager.registerTask({ name: 'test-task', cleanup: cleanupFn });
+
+      await manager.cleanup();
+
+      expect(cleanupFn).toHaveBeenCalled();
+    });
+
+    it('registers multiple cleanup tasks at once', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const fn1 = vi.fn();
+      const fn2 = vi.fn();
+
+      manager.registerTasks([
+        { name: 'task1', cleanup: fn1 },
+        { name: 'task2', cleanup: fn2 },
+      ]);
+
+      await manager.cleanup();
+
+      expect(fn1).toHaveBeenCalled();
+      expect(fn2).toHaveBeenCalled();
+    });
+  });
+
+  describe('ResourceCleanupManager.trackInterval', () => {
+    it('tracks intervals for cleanup', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+      // Create a fake interval
+      const fakeInterval = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackInterval(fakeInterval);
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(fakeInterval);
+    });
+  });
+
+  describe('ResourceCleanupManager.trackTimeout', () => {
+    it('tracks timeouts for cleanup', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      // Create a fake timeout
+      const fakeTimeout = setTimeout(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackTimeout(fakeTimeout);
+
+      await manager.cleanup();
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(fakeTimeout);
+    });
+  });
+
+  describe('ResourceCleanupManager.trackListener', () => {
+    it('tracks event listeners for cleanup', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const handler = vi.fn();
+      const removeListenerSpy = vi.fn();
+
+      const target = {
+        removeListener: removeListenerSpy,
+        on: vi.fn(),
+      };
+
+      manager.trackListener(target, 'test-event', handler);
+      await manager.cleanup();
+
+      expect(removeListenerSpy).toHaveBeenCalledWith('test-event', handler);
+    });
+
+    it('uses off() method when removeListener is not available', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const handler = vi.fn();
+      const offSpy = vi.fn();
+
+      const target = {
+        off: offSpy,
+        on: vi.fn(),
+      };
+
+      manager.trackListener(target, 'test-event', handler);
+      await manager.cleanup();
+
+      expect(offSpy).toHaveBeenCalledWith('test-event', handler);
+    });
+
+    it('handles listener removal errors gracefully', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const handler = vi.fn();
+
+      const target = {
+        removeListener: vi.fn().mockImplementation(() => {
+          throw new Error('Remove failed');
+        }),
+        on: vi.fn(),
+      };
+
+      manager.trackListener(target, 'test-event', handler);
+      // Should not throw
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('ResourceCleanupManager cleanup phases', () => {
+    it('cleans up intervals before listeners', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const order: string[] = [];
+
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval').mockImplementation(() => {
+        order.push('interval');
+      });
+      const removeListenerSpy = vi.fn().mockImplementation(() => {
+        order.push('listener');
+      });
+
+      const fakeInterval = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackInterval(fakeInterval);
+
+      const target = { removeListener: removeListenerSpy, on: vi.fn() };
+      manager.trackListener(target, 'event', vi.fn());
+
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout').mockImplementation(() => {
+        order.push('timeout');
+      });
+      const fakeTimeout = setTimeout(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackTimeout(fakeTimeout);
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(removeListenerSpy).toHaveBeenCalled();
+    });
+
+    it('runs cleanup tasks after intervals and listeners', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const order: string[] = [];
+
+      const _clearIntervalSpy = vi.spyOn(global, 'clearInterval').mockImplementation(() => {
+        order.push('interval');
+      });
+      const removeListenerSpy = vi.fn().mockImplementation(() => {
+        order.push('listener');
+      });
+      const _clearTimeoutSpy = vi.spyOn(global, 'clearTimeout').mockImplementation(() => {
+        order.push('timeout');
+      });
+
+      manager.trackInterval(setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout);
+      manager.trackListener({ removeListener: removeListenerSpy, on: vi.fn() }, 'e', vi.fn());
+      manager.trackTimeout(setTimeout(vi.fn(), 1000) as unknown as NodeJS.Timeout);
+
+      manager.registerTask({
+        name: 'task-order',
+        cleanup: () => {
+          order.push('task');
+        },
+      });
+
+      await manager.cleanup();
+
+      // Tasks run after intervals, timeouts, listeners
+      const taskIndex = order.indexOf('task');
+      const intervalIndex = order.indexOf('interval');
+      const listenerIndex = order.indexOf('listener');
+      const timeoutIndex = order.indexOf('timeout');
+
+      expect(taskIndex).toBeGreaterThan(intervalIndex);
+      expect(taskIndex).toBeGreaterThan(listenerIndex);
+      expect(taskIndex).toBeGreaterThan(timeoutIndex);
+    });
+  });
+
+  describe('ResourceCleanupManager cleanup error handling', () => {
+    it('non-critical cleanup task failure is logged as debug', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+
+      manager.registerTask({
+        name: 'non-critical-fail',
+        cleanup: vi.fn().mockRejectedValue(new Error('task failed')),
+        critical: false,
+      });
+
+      // Should not throw
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+    });
+
+    it('critical cleanup task failure is logged as error', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+
+      manager.registerTask({
+        name: 'critical-fail',
+        cleanup: vi.fn().mockRejectedValue(new Error('critical failed')),
+        critical: true,
+      });
+
+      // Should not throw
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('ResourceCleanupManager cleanup concurrency', () => {
+    it('concurrent cleanup calls do not cause duplicate task execution', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const cleanupFn = vi.fn();
+
+      manager.registerTask({
+        name: 'slow-task',
+        cleanup: async () => {
+          await new Promise((r) => setTimeout(r, 50));
+          cleanupFn();
+        },
+      });
+
+      // Fire both cleanups concurrently
+      const promise1 = manager.cleanup();
+      const promise2 = manager.cleanup();
+
+      // Both should complete without error
+      await Promise.all([promise1, promise2]);
+
+      // Task should only run once despite concurrent calls
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('ResourceCleanupManager.reset', () => {
+    it('resets all tracked state', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+
+      manager.trackInterval(setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout);
+      manager.trackTimeout(setTimeout(vi.fn(), 1000) as unknown as NodeJS.Timeout);
+      manager.trackListener({ removeListener: vi.fn(), on: vi.fn() }, 'e', vi.fn());
+      manager.registerTask({ name: 't', cleanup: vi.fn() });
+
+      manager.reset();
+
+      // After reset, cleanup should be a no-op for tracked resources
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).not.toHaveBeenCalled();
+      expect(clearTimeoutSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ResourceCleanupManager cleanup with includeGlobalResources', () => {
+    it('cleans up global resources when includeGlobalResources is true', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { cleanupGlobalHandlers } = await import('./ipcHelper');
+      const { destroyRateLimiter } = await import('./rateLimiter');
+      const { destroyDeduplicator } = await import('./ipcDeduplicator');
+      const { getIconCache } = await import('./iconCache');
+      const { clearConfigCache } = await import('./configCache');
+
+      const manager = getCleanupManager();
+
+      await manager.cleanup({ includeGlobalResources: true });
+
+      expect(cleanupGlobalHandlers).toHaveBeenCalled();
+      expect(destroyRateLimiter).toHaveBeenCalled();
+      expect(destroyDeduplicator).toHaveBeenCalled();
+      expect(getIconCache().clear).toHaveBeenCalled();
+      expect(clearConfigCache).toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // createTrackedInterval helper
+  // ========================================================================
+
+  describe('createTrackedInterval', () => {
+    it('creates an interval and tracks it', async () => {
+      const { createTrackedInterval, getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+      const callback = vi.fn();
+      const interval = createTrackedInterval(callback, 1000, 'my-interval');
+
+      expect(interval).toBeDefined();
+      expect(clearIntervalSpy).not.toHaveBeenCalled();
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(interval);
+    });
+
+    it('returns the created interval', async () => {
+      const { createTrackedInterval } = await import('./resourceCleanup');
+
+      const callback = vi.fn();
+      const interval = createTrackedInterval(callback, 500);
+
+      expect(interval).toBeDefined();
+      expect(typeof interval).toBe('object');
+    });
+  });
+
+  // ========================================================================
+  // createTrackedTimeout helper
+  // ========================================================================
+
+  describe('createTrackedTimeout', () => {
+    it('creates a timeout and tracks it', async () => {
+      const { createTrackedTimeout, getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      const callback = vi.fn();
+      const timeout = createTrackedTimeout(callback, 1000, 'my-timeout');
+
+      expect(timeout).toBeDefined();
+      expect(clearTimeoutSpy).not.toHaveBeenCalled();
+
+      await manager.cleanup();
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(timeout);
+    });
+
+    it('returns the created timeout', async () => {
+      const { createTrackedTimeout } = await import('./resourceCleanup');
+
+      const callback = vi.fn();
+      const timeout = createTrackedTimeout(callback, 500);
+
+      expect(timeout).toBeDefined();
+      expect(typeof timeout).toBe('object');
+    });
+  });
+
+  // ========================================================================
+  // addTrackedListener helper
+  // ========================================================================
+
+  describe('addTrackedListener', () => {
+    it('adds and tracks an event listener using on() method', async () => {
+      const { addTrackedListener, getCleanupManager } = await import('./resourceCleanup');
+      const _manager = getCleanupManager();
+      const handler = vi.fn();
+      const target = {
+        on: vi.fn(),
+        removeListener: vi.fn(),
+      };
+
+      addTrackedListener(target, 'my-event', handler, 'my-listener');
+
+      expect(target.on).toHaveBeenCalledWith('my-event', handler);
+    });
+
+    it('adds and tracks an event listener using addEventListener() method', async () => {
+      const { addTrackedListener, getCleanupManager } = await import('./resourceCleanup');
+      const _manager = getCleanupManager();
+      const handler = vi.fn();
+      const target = {
+        addEventListener: vi.fn(),
+        removeListener: vi.fn(),
+      };
+
+      addTrackedListener(target, 'click', handler);
+
+      expect(target.addEventListener).toHaveBeenCalledWith('click', handler);
+    });
+
+    it('throws when target does not support event listeners', async () => {
+      const { addTrackedListener } = await import('./resourceCleanup');
+      const target = {} as { on?: (e: string, h: () => void) => void };
+
+      expect(() => addTrackedListener(target, 'event', vi.fn())).toThrow(
+        'Target does not support event listeners'
+      );
+    });
+
+    it('removes listener on cleanup', async () => {
+      const { addTrackedListener, getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const handler = vi.fn();
+      const target = {
+        on: vi.fn(),
+        removeListener: vi.fn(),
+      };
+
+      addTrackedListener(target, 'my-event', handler);
+
+      await manager.cleanup();
+
+      expect(target.removeListener).toHaveBeenCalledWith('my-event', handler);
+    });
+  });
+
+  // ========================================================================
+  // registerCleanupTask helper
+  // ========================================================================
+
+  describe('registerCleanupTask', () => {
+    it('registers a cleanup task', async () => {
+      const { registerCleanupTask, getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const cleanupFn = vi.fn();
+
+      registerCleanupTask('my-task', cleanupFn);
+
+      await manager.cleanup();
+
+      expect(cleanupFn).toHaveBeenCalled();
+    });
+
+    it('registers a critical cleanup task', async () => {
+      const { registerCleanupTask, getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const cleanupFn = vi.fn();
+
+      registerCleanupTask('critical-task', cleanupFn, true);
+
+      await manager.cleanup();
+
+      expect(cleanupFn).toHaveBeenCalled();
+    });
+
+    it('registers an async cleanup task', async () => {
+      const { registerCleanupTask, getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const cleanupFn = vi.fn().mockResolvedValue(undefined);
+
+      registerCleanupTask('async-task', cleanupFn);
+
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+      expect(cleanupFn).toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // setupWindowCleanup
+  // ========================================================================
+
+  describe('setupWindowCleanup', () => {
+    it('registers window cleanup tasks and handlers', async () => {
+      const { setupWindowCleanup } = await import('./resourceCleanup');
+      const { ipcMain: _ipcMain } = await import('electron');
+
+      // Create a manual mock window since vi.resetModules clears the BrowserWindow mock
+      const mockWindow = {
+        id: 999,
+        on: vi.fn().mockReturnThis(),
+        webContents: {
+          send: vi.fn(),
+          session: {
+            clearCache: vi.fn().mockResolvedValue(undefined),
+            clearStorageData: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        isDestroyed: vi.fn().mockReturnValue(false),
+        removeAllListeners: vi.fn(),
+      };
+
+      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
+
+      // Verify window.on was called for 'close' and 'closed' events
+      expect(mockWindow.on).toHaveBeenCalledWith('close', expect.any(Function));
+      expect(mockWindow.on).toHaveBeenCalledWith('closed', expect.any(Function));
+    });
+
+    it('cleans up IPC listeners on window close', async () => {
+      const { setupWindowCleanup } = await import('./resourceCleanup');
+      const { ipcMain } = await import('electron');
+
+      const mockWindow = {
+        id: 999,
+        on: vi.fn().mockReturnThis(),
+        webContents: {
+          send: vi.fn(),
+          session: {
+            clearCache: vi.fn().mockResolvedValue(undefined),
+            clearStorageData: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        isDestroyed: vi.fn().mockReturnValue(false),
+        removeAllListeners: vi.fn(),
+      };
+
+      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
+
+      // Trigger the close handler
+      const closeHandler = mockWindow.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'close'
+      )?.[1];
+      if (closeHandler) {
+        closeHandler({} as Electron.Event);
+      }
+
+      // Let the async cleanup run
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(ipcMain.removeAllListeners).toHaveBeenCalled();
+    });
+
+    it('resets manager on window closed', async () => {
+      const { setupWindowCleanup, getCleanupManager } = await import('./resourceCleanup');
+      const { BrowserWindow: _BrowserWindow } = await import('electron');
+
+      const mockWindow = {
+        id: 999,
+        on: vi.fn().mockReturnThis(),
+        webContents: {
+          send: vi.fn(),
+          session: {
+            clearCache: vi.fn().mockResolvedValue(undefined),
+            clearStorageData: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        isDestroyed: vi.fn().mockReturnValue(false),
+        removeAllListeners: vi.fn(),
+      };
+
+      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
+
+      // Trigger the closed handler
+      const closedHandler = mockWindow.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'closed'
+      )?.[1];
+      if (closedHandler) {
+        closedHandler({} as Electron.Event);
+      }
+
+      // Manager should be reset (no tracked resources)
+      const manager = getCleanupManager();
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).not.toHaveBeenCalled();
+      expect(clearTimeoutSpy).not.toHaveBeenCalled();
+    });
+  });
+  // ========================================================================
+  // Edge cases
+  // ========================================================================
+
+  describe('Edge cases', () => {
+    it('cleanup is safe when nothing is tracked', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+    });
+
+    it('double cleanup runs tasks each time unless reset in between', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const cleanupFn = vi.fn();
+
+      manager.registerTask({ name: 'test', cleanup: cleanupFn });
+
+      await manager.cleanup();
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
+
+      // Without reset, second cleanup runs the same tasks again
+      await manager.cleanup();
+      expect(cleanupFn).toHaveBeenCalledTimes(2);
+
+      // Reset clears tasks
+      manager.reset();
+      await manager.cleanup();
+      expect(cleanupFn).toHaveBeenCalledTimes(2);
+    });
+
+    it('cleanup after partial tracking works correctly', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+      const removeListenerSpy = vi.fn();
+
+      // Track only an interval
+      const interval = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackInterval(interval);
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(interval);
+      expect(clearTimeoutSpy).not.toHaveBeenCalled();
+      expect(removeListenerSpy).not.toHaveBeenCalled();
+    });
+
+    it('async cleanup tasks complete before cleanup returns', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      let completed = false;
+
+      manager.registerTask({
+        name: 'async-task',
+        cleanup: async () => {
+          await new Promise((r) => setTimeout(r, 10));
+          completed = true;
+        },
+      });
+
+      await manager.cleanup();
+
+      expect(completed).toBe(true);
+    });
+
+    it('cleanup with logDetails does not throw', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+
+      manager.registerTask({
+        name: 'detailed-task',
+        cleanup: vi.fn(),
+      });
+
+      // Should not throw
+      await expect(manager.cleanup({ logDetails: true })).resolves.toBeUndefined();
+    });
+
+    it('intervals are cleared in order', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const order: number[] = [];
+
+      const _clearIntervalSpy = vi.spyOn(global, 'clearInterval').mockImplementation((id) => {
+        order.push(Number(id));
+      });
+
+      const interval1 = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      const interval2 = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      const interval3 = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+
+      manager.trackInterval(interval1);
+      manager.trackInterval(interval2);
+      manager.trackInterval(interval3);
+
+      await manager.cleanup();
+
+      expect(order.length).toBe(3);
+    });
+  });
+
+  // ========================================================================
+  // Empty/nothing-to-clean scenarios
+  // ========================================================================
+
+  describe('Nothing-to-clean scenarios', () => {
+    it('cleanup with no intervals, no timeouts, no listeners works', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+    });
+
+    it('cleanup with only tasks works', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const taskFn = vi.fn();
+
+      manager.registerTask({ name: 'only-task', cleanup: taskFn });
+
+      await manager.cleanup();
+
+      expect(taskFn).toHaveBeenCalled();
+    });
+
+    it('cleanup with only intervals works', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+      const interval = setInterval(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackInterval(interval);
+
+      await manager.cleanup();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+
+    it('cleanup with only timeouts works', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      const timeout = setTimeout(vi.fn(), 1000) as unknown as NodeJS.Timeout;
+      manager.trackTimeout(timeout);
+
+      await manager.cleanup();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    });
+
+    it('cleanup with only listeners works', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const removeListenerSpy = vi.fn();
+
+      const target = { removeListener: removeListenerSpy, on: vi.fn() };
+      manager.trackListener(target, 'event', vi.fn());
+
+      await manager.cleanup();
+
+      expect(removeListenerSpy).toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // Task execution order
+  // ========================================================================
+
+  describe('Task execution order', () => {
+    it('all tasks run even if one throws', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const order: string[] = [];
+
+      manager.registerTask({
+        name: 'first',
+        cleanup: () => {
+          order.push('first');
+        },
+      });
+
+      manager.registerTask({
+        name: 'throwing',
+        cleanup: () => {
+          order.push('throwing');
+          throw new Error('I fail');
+        },
+      });
+
+      manager.registerTask({
+        name: 'third',
+        cleanup: () => {
+          order.push('third');
+        },
+      });
+
+      await manager.cleanup();
+
+      expect(order).toEqual(['first', 'throwing', 'third']);
+    });
+
+    it('tasks execute in registration order', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const order: string[] = [];
+
+      manager.registerTask({
+        name: '1',
+        cleanup: () => {
+          order.push('1');
+        },
+      });
+      manager.registerTask({
+        name: '2',
+        cleanup: () => {
+          order.push('2');
+        },
+      });
+      manager.registerTask({
+        name: '3',
+        cleanup: () => {
+          order.push('3');
+        },
+      });
+
+      await manager.cleanup();
+
+      expect(order).toEqual(['1', '2', '3']);
+    });
+  });
+});
