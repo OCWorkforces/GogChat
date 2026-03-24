@@ -31,7 +31,6 @@ import {
   getMostRecentWindow,
 } from './utils/accountWindowManager.js';
 
-process.env.ELECTRON_DISABLE_SECURITY_WARNINGS ??= 'true';
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -534,33 +533,36 @@ function warmCachesOnIdle(): void {
 }
 
 // Log cache statistics and cleanup before app quits
-app.on('before-quit', () => {
-  try {
-    log.info('[Main] ========== Application Shutdown ==========');
+app.on('before-quit', (event) => {
+  event.preventDefault(); // Prevent immediate quit until cleanup is done
 
-    // ===== Use FeatureManager for coordinated cleanup =====
-    log.info('[Main] Cleaning up feature resources...');
-
-    // FeatureManager handles cleanup in reverse initialization order
-    void featureManager.cleanup();
-
-    // Cleanup account window manager
+  void (async () => {
     try {
-      destroyAccountWindowManager();
-      log.info('[Main] Account window manager cleaned up');
-    } catch (error) {
-      log.debug('[Main] Account window manager cleanup skipped:', error);
+      log.info('[Main] ========== Application Shutdown ==========');
+
+      // FeatureManager handles cleanup in reverse initialization order
+      log.info('[Main] Cleaning up feature resources...');
+      await featureManager.cleanup();
+      log.info('[Main] Feature cleanup completed');
+
+      // Cleanup account window manager AFTER feature cleanup
+      try {
+        destroyAccountWindowManager();
+        log.info('[Main] Account window manager cleaned up');
+      } catch (error: unknown) {
+        log.error('[Main] Account window manager cleanup failed:', error);
+      }
+
+      // Log comprehensive cache statistics
+      logComprehensiveCacheStatistics();
+
+      log.info('[Main] =====================================================');
+    } catch (error: unknown) {
+      log.error('[Main] Error during shutdown cleanup:', error);
+    } finally {
+      app.exit(); // Allow quit to proceed
     }
-
-    log.info('[Main] Feature cleanup completed');
-
-    // ⚡ OPTIMIZATION: Comprehensive cache statistics logging
-    logComprehensiveCacheStatistics();
-
-    log.info('[Main] =====================================================');
-  } catch (error: unknown) {
-    log.error('[Main] Error during shutdown cleanup:', error);
-  }
+  })();
 });
 
 /**

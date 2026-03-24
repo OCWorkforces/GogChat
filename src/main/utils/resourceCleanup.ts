@@ -4,7 +4,7 @@
  * Prevents memory leaks and ensures graceful shutdown
  */
 
-import { BrowserWindow, ipcMain, app } from 'electron';
+import { BrowserWindow, ipcMain } from 'electron';
 import { logger } from './logger.js';
 import { destroyRateLimiter } from './rateLimiter.js';
 import { destroyDeduplicator } from './ipcDeduplicator.js';
@@ -337,36 +337,6 @@ export function setupWindowCleanup(window: BrowserWindow): void {
     if (globalManager) {
       globalManager.reset();
     }
-  });
-}
-
-/**
- * Setup app-level cleanup handlers
- */
-export function setupAppCleanup(): void {
-  const manager = getCleanupManager();
-  const log = logger.main;
-
-  // Handle before-quit event
-  app.on('before-quit', (event) => {
-    log.info('App is quitting, performing final cleanup...');
-
-    // Prevent quit until cleanup is done
-    event.preventDefault();
-
-    void (async () => {
-      try {
-        await manager.cleanup({
-          includeGlobalResources: true,
-          logDetails: true,
-        });
-      } catch (error: unknown) {
-        log.error('Final cleanup failed:', toErrorMessage(error));
-      } finally {
-        // Allow quit to proceed
-        app.exit();
-      }
-    })();
   });
 }
 
