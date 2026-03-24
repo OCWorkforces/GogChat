@@ -25,6 +25,7 @@ describe('ConfigCache', () => {
     // Create a fresh store instance
     store = new Store<{ test: string; nested: { value: number } }>({
       name: 'test-config-cache',
+      projectName: 'gogchat-test',
       schema: {
         test: {
           type: 'string',
@@ -275,6 +276,7 @@ describe('ConfigCache', () => {
     it('should handle store without cache enabled', () => {
       const regularStore = new Store<{ test: string }>({
         name: 'test-regular',
+        projectName: 'gogchat-test',
         schema: {
           test: {
             type: 'string',

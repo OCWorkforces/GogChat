@@ -227,7 +227,7 @@ describe('bootstrapPromotion feature', () => {
     account0Win.webContents.emit('did-create-window', childWin, {});
     childWin.webContents.emit('did-navigate', {}, 'https://chat.google.com/u/0/');
 
-    expect(account0Win.loadURL).toHaveBeenCalledWith('https://chat.google.com');
+    expect(account0Win.loadURL).toHaveBeenCalledWith('https://chat.google.com/u/0/');
   });
 
   it('removes child auth listener after promotion (no double-fire)', async () => {
