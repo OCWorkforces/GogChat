@@ -1,34 +1,60 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-03-21
+**Generated:** 2026-03-25
 
-14 utility modules. Security-critical and performance-critical. All singletons follow `getXxx()` / `destroyXxx()` pattern. All are registered with `resourceCleanup.ts` for graceful shutdown.
+15 utility modules. Security-critical and performance-critical. All singletons follow `getXxx()` / `destroyXxx()` pattern. All are registered with `resourceCleanup.ts` for graceful shutdown.
 
 ## MODULE INVENTORY
 
-| File                    | Purpose                            | Singleton             | Key type                          |
-#PN|| ----------------------- | ---------------------------------- | --------------------- | --------------------------------- |
-#ZW|| `accountWindowManager.ts` | Multi-account BrowserWindow management | `getAccountWindowManager()` | `AccountWindowManager` class with bootstrap tracking |
-| `rateLimiter.ts`        | IPC DoS prevention                 | `getRateLimiter()`    | sliding-window per channel        |
-| `ipcHelper.ts`          | Secure IPC handler factories       | `getIPCManager()`     | `IPCHandlerConfig<T>`             |
-| `ipcDeduplicator.ts`    | Dedup rapid same-key requests      | `getDeduplicator()`   | 100ms default window              |
-| `logger.ts`             | Scoped structured logging          | `logger.*`            | wraps electron-log                |
-| `platform.ts`           | macOS platform utils               | `getPlatformUtils()`  | `PlatformConfig`                  |
-| `iconCache.ts`          | NativeImage preload cache          | `getIconCache()`      | warms 9 icons at startup          |
-| `packageInfo.ts`        | package.json singleton             | `getPackageInfo()`    | frozen typed object               |
-| `configCache.ts`        | In-memory layer for electron-store | `addCacheLayer()`     | disabled in test env              |
-| `configProfiler.ts`     | Dev-only store perf profiler       | —                     | `ENABLE_CONFIG_PROFILING=true`    |
-| `performanceMonitor.ts` | Startup timing + memory snapshots  | `getPerformanceMonitor()` | `perfMonitor` convenience export |
-| `featureManager.ts`     | Feature lifecycle orchestrator     | `getFeatureManager()` | see `features/AGENTS.md`          |
-| `errorHandler.ts`       | Structured error wrapping          | `getErrorHandler()`   | `wrapAsync`, `wrapSync`           |
-| `resourceCleanup.ts`    | Interval/listener/task cleanup     | `getCleanupManager()` | phases: intervals→listeners→tasks |
+| File                      | Purpose                                | Singleton                   | Key type                                                                |
+| ------------------------- | -------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
+| `accountWindowManager.ts` | Multi-account BrowserWindow management | `getAccountWindowManager()` | `AccountWindowManager` class with bootstrap tracking                    |
+| `encryptionKey.ts`        | SafeStorage encryption key management  | — (exported functions)      | `getOrCreateEncryptionKey()`, `needsMigration()`, `completeMigration()` |
+| `rateLimiter.ts`          | IPC DoS prevention                     | `getRateLimiter()`          | sliding-window per channel                                              |
+| `ipcHelper.ts`            | Secure IPC handler factories           | `getIPCManager()`           | `IPCHandlerConfig<T>`                                                   |
+| `ipcDeduplicator.ts`      | Dedup rapid same-key requests          | `getDeduplicator()`         | 100ms default window                                                    |
+| `logger.ts`               | Scoped structured logging              | `logger.*`                  | wraps electron-log                                                      |
+| `platform.ts`             | macOS platform utils                   | `getPlatformUtils()`        | `PlatformConfig`                                                        |
+| `iconCache.ts`            | NativeImage preload cache              | `getIconCache()`            | warms 9 icons at startup                                                |
+| `packageInfo.ts`          | package.json singleton                 | `getPackageInfo()`          | frozen typed object                                                     |
+| `configCache.ts`          | In-memory layer for electron-store     | `addCacheLayer()`           | disabled in test env                                                    |
+| `configProfiler.ts`       | Dev-only store perf profiler           | —                           | `ENABLE_CONFIG_PROFILING=true`                                          |
+| `performanceMonitor.ts`   | Startup timing + memory snapshots      | `getPerformanceMonitor()`   | `perfMonitor` convenience export                                        |
+| `featureManager.ts`       | Feature lifecycle orchestrator         | `getFeatureManager()`       | see `features/AGENTS.md`                                                |
+| `errorHandler.ts`         | Structured error wrapping              | `getErrorHandler()`         | `wrapAsync`, `wrapSync`                                                 |
+| `resourceCleanup.ts`      | Interval/listener/task cleanup         | `getCleanupManager()`       | phases: intervals→listeners→tasks                                       |
+
+## MOST-REFERENCED UTILITIES (by feature import count)
+
+| Rank | Utility                    | Feature Count | Notes                     |
+| ---- | -------------------------- | ------------- | ------------------------- |
+| 1    | `resourceCleanup.ts`       | 6             | Central cleanup hub        |
+| 2    | `accountWindowManager.ts`  | 5             | Multi-account windows      |
+| 2    | `ipcHelper.ts`             | 5             | Secure IPC factories       |
+| 4    | `rateLimiter.ts`           | 4             | IPC DoS prevention         |
+| 4    | `iconCache.ts`             | 4             | Native image cache         |
+| 4    | `platform.ts`              | 4             | macOS utils                |
+| 7    | `packageInfo.ts`           | 3             | App metadata               |
+| 8    | `ipcDeduplicator.ts`       | 1             | Request dedup              |
+| 8    | `errorHandler.ts`          | 1             | Error wrapping             |
+
+## CROSS-UTILS DEPENDENCIES
+
+`resourceCleanup.ts` is the most coupled utility — imports from 6 other utils:
+`logger`, `rateLimiter`, `ipcDeduplicator`, `ipcHelper`, `iconCache`, `configCache`.
+
+Other cross-utils imports:
+- `ipcHelper.ts` → `rateLimiter`, `logger`, `errorHandler`
+- `ipcDeduplicator.ts` → `logger`, `errorHandler`
+- `featureManager.ts` → `accountWindowManager` (type), `errorHandler`
+- `platform.ts` → `logger`
 
 ## ACCOUNT WINDOW MANAGER
 
 ```typescript
 const mgr = getAccountWindowManager();
 const win = mgr.createAccountWindow('https://chat.google.com', 0);
-mgr.markAsBootstrap(0);  // Mark as pre-auth login window
+mgr.markAsBootstrap(0); // Mark as pre-auth login window
 mgr.promoteBootstrap(0); // After auth completes
 const state = mgr.getAccountWindowState(0);
 mgr.saveAccountWindowState(0);
@@ -37,6 +63,27 @@ mgr.destroyAll();
 ```
 
 Per-account session partitions: `persist:account-N`. Bootstrap tracking: `markAsBootstrap()` -> `promoteBootstrap()` -> `isBootstrap()`. Window auto-unregisters on `closed` event. Conveniences: `createAccountWindow()`, `getWindowForAccount()`, `getMostRecentWindow()`.
+
+## ENCRYPTION KEY
+
+SafeStorage-backed encryption with legacy deterministic key fallback:
+
+```typescript
+import { getOrCreateEncryptionKey, needsMigration, completeMigration } from './encryptionKey.js';
+
+// Get or create key (called by config.ts during store init)
+const key = getOrCreateEncryptionKey(); // SafeStorage if available, else legacy
+
+// Check if migration needed (SafeStorage available but no key file)
+if (needsMigration()) {
+  // Read all data with legacy key, then migrate
+  const newKey = completeMigration(); // Generates + stores new key via SafeStorage
+}
+```
+
+Keys stored at `~/Library/Application Support/GogChat/encryption-key.enc` (SafeStorage-encrypted).
+Legacy key: SHA-256 hash of `${app.getName()}-${app.getPath('userData')}`.
+Migration happens automatically in `config.ts` `initializeStore()`.
 
 ## RATE LIMITER
 
@@ -79,6 +126,7 @@ const cleanup = createSecureInvokeHandler({
 ```
 
 ## LOGGER SCOPES
+
 Scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.config`, `logger.window`, `logger.feature('Name').child('sub')`. Dev=debug, Prod=warn/console+info/file. Log: `~/Library/Logs/GogChat/main.log`. **Never log** credentials.
 
 ## RESOURCE CLEANUP
@@ -127,4 +175,6 @@ if (supports.dockBadge()) { ... }  // capability check
 - **Never** create IPC handlers without cleanup return value or `getIPCManager().register()`
 - **Never** use `electron-log` directly in features — use `logger.*` scopes
 - **Never** read `package.json` with `fs.readFileSync` — use `packageInfo.ts` singleton
+- **Never** read `encryption-key.enc` directly — always use `encryptionKey.ts` functions
+- **Never** call `getOrCreateEncryptionKey()` before `app.ready` — SafeStorage requires it on macOS
 - **Never** read electron-store in hot paths — cache via `configCache.ts`

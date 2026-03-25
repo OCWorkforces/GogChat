@@ -1,8 +1,8 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-03-21
+**Generated:** 2026-03-25
 
-20+ self-contained feature modules. All registered via `featureManager.registerAll()` in `index.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account sessions via bootstrap window promotion.
+20 self-contained feature modules. All registered via `featureManager.registerAll()` in `index.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account sessions via bootstrap window promotion.
 
 ## FEATURE CONTRACT
 
@@ -34,11 +34,11 @@ Each feature is registered with `createFeature()` (static import) or `createLazy
 | `passkeySupport.ts`       | `deferred` | —       | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                                           |
 | `handleNotification.ts`   | `deferred` | —       | `NOTIFICATION_SHOW` (listens)                                                      |
 | `inOnline.ts`             | `deferred` | —       | `CHECK_IF_ONLINE` (listens), `ONLINE_STATUS` (sends)                               |
-| `externalLinks.ts`        | `deferred` | —       | none (will-navigate event); routes to per-account windows via `createAccountWindow`; exports `toggleExternalLinksGuard` |
+| `externalLinks.ts`        | `deferred` | —       | none (will-navigate event); routes to per-account windows via `createAccountWindow`; uses `validateExternalURL()` for all external links; exports `toggleExternalLinksGuard` |
 | `closeToTray.ts`          | `deferred` | —       | none                                                                              |
 | `openAtLogin.ts`          | `deferred` | —       | none                                                                              |
 | `appUpdates.ts`           | `deferred` | —       | none                                                                              |
-| `contextMenu.ts`          | `deferred` | —       | none                                                                              |
+| `contextMenu.ts`           | `deferred` | —       | none (cleanup registered via `registerCleanupTask`)                               |
 | `firstLaunch.ts`          | `deferred` | —       | none                                                                              |
 | `enforceMacOSAppLocation` | `deferred` | —       | none (from `platform.ts`)                                                         |
 | `aboutPanel.ts`           | on-demand  | —       | none (called from appMenu, NOT in featureManager)                                 |
@@ -61,13 +61,14 @@ Each feature is registered with `createFeature()` (static import) or `createLazy
 
 ## KEY INTER-FEATURE DEPENDENCIES
 
-- `badgeIcon.ts` depends on `trayIcon` context (declared in featureManager)
-- `appMenu.ts` imports `autoLaunch()` from `openAtLogin.ts` directly
-- `appMenu.ts` imports `toggleExternalLinksGuard()` from `externalLinks.ts` directly
+- `badgeIcons.ts` depends on `trayIcon` (declared in featureManager)
+- `appMenu.ts` depends on `openAtLogin`, `externalLinks` (declared in featureManager)
+- `windowState.ts` depends on `singleInstance`, `deepLinkHandler`, `bootstrapPromotion` (declared in featureManager)
+- `externalLinks.ts` depends on `bootstrapPromotion` (declared in featureManager)
+- `closeToTray.ts` depends on `trayIcon` (declared in featureManager)
 - `singleInstance.ts` calls `processDeepLink()` from `deepLinkHandler.ts` for second-instance args
 - `singleInstance.ts` receives `accountWindowManager` via context for dynamic window lookup
 - `deepLinkHandler.ts` receives `accountWindowManager` via context
-- `externalLinks.ts` depends on `bootstrapPromotion.ts` (`watchBootstrapAccount`) for bootstrap window tracking
 - `externalLinks.ts` depends on `accountWindowManager.ts` (`createAccountWindow`, `markAsBootstrap`) for per-account window creation
 - `windowState.ts` depends on `accountWindowManager.ts` (`saveAccountWindowState`) for per-account state persistence
 - `aboutPanel.ts` is called imperatively from `appMenu.ts`, not via featureManager
@@ -80,8 +81,33 @@ Each feature is registered with `createFeature()` (static import) or `createLazy
 - **Never** store mutable state in module scope without cleanup registration
 - **Never** access `ctx.mainWindow` without null/destroyed check in async callbacks
 - **Never** route to an account window that is mid-auth-flow without checking `isGoogleAuthUrl()`
+- **Never** skip dependency declarations in `featureManager.registerAll()` — undeclared deps may init before prerequisite
 - **`passkeySupport.ts`** is macOS-only — guarded with `process.platform !== 'darwin'`
 
 ## DYNAMIC IMPORTS
-
 Deferred features use `createLazyFeature()` → dynamic import → land in `lib/chunks/<hash>.js`. Auto-included in asar — no manual bundler config needed.
+## COMPLEXITY RANKING
+
+| File                    | Lines | Phase      | Notes                                       |
+| ----------------------- | ----- | ---------- | ------------------------------------------- |
+| `appMenu.ts`             | 294   | `deferred` | 2 declared deps + 3 direct imports         |
+| `externalLinks.ts`       | 288   | `deferred` | URL validation, account routing             |
+| `bootstrapPromotion.ts`  | 249   | `ui`       | Auth detection, child window handling       |
+| `certificatePinning.ts`  | 187   | `security` | Cert validation before app.ready             |
+| `deepLinkHandler.ts`     | 182   | `ui`       | Protocol registration, deep linking         |
+| `windowState.ts`         | 175   | `deferred` | 3 declared deps (most coupled feature)      |
+| `handleNotification.ts`  | 154   | `deferred` | Notification creation, auto-dismiss          |
+| `inOnline.ts`            | 154   | `deferred` | Connectivity checks, offline page loading    |
+| `badgeIcon.ts`           | 141   | `deferred` | IPC + deduplication + icon caching           |
+| `passkeySupport.ts`      | 122   | `deferred` | macOS-only (guarded by `process.platform`)  |
+| `trayIcon.ts`            |  90   | `deferred` | —                                           |
+| `contextMenu.ts`         |   8   | `deferred` | Minimal — cleanup via `registerCleanupTask` |
+| `firstLaunch.ts`         |   9   | `deferred` | Minimal                                     |
+| `userAgent.ts`           |  15   | `critical` | Minimal                                     |
+| `openAtLogin.ts`         |  45   | `deferred` | —                                           |
+| `closeToTray.ts`         |  55   | `deferred` | —                                           |
+| `aboutPanel.ts`          |  47   | on-demand  | Called imperatively from appMenu             |
+| `appUpdates.ts`          |  34   | `deferred` | —                                           |
+| `reportExceptions.ts`    |  18   | `security` | Minimal                                     |
+| `singleInstance.ts`      |  39   | `ui`       | Imports from deepLinkHandler directly       |
+
