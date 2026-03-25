@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-03-21
+**Generated:** 2026-03-25
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling.
 
@@ -29,6 +29,7 @@ app.whenReady() — critical + ui phases (blocking):
   userAgent override
   windowWrapper() → mainWindow
   featureManager.initializePhase('security') → 'critical'
+  initializeStore()              ← re-init for SafeStorage (requires app.ready)
   accountWindowManager → createAccountWindow(url, 0) → markAsBootstrap(0)
   featureManager.updateContext({ mainWindow, accountWindowManager })
   iconCache.warmCache()
@@ -71,6 +72,10 @@ All 5 pieces required: channel constant, rate limit, validator, handler, catch.
 
 ## CONFIG ACCESS
 
+Config uses SafeStorage-backed encryption keys with legacy deterministic key fallback.
+Migration from legacy → SafeStorage happens automatically on first run.
+Kill switch: `app.disableCertPinning` config option.
+
 ```typescript
 import store from './config';
 const val = store.get('app.autoCheckForUpdates');
@@ -93,5 +98,5 @@ Common keys: `app.*`, `accountWindows` (type `AccountWindowsMap`), `features.*`,
 
 ## WINDOW LIFECYCLE & LOGGING
 
- `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown calls `destroyAccountWindowManager()` after `featureManager.cleanup()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`.
+ `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown: `before-quit` → `event.preventDefault()` → async cleanup → `featureManager.cleanup()` (await) → `destroyAccountWindowManager()` → `app.exit()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`.
  Logger scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.feature('Name')`. Log file: `~/Library/Logs/GogChat/main.log`. **Never log** passwords or credential-bearing URLs.

@@ -1,6 +1,6 @@
 # scripts/ — Build & Development Tools
 
-**Generated:** 2026-03-18
+**Generated:** 2026-03-25
 **Parent docs:** `../AGENTS.md` (project)
 
 ## OVERVIEW

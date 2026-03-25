@@ -1,6 +1,6 @@
 # mac/ — macOS DMG Build Support
 
-**Updated:** 2026-03-11
+**Updated:** 2026-03-25
 ## OVERVIEW
 
 This directory contains support files for macOS DMG builds. The build pipeline is managed entirely by `build-macOS-dmg.sh` at the project root, which internally calls `electron-builder`.

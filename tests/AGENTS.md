@@ -1,6 +1,6 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-03-21
+**Generated:** 2026-03-25
 ## OVERVIEW
 
 4 test tiers: **unit** (Vitest, isolated), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`, `fullyParallel: false`.
@@ -12,18 +12,24 @@ Unit tests are colocated with source files:
 - `src/main/features/*.test.ts`
 - `src/main/utils/*.test.ts`
 
-Physical layout:
+Physical layout (41 total `*.test.ts` files):
 
 ```
 tests/
-├── unit/features/          # Vitest: isolated module tests
-├── integration/            # Playwright: IPC flows, app launch sequence
-├── e2e/                    # Playwright: complete user workflows
-├── performance/            # Playwright: startup/memory regressions
+├── unit/features/          # 3 files — isolated module tests
+├── integration/            # 3 files — IPC flows, app launch sequence
+├── e2e/                    # 1 file  — complete user workflows
+├── performance/            # 1 file  — startup/memory regressions
 ├── helpers/
 │   └── electron-test.ts    # Playwright fixtures + IPC helpers
 └── mocks/
     └── electron.ts         # Mock Electron APIs for Vitest unit tests
+
+Colocated unit tests (~34 files):
+├── src/main/features/*.test.ts    # ~13 test files
+├── src/main/utils/*.test.ts       # ~15 test files
+├── src/shared/*.test.ts          # 2 test files
+└── src/main/config.test.ts       # 1 test file
 ```
 
 ## HELPERS: `helpers/electron-test.ts`
@@ -85,6 +91,11 @@ describe('myFunction', () => {
 });
 ```
 
+**Note on Node.js 22+ crypto polyfill:**
+
+```json
+"test": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs"
+```
 **Integration (Playwright)**:
 ```typescript
 import { test, expect, waitForIPC } from '../helpers/electron-test';
