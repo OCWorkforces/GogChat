@@ -282,7 +282,7 @@ function validateAndUpdateCacheVersion(store: Store<StoreType> | CachedStore<Sto
         `[Config] Cache version valid (${CACHE_VERSION}), app version: ${currentAppVersion}`
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     log.error('[Config] Failed to validate cache version:', error);
   }
 }

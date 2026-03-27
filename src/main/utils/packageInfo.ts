@@ -42,7 +42,7 @@ export function getPackageInfo(): Readonly<PackageInfo> {
       const pkgContent = readFileSync(pkgPath, 'utf-8');
       packageInfo = JSON.parse(pkgContent) as PackageInfo;
       log.debug('[PackageInfo] Loaded package.json');
-    } catch (error) {
+    } catch (error: unknown) {
       log.error('[PackageInfo] Failed to load package.json:', error);
       // Return minimal fallback to prevent crashes
       packageInfo = {

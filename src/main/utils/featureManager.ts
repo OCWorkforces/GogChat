@@ -267,7 +267,7 @@ export class FeatureManager {
       log.info(
         `[FeatureManager] ✓ ${feature.name} initialized in ${state.initTime}ms${feature.description ? ` (${feature.description})` : ''}`
       );
-    } catch (error) {
+    } catch (error: unknown) {
       state.status = 'failed';
       state.error = error instanceof Error ? error : new Error(String(error));
 
@@ -398,7 +398,7 @@ export class FeatureManager {
         log.debug(`[FeatureManager] Cleaning up feature: ${name}`);
         await feature.cleanup(this.context);
         log.debug(`[FeatureManager] ✓ ${name} cleaned up`);
-      } catch (error) {
+      } catch (error: unknown) {
         log.error(`[FeatureManager] ✗ Failed to cleanup feature '${name}':`, error);
       }
     }
