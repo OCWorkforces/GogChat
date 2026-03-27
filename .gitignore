@@ -52,3 +52,4 @@ coverage/
 package-lock.json
 package-lock.json
 .agents/
+.sisyphus/
