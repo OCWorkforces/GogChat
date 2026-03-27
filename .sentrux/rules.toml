@@ -1,0 +1,66 @@
+# GiChat — Architectural Constraints
+# Enforced by sentrux rules engine. Run: sentrux check .
+# CI gate: prevents architectural regression.
+
+[constraints]
+max_cycles = 0          # Zero circular dependencies (currently perfect)
+max_cc = 30             # Max cyclomatic complexity per function
+no_god_files = true     # Flag files with excessive fan-out
+
+# Layer definitions — defines the architectural hierarchy.
+# Dependencies must flow from lower order → higher order (upward).
+[[layers]]
+name = "shared"
+paths = ["src/shared/*"]
+order = 0
+
+[[layers]]
+name = "preload"
+paths = ["src/preload/*"]
+order = 1
+
+[[layers]]
+name = "utils"
+paths = ["src/main/utils/*"]
+order = 2
+
+[[layers]]
+name = "features"
+paths = ["src/main/features/*"]
+order = 3
+
+[[layers]]
+name = "app-entry"
+paths = ["src/main/index.ts", "src/main/config.ts", "src/main/windowWrapper.ts"]
+order = 4
+
+# Boundary rules — prevent violations of architectural intent.
+# Features must not import from other features (use shared/ for contracts).
+[[boundaries]]
+from = "src/main/features/*"
+to = "src/main/features/*"
+reason = "Features must not import from other features directly — use shared/ contracts or utils/ services"
+
+# Offline page must not import from main process (different build context).
+[[boundaries]]
+from = "src/offline/*"
+to = "src/main/*"
+reason = "Offline page has no preload/IPC — runs in sandboxed renderer context"
+
+# Offline page must not import from preload (different build output).
+[[boundaries]]
+from = "src/offline/*"
+to = "src/preload/*"
+reason = "Offline page has no preload script — different build context"
+
+# Shared layer must not depend on main process internals.
+[[boundaries]]
+from = "src/shared/*"
+to = "src/main/*"
+reason = "Shared contracts must be process-independent — no main process imports"
+
+# Shared layer must not depend on preload.
+[[boundaries]]
+from = "src/shared/*"
+to = "src/preload/*"
+reason = "Shared contracts must be process-independent — no preload imports"
