@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-03-25
+**Generated:** 2026-03-27
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling.
 
