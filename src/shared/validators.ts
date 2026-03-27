@@ -73,7 +73,7 @@ export function validateFaviconURL(href: unknown): string {
     }
 
     return href;
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof TypeError) {
       throw new Error('Invalid favicon URL format', { cause: error });
     }

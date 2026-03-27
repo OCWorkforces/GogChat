@@ -212,7 +212,7 @@ class PerformanceMonitor {
         }
         fs.writeFileSync(outputPath, JSON.stringify(metrics, null, 2));
         log.info(`[Performance] Metrics exported to: ${outputPath}`);
-      } catch (error) {
+      } catch (error: unknown) {
         log.error('[Performance] Failed to export metrics:', error);
       }
     }

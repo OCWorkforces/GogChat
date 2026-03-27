@@ -1,71 +1,33 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-03-25
-## OVERVIEW
+**Generated:** 2026-03-27
 
-4 test tiers: **unit** (Vitest, isolated), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`, `fullyParallel: false`.
+4 test tiers: **unit** (Vitest, colocated with source), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`.
 
 ## STRUCTURE
-
-Unit tests are colocated with source files:
-
-- `src/main/features/*.test.ts`
-- `src/main/utils/*.test.ts`
-
-Physical layout (41 total `*.test.ts` files):
 
 ```
 tests/
 ├── unit/features/          # 3 files — isolated module tests
-├── integration/            # 3 files — IPC flows, app launch sequence
+├── integration/            # 3 files — IPC flows, app launch
 ├── e2e/                    # 1 file  — complete user workflows
 ├── performance/            # 1 file  — startup/memory regressions
-├── helpers/
-│   └── electron-test.ts    # Playwright fixtures + IPC helpers
-└── mocks/
-    └── electron.ts         # Mock Electron APIs for Vitest unit tests
-
-Colocated unit tests (~34 files):
-├── src/main/features/*.test.ts    # ~13 test files
-├── src/main/utils/*.test.ts       # ~15 test files
-├── src/shared/*.test.ts          # 2 test files
-└── src/main/config.test.ts       # 1 test file
+├── helpers/electron-test.ts    # Playwright fixtures + IPC helpers
+└── mocks/electron.ts           # Mock Electron APIs for Vitest
 ```
 
-## HELPERS: `helpers/electron-test.ts`
+Colocated unit tests: `src/main/features/*.test.ts` (~20), `src/main/utils/*.test.ts` (~15), `src/shared/*.test.ts` (2), `src/main/config.test.ts` (1).
 
-Test files that need multi-account window fixtures import `createAccountWindow` directly from `src/main/utils/accountWindowManager.ts`.
+## HELPERS (`electron-test.ts`)
 
-Exports Playwright `test` with fixtures: `electronApp`, `mainWindow`, `appPath`.
+Always import `test` and `expect` from here — not from `@playwright/test`.
 
-Key helper functions:
+Key functions: `waitForIPC(app, channel, timeout?)`, `sendIPCFromMain(app, channel, data?)`, `checkSecuritySettings(app)`, `goOffline(page)`, `goOnline(page)`, `mockNetworkResponse(page, url, response)`, `pressShortcut(page, shortcut)`, `cleanupTestData(app)`.
 
-```typescript
-waitForIPC(app, channel, timeout?)        // Block until IPC received from renderer
-sendIPCFromMain(app, channel, data?)      // Inject IPC from main side
-checkSecuritySettings(app)               // Assert contextIsolation, sandbox, nodeIntegration
-goOffline(page) / goOnline(page)         // Simulate network state
-mockNetworkResponse(page, url, response) // Intercept HTTP requests
-pressShortcut(page, shortcut)            // Keyboard shortcut simulation
-cleanupTestData(app)                     // Reset persistent state
-```
-
-Always import `test` and `expect` from here — not from `@playwright/test` directly.
-
-## MOCKS: `mocks/electron.ts`
+## MOCKS (`electron.ts`)
 
 Mocks: `app`, `ipcMain`, `BrowserWindow`, `Tray`, `Menu`, `dialog`, `shell`, `nativeImage`.
-
-**Critical**: `vi.mock('electron', ...)` MUST come before any imports that use Electron.
-
-```typescript
-vi.mock('electron', () => require('../mocks/electron')); // LINE 1 of test file
-import { createWindow } from '../../src/main/windowWrapper'; // after mock
-
-beforeEach(() => resetMocks()); // always reset between tests
-```
-
-Coverage targets: overall 80%+, critical paths (security/IPC/persistence) 100%, utilities 90%+, features 70%+.
+**Critical**: `vi.mock('electron', () => require('../mocks/electron'))` MUST come before any Electron imports. Always `resetMocks()` in `beforeEach`.
 
 ## PERFORMANCE THRESHOLDS
 
@@ -77,51 +39,12 @@ Coverage targets: overall 80%+, critical paths (security/IPC/persistence) 100%, 
 | Memory usage         | 200MB  |
 | Feature init (total) | 2000ms |
 
-## TEST PATTERNS
-
-**Unit (Vitest)**:
-```typescript
-vi.mock('electron', () => require('../mocks/electron'));  // before imports
-import { myFunction } from '../../src/main/utils/myUtil';
-
-describe('myFunction', () => {
-  beforeEach(() => vi.clearAllMocks());
-  it('handles valid input', () => { ... });
-  it('throws on invalid input', () => { expect(() => myFunction(null)).toThrow(); });
-});
-```
-
-**Note on Node.js 22+ crypto polyfill:**
-
-```json
-"test": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs"
-```
-**Integration (Playwright)**:
-```typescript
-import { test, expect, waitForIPC } from '../helpers/electron-test';
-
-test('IPC flow works', async ({ electronApp, mainWindow }) => {
-  await mainWindow.evaluate(() => window.GogChat.sendUnreadCount(5));
-  const count = await waitForIPC(electronApp, 'unreadCount', 5000);
-  expect(count).toBe(5);
-});
-```
-
-## COMMANDS
-
-```bash
-bun run test                    # all tiers
-bun run test:unit           # Vitest only
-bun run test:coverage       # coverage report → coverage/index.html
-bunx vitest run tests/unit/features/badgeIcon.test.ts  # single file
-PWDEBUG=1 bunx playwright test  # headed debug mode
-```
+Coverage: overall 80%+, security/IPC/persistence 100%, utilities 90%+, features 70%+.
 
 ## ANTI-PATTERNS
 
 - **NEVER** put `vi.mock()` after imports — Vitest hoisting required
 - **NEVER** hardcode timeouts — use `waitForIPC()` / `waitForSelector()`
-- **NEVER** skip `resetMocks()` in `beforeEach` — state bleeds between tests
-- **NEVER** test with `NODE_ENV=test` absent — `configCache.ts` disabled in test env
-- **NEVER** launch Electron manually in tests — use fixtures from `electron-test.ts`
+- **NEVER** skip `resetMocks()` in `beforeEach`
+- **NEVER** launch Electron manually — use fixtures from `electron-test.ts`
 - **NEVER** run multiple Electron workers — use `workers: 1`

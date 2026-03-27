@@ -230,7 +230,7 @@ class ErrorHandler {
       const result = await operation();
       cleanup();
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       cleanup();
       this.handleFeatureError(context.feature || 'unknown', error, context.phase);
       throw error;
@@ -251,7 +251,7 @@ class ErrorHandler {
       const result = operation();
       cleanup();
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       cleanup();
       this.handleFeatureError(context.feature || 'unknown', error, context.phase);
       throw error;
@@ -311,7 +311,7 @@ export async function initializeFeature(
     );
 
     log.debug(`[ErrorHandler] Feature '${featureName}' initialized successfully`);
-  } catch (error) {
+  } catch (error: unknown) {
     log.error(`[ErrorHandler] Feature '${featureName}' initialization failed:`, error);
     // Don't rethrow - allow app to continue with other features
   }

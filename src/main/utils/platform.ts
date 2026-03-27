@@ -235,7 +235,7 @@ export class PlatformUtils {
       app.dock?.setBadge(count > 99 ? '99+' : count.toString());
 
       this.log.debug(`Dock badge set to ${count}`);
-    } catch (error) {
+    } catch (error: unknown) {
       this.log.error('Failed to set dock badge:', error);
     }
   }
@@ -247,7 +247,7 @@ export class PlatformUtils {
     try {
       app.dock?.setBadge('');
       this.log.debug('Dock badge cleared');
-    } catch (error) {
+    } catch (error: unknown) {
       this.log.error('Failed to clear dock badge:', error);
     }
   }
