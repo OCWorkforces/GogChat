@@ -1,19 +1,22 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-03-27
+**Generated:** 2026-03-28
 
-Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling.
+Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
 ## WHERE TO LOOK
 
-| Task                   | File               | Notes                                                   |
-| ---------------------- | ------------------ | ------------------------------------------------------- |
-| App init sequence      | `index.ts`         | Order is security-critical — see init table below       |
-| Multi-account mgr      | `utils/accountWindowManager.ts` | Per-account windows + bootstrap                  |
-| BrowserWindow creation | `windowWrapper.ts` | Per-account factory with partition support            |
-| Encrypted config       | `config.ts`        | AES-256-GCM; schema paired with `../../shared/types.ts` |
-| Feature modules        | `features/`        | See `features/AGENTS.md`                                |
-| Utility modules        | `utils/`           | See `utils/AGENTS.md`                                   |
+| Task | File | Notes |
+| --- | --- | --- |
+| App init sequence | `index.ts` | Thin orchestrator, delegates to initializers/ |
+| Feature registration | `initializers/registerFeatures.ts` | All 21 features with phases + deps |
+| Shutdown handler | `initializers/registerShutdown.ts` | Graceful cleanup + cache stats |
+| Multi-account mgr | `utils/accountWindowManager.ts` | Per-account windows + bootstrap |
+| BrowserWindow creation | `windowWrapper.ts` | Per-account factory with partition support |
+| Encrypted config | `config.ts` | AES-256-GCM; schema paired with `../../shared/types.ts` |
+| Feature modules | `features/` | See `features/AGENTS.md` |
+| Utility modules | `utils/` | See `utils/AGENTS.md` |
+| Initializer modules | `initializers/` | See `initializers/AGENTS.md` |
 
 ## INIT ORDER (DO NOT REORDER)
 
@@ -22,10 +25,12 @@ BEFORE app.ready:
   setupCertificatePinning()   ← MUST precede any HTTP
   reportExceptions()           ← catches startup panics
   enforceSingleInstance()      ← exits if duplicate running
-  featureManager.registerAll([...])  ← registers all 21 features
+  registerAllFeatures(fm, cb)  ← delegates to initializers/registerFeatures.ts
   setupDeepLinkListener()      ← open-url event (before app.ready)
 
 app.whenReady() — critical + ui phases (blocking):
+  initializeErrorHandler()
+  registerBuiltInGlobalCleanups()  ← lazy require() for cleanup callbacks
   userAgent override
   windowWrapper() → mainWindow
   featureManager.initializePhase('security') → 'critical'
@@ -88,6 +93,7 @@ Common keys: `app.*`, `accountWindows` (type `AccountWindowsMap`), `features.*`,
 ## ANTI-PATTERNS
 
 - **Never** add inline feature logic to `index.ts` — put in `features/`
+- **Never** register features in `index.ts` — use `initializers/registerFeatures.ts`
 - **Never** skip rate limiting on any `ipcMain.on`
 - **Never** skip input validation before using IPC data
 - **Never** access `mainWindow` without null-check (`mainWindow?.webContents`)
@@ -95,8 +101,9 @@ Common keys: `app.*`, `accountWindows` (type `AccountWindowsMap`), `features.*`,
 - **Never** modify window security settings (contextIsolation, sandbox, nodeIntegration)
 - **Never** destroy a window without unregistering from `accountWindowManager`
 - **Never** interrupt a bootstrap window mid-auth-flow with `loadURL` — check `isGoogleAuthUrl()` first
+- **Never** import from other features directly — use `menuActionRegistry`
 
 ## WINDOW LIFECYCLE & LOGGING
 
- `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown: `before-quit` → `event.preventDefault()` → async cleanup → `featureManager.cleanup()` (await) → `destroyAccountWindowManager()` → `app.exit()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`.
+ `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown: `registerShutdownHandler()` → `before-quit` → `event.preventDefault()` → async cleanup → `featureManager.cleanup()` (await) → `destroyAccountWindowManager()` → `app.exit()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`.
  Logger scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.feature('Name')`. Log file: `~/Library/Logs/GogChat/main.log`. **Never log** passwords or credential-bearing URLs.

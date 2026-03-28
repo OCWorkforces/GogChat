@@ -1,8 +1,8 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-03-27
+**Generated:** 2026-03-28
 
-Bridge between Electron main process and GogChat renderer. 8 scripts compiled as **CJS** (required — `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
+Bridge between Electron main process and GogChat renderer. 8 scripts + 1 standalone disableWebAuthn compiled as **CJS** (required — `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
 
 ## SCRIPTS
 
@@ -15,7 +15,7 @@ Bridge between Electron main process and GogChat renderer. 8 scripts compiled as
 | `passkeyMonitor.ts`        | Wraps `navigator.credentials.*`; reports WebAuthn failures | renderer→main |
 | `searchShortcut.ts`        | Focuses `input[name="q"]` on IPC trigger                   | main→renderer |
 | `overrideNotifications.ts` | Intercepts `window.Notification`; adds click handler       | renderer→main |
-| `disableWebAuthn.ts`       | Disables WebAuthn per config                               | —             |
+| `disableWebAuthn.ts`       | Disables `navigator.credentials` via property override     | —             |
 
 ## WINDOW.GogChat API (`GogChatBridgeAPI`)
 
@@ -24,6 +24,10 @@ Defined in `../shared/types.ts`. Renderer→main: `sendUnreadCount`, `sendFavico
 ## CRITICAL: `overrideNotifications.ts`
 
 Loaded **separately** via `webPreferences.additionalPreloadScripts` with `contextIsolation: false`. **NEVER** import in `index.ts` — must load in different context. Only exception to `contextIsolation: true`.
+
+## CRITICAL: `disableWebAuthn.ts`
+
+Sets `navigator.credentials = undefined` via `Object.defineProperty` to prevent WebAuthn/U2F auth issues in Google Chat. Side-effect module — imported in `index.ts`. Logs success or warning if property is non-configurable. Tested with jsdom (`disableWebAuthn.test.ts`).
 
 ## DOM OBSERVATION
 

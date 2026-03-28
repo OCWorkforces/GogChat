@@ -1,25 +1,28 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-03-27
+**Generated:** 2026-03-28
 
-**Commit:** f2f9b74
+**Commit:** 6d4e05a
 **Branch:** electrobun-engine
 
 ## OVERVIEW
 
-Electron desktop wrapper for GogChat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions. Electron 41 / Node.js 22+ / Chromium-based.
+Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions. Electron 41 / Node.js 22+ / Chromium-based.
 
 ## WHERE TO LOOK
 
 | Task | Location | Notes |
 | --- | --- | --- |
-| App init order | `src/main/index.ts` | Security → critical → deferred |
+| App init order | `src/main/index.ts` | Thin orchestrator; logic in `initializers/` |
+| Feature registration | `src/main/initializers/registerFeatures.ts` | 21 features with phases + deps |
+| Shutdown handler | `src/main/initializers/registerShutdown.ts` | Graceful cleanup + cache stats |
 | Multi-account mgr | `src/main/utils/accountWindowManager.ts` | Per-account windows + bootstrap |
 | Add new feature | `src/main/features/` | See `features/AGENTS.md` |
 | IPC channel names | `src/shared/constants.ts` | `IPC_CHANNELS` const |
 | Input validation | `src/shared/validators.ts` | All IPC must go through here |
 | Config schema | `src/shared/types.ts` + `src/main/config.ts` | Update both |
 | Encryption keys | `src/main/utils/encryptionKey.ts` | SafeStorage + legacy migration |
+| Menu action registry | `src/main/utils/menuActionRegistry.ts` | Decouples features from appMenu |
 | window.gogchat API | `src/preload/index.ts` + `src/shared/types.ts` | `GogChatBridgeAPI` |
 | Build system | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass |
 | CI/CD | `.github/workflows/` | pr-check + release |
@@ -45,10 +48,10 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 1. setupCertificatePinning()      ← BEFORE any network (app not ready yet)
 2. reportExceptions()             ← catch startup errors
 3. enforceSingleInstance()        ← exits if duplicate
-4. featureManager.registerAll([...])  ← register all 20 features with phase + lazy import
+4. registerAllFeatures(fm, cb)    ← delegate to initializers/registerFeatures.ts
 5. setupDeepLinkListener()        ← before app.ready (open-url event)
 6. app.whenReady():
-   initializeStore() → initializeErrorHandler()
+   registerBuiltInGlobalCleanups() ← lazy cleanup callback registration
    featureManager.initializePhase('security') → 'critical'
    initializeStore()              ← re-init for SafeStorage (requires app.ready)
    accountWindowManager → createAccountWindow(url, 0) → markAsBootstrap(0)
@@ -63,7 +66,7 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
    → enforceMacOSAppLocation
    → cache warming → perf metrics
 
-Shutdown: before-quit → event.preventDefault() → async cleanup → app.exit()
+Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() → async cleanup → app.exit()
 ```
 
 ## CONVENTIONS
@@ -76,16 +79,20 @@ Shutdown: before-quit → event.preventDefault() → async cleanup → app.exit(
 - **IPC handler pattern**: rate limit → validate → handle → catch (see `src/main/AGENTS.md`)
 - **Feature priority**: SECURITY→CRITICAL→UI→DEFERRED phases via featureManager
 - **Feature dependencies**: Declared in feature config; featureManager resolves via topological sort
+- **Feature registration**: In `initializers/registerFeatures.ts` — NOT in `index.ts`
 - **Singletons**: All util managers expose `getXxx()` factory + `destroyXxx()` cleanup
 - **Multi-account**: Per-account BrowserWindows with `persist:account-N` session partitions
 - **Bootstrap windows**: Temporary login windows promoted via `bootstrapPromotion.ts` after auth
 - **Encryption**: SafeStorage (macOS Keychain) with legacy deterministic key fallback + migration
+- **Menu actions**: Features register actions via `menuActionRegistry.ts`; appMenu consumes them (no feature→feature imports)
+- **Global cleanup**: `registerBuiltInGlobalCleanups()` uses lazy `require()` to avoid coupling
 
 ## ANTI-PATTERNS
 
 - **Never** skip rate limiting in IPC handlers
 - **Never** use `as any`, `@ts-ignore`, `@ts-expect-error`
 - **Never** add feature logic directly in `index.ts` — create `features/myFeature.ts`
+- **Never** register features in `index.ts` — use `initializers/registerFeatures.ts`
 - **Never** hardcode IPC channel strings — use `IPC_CHANNELS` from `shared/constants.ts`
 - **Never** call `setInterval`/`setTimeout` without tracking via `resourceCleanup.ts`
 - **Never** modify preload build to output ESM — `sandbox: true` requires CJS
@@ -94,6 +101,7 @@ Shutdown: before-quit → event.preventDefault() → async cleanup → app.exit(
 - **Never** use bare `setTimeout`/`setInterval` — always use `createTrackedTimeout`/`createTrackedInterval`
 - **Never** interrupt a bootstrap window mid-auth-flow with `loadURL` — check `isGoogleAuthUrl()` first
 - **Never** destroy a window without unregistering from `accountWindowManager`
+- **Never** import from other features directly — use `menuActionRegistry`
 
 ## SECURITY LAYERS (defense-in-depth)
 
@@ -126,7 +134,6 @@ bun run build:mac      # ARM64 DMG (production)
 bun run hooks:install  # Install git pre-push hook
 ```
 
-
 ## NOTES
 
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
@@ -141,13 +148,15 @@ bun run hooks:install  # Install git pre-push hook
 
 | File | Lines | Purpose |
 | --- | --- | --- |
-| `src/main/index.ts` | 688 | App entry, feature registration, phased init |
+| `src/main/initializers/registerFeatures.ts` | 358 | Feature registration with phases + deps |
 | `src/main/utils/featureManager.ts` | 569 | Feature lifecycle, dependency resolution |
 | `src/shared/validators.ts` | 498 | Input sanitization for all IPC channels |
 | `src/main/utils/accountWindowManager.ts` | 437 | Multi-account BrowserWindow management |
-| `src/main/utils/resourceCleanup.ts` | 412 | Tracked intervals/timeouts/listeners |
+| `src/main/utils/resourceCleanup.ts` | 429 | Tracked intervals/timeouts/listeners + lazy cleanup callbacks |
 | `src/main/utils/ipcHelper.ts` | 392 | Secure IPC handler factories |
 | `src/main/utils/platform.ts` | 338 | macOS platform utils, enforceMacOSAppLocation |
 | `src/main/utils/performanceMonitor.ts` | 334 | Startup timing markers, memory snapshots |
 | `src/main/utils/ipcDeduplicator.ts` | 321 | IPC request deduplication (100ms window) |
 | `src/main/utils/errorHandler.ts` | 318 | Structured error wrapping, feature init guard |
+| `src/main/initializers/registerShutdown.ts` | 161 | Graceful shutdown + cache diagnostics |
+| `src/main/index.ts` | 244 | Thin app entry, delegates to initializers |
