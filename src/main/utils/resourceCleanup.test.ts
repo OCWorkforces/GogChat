@@ -418,6 +418,13 @@ describe('ResourceCleanup', () => {
 
       const manager = getCleanupManager();
 
+      // Register global cleanup callbacks (same as registerBuiltInGlobalCleanups does at runtime)
+      manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter);
+      manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator);
+      manager.registerGlobalCleanupCallback('ipcHandlers', cleanupGlobalHandlers);
+      manager.registerGlobalCleanupCallback('iconCache', () => getIconCache().clear());
+      manager.registerGlobalCleanupCallback('configCache', clearConfigCache);
+
       await manager.cleanup({ includeGlobalResources: true });
 
       expect(cleanupGlobalHandlers).toHaveBeenCalled();
