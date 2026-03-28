@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import os from 'os';
 import { getPackageInfo } from '../utils/packageInfo.js';
-
+import { registerMenuAction } from '../utils/menuActionRegistry.js';
 let aboutWindow: BrowserWindow | null = null;
 
 const focusAboutWindow = (window: BrowserWindow): void => {
@@ -11,7 +11,7 @@ const focusAboutWindow = (window: BrowserWindow): void => {
   window.focus();
 };
 
-export default (mainWindow: BrowserWindow): void => {
+export default function showAboutPanel(mainWindow: BrowserWindow): void {
   // If About window already exists, focus it instead of creating a new one
   if (aboutWindow && !aboutWindow.isDestroyed()) {
     focusAboutWindow(aboutWindow);
@@ -44,4 +44,8 @@ export default (mainWindow: BrowserWindow): void => {
       });
     }
   });
-};
+}
+
+// Register about panel action in menu registry for appMenu consumption
+// This replaces the direct feature→feature import boundary violation
+registerMenuAction('aboutPanel', { label: 'Show About Panel', handler: showAboutPanel });

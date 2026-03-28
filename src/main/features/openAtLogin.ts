@@ -2,7 +2,7 @@ import AutoLaunch from 'auto-launch';
 import { app, BrowserWindow } from 'electron';
 import store from '../config.js';
 import environment from '../../environment.js';
-
+import { registerMenuAction } from '../utils/menuActionRegistry.js';
 let autoLaunchInstance: AutoLaunch;
 
 const autoLaunch = (): AutoLaunch => {
@@ -41,5 +41,9 @@ export default ({ mainWindow }: { mainWindow?: BrowserWindow | null }) => {
     }
   });
 };
+
+// Register autoLaunch action in menu registry for appMenu consumption
+// This replaces the direct feature→feature import boundary violation
+registerMenuAction('autoLaunch', { label: 'Get AutoLaunch instance', handler: () => autoLaunchInstance });
 
 export { autoLaunch };
