@@ -8,30 +8,32 @@ max_cc = 30             # Max cyclomatic complexity per function
 no_god_files = true     # Flag files with excessive fan-out
 
 # Layer definitions — defines the architectural hierarchy.
-# Dependencies must flow from lower order → higher order (upward).
+# Convention: importing layers must have LOWER order numbers than the layers they import from.
+# Higher order = more foundational (depended upon by more layers).
+# Example: app-entry (0) imports from shared (4) → 0 < 4 ✓
 [[layers]]
-name = "shared"
-paths = ["src/shared/*"]
+name = "app-entry"
+paths = ["src/main/index.ts", "src/main/windowWrapper.ts"]
 order = 0
-
-[[layers]]
-name = "preload"
-paths = ["src/preload/*"]
-order = 1
-
-[[layers]]
-name = "utils"
-paths = ["src/main/utils/*"]
-order = 2
 
 [[layers]]
 name = "features"
 paths = ["src/main/features/*"]
+order = 1
+
+[[layers]]
+name = "preload"
+paths = ["src/preload/*"]
+order = 2
+
+[[layers]]
+name = "utils"
+paths = ["src/main/utils/*", "src/main/config.ts"]
 order = 3
 
 [[layers]]
-name = "app-entry"
-paths = ["src/main/index.ts", "src/main/config.ts", "src/main/windowWrapper.ts"]
+name = "shared"
+paths = ["src/shared/*"]
 order = 4
 
 # Boundary rules — prevent violations of architectural intent.

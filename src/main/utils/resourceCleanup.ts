@@ -6,11 +6,6 @@
 
 import { BrowserWindow, ipcMain } from 'electron';
 import { logger } from './logger.js';
-import { destroyRateLimiter } from './rateLimiter.js';
-import { destroyDeduplicator } from './ipcDeduplicator.js';
-import { cleanupGlobalHandlers } from './ipcHelper.js';
-import { getIconCache } from './iconCache.js';
-import { clearConfigCache } from './configCache.js';
 import { toErrorMessage } from './errorHandler.js';
 
 /**
@@ -62,6 +57,7 @@ export class ResourceCleanupManager {
   private readonly log = logger.feature('ResourceCleanup');
   private isCleaningUp = false;
   private cleanupPromise: Promise<void> | null = null;
+  private globalCleanupCallbacks = new Map<string, { cleanup: () => void; label: string }>();
 
   /**
    * Register a cleanup task
@@ -97,6 +93,25 @@ export class ResourceCleanupManager {
    */
   trackListener(target: EventTarget, event: string, handler: EventHandler): void {
     this.listeners.push({ target, event, handler });
+  }
+
+  /**
+   * Register a global cleanup callback
+   * Replaces direct imports — util modules register their cleanup lazily
+   */
+  registerGlobalCleanupCallback(id: string, cleanup: () => void, label?: string): void {
+    this.globalCleanupCallbacks.set(id, {
+      cleanup,
+      label: label ?? id,
+    });
+    this.log.debug(`Registered global cleanup callback: ${id}`);
+  }
+
+  /**
+   * Get IDs of all registered global cleanup callbacks
+   */
+  getRegisteredCallbackIds(): string[] {
+    return Array.from(this.globalCleanupCallbacks.keys());
   }
 
   /**
@@ -206,45 +221,13 @@ export class ResourceCleanupManager {
   private cleanupGlobalResources(): void {
     this.log.debug('Cleaning up global resources...');
 
-    try {
-      // Clean up IPC handlers
-      cleanupGlobalHandlers();
-      this.log.debug('IPC handlers cleaned up');
-    } catch (error: unknown) {
-      this.log.debug('Failed to cleanup IPC handlers:', toErrorMessage(error));
-    }
-
-    try {
-      // Clean up rate limiter
-      destroyRateLimiter();
-      this.log.debug('Rate limiter cleaned up');
-    } catch (error: unknown) {
-      this.log.debug('Failed to cleanup rate limiter:', toErrorMessage(error));
-    }
-
-    try {
-      // Clean up deduplicator
-      destroyDeduplicator();
-      this.log.debug('Deduplicator cleaned up');
-    } catch (error: unknown) {
-      this.log.debug('Failed to cleanup deduplicator:', toErrorMessage(error));
-    }
-
-    try {
-      // Clear icon cache
-      const iconCache = getIconCache();
-      iconCache.clear();
-      this.log.debug('Icon cache cleared');
-    } catch (error: unknown) {
-      this.log.debug('Failed to clear icon cache:', toErrorMessage(error));
-    }
-
-    try {
-      // Clear config cache
-      clearConfigCache();
-      this.log.debug('Config cache cleared');
-    } catch (error: unknown) {
-      this.log.debug('Failed to clear config cache:', toErrorMessage(error));
+    for (const [_id, { cleanup, label }] of this.globalCleanupCallbacks) {
+      try {
+        cleanup();
+        this.log.debug(`${label} cleaned up`);
+      } catch (error: unknown) {
+        this.log.debug(`Failed to cleanup ${label}:`, toErrorMessage(error));
+      }
     }
   }
 
@@ -256,6 +239,7 @@ export class ResourceCleanupManager {
     this.intervals.clear();
     this.timeouts.clear();
     this.listeners = [];
+    this.globalCleanupCallbacks.clear();
     this.isCleaningUp = false;
     this.cleanupPromise = null;
   }
@@ -409,4 +393,37 @@ export function registerCleanupTask(
   critical = false
 ): void {
   getCleanupManager().registerTask({ name, cleanup, critical });
+}
+
+/**
+ * Register built-in global cleanup callbacks
+ * Uses lazy imports to avoid module-level coupling between resourceCleanup and utility modules
+ * Must be called once during app initialization (before any cleanup could happen)
+ */
+export function registerBuiltInGlobalCleanups(): void {
+  const manager = getCleanupManager();
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { destroyRateLimiter } = require('./rateLimiter.js') as { destroyRateLimiter: () => void };
+  manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter, 'Rate limiter');
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { destroyDeduplicator } = require('./ipcDeduplicator.js') as {
+    destroyDeduplicator: () => void;
+  };
+  manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator, 'Deduplicator');
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { cleanupGlobalHandlers } = require('./ipcHelper.js') as {
+    cleanupGlobalHandlers: () => void;
+  };
+  manager.registerGlobalCleanupCallback('ipcHandlers', cleanupGlobalHandlers, 'IPC handlers');
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getIconCache } = require('./iconCache.js') as { getIconCache: () => { clear: () => void } };
+  manager.registerGlobalCleanupCallback('iconCache', () => getIconCache().clear(), 'Icon cache');
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { clearConfigCache } = require('./configCache.js') as { clearConfigCache: () => void };
+  manager.registerGlobalCleanupCallback('configCache', clearConfigCache, 'Config cache');
 }

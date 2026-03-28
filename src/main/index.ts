@@ -4,50 +4,32 @@ import { perfMonitor } from './utils/performanceMonitor.js';
 import { compareStorePerformance } from './utils/configProfiler.js';
 
 import path from 'path';
-import { enforceSingleInstance, restoreFirstInstance } from './features/singleInstance.js';
+import { enforceSingleInstance } from './features/singleInstance.js';
 import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import environment from '../environment.js';
-// Critical features only - loaded synchronously
-import overrideUserAgent from './features/userAgent.js';
-import setupCertificatePinning, {
-  cleanupCertificatePinning,
-} from './features/certificatePinning.js';
 import { getIconCache } from './utils/iconCache.js';
-import { initializeStore, getStore } from './config.js';
-import type { CachedStore } from './utils/configCache.js';
-import { getDeduplicator } from './utils/ipcDeduplicator.js';
-import { getRateLimiter } from './utils/rateLimiter.js';
-import { createTrackedTimeout, registerCleanupTask } from './utils/resourceCleanup.js';
-import type { StoreType } from '../shared/types.js';
-import type Store from 'electron-store';
+import { initializeStore } from './config.js';
+import { createTrackedTimeout, registerCleanupTask, registerBuiltInGlobalCleanups } from './utils/resourceCleanup.js';
 
-import { getFeatureManager, createFeature, createLazyFeature } from './utils/featureManager.js';
+import { getFeatureManager } from './utils/featureManager.js';
 import { initializeErrorHandler } from './utils/errorHandler.js';
 import {
   getAccountWindowManager,
   createAccountWindow,
   getWindowForAccount,
-  destroyAccountWindowManager,
   getMostRecentWindow,
 } from './utils/accountWindowManager.js';
 
+import { registerAllFeatures } from './initializers/registerFeatures.js';
+import { registerShutdownHandler } from './initializers/registerShutdown.js';
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
-/**
- * Type guard to check if a store has cache enabled
- * @param store - The store to check
- * @returns True if the store has cache methods
- */
-function isCachedStore(store: Store<StoreType>): store is CachedStore<StoreType> {
-  return typeof (store as CachedStore<StoreType>).getCacheStats === 'function';
-}
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow: BrowserWindow | null = null;
-let trayIcon: Electron.Tray | null = null;
 
 // Initialize performance monitoring
 perfMonitor.mark('app-start', 'App initialization started');
@@ -68,319 +50,11 @@ try {
 // ===== Feature Registration =====
 const featureManager = getFeatureManager();
 
-// Register all features with dependencies and priorities
-featureManager.registerAll([
-  // ===== SECURITY PHASE =====
-  // These are initialized BEFORE app.whenReady() for security
-  createFeature(
-    'certificatePinning',
-    'security',
-    () => {
-      setupCertificatePinning();
-      perfMonitor.mark('cert-pinning-done', 'Certificate pinning setup completed');
-    },
-    {
-      cleanup: () => {
-        cleanupCertificatePinning();
-      },
-      description: 'SSL certificate validation for Google domains',
-      required: true,
-    }
-  ),
-
-  createLazyFeature(
-    'reportExceptions',
-    'security',
-    () => import('./features/reportExceptions.js'),
-    {
-      description: 'Unhandled exception reporting',
-      required: true,
-    }
-  ),
-
-  // ===== CRITICAL PHASE =====
-  // Core features that must be initialized during app.whenReady (sequential)
-  createFeature('userAgent', 'critical', () => overrideUserAgent(), {
-    description: 'Custom User-Agent override',
-  }),
-
-  // ===== UI PHASE =====
-  // Minimal UI - only single instance handler synchronous
-  createFeature(
-    'singleInstance',
-    'ui',
-    ({ accountWindowManager }) => {
-      // Pass account window manager for dynamic window lookup on second-instance
-      restoreFirstInstance({ accountWindowManager });
-    },
-    {
-      description: 'Single instance restoration handler',
-    }
-  ),
-
-  createFeature(
-    'deepLinkHandler',
-    'ui',
-    async ({ accountWindowManager }) => {
-      const module = await import('./features/deepLinkHandler.js');
-      // Pass account window manager for dynamic window lookup
-      module.default({ accountWindowManager });
-    },
-    {
-      cleanup: async () => {
-        const module = await import('./features/deepLinkHandler.js');
-        module.cleanupDeepLinkHandler();
-      },
-      description: 'Custom protocol (gogchat://) handler',
-    }
-  ),
-
-  createFeature(
-    'bootstrapPromotion',
-    'ui',
-    async () => {
-      const module = await import('./features/bootstrapPromotion.js');
-      module.default();
-    },
-    {
-      cleanup: async () => {
-        const module = await import('./features/bootstrapPromotion.js');
-        module.cleanupBootstrapPromotion();
-      },
-      description: 'Bootstrap window promotion after first login',
-    }
-  ),
-
-  // ===== DEFERRED PHASE =====
-  // Non-critical features loaded asynchronously with dynamic imports
-
-  // Tray icon - load first as other features depend on it
-  createLazyFeature(
-    'trayIcon',
-    'deferred',
-    async () => {
-      const module = await import('./features/trayIcon.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            trayIcon = module.default(mainWindow);
-            featureManager.updateContext({ trayIcon });
-          }
-        },
-      };
-    },
-    {
-      description: 'System tray icon',
-    }
-  ),
-
-  // App menu
-  createLazyFeature(
-    'appMenu',
-    'deferred',
-    async () => {
-      const module = await import('./features/appMenu.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-          }
-        },
-      };
-    },
-    {
-      dependencies: ['openAtLogin', 'externalLinks'],
-      description: 'Application menu',
-    }
-  ),
-
-  // Badge icons - depends on trayIcon
-  createLazyFeature(
-    'badgeIcons',
-    'deferred',
-    async () => {
-      const module = await import('./features/badgeIcon.js');
-      return {
-        default: ({ mainWindow, trayIcon }) => {
-          if (mainWindow && trayIcon) {
-            module.default(mainWindow, trayIcon);
-          }
-        },
-      };
-    },
-    {
-      dependencies: ['trayIcon'],
-      description: 'Badge/overlay icon for unread count',
-    }
-  ),
-
-  // Window state persistence
-  createLazyFeature(
-    'windowState',
-    'deferred',
-    async () => {
-      const module = await import('./features/windowState.js');
-      return {
-        default: ({ accountWindowManager }) => {
-          // Pass account window manager for dynamic window resolution
-          module.default({ accountWindowManager });
-        },
-      };
-    },
-    {
-      dependencies: ['singleInstance', 'deepLinkHandler', 'bootstrapPromotion'],
-      description: 'Window state persistence',
-    }
-  ),
-
-  // Passkey support
-  createLazyFeature(
-    'passkeySupport',
-    'deferred',
-    async () => {
-      const module = await import('./features/passkeySupport.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-          }
-        },
-      };
-    },
-    {
-      description: 'Passkey/WebAuthn support',
-    }
-  ),
-
-  // Notification handler
-  createLazyFeature(
-    'handleNotification',
-    'deferred',
-    async () => {
-      const module = await import('./features/handleNotification.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-          }
-        },
-      };
-    },
-    {
-      description: 'Native notification handler',
-    }
-  ),
-
-  // Offline/connectivity monitoring
-  createLazyFeature(
-    'inOnline',
-    'deferred',
-    async () => {
-      const module = await import('./features/inOnline.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-            void module.checkForInternet(mainWindow);
-          }
-        },
-      };
-    },
-    {
-      description: 'Internet connectivity monitoring',
-    }
-  ),
-
-  // External links handler
-  createLazyFeature(
-    'externalLinks',
-    'deferred',
-    async () => {
-      const module = await import('./features/externalLinks.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-          }
-        },
-      };
-    },
-    {
-      dependencies: ['bootstrapPromotion'],
-      description: 'External links handler',
-    }
-  ),
-
-  // Close to tray behavior
-  createLazyFeature(
-    'closeToTray',
-    'deferred',
-    async () => {
-      const module = await import('./features/closeToTray.js');
-      return {
-        default: ({ mainWindow }) => {
-          if (mainWindow) {
-            module.default(mainWindow);
-          }
-        },
-      };
-    },
-    {
-      dependencies: ['trayIcon'],
-      description: 'Close to tray behavior',
-    }
-  ),
-
-  // Auto-launch
-  createLazyFeature('openAtLogin', 'deferred', () => import('./features/openAtLogin.js'), {
-    description: 'Auto-launch on system startup',
-  }),
-
-  // Update checker
-  createLazyFeature('appUpdates', 'deferred', () => import('./features/appUpdates.js'), {
-    description: 'Update notification system',
-  }),
-
-  // Context menu
-  createLazyFeature(
-    'contextMenu',
-    'deferred',
-    async () => {
-      const module = await import('./features/contextMenu.js');
-      return {
-        default: () => {
-          const cleanup = module.default();
-          if (typeof cleanup === 'function') {
-            registerCleanupTask('contextMenu', cleanup);
-          }
-        },
-      };
-    },
-    {
-      description: 'Right-click context menu',
-    }
-  ),
-
-  // First launch logging
-  createLazyFeature('firstLaunch', 'deferred', () => import('./features/firstLaunch.js'), {
-    description: 'First launch logging',
-  }),
-
-  // macOS app location enforcement
-  createLazyFeature(
-    'enforceMacOSAppLocation',
-    'deferred',
-    async () => {
-      const module = await import('./utils/platform.js');
-      return {
-        default: () => module.enforceMacOSAppLocation(),
-      };
-    },
-    {
-      description: 'macOS app location enforcement',
-    }
-  ),
-]);
+// Delegate feature registration to initializer module
+registerAllFeatures(featureManager, {
+  setTrayIcon: () => {},
+  registerCleanupTask,
+});
 
 if (enforceSingleInstance()) {
   // Register deep link listener BEFORE app.ready (macOS fires open-url early)
@@ -401,6 +75,9 @@ if (enforceSingleInstance()) {
       } catch (error: unknown) {
         log.error('[Main] Failed to initialize error handler:', error);
       }
+
+      // Register built-in global cleanup callbacks (lazy imports to avoid coupling)
+      registerBuiltInGlobalCleanups();
 
       // ===== SECURITY PHASE =====
       // Initialize security features first (sequential)
@@ -544,130 +221,9 @@ function warmCachesOnIdle(): void {
     log.error('[Main] Failed to warm caches:', error);
   }
 }
-
-// Log cache statistics and cleanup before app quits
-app.on('before-quit', (event) => {
-  event.preventDefault(); // Prevent immediate quit until cleanup is done
-
-  void (async () => {
-    try {
-      log.info('[Main] ========== Application Shutdown ==========');
-
-      // FeatureManager handles cleanup in reverse initialization order
-      log.info('[Main] Cleaning up feature resources...');
-      await featureManager.cleanup();
-      log.info('[Main] Feature cleanup completed');
-
-      // Cleanup account window manager AFTER feature cleanup
-      try {
-        destroyAccountWindowManager();
-        log.info('[Main] Account window manager cleaned up');
-      } catch (error: unknown) {
-        log.error('[Main] Account window manager cleanup failed:', error);
-      }
-
-      // Log comprehensive cache statistics
-      logComprehensiveCacheStatistics();
-
-      log.info('[Main] =====================================================');
-    } catch (error: unknown) {
-      log.error('[Main] Error during shutdown cleanup:', error);
-    } finally {
-      app.exit(); // Allow quit to proceed
-    }
-  })();
-});
-
-/**
- * Log comprehensive cache statistics on app quit
- * ⚡ OPTIMIZATION: Provides visibility into cache performance
- */
-function logComprehensiveCacheStatistics(): void {
-  try {
-    // Icon Cache Statistics
-    const iconCache = getIconCache();
-    const iconStats = iconCache.getStats();
-
-    log.info('[Main] --- Icon Cache Statistics ---');
-    log.info(`[Main]   Total icons cached: ${iconStats.size}/${iconStats.maxSize}`);
-    log.info(`[Main]   Total accesses: ${iconStats.totalAccesses}`);
-    log.info(`[Main]   Most accessed: ${iconStats.mostAccessed || 'N/A'}`);
-    log.info(`[Main]   Least accessed: ${iconStats.leastAccessed || 'N/A'}`);
-    log.info(
-      `[Main]   Average accesses per icon: ${iconStats.size > 0 ? (iconStats.totalAccesses / iconStats.size).toFixed(2) : '0'}`
-    );
-
-    // Config Cache Statistics
-    try {
-      const storeInstance = getStore();
-      if (isCachedStore(storeInstance)) {
-        const configStats = storeInstance.getCacheStats();
-        const hitRate = parseFloat(configStats.hitRate.replace('%', ''));
-
-        log.info('[Main] --- Config Cache Statistics ---');
-        log.info(`[Main]   Cache hits: ${configStats.hits}`);
-        log.info(`[Main]   Cache misses: ${configStats.misses}`);
-        log.info(`[Main]   Cache writes: ${configStats.writes}`);
-        log.info(`[Main]   Hit rate: ${configStats.hitRate}`);
-        log.info(
-          `[Main]   Performance: ${hitRate > 80 ? 'Excellent' : hitRate > 60 ? 'Good' : 'Poor'}`
-        );
-      }
-    } catch {
-      log.debug('[Main] Store not initialized or cache disabled');
-    }
-
-    // IPC Deduplicator Statistics
-    try {
-      const deduplicator = getDeduplicator();
-      const dedupStats = deduplicator.getStats();
-
-      log.info('[Main] --- IPC Deduplicator Statistics ---');
-      log.info(`[Main]   Cache hits (deduplicated): ${dedupStats.cacheHits}`);
-      log.info(`[Main]   Cache misses (executed): ${dedupStats.cacheMisses}`);
-      log.info(`[Main]   Total deduplicated: ${dedupStats.deduplicatedCount}`);
-      log.info(
-        `[Main]   Deduplication rate: ${dedupStats.cacheHits + dedupStats.cacheMisses > 0 ? ((dedupStats.cacheHits / (dedupStats.cacheHits + dedupStats.cacheMisses)) * 100).toFixed(1) : '0'}%`
-      );
-    } catch (error: unknown) {
-      log.debug('[Main] IPC deduplicator not available:', error);
-    }
-
-    // Rate Limiter Statistics
-    try {
-      const rateLimiter = getRateLimiter();
-      const allStats = rateLimiter.getAllStats();
-      let totalBlocked = 0;
-      let totalMessages = 0;
-
-      for (const [, stats] of allStats) {
-        totalBlocked += stats.totalBlocked;
-        totalMessages += stats.messagesLastSecond + stats.totalBlocked;
-      }
-
-      log.info('[Main] --- Rate Limiter Statistics ---');
-      log.info(`[Main]   Active channels: ${allStats.size}`);
-      log.info(`[Main]   Total blocked: ${totalBlocked}`);
-      log.info(`[Main]   Total messages: ${totalMessages}`);
-      log.info(
-        `[Main]   Block rate: ${totalMessages > 0 ? ((totalBlocked / totalMessages) * 100).toFixed(1) : '0'}%`
-      );
-    } catch (error: unknown) {
-      log.debug('[Main] Rate limiter not available:', error);
-    }
-
-    // ===== NEW: Feature Manager Statistics =====
-    const summary = featureManager.getSummary();
-    log.info('[Main] --- Feature Manager Statistics ---');
-    log.info(`[Main]   Total features: ${summary.total}`);
-    log.info(`[Main]   Initialized: ${summary.initialized}`);
-    log.info(`[Main]   Failed: ${summary.failed}`);
-    log.info(`[Main]   Pending: ${summary.pending}`);
-    log.info(`[Main]   Total init time: ${summary.totalTime}ms`);
-  } catch (error: unknown) {
-    log.error('[Main] Failed to log comprehensive cache statistics:', error);
-  }
-}
+// ===== Shutdown Handler =====
+// Delegate shutdown handling to initializer module
+registerShutdownHandler({ featureManager });
 
 app.setAppUserModelId('com.electron.google-chat');
 

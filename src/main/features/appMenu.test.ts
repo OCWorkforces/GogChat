@@ -36,15 +36,22 @@ vi.mock('electron-log', () => ({
   default: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-vi.mock('./openAtLogin', () => ({
-  autoLaunch: vi.fn().mockReturnValue({
+const { mockAboutHandler, mockAutoLaunchInstance, mockToggleGuardHandler } = vi.hoisted(() => ({
+  mockAboutHandler: vi.fn(),
+  mockAutoLaunchInstance: {
     enable: vi.fn().mockResolvedValue(undefined),
     disable: vi.fn().mockResolvedValue(undefined),
-  }),
+  },
+  mockToggleGuardHandler: vi.fn(),
 }));
 
-vi.mock('./aboutPanel', () => ({
-  default: vi.fn(),
+vi.mock('../utils/menuActionRegistry', () => ({
+  getMenuAction: vi.fn((id: string) => {
+    if (id === 'aboutPanel') return { label: 'Show About Panel', handler: mockAboutHandler };
+    if (id === 'autoLaunch') return { label: 'Get AutoLaunch', handler: () => mockAutoLaunchInstance };
+    if (id === 'toggleExternalLinksGuard') return { label: 'Toggle Guard', handler: mockToggleGuardHandler };
+    return undefined;
+  }),
 }));
 
 vi.mock('../config', () => ({
@@ -64,9 +71,6 @@ vi.mock('../config', () => ({
   },
 }));
 
-vi.mock('./externalLinks', () => ({
-  toggleExternalLinksGuard: vi.fn(),
-}));
 
 vi.mock('../../environment', () => ({
   default: {
@@ -95,7 +99,7 @@ vi.mock('../utils/packageInfo', () => ({
 }));
 
 import appMenu from './appMenu';
-import aboutPanel from './aboutPanel';
+import { getMenuAction } from '../utils/menuActionRegistry';
 import { Menu, app, dialog, clipboard } from 'electron';
 import store from '../config';
 import { IPC_CHANNELS } from '../../shared/constants';
@@ -237,7 +241,7 @@ describe('appMenu', () => {
     const about = helpMenu.submenu.find((item: any) => item.label === 'About');
 
     about.click();
-    expect(aboutPanel).toHaveBeenCalledWith(window);
+    expect(mockAboutHandler).toHaveBeenCalledWith(window);
   });
 
   it('includes Help menu with Report issue action', () => {

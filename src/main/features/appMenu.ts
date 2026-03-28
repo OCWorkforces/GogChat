@@ -2,14 +2,12 @@ import { Menu, app, shell, clipboard, BrowserWindow, dialog } from 'electron';
 import { checkForUpdates } from 'electron-update-notifier';
 import path from 'path';
 import log from 'electron-log';
-import { autoLaunch } from './openAtLogin.js';
-import aboutPanel from './aboutPanel.js';
 import store from '../config.js';
-import { toggleExternalLinksGuard } from './externalLinks.js';
 import environment from '../../environment.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import { openNewGitHubIssue, debugInfo } from '../utils/platform.js';
 import { getPackageInfo } from '../utils/packageInfo.js';
+import { getMenuAction } from '../utils/menuActionRegistry.js';
 
 export default (window: BrowserWindow) => {
   const pkg = getPackageInfo();
@@ -162,10 +160,13 @@ export default (window: BrowserWindow) => {
           checked: store.get('app.autoLaunchAtLogin') as boolean,
           click: (menuItem) => {
             void (async () => {
+              const autoLaunchAction = getMenuAction('autoLaunch');
+              if (!autoLaunchAction) return;
+              const instance = autoLaunchAction.handler();
               if (menuItem.checked) {
-                await autoLaunch().enable();
+                await instance.enable();
               } else {
-                await autoLaunch().disable();
+                await instance.disable();
               }
 
               store.set('app.autoLaunchAtLogin', menuItem.checked);
@@ -229,7 +230,10 @@ export default (window: BrowserWindow) => {
             {
               label: 'Toggle External Links Guard',
               click: () => {
-                toggleExternalLinksGuard(window);
+                const toggleGuard = getMenuAction('toggleExternalLinksGuard');
+                if (toggleGuard) {
+                  toggleGuard.handler(window);
+                }
               },
             },
             {
@@ -276,7 +280,10 @@ export default (window: BrowserWindow) => {
         {
           label: 'About',
           click: () => {
-            void aboutPanel(window);
+            const showAbout = getMenuAction('aboutPanel');
+            if (showAbout) {
+              showAbout.handler(window);
+            }
           },
         },
         {

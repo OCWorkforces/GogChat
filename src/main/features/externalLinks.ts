@@ -14,6 +14,7 @@ import {
   getWindowForAccount,
   getAccountWindowManager,
 } from '../utils/accountWindowManager.js';
+import { registerMenuAction } from '../utils/menuActionRegistry.js';
 
 let guardAgainstExternalLinks = true;
 const RE_GUARD_IN_MINUTES = TIMING.EXTERNAL_LINKS_REGUARD / (60 * 1000);
@@ -286,3 +287,7 @@ export function cleanupExternalLinks(): void {
 }
 
 export { toggleExternalLinksGuard };
+
+// Register toggle guard action in menu registry for appMenu consumption
+// This replaces the direct feature→feature import boundary violation
+registerMenuAction('toggleExternalLinksGuard', { label: 'Toggle External Links Guard', handler: (window: BrowserWindow) => toggleExternalLinksGuard(window) });
