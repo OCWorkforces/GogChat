@@ -7,7 +7,7 @@ import {
   getMostRecentWindow,
   getWindowForAccount,
 } from '../utils/accountWindowManager.js';
-import { addTrackedListener } from '../utils/resourceCleanup.js';
+import { addTrackedListener } from '../utils/trackedResources.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;
@@ -160,8 +160,6 @@ export default function initDeepLinkHandler(_context: { accountWindowManager?: u
   }
 }
 
-// Re-export from utility module — keeps the public API intact for existing consumers
-export { extractDeepLinkFromArgv } from '../utils/deepLinkUtils.js';
 
 export function cleanupDeepLinkHandler(): void {
   try {

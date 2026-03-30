@@ -6,7 +6,7 @@
  */
 
 import { BrowserWindow } from 'electron';
-import { createLazyFeature } from '../utils/featureManager.js';
+import { createLazyFeature } from '../utils/featureTypes.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import { createMainWindowFeature } from './featureHelpers.js';
 

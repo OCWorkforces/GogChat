@@ -236,9 +236,6 @@ export function getCleanupManager(): ResourceCleanupManager {
   return globalManager;
 }
 
-// Re-export tracked resource helpers for backward compatibility
-export { createTrackedInterval, createTrackedTimeout, addTrackedListener, registerCleanupTask, setupWindowCleanup } from './trackedResources.js';
-export type { EventHandler, EventTarget, CleanupConfig } from './trackedResources.js';
 
 /**
  * Register built-in global cleanup callbacks

@@ -12,16 +12,6 @@
  * @module featureManager
  */
 
-// Barrel re-exports — consumers can continue importing from this module
-export type {
-  FeaturePriority,
-  FeatureContext,
-  FeatureConfig,
-  FeatureState,
-} from './featureTypes.js';
-export { createFeature, createLazyFeature } from './featureTypes.js';
-export { topologicalSort, groupFeaturesByDependencyLevel } from './featureSorter.js';
-
 import type {
   FeaturePriority,
   FeatureContext,

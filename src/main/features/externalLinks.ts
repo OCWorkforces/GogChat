@@ -6,7 +6,7 @@ import {
   isWhitelistedHost,
   isGoogleAuthUrl,
 } from '../../shared/validators.js';
-import { createTrackedInterval } from '../utils/resourceCleanup.js';
+import { createTrackedInterval } from '../utils/trackedResources.js';
 // Architecture: watchBootstrapAccount is defined in ../utils/bootstrapWatcher.ts,
 // re-exported through bootstrapPromotion.ts for backward compatibility.
 import { watchBootstrapAccount } from './bootstrapPromotion.js';

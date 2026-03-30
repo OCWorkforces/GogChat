@@ -4,7 +4,7 @@ import { IPC_CHANNELS, TIMING, RATE_LIMITS } from '../../shared/constants.js';
 import { validateNotificationData } from '../../shared/validators.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
-import { createTrackedTimeout } from '../utils/resourceCleanup.js';
+import { createTrackedTimeout } from '../utils/trackedResources.js';
 
 let notificationShowCleanup: (() => void) | null = null;
 let notificationClickedCleanup: (() => void) | null = null;

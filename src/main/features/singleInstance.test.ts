@@ -76,9 +76,12 @@ vi.mock('../utils/accountWindowManager.js', () => ({
 }));
 
 const extractDeepLinkFromArgvMock = vi.fn();
+vi.mock('../utils/deepLinkUtils.js', () => ({
+  extractDeepLinkFromArgv: extractDeepLinkFromArgvMock,
+}));
+
 const processDeepLinkMock = vi.fn();
 vi.mock('./deepLinkHandler.js', () => ({
-  extractDeepLinkFromArgv: extractDeepLinkFromArgvMock,
   processDeepLink: processDeepLinkMock,
 }));
 

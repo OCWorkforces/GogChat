@@ -5,7 +5,7 @@
  * UI features are minimal — only the single-instance handler is synchronous.
  */
 
-import { createFeature } from '../utils/featureManager.js';
+import { createFeature } from '../utils/featureTypes.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import overrideUserAgent from '../features/userAgent.js';
 import { restoreFirstInstance } from '../features/singleInstance.js';

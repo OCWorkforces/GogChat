@@ -441,7 +441,8 @@ describe('ResourceCleanup', () => {
 
   describe('createTrackedInterval', () => {
     it('creates an interval and tracks it', async () => {
-      const { createTrackedInterval, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { createTrackedInterval } = await import('./trackedResources');
       const manager = getCleanupManager();
       const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
 
@@ -457,7 +458,7 @@ describe('ResourceCleanup', () => {
     });
 
     it('returns the created interval', async () => {
-      const { createTrackedInterval } = await import('./resourceCleanup');
+      const { createTrackedInterval } = await import('./trackedResources');
 
       const callback = vi.fn();
       const interval = createTrackedInterval(callback, 500);
@@ -473,7 +474,8 @@ describe('ResourceCleanup', () => {
 
   describe('createTrackedTimeout', () => {
     it('creates a timeout and tracks it', async () => {
-      const { createTrackedTimeout, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { createTrackedTimeout } = await import('./trackedResources');
       const manager = getCleanupManager();
       const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
 
@@ -489,7 +491,7 @@ describe('ResourceCleanup', () => {
     });
 
     it('returns the created timeout', async () => {
-      const { createTrackedTimeout } = await import('./resourceCleanup');
+      const { createTrackedTimeout } = await import('./trackedResources');
 
       const callback = vi.fn();
       const timeout = createTrackedTimeout(callback, 500);
@@ -505,7 +507,8 @@ describe('ResourceCleanup', () => {
 
   describe('addTrackedListener', () => {
     it('adds and tracks an event listener using on() method', async () => {
-      const { addTrackedListener, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { addTrackedListener } = await import('./trackedResources');
       const _manager = getCleanupManager();
       const handler = vi.fn();
       const target = {
@@ -519,7 +522,8 @@ describe('ResourceCleanup', () => {
     });
 
     it('adds and tracks an event listener using addEventListener() method', async () => {
-      const { addTrackedListener, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { addTrackedListener } = await import('./trackedResources');
       const _manager = getCleanupManager();
       const handler = vi.fn();
       const target = {
@@ -533,7 +537,7 @@ describe('ResourceCleanup', () => {
     });
 
     it('throws when target does not support event listeners', async () => {
-      const { addTrackedListener } = await import('./resourceCleanup');
+      const { addTrackedListener } = await import('./trackedResources');
       const target = {} as { on?: (e: string, h: () => void) => void };
 
       expect(() => addTrackedListener(target, 'event', vi.fn())).toThrow(
@@ -542,7 +546,8 @@ describe('ResourceCleanup', () => {
     });
 
     it('removes listener on cleanup', async () => {
-      const { addTrackedListener, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { addTrackedListener } = await import('./trackedResources');
       const manager = getCleanupManager();
       const handler = vi.fn();
       const target = {
@@ -564,7 +569,8 @@ describe('ResourceCleanup', () => {
 
   describe('registerCleanupTask', () => {
     it('registers a cleanup task', async () => {
-      const { registerCleanupTask, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { registerCleanupTask } = await import('./trackedResources');
       const manager = getCleanupManager();
       const cleanupFn = vi.fn();
 
@@ -576,7 +582,8 @@ describe('ResourceCleanup', () => {
     });
 
     it('registers a critical cleanup task', async () => {
-      const { registerCleanupTask, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { registerCleanupTask } = await import('./trackedResources');
       const manager = getCleanupManager();
       const cleanupFn = vi.fn();
 
@@ -588,7 +595,8 @@ describe('ResourceCleanup', () => {
     });
 
     it('registers an async cleanup task', async () => {
-      const { registerCleanupTask, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { registerCleanupTask } = await import('./trackedResources');
       const manager = getCleanupManager();
       const cleanupFn = vi.fn().mockResolvedValue(undefined);
 
@@ -605,7 +613,7 @@ describe('ResourceCleanup', () => {
 
   describe('setupWindowCleanup', () => {
     it('registers window cleanup tasks and handlers', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
+      const { setupWindowCleanup } = await import('./trackedResources');
       const { ipcMain: _ipcMain } = await import('electron');
 
       // Create a manual mock window since vi.resetModules clears the BrowserWindow mock
@@ -631,7 +639,7 @@ describe('ResourceCleanup', () => {
     });
 
     it('cleans up IPC listeners on window close', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
+      const { setupWindowCleanup } = await import('./trackedResources');
       const { ipcMain } = await import('electron');
 
       const mockWindow = {
@@ -665,7 +673,8 @@ describe('ResourceCleanup', () => {
     });
 
     it('resets manager on window closed', async () => {
-      const { setupWindowCleanup, getCleanupManager } = await import('./resourceCleanup');
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const { setupWindowCleanup } = await import('./trackedResources');
       const { BrowserWindow: _BrowserWindow } = await import('electron');
 
       const mockWindow = {
