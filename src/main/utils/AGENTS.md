@@ -1,33 +1,37 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-03-28
+**Generated:** 2026-03-30
 
-16 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
+22 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
 
 ## MODULE INVENTORY
 
-| File                      | Purpose                                | Singleton                   |
-| ------------------------- | -------------------------------------- | --------------------------- |
-| `accountWindowManager.ts` | Multi-account BrowserWindow management | `getAccountWindowManager()` |
-| `encryptionKey.ts`        | SafeStorage encryption key management  | exported functions          |
-| `rateLimiter.ts`          | IPC DoS prevention                     | `getRateLimiter()`          |
-| `ipcHelper.ts`            | Secure IPC handler factories           | `getIPCManager()`           |
-| `ipcDeduplicator.ts`      | Dedup rapid same-key requests          | `getDeduplicator()`         |
-| `logger.ts`               | Scoped structured logging              | `logger.*`                  |
-| `platform.ts`             | macOS platform utils                   | `getPlatformUtils()`        |
-| `iconCache.ts`            | NativeImage preload cache              | `getIconCache()`            |
-| `packageInfo.ts`          | package.json singleton                 | `getPackageInfo()`          |
-| `configCache.ts`          | In-memory layer for electron-store     | `addCacheLayer()`           |
-| `configProfiler.ts`       | Dev-only store perf profiler           | —                           |
-| `performanceMonitor.ts`   | Startup timing + memory snapshots      | `getPerformanceMonitor()`   |
-| `featureManager.ts`       | Feature lifecycle orchestrator         | `getFeatureManager()`       |
-| `errorHandler.ts`         | Structured error wrapping              | `getErrorHandler()`         |
-| `resourceCleanup.ts`      | Interval/listener/task cleanup         | `getCleanupManager()`       |
-| `menuActionRegistry.ts`   | Decouples features from appMenu        | exported functions          |
-
+| File                      | Lines | Purpose                                | Singleton                   |
+| ------------------------- | ----- | -------------------------------------- | --------------------------- |
+| `accountWindowManager.ts` | 437   | Multi-account BrowserWindow management | `getAccountWindowManager()` |
+| `featureManager.ts`       | 363   | Feature lifecycle orchestrator        | `getFeatureManager()`       |
+| `ipcHelper.ts`            | 351   | Secure IPC handler factories           | `getIPCManager()`           |
+| `platform.ts`            | 338   | macOS platform utils                  | `getPlatformUtils()`        |
+| `performanceMonitor.ts`  | 334   | Startup timing + memory snapshots     | `getPerformanceMonitor()`   |
+| `ipcDeduplicator.ts`     | 321   | Dedup rapid same-key requests         | `getDeduplicator()`         |
+| `errorHandler.ts`        | 318   | Structured error wrapping             | `getErrorHandler()`         |
+| `resourceCleanup.ts`     | 271   | Interval/listener/task cleanup        | `getCleanupManager()`       |
+| `iconCache.ts`           | 218   | NativeImage preload cache             | `getIconCache()`            |
+| `bootstrapWatcher.ts`    | 205   | Bootstrap window navigation watching   | exported functions         |
+| `rateLimiter.ts`        | 191   | IPC DoS prevention                    | `getRateLimiter()`          |
+| `trackedResources.ts`   | 168   | Tracked timeout/interval/listener      | exported functions         |
+| `configCache.ts`        | 157   | In-memory layer for electron-store     | `addCacheLayer()`          |
+| `featureTypes.ts`       | 143   | Feature config types + factory fns     | exported functions        |
+| `encryptionKey.ts`      | 116   | SafeStorage encryption key management  | exported functions        |
+| `logger.ts`             | 112   | Scoped structured logging              | `logger.*`                 |
+| `featureSorter.ts`      | 110   | Topological sort for feature deps     | exported functions        |
+| `configProfiler.ts`     | 106   | Dev-only store perf profiler          | —                          |
+| `packageInfo.ts`        | 78    | package.json singleton                | `getPackageInfo()`         |
+| `menuActionRegistry.ts` | 52    | Decouples features from appMenu        | exported functions        |
+| `ipcCommonValidators.ts`| 48    | Common IPC validation helpers         | exported const             |
+| `deepLinkUtils.ts`      | 27    | Deep link URL parsing                 | exported functions        |
 ## MOST-REFERENCED UTILITIES
-
-`resourceCleanup` (6 features), `accountWindowManager` (5), `ipcHelper` (5), `rateLimiter` (4), `iconCache` (4), `platform` (4), `packageInfo` (3).
+`resourceCleanup` (6 features), `accountWindowManager` (5), `ipcHelper` (5), `rateLimiter` (4), `iconCache` (4), `platform` (4), `performanceMonitor` (3), `packageInfo` (3), `errorHandler` (3).
 
 ## CROSS-UTILS DEPENDENCIES
 

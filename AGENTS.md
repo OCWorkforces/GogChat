@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-03-28
+**Generated:** 2026-03-30
 
-**Commit:** 6d4e05a
+**Commit:** 562a769
 **Branch:** electrobun-engine
 
 ## OVERVIEW
@@ -148,15 +148,19 @@ bun run hooks:install  # Install git pre-push hook
 
 | File | Lines | Purpose |
 | --- | --- | --- |
-| `src/main/initializers/registerFeatures.ts` | 358 | Feature registration with phases + deps |
-| `src/main/utils/featureManager.ts` | 569 | Feature lifecycle, dependency resolution |
-| `src/shared/validators.ts` | 498 | Input sanitization for all IPC channels |
 | `src/main/utils/accountWindowManager.ts` | 437 | Multi-account BrowserWindow management |
-| `src/main/utils/resourceCleanup.ts` | 429 | Tracked intervals/timeouts/listeners + lazy cleanup callbacks |
-| `src/main/utils/ipcHelper.ts` | 392 | Secure IPC handler factories |
+| `src/main/utils/featureManager.ts` | 363 | Feature lifecycle, dependency resolution |
+| `src/main/utils/ipcHelper.ts` | 351 | Secure IPC handler factories |
 | `src/main/utils/platform.ts` | 338 | macOS platform utils, enforceMacOSAppLocation |
 | `src/main/utils/performanceMonitor.ts` | 334 | Startup timing markers, memory snapshots |
+| `src/main/config.ts` | 328 | Encrypted electron-store with AES-256-GCM |
 | `src/main/utils/ipcDeduplicator.ts` | 321 | IPC request deduplication (100ms window) |
 | `src/main/utils/errorHandler.ts` | 318 | Structured error wrapping, feature init guard |
+| `src/shared/urlValidators.ts` | 303 | URL whitelist validation, Google auth URL detection |
+| `src/main/features/appMenu.ts` | 301 | Application menu, About dialog |
+| `src/main/features/externalLinks.ts` | 295 | External link handling with re-guard timer |
+| `src/main/windowWrapper.ts` | 286 | Per-account BrowserWindow factory |
+| `src/main/utils/resourceCleanup.ts` | 271 | Tracked intervals/timeouts + lazy cleanup |
+| `src/main/index.ts` | 245 | Thin app entry, delegates to initializers |
+| `src/main/initializers/registerDeferredFeatures.ts` | 185 | 15 deferred feature registrations |
 | `src/main/initializers/registerShutdown.ts` | 161 | Graceful shutdown + cache diagnostics |
-| `src/main/index.ts` | 244 | Thin app entry, delegates to initializers |

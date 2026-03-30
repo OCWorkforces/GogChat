@@ -1,16 +1,20 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-03-28
+**Generated:** 2026-03-30
 
 Extracted from `index.ts` to keep the app entry point a thin orchestrator. Two modules that handle the two most complex concerns in `index.ts`: feature registration and graceful shutdown.
 
 ## FILES
 
-| File                  | Lines | Purpose                                                                     |
-| --------------------- | ----- | --------------------------------------------------------------------------- |
-| `registerFeatures.ts` | 358   | Registers all 21 features with featureManager — phases, deps, init logic    |
-| `registerShutdown.ts` | 161   | before-quit handler — feature cleanup, window manager teardown, cache stats |
-
+| File                        | Lines | Purpose                                                              |
+| --------------------------- | ----- | -------------------------------------------------------------------- |
+| `registerFeatures.ts`      | 36    | Entry point — delegates to sub-initializers                           |
+| `registerSecurityFeatures.ts` | 43  | Security phase features (before app.ready)                          |
+| `registerShutdown.ts`     | 161   | before-quit handler — cleanup, window teardown, cache stats          |
+| `registerUIFeatures.ts`   | 68    | UI phase features (inside app.whenReady blocking)                   |
+| `registerDeferredFeatures.ts` | 185 | Deferred phase features (setImmediate after window ready)         |
+| `featureHelpers.ts`       | 47    | Shared `createFeature()` / `createLazyFeature()` helpers            |
+## registerFeatures.ts
 ## registerFeatures.ts
 
 **Exports**: `registerAllFeatures(featureManager, callbacks)`
