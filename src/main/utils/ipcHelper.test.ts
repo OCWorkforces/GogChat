@@ -986,20 +986,20 @@ describe('ipcHelper', () => {
   // ========================================================================
   describe('commonValidators', () => {
     it('isObject validates non-null objects', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       const result = commonValidators.isObject({ key: 'value' });
       expect(result).toEqual({ key: 'value' });
     });
 
     it('isObject throws for null', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.isObject(null)).toThrow('Expected object');
     });
 
     it('isObject throws for non-object types', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.isObject('string')).toThrow('Expected object');
       expect(() => commonValidators.isObject(123)).toThrow('Expected object');
@@ -1008,13 +1008,13 @@ describe('ipcHelper', () => {
     });
 
     it('isString validates strings', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(commonValidators.isString('hello')).toBe('hello');
     });
 
     it('isString throws for non-strings', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.isString(123)).toThrow('Expected string');
       expect(() => commonValidators.isString(null)).toThrow('Expected string');
@@ -1022,7 +1022,7 @@ describe('ipcHelper', () => {
     });
 
     it('isNumber validates numbers', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(commonValidators.isNumber(42)).toBe(42);
       expect(commonValidators.isNumber(0)).toBe(0);
@@ -1030,27 +1030,27 @@ describe('ipcHelper', () => {
     });
 
     it('isNumber throws for NaN', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.isNumber(NaN)).toThrow('Expected valid number');
     });
 
     it('isNumber throws for non-numbers', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.isNumber('42')).toThrow('Expected valid number');
       expect(() => commonValidators.isNumber(null)).toThrow('Expected valid number');
     });
 
     it('isBoolean validates booleans', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(commonValidators.isBoolean(true)).toBe(true);
       expect(commonValidators.isBoolean(false)).toBe(false);
     });
 
     it('isBoolean throws for non-booleans', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.isBoolean(1)).toThrow('Expected boolean');
       expect(() => commonValidators.isBoolean('true')).toThrow('Expected boolean');
@@ -1058,7 +1058,7 @@ describe('ipcHelper', () => {
     });
 
     it('noData always returns void', async () => {
-      const { commonValidators } = await import('./ipcHelper');
+      const { commonValidators } = await import('./ipcCommonValidators');
 
       expect(() => commonValidators.noData('any')).not.toThrow();
       expect(() => commonValidators.noData(null)).not.toThrow();

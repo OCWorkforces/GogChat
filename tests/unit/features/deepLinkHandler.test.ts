@@ -19,7 +19,8 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-import { extractDeepLinkFromArgv, cleanupDeepLinkHandler } from '../../../src/main/features/deepLinkHandler';
+import { extractDeepLinkFromArgv } from '../../../src/main/utils/deepLinkUtils';
+import { cleanupDeepLinkHandler } from '../../../src/main/features/deepLinkHandler';
 
 describe('extractDeepLinkFromArgv', () => {
   it('should extract gogchat:// URL from argv', () => {

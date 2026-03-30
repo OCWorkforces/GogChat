@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import log from 'electron-log';
-import { extractDeepLinkFromArgv, processDeepLink } from './deepLinkHandler.js';
+import { processDeepLink } from './deepLinkHandler.js';
+import { extractDeepLinkFromArgv } from '../utils/deepLinkUtils.js';
 import { getMostRecentWindow } from '../utils/accountWindowManager.js';
 
 const enforceSingleInstance = (): boolean => {

@@ -7,7 +7,7 @@ import {
   getMostRecentWindow,
   getWindowForAccount,
 } from '../utils/accountWindowManager.js';
-import { addTrackedListener } from '../utils/resourceCleanup.js';
+import { addTrackedListener } from '../utils/trackedResources.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;
@@ -160,15 +160,6 @@ export default function initDeepLinkHandler(_context: { accountWindowManager?: u
   }
 }
 
-export function extractDeepLinkFromArgv(argv: string[]): string | null {
-  const deepLink = argv.find((arg) => arg.startsWith(DEEP_LINK.PREFIX));
-  if (deepLink) return deepLink;
-
-  const httpsChatLink = argv.find(
-    (arg) => arg.startsWith('https://') && arg.includes('chat.google.com')
-  );
-  return httpsChatLink ?? null;
-}
 
 export function cleanupDeepLinkHandler(): void {
   try {

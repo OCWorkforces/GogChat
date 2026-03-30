@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-03-28
+**Generated:** 2026-03-30
 
 20 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
 
@@ -81,13 +81,20 @@ Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts),
 
 Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<hash>.js`. Auto-included in asar.
 
-## COMPLEXITY RANKING
-
-| File                    | Lines | Notes                                 |
-| ----------------------- | ----- | ------------------------------------- |
-| `appMenu.ts`            | 301   | Uses `getMenuAction()` for 3 actions  |
-| `externalLinks.ts`      | 293   | URL validation, account routing       |
-| `bootstrapPromotion.ts` | 249   | Auth detection, child window handling |
-| `certificatePinning.ts` | 187   | Cert validation before app.ready      |
-| `deepLinkHandler.ts`    | 182   | Protocol registration, deep linking   |
-| `windowState.ts`        | 175   | 3 declared deps (most coupled)        |
+YK|## COMPLEXITY RANKING
+SR|
+JQ|| File                    | Lines | Notes                                 |
+SX|| ----------------------- | ----- | ------------------------------------- |
+TP|| `appMenu.ts`            | 301   | Uses `getMenuAction()` for 3 actions  |
+BZ|| `externalLinks.ts`      | 295   | URL validation, account routing       |
+QM|| `bootstrapPromotion.ts` | 60    | Auth detection, child window handling |
+SN|| `certificatePinning.ts` | 187   | Cert validation before app.ready      |
+ZP|| `deepLinkHandler.ts`    | 173   | Protocol registration, deep linking   |
+BB|| `windowState.ts`        | 175   | 3 declared deps (most coupled)        |
+QH|| `handleNotification.ts` | 154   | Notification show/hide logic          |
+VV|| `inOnline.ts`           | 154   | Online status monitoring              |
+NB|| `badgeIcon.ts`          | 141   | Unread count badge updates            |
+SV|| `passkeySupport.ts`     | 122   | Passkey auth event handling           |
+VT|| `trayIcon.ts`           | 90    | System tray icon + menu               |
+MZ|| `closeToTray.ts`        | 55    | Hide to tray on window close          |
+JT|| `aboutPanel.ts`         | 51    | About dialog self-registration       |

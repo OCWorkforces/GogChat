@@ -1,6 +1,6 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-03-28
+**Generated:** 2026-03-30
 
 Bridge between Electron main process and GogChat renderer. 8 scripts + 1 standalone disableWebAuthn compiled as **CJS** (required — `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
 

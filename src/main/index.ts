@@ -9,7 +9,8 @@ import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import environment from '../environment.js';
 import { getIconCache } from './utils/iconCache.js';
 import { initializeStore } from './config.js';
-import { createTrackedTimeout, registerCleanupTask, registerBuiltInGlobalCleanups } from './utils/resourceCleanup.js';
+import { registerBuiltInGlobalCleanups } from './utils/resourceCleanup.js';
+import { createTrackedTimeout, registerCleanupTask } from './utils/trackedResources.js';
 
 import { getFeatureManager } from './utils/featureManager.js';
 import { initializeErrorHandler } from './utils/errorHandler.js';

@@ -14,7 +14,7 @@ vi.mock('../config', () => ({
   },
 }));
 
-vi.mock('../utils/resourceCleanup', () => ({
+vi.mock('../utils/trackedResources', () => ({
   createTrackedTimeout: vi.fn(),
   createTrackedInterval: vi.fn().mockReturnValue(42),
 }));
@@ -22,7 +22,7 @@ vi.mock('../utils/resourceCleanup', () => ({
 import appUpdates from './appUpdates';
 import store from '../config';
 import { setUpdateNotification, checkForUpdates } from 'electron-update-notifier';
-import { createTrackedTimeout, createTrackedInterval } from '../utils/resourceCleanup';
+import { createTrackedTimeout, createTrackedInterval } from '../utils/trackedResources';
 
 describe('appUpdates', () => {
   beforeEach(() => {

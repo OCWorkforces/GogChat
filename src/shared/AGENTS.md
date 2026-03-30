@@ -1,6 +1,6 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-03-27
+**Generated:** 2026-03-30
 
 3 source files: `constants.ts`, `types.ts`, `validators.ts`. Single source of truth for all cross-process contracts. **Edit this before touching IPC handlers or preload scripts.**
 
