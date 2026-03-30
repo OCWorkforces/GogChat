@@ -1,5 +1,7 @@
 import { app } from 'electron';
 import log from 'electron-log';
+// Architecture: extractDeepLinkFromArgv is defined in ../utils/deepLinkUtils.ts,
+// re-exported through deepLinkHandler.ts for backward compatibility.
 import { extractDeepLinkFromArgv, processDeepLink } from './deepLinkHandler.js';
 import { getMostRecentWindow } from '../utils/accountWindowManager.js';
 
