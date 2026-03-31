@@ -1,9 +1,9 @@
 # Electron Builder Configuration
 # https://www.electron.build/configuration/configuration
 
-appId: com.ocworkforce.gogchat
+appId: com.ocworkforces.gogchat
 productName: GogChat
-copyright: Copyright © 2026 OCWorkforce
+copyright: Copyright © 2026 OCWorkforces
 
 # Protocol handler for deep linking
 protocols:
@@ -102,7 +102,7 @@ dmg:
 # Example: provider: github (uses GitHub Releases)
 # publish:
 #   provider: github
-#   owner: OCWorkforce
+#   owner: OCWorkforces
 #   repo: GogChat
 
 # Additional metadata
