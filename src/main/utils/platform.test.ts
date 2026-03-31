@@ -663,7 +663,7 @@ describe('PlatformUtils', () => {
       const { openNewGitHubIssue } = await import('./platform');
 
       openNewGitHubIssue({
-        repoUrl: 'https://github.com/OCWorkforce/GogChat',
+        repoUrl: 'https://github.com/OCWorkforces/GogChat',
         title: 'Test Issue',
         body: 'Issue description',
         labels: ['bug'],
@@ -677,7 +677,7 @@ describe('PlatformUtils', () => {
       const { openNewGitHubIssue } = await import('./platform');
 
       openNewGitHubIssue({
-        repoUrl: 'https://github.com/OCWorkforce/GogChat',
+        repoUrl: 'https://github.com/OCWorkforces/GogChat',
       });
 
       const { shell } = await import('electron');

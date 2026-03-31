@@ -32,7 +32,7 @@ A secure, feature-rich desktop application for GogChat with native OS integratio
 
 Get the latest release:
 
-- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforce/GogChat/releases/latest)
+- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforces/GogChat/releases/latest)
 
 > **Requirement:** Apple Silicon (M1 or later) is required.
 
@@ -154,7 +154,7 @@ For detailed security information, see [SECURITY.md](SECURITY.md).
 
 ## Contact
 
-If you have any questions or encounter issues, feel free to reach out to [kennydizi@ocworkforces.com](mailto:kennydizi@ocworkforces.com)
+If you have any questions or encounter issues, feel free to reach out to [kennydizi@ocworkforcess.com](mailto:kennydizi@ocworkforcess.com)
 
 ## License
 
