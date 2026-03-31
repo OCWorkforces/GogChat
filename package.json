@@ -36,8 +36,8 @@
     "pack:mac:arm64": "electron-builder --mac --arm64 --dir",
     "build:mac": "bash ./build-macOS-dmg.sh --environment production",
     "build:mac:dev": "bash ./build-macOS-dmg.sh --environment develop",
-    "build:mac:arm64": "bash ./build-macOS-dmg.sh --environment production --arch arm64",
-    "build:mac:arm64:dev": "bash ./build-macOS-dmg.sh --environment develop --arch arm64",
+    "build:mac:arm64": "bash ./build-macOS-dmg.sh --environment production",
+    "build:mac:arm64:dev": "bash ./build-macOS-dmg.sh --environment develop",
     "typecheck": "tsc -b"
   },
   "devDependencies": {
