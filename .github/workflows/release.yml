@@ -30,16 +30,15 @@ jobs:
         id: create-tag
         if: github.ref == 'refs/heads/main'
         run: |
-          VERSION="v$(bun -p "require('./package.json').version")"
+          VERSION="v$(bun -p "require('./package.json').version')"
+          echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
           if git ls-remote --exit-code origin "refs/tags/$VERSION" >/dev/null 2>&1; then
-            echo "Tag $VERSION already exists, skipping"
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Tag $VERSION already exists, skipping tag creation"
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag "$VERSION"
             git push origin "$VERSION"
-            echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and package DMG
