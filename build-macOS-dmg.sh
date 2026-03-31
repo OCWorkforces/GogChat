@@ -195,7 +195,7 @@ fi
 
 echo ""
 echo "  → Starting electron-builder for macOS arm64..."
-bunx electron-builder --mac --arm64 --config ${CONFIG_FILES}
+bunx electron-builder --mac --arm64 --config ${CONFIG_FILES} --publish never
 
 
 print_success "Packaging and DMG creation complete"
