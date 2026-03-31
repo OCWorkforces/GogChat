@@ -100,10 +100,10 @@ dmg:
 
 # Auto-update: configure a real provider here when ready.
 # Example: provider: github (uses GitHub Releases)
-# publish:
-#   provider: github
-#   owner: OCWorkforces
-#   repo: GogChat
+publish:
+  provider: github
+  owner: OCWorkforces
+  repo: GogChat
 
 # Additional metadata
 artifactName: '${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}'
