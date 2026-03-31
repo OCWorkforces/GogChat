@@ -118,7 +118,7 @@ After enrollment is approved:
 
 3. Fill in the form:
    - **User Email Address:** Your Apple ID email
-   - **Common Name:** Something descriptive like `OCWorkforce Developer ID`
+   - **Common Name:** Something descriptive like `OCWorkforces Developer ID`
    - **CA Email Address:** Leave empty
    - **Request is:** Select **"Saved to disk"**
 
