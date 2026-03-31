@@ -22,7 +22,7 @@
     "build:analyze": "ANALYZE=true NODE_ENV=production bun scripts/build-rsbuild.js",
     "prets": "bun run clean:lib",
     "ts": "tsc",
-    "package": "bun run build:prod && electron-builder --mac",
+    "package": "BUILD_ENV=${BUILD_ENV:-production} bun run build:prod && BUILD_ENV=${BUILD_ENV:-development} electron-builder --mac",
     "test": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs",
     "test:ui": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs --ui",
     "test:run": "node --require ./tests/polyfill-crypto.cjs ./node_modules/vitest/vitest.mjs run",
