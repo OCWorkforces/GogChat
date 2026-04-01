@@ -691,11 +691,204 @@ describe('PlatformUtils', () => {
 
   describe('isFirstAppLaunch()', () => {
     it('returns true when store key is not set', async () => {
-      const { isFirstAppLaunch: _isFirstAppLaunch } = await import('./platform');
+      const { isFirstAppLaunch } = await import('./platform');
+      const mockStore = {
+        get: vi.fn().mockReturnValue(undefined),
+        set: vi.fn(),
+      } as unknown as import('electron-store').default<import('../../../src/shared/types.js').StoreType>;
 
-      // When store returns undefined (key not set), first launch is true
-      // This is implicit in the function logic
-      expect(true).toBe(true);
+      const result = isFirstAppLaunch(mockStore);
+
+      expect(result).toBe(true);
+      expect(mockStore.set).toHaveBeenCalledWith('firstLaunchComplete', true);
+    });
+
+    it('returns false when store key is already set', async () => {
+      const { isFirstAppLaunch } = await import('./platform');
+      const mockStore = {
+        get: vi.fn().mockReturnValue(true),
+        set: vi.fn(),
+      } as unknown as import('electron-store').default<import('../../../src/shared/types.js').StoreType>;
+
+      const result = isFirstAppLaunch(mockStore);
+
+      expect(result).toBe(false);
+      expect(mockStore.set).not.toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // setBadge() error path
+  // ========================================================================
+
+  describe('setBadge() error path', () => {
+    it('catches error when dock.setBadge throws', async () => {
+      const { app } = await import('electron');
+      (app.dock!.setBadge as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        throw new Error('Dock unavailable');
+      });
+
+      const { getPlatformUtils } = await import('./platform');
+      const pu = getPlatformUtils();
+      const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
+
+      // Should not throw
+      expect(() => pu.setBadge(mockWindow, 5)).not.toThrow();
+
+      // Restore
+      (app.dock!.setBadge as ReturnType<typeof vi.fn>).mockImplementation(vi.fn());
+    });
+  });
+
+  // ========================================================================
+  // clearBadge() error path
+  // ========================================================================
+
+  describe('clearBadge() error path', () => {
+    it('catches error when dock.setBadge throws during clear', async () => {
+      const { app } = await import('electron');
+      (app.dock!.setBadge as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        throw new Error('Dock unavailable');
+      });
+
+      const { getPlatformUtils } = await import('./platform');
+      const pu = getPlatformUtils();
+      const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
+
+      // Should not throw
+      expect(() => pu.clearBadge(mockWindow)).not.toThrow();
+
+      // Restore
+      (app.dock!.setBadge as ReturnType<typeof vi.fn>).mockImplementation(vi.fn());
+    });
+  });
+
+  // ========================================================================
+  // openNewGitHubIssue() — URL validation error path
+  // ========================================================================
+
+  describe('openNewGitHubIssue() error path', () => {
+    it('logs error when validateExternalURL throws', async () => {
+      const { validateExternalURL } = await import('../../shared/validators.js');
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        throw new Error('Invalid URL');
+      });
+
+      const { openNewGitHubIssue } = await import('./platform');
+      const { shell } = await import('electron');
+
+      // Should not throw — error is caught internally
+      expect(() =>
+        openNewGitHubIssue({
+          repoUrl: 'https://github.com/OCWorkforces/GogChat',
+          title: 'Test',
+        })
+      ).not.toThrow();
+
+      expect(shell.openExternal).not.toHaveBeenCalled();
+
+      // Restore
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
+        (url: string) => url
+      );
+    });
+  });
+
+  // ========================================================================
+  // openNewGitHubIssue() — URL construction
+  // ========================================================================
+
+  describe('openNewGitHubIssue() URL construction', () => {
+    it('constructs URL with all parameters', async () => {
+      const { openNewGitHubIssue } = await import('./platform');
+      const { shell } = await import('electron');
+      const { validateExternalURL } = await import('../../shared/validators.js');
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
+        (url: string) => url
+      );
+      (shell.openExternal as ReturnType<typeof vi.fn>).mockClear();
+
+      openNewGitHubIssue({
+        repoUrl: 'https://github.com/OCWorkforces/GogChat',
+        title: 'Bug Report',
+        body: 'Steps to reproduce',
+        labels: ['bug', 'critical'],
+      });
+
+      const calls = (validateExternalURL as ReturnType<typeof vi.fn>).mock.calls;
+      const calledUrl = calls[calls.length - 1]?.[0] as string;
+      expect(calledUrl).toContain('/issues/new?');
+      expect(calledUrl).toContain('title=Bug+Report');
+      expect(calledUrl).toContain('body=Steps+to+reproduce');
+      expect(calledUrl).toContain('labels=bug%2Ccritical');
+    });
+
+    it('constructs URL with no optional parameters', async () => {
+      const { openNewGitHubIssue } = await import('./platform');
+      const { validateExternalURL } = await import('../../shared/validators.js');
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
+        (url: string) => url
+      );
+
+      openNewGitHubIssue({
+        repoUrl: 'https://github.com/OCWorkforces/GogChat',
+      });
+
+      const calls = (validateExternalURL as ReturnType<typeof vi.fn>).mock.calls;
+      const calledUrl = calls[calls.length - 1]?.[0] as string;
+      expect(calledUrl).toContain('/issues/new?');
+      // No title/body/labels params
+      expect(calledUrl).not.toContain('title=');
+      expect(calledUrl).not.toContain('body=');
+      expect(calledUrl).not.toContain('labels=');
+    });
+
+    it('constructs URL with empty labels array', async () => {
+      const { openNewGitHubIssue } = await import('./platform');
+      const { validateExternalURL } = await import('../../shared/validators.js');
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
+        (url: string) => url
+      );
+
+      openNewGitHubIssue({
+        repoUrl: 'https://github.com/OCWorkforces/GogChat',
+        labels: [],
+      });
+
+      const calls = (validateExternalURL as ReturnType<typeof vi.fn>).mock.calls;
+      const calledUrl = calls[calls.length - 1]?.[0] as string;
+      expect(calledUrl).not.toContain('labels=');
+    });
+  });
+
+  // ========================================================================
+  // debugInfo() — detailed field checks
+  // ========================================================================
+
+  describe('debugInfo() detailed', () => {
+    it('returns all expected info lines', async () => {
+      const { debugInfo } = await import('./platform');
+      const info = debugInfo();
+      const lines = info.split('\n');
+
+      // Should have at least 8 lines (app, electron, chrome, node, v8, platform, arch, locale, memory)
+      expect(lines.length).toBeGreaterThanOrEqual(8);
+    });
+
+    it('includes correct app name and version', async () => {
+      const { debugInfo } = await import('./platform');
+      const info = debugInfo();
+
+      expect(info).toContain('App: GogChat 1.0.0');
+    });
+
+    it('includes memory info with correct format', async () => {
+      const { debugInfo } = await import('./platform');
+      const info = debugInfo();
+
+      // 8GB free / 16GB total based on mock
+      expect(info).toContain('8.00GB free');
+      expect(info).toContain('16.00GB total');
     });
   });
 });

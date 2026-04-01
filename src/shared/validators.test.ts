@@ -3,7 +3,7 @@
  * Tests all validation functions for security and correctness
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   validateUnreadCount,
   validateFaviconURL,
@@ -17,6 +17,8 @@ import {
   validateDeepLinkURL,
   isAuthenticatedChatUrl,
   isGoogleAuthUrl,
+  validatePasskeyFailureData,
+  validateNotificationData,
 } from './validators';
 describe('validateUnreadCount', () => {
   it('should accept valid counts within range', () => {
@@ -583,5 +585,248 @@ describe('isGoogleAuthUrl', () => {
     expect(isGoogleAuthUrl(null)).toBe(false);
     expect(isGoogleAuthUrl(undefined)).toBe(false);
     expect(isGoogleAuthUrl(42)).toBe(false);
+  });
+});
+
+describe('validatePasskeyFailureData', () => {
+  it('should accept known WebAuthn error types', () => {
+    const knownErrors = [
+      'NotAllowedError',
+      'NotSupportedError',
+      'SecurityError',
+      'AbortError',
+      'ConstraintError',
+      'InvalidStateError',
+      'UnknownError',
+      'TimeoutError',
+    ];
+    for (const errorType of knownErrors) {
+      const result = validatePasskeyFailureData(errorType);
+      expect(result.errorType).toBe(errorType);
+      expect(typeof result.timestamp).toBe('number');
+      expect(result.timestamp).toBeGreaterThan(0);
+    }
+  });
+
+  it('should accept unexpected error types with a console warning', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = validatePasskeyFailureData('CustomError');
+    expect(result.errorType).toBe('CustomError');
+    expect(typeof result.timestamp).toBe('number');
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[validators]',
+      'Unexpected passkey error type: CustomError'
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('should not warn for known error types', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    validatePasskeyFailureData('NotAllowedError');
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should throw for non-string error types', () => {
+    expect(() => validatePasskeyFailureData(null)).toThrow('Value must be a string');
+    expect(() => validatePasskeyFailureData(undefined)).toThrow('Value must be a string');
+    expect(() => validatePasskeyFailureData(123)).toThrow('Value must be a string');
+    expect(() => validatePasskeyFailureData({})).toThrow('Value must be a string');
+  });
+
+  it('should throw for error types exceeding max length', () => {
+    const longString = 'E'.repeat(101);
+    expect(() => validatePasskeyFailureData(longString)).toThrow('String exceeds maximum length');
+  });
+
+  it('should accept error types at max length boundary', () => {
+    const exactLength = 'E'.repeat(100);
+    const result = validatePasskeyFailureData(exactLength);
+    expect(result.errorType).toBe(exactLength);
+  });
+
+  it('should accept empty string as error type with a warning', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = validatePasskeyFailureData('');
+    expect(result.errorType).toBe('');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should return a timestamp close to current time', () => {
+    const before = Date.now();
+    const result = validatePasskeyFailureData('NotAllowedError');
+    const after = Date.now();
+    expect(result.timestamp).toBeGreaterThanOrEqual(before);
+    expect(result.timestamp).toBeLessThanOrEqual(after);
+  });
+});
+
+describe('validateNotificationData', () => {
+  it('should accept valid notification data with all fields', () => {
+    const data = {
+      title: 'New message',
+      body: 'Hello world',
+      icon: 'https://example.com/icon.png',
+      tag: 'msg-123',
+    };
+    const result = validateNotificationData(data);
+    expect(result.title).toBe('New message');
+    expect(result.body).toBe('Hello world');
+    expect(result.icon).toBe('https://example.com/icon.png');
+    expect(result.tag).toBe('msg-123');
+    expect(typeof result.timestamp).toBe('number');
+  });
+
+  it('should accept notification data with only required title', () => {
+    const result = validateNotificationData({ title: 'Alert' });
+    expect(result.title).toBe('Alert');
+    expect(result.body).toBeUndefined();
+    expect(result.icon).toBeUndefined();
+    expect(result.tag).toBeUndefined();
+    expect(typeof result.timestamp).toBe('number');
+  });
+
+  it('should skip body when undefined, null, or empty string', () => {
+    expect(validateNotificationData({ title: 'T', body: undefined }).body).toBeUndefined();
+    expect(validateNotificationData({ title: 'T', body: null }).body).toBeUndefined();
+    expect(validateNotificationData({ title: 'T', body: '' }).body).toBeUndefined();
+  });
+
+  it('should skip icon when undefined, null, or empty string', () => {
+    expect(validateNotificationData({ title: 'T', icon: undefined }).icon).toBeUndefined();
+    expect(validateNotificationData({ title: 'T', icon: null }).icon).toBeUndefined();
+    expect(validateNotificationData({ title: 'T', icon: '' }).icon).toBeUndefined();
+  });
+
+  it('should skip tag when undefined, null, or empty string', () => {
+    expect(validateNotificationData({ title: 'T', tag: undefined }).tag).toBeUndefined();
+    expect(validateNotificationData({ title: 'T', tag: null }).tag).toBeUndefined();
+    expect(validateNotificationData({ title: 'T', tag: '' }).tag).toBeUndefined();
+  });
+
+  it('should validate body string and enforce max length', () => {
+    const longBody = 'B'.repeat(5001);
+    expect(() => validateNotificationData({ title: 'T', body: longBody })).toThrow(
+      'String exceeds maximum length'
+    );
+    const maxBody = 'B'.repeat(5000);
+    expect(validateNotificationData({ title: 'T', body: maxBody }).body).toBe(maxBody);
+  });
+
+  it('should validate icon as a favicon URL', () => {
+    expect(() =>
+      validateNotificationData({ title: 'T', icon: 'javascript:alert(1)' })
+    ).toThrow();
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(validateNotificationData({ title: 'T', icon: dataUrl }).icon).toBe(dataUrl);
+  });
+
+  it('should validate tag string and enforce max length', () => {
+    const longTag = 'T'.repeat(201);
+    expect(() => validateNotificationData({ title: 'T', tag: longTag })).toThrow(
+      'String exceeds maximum length'
+    );
+    const maxTag = 'T'.repeat(200);
+    expect(validateNotificationData({ title: 'T', tag: maxTag }).tag).toBe(maxTag);
+  });
+
+  it('should throw for missing title', () => {
+    expect(() => validateNotificationData({ body: 'text' })).toThrow('Value must be a string');
+  });
+
+  it('should throw for title exceeding max length', () => {
+    const longTitle = 'X'.repeat(501);
+    expect(() => validateNotificationData({ title: longTitle })).toThrow(
+      'String exceeds maximum length'
+    );
+  });
+
+  it('should throw for non-object data', () => {
+    expect(() => validateNotificationData(null)).toThrow(
+      'Notification data must be a plain object'
+    );
+    expect(() => validateNotificationData(undefined)).toThrow(
+      'Notification data must be a plain object'
+    );
+    expect(() => validateNotificationData('string')).toThrow(
+      'Notification data must be a plain object'
+    );
+    expect(() => validateNotificationData(123)).toThrow(
+      'Notification data must be a plain object'
+    );
+    expect(() => validateNotificationData([])).toThrow(
+      'Notification data must be a plain object'
+    );
+  });
+
+  it('should throw for objects with custom prototypes', () => {
+    class Custom {
+      title = 'test';
+    }
+    expect(() => validateNotificationData(new Custom())).toThrow(
+      'Notification data must be a plain object'
+    );
+  });
+
+  it('should return a timestamp close to current time', () => {
+    const before = Date.now();
+    const result = validateNotificationData({ title: 'T' });
+    const after = Date.now();
+    expect(result.timestamp).toBeGreaterThanOrEqual(before);
+    expect(result.timestamp).toBeLessThanOrEqual(after);
+  });
+
+  it('should throw when body is a non-string truthy value', () => {
+    expect(() => validateNotificationData({ title: 'T', body: 123 })).toThrow(
+      'Value must be a string'
+    );
+    expect(() => validateNotificationData({ title: 'T', body: true })).toThrow(
+      'Value must be a string'
+    );
+  });
+
+  it('should throw when tag is a non-string truthy value', () => {
+    expect(() => validateNotificationData({ title: 'T', tag: 42 })).toThrow(
+      'Value must be a string'
+    );
+  });
+
+  it('should throw when icon is a non-string truthy value', () => {
+    expect(() => validateNotificationData({ title: 'T', icon: 42 })).toThrow();
+  });
+
+  it('should accept data URL icons', () => {
+    const icon = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+    const result = validateNotificationData({ title: 'T', icon });
+    expect(result.icon).toBe(icon);
+  });
+
+  it('should accept http icon URLs', () => {
+    const icon = 'http://example.com/favicon.ico';
+    const result = validateNotificationData({ title: 'T', icon });
+    expect(result.icon).toBe(icon);
+  });
+});
+
+describe('validators.ts barrel re-exports', () => {
+  it('should re-export all data validators', () => {
+    expect(typeof validateUnreadCount).toBe('function');
+    expect(typeof validateBoolean).toBe('function');
+    expect(typeof validateString).toBe('function');
+    expect(typeof isSafeObject).toBe('function');
+    expect(typeof sanitizeHTML).toBe('function');
+    expect(typeof validatePasskeyFailureData).toBe('function');
+    expect(typeof validateNotificationData).toBe('function');
+  });
+
+  it('should re-export all URL validators', () => {
+    expect(typeof validateFaviconURL).toBe('function');
+    expect(typeof validateExternalURL).toBe('function');
+    expect(typeof validateAppleSystemPreferencesURL).toBe('function');
+    expect(typeof isWhitelistedHost).toBe('function');
+    expect(typeof validateDeepLinkURL).toBe('function');
+    expect(typeof isAuthenticatedChatUrl).toBe('function');
+    expect(typeof isGoogleAuthUrl).toBe('function');
   });
 });

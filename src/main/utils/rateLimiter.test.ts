@@ -436,3 +436,70 @@ describe('Additional methods coverage', () => {
     expect(limiter.getStats('test-channel')).toBeUndefined();
   });
 });
+
+describe('Cleanup method coverage', () => {
+  let limiter: IPCRateLimiter;
+
+  beforeEach(() => {
+    // IMPORTANT: Install fake timers BEFORE creating the limiter
+    // so that createTrackedInterval's setInterval is controlled by fake timers
+    vi.useFakeTimers();
+    limiter = new IPCRateLimiter();
+  });
+
+  afterEach(() => {
+    limiter.destroy();
+    vi.useRealTimers();
+  });
+
+  it('should remove entries older than 5 minutes via cleanup interval', () => {
+    const channel = 'old-channel';
+
+    limiter.isAllowed(channel);
+    expect(limiter.getStats(channel)).toBeDefined();
+
+    // Advance past 5 minutes so entries become stale
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1000);
+
+    // Trigger cleanup interval (fires every 60s)
+    vi.advanceTimersByTime(60000);
+
+    // Entry should be removed since its windowStart is >5 minutes old
+    expect(limiter.getStats(channel)).toBeUndefined();
+  });
+
+  it('should not remove entries less than 5 minutes old', () => {
+    const channel = 'recent-channel';
+
+    limiter.isAllowed(channel);
+    expect(limiter.getStats(channel)).toBeDefined();
+
+    // Advance to just under 5 minutes
+    vi.advanceTimersByTime(4 * 60 * 1000);
+
+    // Trigger cleanup interval
+    vi.advanceTimersByTime(60000);
+
+    // Entry should still exist
+    expect(limiter.getStats(channel)).toBeDefined();
+  });
+
+  it('should log debug when removing blocked entries during cleanup', () => {
+    const channel = 'blocked-channel';
+
+    // Exhaust the limit to create blocked entries
+    for (let i = 0; i < 15; i++) {
+      limiter.isAllowed(channel);
+    }
+
+    const stats = limiter.getStats(channel);
+    expect(stats?.totalBlocked).toBeGreaterThan(0);
+
+    // Advance past 5 minutes + trigger cleanup
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1000);
+    vi.advanceTimersByTime(60000);
+
+    // Entry should be removed
+    expect(limiter.getStats(channel)).toBeUndefined();
+  });
+});
