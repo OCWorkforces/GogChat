@@ -1167,4 +1167,305 @@ describe('ipcHelper', () => {
       cleanup();
     });
   });
+
+  // ========================================================================
+  // Branch coverage: silent mode in reply handler error path (line 158)
+  // ========================================================================
+  describe('createSecureReplyHandler silent error branch', () => {
+    it('does not log error when silent is true and handler throws', async () => {
+      const { createSecureReplyHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      const error = new Error('Silent error');
+      const handler = vi.fn().mockRejectedValue(error);
+      const validator = (data: unknown): string => data as string;
+      const reply = vi.fn();
+
+      const cleanup = createSecureReplyHandler({
+        channel: 'silent-reply-channel',
+        validator,
+        handler,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const mockEvent = { reply } as unknown as IpcMainEvent;
+
+      registeredHandler(mockEvent, 'test-data');
+      await new Promise((r) => setImmediate(r));
+
+      // Error reply is still sent
+      expect(reply).toHaveBeenCalledWith('silent-reply-channel-reply', {
+        success: false,
+        error: 'Silent error',
+      });
+      // But error should NOT be logged
+      expect(logger.ipc.error).not.toHaveBeenCalled();
+      cleanup();
+    });
+  });
+
+  // ========================================================================
+  // Branch coverage: silent mode in invoke handler (lines 199, 209, 218)
+  // ========================================================================
+  describe('createSecureInvokeHandler silent branches', () => {
+    it('does not log warn when silent and rate limited (line 199)', async () => {
+      const { createSecureInvokeHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      mockIsAllowed.mockReturnValue(false);
+
+      const handler = vi.fn();
+      const validator = (data: unknown): string => data as string;
+
+      const cleanup = createSecureInvokeHandler({
+        channel: 'silent-invoke-channel',
+        validator,
+        handler,
+        rateLimit: 5,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.handle as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      await expect(registeredHandler({} as IpcMainInvokeEvent, 'test-data')).rejects.toThrow(
+        'Rate limited'
+      );
+      expect(handler).not.toHaveBeenCalled();
+      // Should NOT log warn when silent
+      expect(logger.ipc.warn).not.toHaveBeenCalled();
+
+      mockIsAllowed.mockReturnValue(true);
+      cleanup();
+    });
+
+    it('does not log debug when silent and handler succeeds (line 209)', async () => {
+      const { createSecureInvokeHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      const handler = vi.fn().mockResolvedValue('response');
+
+      const cleanup = createSecureInvokeHandler({
+        channel: 'silent-invoke-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.handle as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      const result = await registeredHandler({} as IpcMainInvokeEvent, 'test-data');
+
+      expect(result).toBe('response');
+      // Should NOT log debug when silent
+      expect(logger.ipc.debug).not.toHaveBeenCalled();
+      cleanup();
+    });
+
+    it('does not log error when silent and handler throws (line 218)', async () => {
+      const { createSecureInvokeHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      const error = new Error('Silent invoke error');
+      const handler = vi.fn().mockRejectedValue(error);
+
+      const cleanup = createSecureInvokeHandler({
+        channel: 'silent-invoke-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.handle as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      await expect(registeredHandler({} as IpcMainInvokeEvent, 'test-data')).rejects.toThrow(
+        'Silent invoke error'
+      );
+      // Should NOT log error when silent
+      expect(logger.ipc.error).not.toHaveBeenCalled();
+      cleanup();
+    });
+
+    it('includes description in invoke debug log when provided', async () => {
+      const { createSecureInvokeHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      const handler = vi.fn().mockResolvedValue('response');
+
+      const cleanup = createSecureInvokeHandler({
+        channel: 'invoke-desc-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        description: 'invoke test operation',
+      });
+
+      const registeredHandler = (ipcMain.handle as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      await registeredHandler({} as IpcMainInvokeEvent, 'test-data');
+
+      expect(logger.ipc.debug).toHaveBeenCalledWith(
+        expect.stringContaining('invoke test operation')
+      );
+      cleanup();
+    });
+  });
+
+  // ========================================================================
+  // Branch coverage: cleanupGlobalHandlers when no manager exists (line 347)
+  // ========================================================================
+  describe('cleanupGlobalHandlers when no manager exists', () => {
+    it('does nothing when called before getIPCManager (line 347)', async () => {
+      const { cleanupGlobalHandlers } = await import('./ipcHelper');
+
+      // Should not throw when globalManager is null
+      expect(() => cleanupGlobalHandlers()).not.toThrow();
+    });
+  });
+
+  // ========================================================================
+  // Branch coverage: silent rate limiting in reply handler (line 132)
+  // ========================================================================
+  describe('createSecureReplyHandler silent rate limit branch', () => {
+    it('does not log warn when silent and rate limited', async () => {
+      const { createSecureReplyHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      mockIsAllowed.mockReturnValue(false);
+
+      const handler = vi.fn();
+      const validator = (data: unknown): string => data as string;
+      const reply = vi.fn();
+
+      const cleanup = createSecureReplyHandler({
+        channel: 'silent-rate-reply',
+        validator,
+        handler,
+        rateLimit: 5,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const mockEvent = { reply } as unknown as IpcMainEvent;
+
+      registeredHandler(mockEvent, 'test-data');
+      await new Promise((r) => setImmediate(r));
+
+      // Reply is still sent with rate limited error
+      expect(reply).toHaveBeenCalledWith('silent-rate-reply-reply', {
+        success: false,
+        error: 'Rate limited',
+      });
+      expect(handler).not.toHaveBeenCalled();
+      // Should NOT log warn when silent
+      expect(logger.ipc.warn).not.toHaveBeenCalled();
+
+      mockIsAllowed.mockReturnValue(true);
+      cleanup();
+    });
+  });
+
+  // ========================================================================
+  // Branch coverage: silent rate limiting in secure handler (line 67)
+  // ========================================================================
+  describe('createSecureIPCHandler silent rate limit branch', () => {
+    it('does not log warn when silent and rate limited', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      mockIsAllowed.mockReturnValue(false);
+
+      const handler = vi.fn();
+      const validator = (data: unknown): string => data as string;
+
+      const cleanup = createSecureIPCHandler({
+        channel: 'silent-rate-channel',
+        validator,
+        handler,
+        rateLimit: 5,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const mockEvent = {} as IpcMainEvent;
+
+      registeredHandler(mockEvent, 'test-data');
+      await new Promise((r) => setImmediate(r));
+
+      expect(handler).not.toHaveBeenCalled();
+      // Should NOT log warn when silent
+      expect(logger.ipc.warn).not.toHaveBeenCalled();
+
+      mockIsAllowed.mockReturnValue(true);
+      cleanup();
+    });
+
+    it('does not log error when silent and handler throws', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      const error = new Error('Silent handler error');
+      const handler = vi.fn().mockRejectedValue(error);
+
+      const cleanup = createSecureIPCHandler({
+        channel: 'silent-error-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const mockEvent = {} as IpcMainEvent;
+
+      registeredHandler(mockEvent, 'test-data');
+      await new Promise((r) => setImmediate(r));
+
+      // Should NOT log error when silent
+      expect(logger.ipc.error).not.toHaveBeenCalled();
+      cleanup();
+    });
+  });
+
+  // ========================================================================
+  // Branch coverage: reply handler silent success path (line 146)
+  // ========================================================================
+  describe('createSecureReplyHandler silent success branch', () => {
+    it('does not log debug when silent and handler succeeds', async () => {
+      const { createSecureReplyHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+      const { logger } = await import('./logger.js');
+
+      const handler = vi.fn().mockResolvedValue('response-data');
+      const validator = (data: unknown): string => data as string;
+      const reply = vi.fn();
+
+      const cleanup = createSecureReplyHandler({
+        channel: 'silent-success-reply',
+        validator,
+        handler,
+        silent: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const mockEvent = { reply } as unknown as IpcMainEvent;
+
+      registeredHandler(mockEvent, 'test-data');
+      await new Promise((r) => setImmediate(r));
+
+      expect(reply).toHaveBeenCalledWith('silent-success-reply-reply', {
+        success: true,
+        data: 'response-data',
+      });
+      // Should NOT log debug when silent
+      expect(logger.ipc.debug).not.toHaveBeenCalled();
+      cleanup();
+    });
+  });
 });

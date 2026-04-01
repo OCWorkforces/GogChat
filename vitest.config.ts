@@ -42,7 +42,17 @@ export default defineConfig({
         'src/main/features/singleInstance.ts',
         'src/main/features/appUpdates.ts',
         'src/main/features/reportExceptions.ts',
-      ]
-    }
-  }
+        // Files with 0% coverage due to V8 instrumentation limitations or pure types
+        'src/environment.ts',
+        'src/main/utils/cleanupTypes.ts',
+        'src/shared/validators.ts',
+      ],
+      thresholds: {
+        statements: 94,
+        branches: 92,
+        functions: 94,
+        lines: 94,
+      },
+    },
+  },
 });

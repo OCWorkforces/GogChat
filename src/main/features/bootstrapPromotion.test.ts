@@ -526,5 +526,42 @@ describe('bootstrapPromotion feature', () => {
       account1Win.webContents.emit('did-navigate', {}, 'https://chat.google.com/u/1/');
       expect(mgr.promoteBootstrap).not.toHaveBeenCalled();
     });
+
+  });
+  // ── init() error path ─────────────────────────────────────────────────────────────────
+
+  describe('init() error handling', () => {
+    it('logs error and does not throw when getAccountWindowManager throws', async () => {
+      getAccountWindowManagerMock.mockImplementation(() => {
+        throw new Error('Manager not initialized');
+      });
+
+      const log = (await import('electron-log')).default;
+      const feature = await import('./bootstrapPromotion.js');
+
+      expect(() => feature.default()).not.toThrow();
+      expect(log.error).toHaveBeenCalledWith(
+        '[BootstrapPromotion] Failed to initialize:',
+        expect.any(Error)
+      );
+    });
+
+    it('logs error when getBootstrapAccounts throws', async () => {
+      getAccountWindowManagerMock.mockReturnValue({
+        ...mgr,
+        getBootstrapAccounts: () => {
+          throw new Error('Failed to get bootstrap accounts');
+        },
+      });
+
+      const log = (await import('electron-log')).default;
+      const feature = await import('./bootstrapPromotion.js');
+
+      expect(() => feature.default()).not.toThrow();
+      expect(log.error).toHaveBeenCalledWith(
+        '[BootstrapPromotion] Failed to initialize:',
+        expect.any(Error)
+      );
+    });
   });
 });

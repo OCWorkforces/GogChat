@@ -9,13 +9,14 @@ import { app } from 'electron';
 import log from 'electron-log';
 import type { FeatureManager } from '../utils/featureManager.js';
 import { destroyAccountWindowManager } from '../utils/accountWindowManager.js';
-import { getIconCache } from '../utils/iconCache.js';
+import { destroyIconCache, getIconCache } from '../utils/iconCache.js';
 import { getStore } from '../config.js';
 import type { CachedStore } from '../utils/configCache.js';
-import { getDeduplicator } from '../utils/ipcDeduplicator.js';
-import { getRateLimiter } from '../utils/rateLimiter.js';
+import { destroyDeduplicator, getDeduplicator } from '../utils/ipcDeduplicator.js';
+import { destroyRateLimiter, getRateLimiter } from '../utils/rateLimiter.js';
 import type { StoreType } from '../../shared/types.js';
 import type Store from 'electron-store';
+import { destroyPerformanceMonitor } from '../utils/performanceMonitor.js';
 
 /**
  * Type guard to check if a store has cache enabled
@@ -145,6 +146,22 @@ export function registerShutdownHandler(deps: { featureManager: FeatureManager }
           log.info('[Main] Account window manager cleaned up');
         } catch (error: unknown) {
           log.error('[Main] Account window manager cleanup failed:', error);
+        }
+
+        // Destroy singleton instances that have destroyXxx() but aren't called in normal shutdown
+        // Using lazy require() to avoid module-level coupling (same pattern as registerBuiltInGlobalCleanups)
+        try {
+          destroyPerformanceMonitor();
+
+          destroyDeduplicator();
+
+          destroyRateLimiter();
+
+          destroyIconCache();
+
+          log.info('[Main] Singleton instances destroyed');
+        } catch (error: unknown) {
+          log.error('[Main] Singleton destruction failed:', error);
         }
 
         // Log comprehensive cache statistics

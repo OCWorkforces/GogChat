@@ -708,4 +708,40 @@ describe('FeatureManager', () => {
       expect(states.get('feat1')?.status).toBe('pending');
     });
   });
+
+  // ========================================================================
+  // logInitializationSummary — failed features branch
+  // ========================================================================
+
+  describe('logInitializationSummary with failed features', () => {
+    it('logs failed features when initializeAll completes with failures', async () => {
+      const { getFeatureManager } = await import('./featureManager');
+      const log = (await import('electron-log')).default;
+      const mgr = getFeatureManager();
+
+      mgr.registerAll([
+        {
+          name: 'ok-feature',
+          priority: 'security',
+          init: vi.fn(),
+        },
+        {
+          name: 'failing-required',
+          priority: 'security',
+          required: true,
+          init: vi.fn().mockRejectedValue(new Error('boom')),
+        },
+      ]);
+
+      await mgr.initializeAll();
+
+      // logInitializationSummary is called by initializeAll
+      // Verify the 'Failed features:' log line was emitted
+      const infoCalls = vi.mocked(log.info).mock.calls.map((c) => String(c[0]));
+      expect(infoCalls.some((msg) => msg.includes('Failed features:'))).toBe(true);
+      expect(
+        infoCalls.some((msg) => msg.includes('failing-required') && msg.includes('boom'))
+      ).toBe(true);
+    });
+  });
 });

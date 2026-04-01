@@ -1,8 +1,20 @@
 import { safeStorage, app } from 'electron';
 import { createHash, randomBytes } from 'crypto';
-import * as fs from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import log from 'electron-log';
+
+/**
+ * Check if a file exists (async equivalent of fs.existsSync)
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const ENCRYPTION_KEY_FILE = 'encryption-key.enc';
 
@@ -25,11 +37,11 @@ function getLegacyEncryptionKey(): string {
  *
  * MUST be called AFTER app.whenReady() on macOS for correct Keychain entry naming.
  */
-export function getOrCreateEncryptionKey(): string {
+export async function getOrCreateEncryptionKey(): Promise<string> {
   // Try SafeStorage first (must be called after app.whenReady on macOS)
   if (safeStorage.isEncryptionAvailable()) {
     try {
-      return handleSafeStorageKey();
+      return await handleSafeStorageKey();
     } catch (error: unknown) {
       log.warn('[EncryptionKey] SafeStorage failed, falling back to deterministic key:', error);
     }
@@ -45,13 +57,13 @@ export function getOrCreateEncryptionKey(): string {
  * Handle SafeStorage key retrieval/generation
  * Assumes SafeStorage.isEncryptionAvailable() returned true
  */
-function handleSafeStorageKey(): string {
+async function handleSafeStorageKey(): Promise<string> {
   const keyFilePath = path.join(app.getPath('userData'), ENCRYPTION_KEY_FILE);
 
   // Check if encrypted key file exists
-  if (fs.existsSync(keyFilePath)) {
+  if (await fileExists(keyFilePath)) {
     // Retrieve existing key
-    const encrypted = fs.readFileSync(keyFilePath);
+    const encrypted = await fs.readFile(keyFilePath);
     const hexKey = safeStorage.decryptString(encrypted);
     log.info('[EncryptionKey] Retrieved encryption key from Keychain');
     return hexKey;
@@ -60,7 +72,7 @@ function handleSafeStorageKey(): string {
   // No key file exists — check if we need to migrate from deterministic key
   // (config file exists but no encryption-key.enc means migration needed)
   const configPath = path.join(app.getPath('userData'), 'config.json');
-  if (fs.existsSync(configPath)) {
+  if (await fileExists(configPath)) {
     // Migration scenario: return legacy key, migration will be handled by completeMigration
     log.info('[EncryptionKey] Existing config detected, migration will be scheduled');
     return getLegacyEncryptionKey();
@@ -69,7 +81,7 @@ function handleSafeStorageKey(): string {
   // Fresh install — generate new random key
   const newKey = randomBytes(32).toString('hex'); // 256-bit key as hex
   const encrypted = safeStorage.encryptString(newKey);
-  fs.writeFileSync(keyFilePath, encrypted);
+  await fs.writeFile(keyFilePath, encrypted);
   log.info('[EncryptionKey] Generated new encryption key, stored in Keychain');
   return newKey;
 }
@@ -81,13 +93,13 @@ function handleSafeStorageKey(): string {
  * - No key file exists
  * - Config file exists (indicating existing user data)
  */
-export function needsMigration(): boolean {
+export async function needsMigration(): Promise<boolean> {
   if (!safeStorage.isEncryptionAvailable()) {
     return false;
   }
 
   const keyFilePath = path.join(app.getPath('userData'), ENCRYPTION_KEY_FILE);
-  return !fs.existsSync(keyFilePath);
+  return !(await fileExists(keyFilePath));
 }
 
 /**
@@ -95,7 +107,7 @@ export function needsMigration(): boolean {
  * This should be called AFTER opening the store with the legacy key and reading all data.
  * Returns the new encryption key, or null if migration cannot proceed.
  */
-export function completeMigration(): string | null {
+export async function completeMigration(): Promise<string | null> {
   if (!safeStorage.isEncryptionAvailable()) {
     return null;
   }
@@ -103,14 +115,14 @@ export function completeMigration(): string | null {
   const keyFilePath = path.join(app.getPath('userData'), ENCRYPTION_KEY_FILE);
 
   // If key file already exists, migration already done
-  if (fs.existsSync(keyFilePath)) {
+  if (await fileExists(keyFilePath)) {
     return null;
   }
 
   // Generate new key and save using SafeStorage
   const newKey = randomBytes(32).toString('hex');
   const encrypted = safeStorage.encryptString(newKey);
-  fs.writeFileSync(keyFilePath, encrypted);
+  await fs.writeFile(keyFilePath, encrypted);
   log.info('[EncryptionKey] Migration complete — new key stored in Keychain');
   return newKey;
 }

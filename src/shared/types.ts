@@ -173,7 +173,8 @@ declare global {
  * Rate limit tracking data
  */
 export interface RateLimitEntry {
-  timestamps: number[];
+  count: number;
+  windowStart: number;
   blocked: number;
 }
 

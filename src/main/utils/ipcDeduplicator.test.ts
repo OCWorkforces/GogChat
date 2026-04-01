@@ -34,6 +34,12 @@ vi.mock('./logger.js', () => ({
   },
 }));
 
+// Mock trackedResources to avoid resourceCleanup dependency
+vi.mock('./trackedResources.js', () => ({
+  createTrackedInterval: (callback: () => void, delay: number, _name?: string) =>
+    setInterval(callback, delay),
+}));
+
 describe('IPCDeduplicator', () => {
   let deduplicator: IPCDeduplicator;
 
@@ -617,6 +623,69 @@ describe('IPCDeduplicator', () => {
 
       await wrapped(5);
       expect(fn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ========================================================================
+  // Debug mode — cache hit, miss, and cleanup logging
+  // ========================================================================
+
+  describe('Debug mode logging', () => {
+    let debugDeduplicator: IPCDeduplicator;
+
+    beforeEach(() => {
+      debugDeduplicator = new IPCDeduplicator({
+        windowMs: 100,
+        maxCacheSize: 10,
+        debug: true,
+      });
+    });
+
+    afterEach(() => {
+      debugDeduplicator.destroy();
+    });
+
+    it('logs debug on cache hit (deduplicating request)', async () => {
+      const { logger } = await import('./logger');
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await debugDeduplicator.deduplicate('key-hit', fn); // miss
+      await debugDeduplicator.deduplicate('key-hit', fn); // hit
+
+      expect(logger.ipc.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Deduplicating request: key-hit')
+      );
+    });
+
+    it('logs debug on cache miss (executing new request)', async () => {
+      const { logger } = await import('./logger');
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await debugDeduplicator.deduplicate('key-miss', fn);
+
+      expect(logger.ipc.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Executing new request: key-miss')
+      );
+    });
+
+    it('logs debug when cleaning expired cache entries', async () => {
+      const { logger } = await import('./logger');
+      const fn = vi.fn().mockResolvedValue('result');
+
+      // Fill cache to maxCacheSize (10)
+      for (let i = 0; i < 10; i++) {
+        await debugDeduplicator.deduplicate(`fill-${i}`, fn);
+      }
+
+      // Advance past expiration window (windowMs * 2 = 200ms)
+      vi.advanceTimersByTime(250);
+
+      // Next call triggers cleanOldEntries because cache is full
+      await debugDeduplicator.deduplicate('trigger-clean', fn);
+
+      expect(logger.ipc.debug).toHaveBeenCalledWith(
+        expect.stringMatching(/Cleaned \d+ expired cache entries/)
+      );
     });
   });
 });

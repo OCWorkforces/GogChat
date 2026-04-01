@@ -106,8 +106,8 @@ describe('IPCRateLimiter', () => {
     });
   });
 
-  describe('Timestamp management', () => {
-    it('should only keep timestamps from last second', () => {
+  describe('Window counter management', () => {
+    it('should reset counter when window expires', () => {
       const channel = 'test-channel';
 
       // Make 5 requests at t=0
@@ -115,21 +115,21 @@ describe('IPCRateLimiter', () => {
         limiter.isAllowed(channel);
       }
 
-      // Advance time by 500ms
+      // Advance time by 500ms (still in same window)
       vi.advanceTimersByTime(500);
 
-      // Make 5 more requests at t=500ms
+      // Make 5 more requests at t=500ms (same window, total 10)
       for (let i = 0; i < 5; i++) {
         limiter.isAllowed(channel);
       }
 
-      // Should be at limit (10 requests in last second)
+      // Should be at limit (10 requests in current window)
       expect(limiter.isAllowed(channel)).toBe(false);
 
-      // Advance another 600ms (total 1100ms from start)
+      // Advance past the window boundary (total >1000ms from window start)
       vi.advanceTimersByTime(600);
 
-      // First 5 requests should have expired
+      // Window expired — counter resets, should allow new requests
       expect(limiter.isAllowed(channel)).toBe(true);
     });
 
@@ -278,7 +278,7 @@ describe('IPCRateLimiter', () => {
   });
 
   describe('Time window behavior', () => {
-    it('should use sliding window for rate limiting', () => {
+    it('should use fixed-window counter for rate limiting', () => {
       const channel = 'test-channel';
 
       // Make 5 requests at t=0
@@ -286,21 +286,21 @@ describe('IPCRateLimiter', () => {
         expect(limiter.isAllowed(channel)).toBe(true);
       }
 
-      // Advance 500ms
+      // Advance 500ms (still in same window)
       vi.advanceTimersByTime(500);
 
-      // Make 5 more requests at t=500ms
+      // Make 5 more requests at t=500ms (same window, total 10)
       for (let i = 0; i < 5; i++) {
         expect(limiter.isAllowed(channel)).toBe(true);
       }
 
-      // Should be at limit now (10 requests in last second)
+      // Should be at limit now (10 requests in current window)
       expect(limiter.isAllowed(channel)).toBe(false);
 
-      // Advance another 600ms (total 1100ms from start)
+      // Advance past window expiry (total >1000ms from window start)
       vi.advanceTimersByTime(600);
 
-      // First batch should have expired, should allow new requests
+      // Window expired — counter resets, should allow new requests
       expect(limiter.isAllowed(channel)).toBe(true);
     });
   });
@@ -434,5 +434,72 @@ describe('Additional methods coverage', () => {
 
     limiter.reset('test-channel');
     expect(limiter.getStats('test-channel')).toBeUndefined();
+  });
+});
+
+describe('Cleanup method coverage', () => {
+  let limiter: IPCRateLimiter;
+
+  beforeEach(() => {
+    // IMPORTANT: Install fake timers BEFORE creating the limiter
+    // so that createTrackedInterval's setInterval is controlled by fake timers
+    vi.useFakeTimers();
+    limiter = new IPCRateLimiter();
+  });
+
+  afterEach(() => {
+    limiter.destroy();
+    vi.useRealTimers();
+  });
+
+  it('should remove entries older than 5 minutes via cleanup interval', () => {
+    const channel = 'old-channel';
+
+    limiter.isAllowed(channel);
+    expect(limiter.getStats(channel)).toBeDefined();
+
+    // Advance past 5 minutes so entries become stale
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1000);
+
+    // Trigger cleanup interval (fires every 60s)
+    vi.advanceTimersByTime(60000);
+
+    // Entry should be removed since its windowStart is >5 minutes old
+    expect(limiter.getStats(channel)).toBeUndefined();
+  });
+
+  it('should not remove entries less than 5 minutes old', () => {
+    const channel = 'recent-channel';
+
+    limiter.isAllowed(channel);
+    expect(limiter.getStats(channel)).toBeDefined();
+
+    // Advance to just under 5 minutes
+    vi.advanceTimersByTime(4 * 60 * 1000);
+
+    // Trigger cleanup interval
+    vi.advanceTimersByTime(60000);
+
+    // Entry should still exist
+    expect(limiter.getStats(channel)).toBeDefined();
+  });
+
+  it('should log debug when removing blocked entries during cleanup', () => {
+    const channel = 'blocked-channel';
+
+    // Exhaust the limit to create blocked entries
+    for (let i = 0; i < 15; i++) {
+      limiter.isAllowed(channel);
+    }
+
+    const stats = limiter.getStats(channel);
+    expect(stats?.totalBlocked).toBeGreaterThan(0);
+
+    // Advance past 5 minutes + trigger cleanup
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1000);
+    vi.advanceTimersByTime(60000);
+
+    // Entry should be removed
+    expect(limiter.getStats(channel)).toBeUndefined();
   });
 });

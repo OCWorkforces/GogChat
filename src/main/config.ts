@@ -182,13 +182,13 @@ let storeInstance: Store<StoreType> | CachedStore<StoreType> | null = null;
  * - Migration is done by exporting all data, creating new store with new key,
  *   and re-importing the data.
  */
-export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
+export async function initializeStore(): Promise<Store<StoreType> | CachedStore<StoreType>> {
   if (storeInstance) {
     return storeInstance;
   }
 
   // Get or create encryption key (SafeStorage-backed or legacy)
-  const encryptionKey = getOrCreateEncryptionKey();
+  const encryptionKey = await getOrCreateEncryptionKey();
 
   // Create store with encryption
   let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
@@ -198,10 +198,10 @@ export function initializeStore(): Store<StoreType> | CachedStore<StoreType> {
   });
 
   // Migration: if SafeStorage is available but we opened with legacy key
-  if (needsMigration()) {
+  if (await needsMigration()) {
     try {
       log.info('[Config] Starting migration from legacy to SafeStorage encryption');
-      const newKey = completeMigration();
+      const newKey = await completeMigration();
       if (newKey) {
         // Export all data from old store
         const allData = { ...store.store }; // electron-store exposes .store for raw data

@@ -13,10 +13,10 @@ vi.mock('electron', () => ({
     getPath: (name: string) => `/fake/path/${name}`,
   },
   nativeImage: {
-    createFromPath: (_path: string) => ({
+    createFromPath: vi.fn((_path: string) => ({
       isEmpty: () => false,
       getSize: () => ({ width: 16, height: 16 }),
-    }),
+    })),
   },
 }));
 
@@ -31,6 +31,7 @@ vi.mock('electron-log', () => ({
 }));
 
 import { getIconCache, destroyIconCache } from './iconCache';
+import { nativeImage } from 'electron';
 
 describe('IconCacheManager', () => {
   beforeEach(() => {
@@ -157,6 +158,113 @@ describe('IconCacheManager', () => {
       // New instance should be empty
       const newCache = getIconCache();
       expect(newCache.getCacheSize()).toBe(0);
+    });
+  });
+
+  describe('LRU Eviction', () => {
+    it('should evict least recently used entry when cache exceeds maxCacheSize', () => {
+      vi.useFakeTimers();
+      const cache = getIconCache();
+
+      // Fill cache to max (50 items) with distinct timestamps
+      for (let i = 0; i < 50; i++) {
+        vi.advanceTimersByTime(1);
+        cache.getIcon(`test/icon-${i}.png`);
+      }
+      expect(cache.getCacheSize()).toBe(50);
+
+      // Add one more to trigger eviction
+      vi.advanceTimersByTime(1);
+      cache.getIcon('test/icon-overflow.png');
+      expect(cache.getCacheSize()).toBe(50);
+
+      // First icon should have been evicted (least recently used)
+      const stats = cache.getStats();
+      expect(stats.icons).not.toContain('test/icon-0.png');
+      expect(stats.icons).toContain('test/icon-overflow.png');
+
+      vi.useRealTimers();
+    });
+
+    it('should evict correct entry when items have different access times', () => {
+      vi.useFakeTimers();
+      const cache = getIconCache();
+
+      // Fill cache to max with distinct timestamps
+      for (let i = 0; i < 50; i++) {
+        vi.advanceTimersByTime(1);
+        cache.getIcon(`test/icon-${i}.png`);
+      }
+
+      // Access the first icon to update its lastAccessed
+      vi.advanceTimersByTime(1);
+      cache.getIcon('test/icon-0.png');
+
+      // Add new icon — icon-1 should be evicted (least recently accessed now)
+      vi.advanceTimersByTime(1);
+      cache.getIcon('test/icon-new.png');
+      expect(cache.getCacheSize()).toBe(50);
+
+      const stats = cache.getStats();
+      expect(stats.icons).toContain('test/icon-0.png');
+      expect(stats.icons).not.toContain('test/icon-1.png');
+      expect(stats.icons).toContain('test/icon-new.png');
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('Empty icon handling', () => {
+    it('should not cache icons that are empty', () => {
+      const cache = getIconCache();
+
+      // Mock createFromPath to return an empty image for this specific call
+      vi.mocked(nativeImage.createFromPath).mockReturnValueOnce({
+        isEmpty: () => true,
+        getSize: () => ({ width: 0, height: 0 }),
+      } as ReturnType<typeof nativeImage.createFromPath>);
+
+      cache.getIcon('test/empty-icon.png');
+
+      expect(cache.getCacheSize()).toBe(0);
+    });
+
+    it('should log error for empty icons', async () => {
+      const log = await import('electron-log');
+      const cache = getIconCache();
+
+      vi.mocked(nativeImage.createFromPath).mockReturnValueOnce({
+        isEmpty: () => true,
+        getSize: () => ({ width: 0, height: 0 }),
+      } as ReturnType<typeof nativeImage.createFromPath>);
+
+      cache.getIcon('test/empty-icon.png');
+
+      expect(log.default.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load icon')
+      );
+    });
+  });
+
+  describe('getStats with populated cache', () => {
+    it('should track access counts and most/least accessed', () => {
+      const cache = getIconCache();
+
+      cache.getIcon('test/icon-a.png');
+      cache.getIcon('test/icon-b.png');
+      cache.getIcon('test/icon-c.png');
+
+      // Access icon-a multiple times
+      cache.getIcon('test/icon-a.png');
+      cache.getIcon('test/icon-a.png');
+
+      const stats = cache.getStats();
+
+      expect(stats.size).toBe(3);
+      expect(stats.maxSize).toBe(50);
+      expect(stats.totalAccesses).toBeGreaterThan(3);
+      expect(stats.mostAccessed).toBe('test/icon-a.png');
+      expect(stats.leastAccessed).toBeDefined();
     });
   });
 });

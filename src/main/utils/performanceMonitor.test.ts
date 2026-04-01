@@ -13,6 +13,7 @@ import {
 vi.mock('electron', () => ({
   app: {
     getAppPath: () => '/fake/app/path',
+    getVersion: () => '1.0.0',
   },
 }));
 
@@ -29,6 +30,7 @@ vi.mock('fs', () => ({
 vi.mock('path', () => ({
   default: {
     join: (...args: string[]) => args.join('/'),
+    dirname: (p: string) => p.split('/').slice(0, -1).join('/'),
   },
 }));
 
@@ -494,6 +496,175 @@ describe('PerformanceMonitor', () => {
 
       expect(op1Duration).not.toBeNull();
       expect(op2Duration).not.toBeNull();
+    });
+  });
+
+  describe('exportToJSON()', () => {
+    it('should return metrics without writing to file when no path provided', () => {
+      const monitor = getPerformanceMonitor();
+      monitor.mark('test-marker');
+
+      const metrics = monitor.exportToJSON();
+
+      expect(metrics).toBeDefined();
+      expect(metrics.startupTime).toBeGreaterThanOrEqual(0);
+      expect(metrics.markers).toHaveProperty('test-marker');
+      expect(metrics.targetMet).toBeDefined();
+      expect(metrics.appVersion).toBe('1.0.0');
+      expect(metrics.timestamp).toBeDefined();
+    });
+
+    it('should write metrics to file when outputPath provided', async () => {
+      const fs = await import('fs');
+      const monitor = getPerformanceMonitor();
+      monitor.mark('test-marker');
+
+      const metrics = monitor.exportToJSON('/fake/output/metrics.json');
+
+      expect(fs.default.existsSync).toHaveBeenCalledWith('/fake/output');
+      expect(fs.default.mkdirSync).toHaveBeenCalledWith('/fake/output', { recursive: true });
+      expect(fs.default.writeFileSync).toHaveBeenCalledWith(
+        '/fake/output/metrics.json',
+        expect.any(String)
+      );
+      expect(metrics).toBeDefined();
+    });
+
+    it('should create directory if it does not exist', async () => {
+      const fs = await import('fs');
+      vi.mocked(fs.default.existsSync).mockReturnValueOnce(false);
+
+      const monitor = getPerformanceMonitor();
+      monitor.exportToJSON('/new/dir/metrics.json');
+
+      expect(fs.default.mkdirSync).toHaveBeenCalledWith('/new/dir', { recursive: true });
+    });
+
+    it('should not create directory if it already exists', async () => {
+      const fs = await import('fs');
+      vi.mocked(fs.default.existsSync).mockReturnValueOnce(true);
+
+      const monitor = getPerformanceMonitor();
+      monitor.exportToJSON('/existing/dir/metrics.json');
+
+      expect(fs.default.mkdirSync).not.toHaveBeenCalled();
+    });
+
+    it('should handle write errors gracefully', async () => {
+      const fs = await import('fs');
+      const log = await import('electron-log');
+
+      vi.mocked(fs.default.writeFileSync).mockImplementationOnce(() => {
+        throw new Error('Write failed');
+      });
+
+      const monitor = getPerformanceMonitor();
+      const metrics = monitor.exportToJSON('/fake/output/metrics.json');
+
+      // Should still return metrics even on write error
+      expect(metrics).toBeDefined();
+      expect(metrics.startupTime).toBeGreaterThanOrEqual(0);
+      expect(log.default.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to export metrics'),
+        expect.anything()
+      );
+    });
+  });
+
+  describe('mark() threshold warnings', () => {
+    it('should log warning when marker approaches target threshold', () => {
+      vi.useFakeTimers();
+      const monitor = getPerformanceMonitor();
+
+      // Advance time to between WARNING and CRITICAL thresholds (2500-3500ms)
+      vi.advanceTimersByTime(2700);
+      monitor.mark('slow-marker');
+
+      vi.useRealTimers();
+    });
+
+    it('should log error when marker exceeds critical threshold', async () => {
+      vi.useFakeTimers();
+      const log = await import('electron-log');
+      const monitor = getPerformanceMonitor();
+
+      // Advance time past CRITICAL_THRESHOLD_MS (3500ms)
+      vi.advanceTimersByTime(3600);
+      monitor.mark('critical-marker');
+
+      expect(log.default.error).toHaveBeenCalledWith(
+        expect.stringContaining('EXCEEDS target threshold')
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('should capture memory snapshot when captureMemory is true', () => {
+      const monitor = getPerformanceMonitor();
+
+      monitor.mark('mem-marker', undefined, true);
+
+      const memStats = monitor.getMemoryStats();
+      expect(memStats).not.toBeNull();
+      // Should have at least 2 snapshots: startup + this marker
+      expect(memStats!.initial).toBeDefined();
+      expect(memStats!.current).toBeDefined();
+    });
+  });
+
+  describe('logSummary() with warnings and target missed', () => {
+    it('should log target missed when startup exceeds threshold', async () => {
+      vi.useFakeTimers();
+      const log = await import('electron-log');
+      const monitor = getPerformanceMonitor();
+
+      // Advance past STARTUP_TIME_MS (3000ms)
+      vi.advanceTimersByTime(3100);
+
+      monitor.logSummary();
+
+      expect(log.default.error).toHaveBeenCalledWith(
+        expect.stringContaining('Target MISSED')
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('should log warnings section when warnings exist', async () => {
+      vi.useFakeTimers();
+      const log = await import('electron-log');
+      const monitor = getPerformanceMonitor();
+
+      // Create a warning by marking past warning threshold
+      vi.advanceTimersByTime(2700);
+      monitor.mark('warning-marker');
+
+      // Reset mock to only check logSummary calls
+      vi.mocked(log.default.warn).mockClear();
+
+      monitor.logSummary();
+
+      // Should log each warning in the warnings section
+      expect(log.default.warn).toHaveBeenCalledWith(
+        expect.stringContaining('warning-marker')
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('should return memory stats with peak tracking', () => {
+      const monitor = getPerformanceMonitor();
+
+      monitor.mark('snapshot1', undefined, true);
+      monitor.mark('snapshot2', undefined, true);
+
+      const memStats = monitor.getMemoryStats();
+
+      expect(memStats).not.toBeNull();
+      expect(memStats!.initial).toBeDefined();
+      expect(memStats!.current).toBeDefined();
+      expect(memStats!.peak).toBeDefined();
+      expect(memStats!.peak.heapUsed).toBeGreaterThanOrEqual(0);
     });
   });
 });

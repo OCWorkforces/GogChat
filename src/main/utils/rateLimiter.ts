@@ -3,6 +3,7 @@
  * Tracks message frequency per channel and blocks excessive requests
  */
 
+import { createTrackedInterval } from './trackedResources.js';
 import log from 'electron-log';
 import { RATE_LIMITS } from '../../shared/constants.js';
 import type { RateLimitEntry } from '../../shared/types.js';
@@ -17,7 +18,7 @@ export class IPCRateLimiter {
 
   constructor() {
     // Periodically clean up old entries to prevent memory leaks
-    this.cleanupInterval = setInterval(() => {
+    this.cleanupInterval = createTrackedInterval(() => {
       this.cleanup();
     }, this.cleanupIntervalMs);
   }
@@ -31,20 +32,32 @@ export class IPCRateLimiter {
   isAllowed(channel: string, maxPerSecond?: number): boolean {
     const limit = maxPerSecond ?? this.getDefaultLimit(channel);
     const now = Date.now();
-
+    const windowMs = 1000;
     // Get or create entry for this channel
     let entry = this.counters.get(channel);
-    if (!entry) {
-      entry = { timestamps: [], blocked: 0 };
-      this.counters.set(channel, entry);
+    if (!entry || now - entry.windowStart >= windowMs) {
+      // Window expired or new channel — reset
+      const prevBlocked = entry?.blocked ?? 0;
+
+      // Handle zero/negative limits
+      if (limit <= 0) {
+        this.counters.set(channel, {
+          count: 0,
+          windowStart: now,
+          blocked: prevBlocked + 1,
+        });
+        return false;
+      }
+
+      this.counters.set(channel, {
+        count: 1,
+        windowStart: now,
+        blocked: prevBlocked,
+      });
+      return true;
     }
 
-    // Filter to only recent timestamps (within last second)
-    const oneSecondAgo = now - 1000;
-    entry.timestamps = entry.timestamps.filter((t) => t > oneSecondAgo);
-
-    // Check if limit exceeded
-    if (entry.timestamps.length >= limit) {
+    if (entry.count >= limit) {
       entry.blocked++;
 
       // Log if being heavily rate limited
@@ -55,8 +68,7 @@ export class IPCRateLimiter {
       return false;
     }
 
-    // Allow message and record timestamp
-    entry.timestamps.push(now);
+    entry.count++;
     return true;
   }
 
@@ -85,10 +97,8 @@ export class IPCRateLimiter {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
     for (const [channel, entry] of this.counters.entries()) {
-      // Remove channels with no recent activity
-      const hasRecentActivity = entry.timestamps.some((t) => t > fiveMinutesAgo);
-
-      if (!hasRecentActivity) {
+      // Remove channels with no recent activity (window start older than 5 minutes)
+      if (entry.windowStart < fiveMinutesAgo) {
         if (entry.blocked > 0) {
           log.debug(
             `[RateLimiter] Removing inactive channel "${channel}" (blocked ${entry.blocked} times)`
@@ -109,11 +119,10 @@ export class IPCRateLimiter {
     if (!entry) return undefined;
 
     const now = Date.now();
-    const oneSecondAgo = now - 1000;
-    const recentCount = entry.timestamps.filter((t) => t > oneSecondAgo).length;
+    const messagesLastSecond = now - entry.windowStart < 1000 ? entry.count : 0;
 
     return {
-      messagesLastSecond: recentCount,
+      messagesLastSecond,
       totalBlocked: entry.blocked,
     };
   }
@@ -141,14 +150,13 @@ export class IPCRateLimiter {
    */
   getAllStats(): Map<string, { messagesLastSecond: number; totalBlocked: number }> {
     const stats = new Map();
+    const now = Date.now();
 
     for (const [channel, entry] of this.counters.entries()) {
-      const now = Date.now();
-      const oneSecondAgo = now - 1000;
-      const recentCount = entry.timestamps.filter((t) => t > oneSecondAgo).length;
+      const messagesLastSecond = now - entry.windowStart < 1000 ? entry.count : 0;
 
       stats.set(channel, {
-        messagesLastSecond: recentCount,
+        messagesLastSecond,
         totalBlocked: entry.blocked,
       });
     }
