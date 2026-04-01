@@ -6,6 +6,7 @@
 
 import { logger } from './logger.js';
 import { toError } from './errorHandler.js';
+import { createTrackedInterval } from './trackedResources.js';
 
 /**
  * Deduplication configuration
@@ -189,9 +190,9 @@ export class IPCDeduplicator {
    */
   private startCleanup(): void {
     // Run cleanup every second
-    this.cleanupInterval = setInterval(() => {
+    this.cleanupInterval = createTrackedInterval(() => {
       this.cleanOldEntries();
-    }, 1000);
+    }, 1000, 'ipc-deduplicator-cleanup');
   }
 
   /**

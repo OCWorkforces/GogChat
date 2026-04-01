@@ -6,6 +6,7 @@
 import { BrowserWindow } from 'electron';
 import { createLazyFeature } from '../utils/featureTypes.js';
 import type { FeatureManager } from '../utils/featureManager.js';
+import { createTrackedTimeout } from '../utils/trackedResources.js';
 
 export function registerDeferredNetworkFeatures(
   featureManager: FeatureManager,
@@ -25,7 +26,11 @@ export function registerDeferredNetworkFeatures(
           default: ({ mainWindow }: { mainWindow?: BrowserWindow | null }) => {
             if (mainWindow) {
               module.default(mainWindow);
-              void module.checkForInternet(mainWindow);
+              createTrackedTimeout(
+                () => { void module.checkForInternet(mainWindow); },
+                3000,
+                'initial-connectivity-check'
+              );
             }
           },
         };

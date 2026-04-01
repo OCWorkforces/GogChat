@@ -16,6 +16,11 @@ interface CacheStats {
   writes: number;
 }
 
+interface CacheEntry {
+  value: unknown;
+  timestamp: number;
+}
+
 /**
  * Extended store type with cache methods
  */
@@ -40,7 +45,9 @@ export function isCachedStore<T extends Record<string, unknown>>(
  */
 export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>): CachedStore<T> {
   // In-memory cache
-  const cache = new Map<string, unknown>();
+  const cache = new Map<string, CacheEntry>();
+  const CACHE_TTL_MS = 30_000; // 30 seconds
+  const CACHE_MAX_SIZE = 200;
   const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
 
   const originalGet = store.get.bind(store);
@@ -58,9 +65,15 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
   cachedStore.get = function (key: any, defaultValue?: any): any {
     // Check cache first
     if (cache.has(key as string)) {
-      stats.hits++;
-      log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
-      return cache.get(key as string);
+      const entry = cache.get(key as string)!;
+      if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+        cache.delete(key as string);
+        log.debug(`[ConfigCache] Cache expired: ${String(key)}`);
+      } else {
+        stats.hits++;
+        log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
+        return entry.value;
+      }
     }
     // Cache miss - read from store
     stats.misses++;
@@ -68,7 +81,7 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
       defaultValue !== undefined
         ? originalGet(key as never, defaultValue as never)
         : originalGet(key as never);
-    cache.set(key as string, value);
+    cache.set(key as string, { value, timestamp: Date.now() });
     log.debug(`[ConfigCache] Cache miss: ${String(key)}, value cached`);
     return value;
   };
@@ -77,6 +90,15 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
   cachedStore.set = function (key: any, value?: any): void {
     stats.writes++;
     invalidateCacheForKey(key as string, cache);
+    if (cache.size >= CACHE_MAX_SIZE) {
+      const entriesToEvict = [...cache.entries()]
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)
+        .slice(0, cache.size - CACHE_MAX_SIZE + 1);
+      for (const [evictKey] of entriesToEvict) {
+        cache.delete(evictKey);
+      }
+      log.debug(`[ConfigCache] Evicted ${entriesToEvict.length} oldest entries`);
+    }
     return originalSet(key as never, value as never);
   };
   // Wrap delete() with cache invalidation
@@ -116,7 +138,7 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
  * @param key - Key to invalidate (e.g., 'app.hideMenuBar')
  * @param cache - Cache map
  */
-function invalidateCacheForKey(key: string, cache: Map<string, unknown>): void {
+function invalidateCacheForKey(key: string, cache: Map<string, CacheEntry>): void {
   // Delete the exact key
   cache.delete(key);
 

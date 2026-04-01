@@ -37,14 +37,8 @@ perfMonitor.mark('app-start', 'App initialization started');
 
 // ===== Initialize Error Handler and Store =====
 // Synchronous initialization at module level
-try {
-  // Initialize store first
-  initializeStore();
-  perfMonitor.mark('store-initialized', 'Config store initialized');
-  log.info('[Main] Config store initialized');
-} catch (error: unknown) {
-  log.error('[Main] Failed to initialize store:', error);
-}
+// Store initialization deferred to app.whenReady() (requires SafeStorage)
+// Previously initialized at module level, but SafeStorage requires app.ready on macOS
 
 // Error handler will be initialized asynchronously in app.whenReady
 
@@ -92,7 +86,7 @@ if (enforceSingleInstance()) {
       // Ensure store is initialized after app.ready (safeStorage requires it on macOS)
       // Safe to call again — no-op if already initialized at module level
       try {
-        initializeStore();
+        await initializeStore();
         log.info('[Main] Config store initialized');
       } catch (error: unknown) {
         log.error('[Main] Failed to initialize store after app.ready:', error);

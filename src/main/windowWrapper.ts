@@ -120,6 +120,7 @@ export default (url: string, partition?: string): BrowserWindow => {
     },
     icon: getIconCache().getIcon('resources/icons/normal/256.png'),
     show: false,
+    paintWhenInitiallyHidden: false, // Defer painting until window.show() to save CPU/GPU
     minHeight: 570,
     minWidth: 480,
     center: true,

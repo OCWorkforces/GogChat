@@ -85,13 +85,13 @@ describe('Config Store', () => {
 
   it('should export a store instance', async () => {
     const { initializeStore, default: config } = await import('./config');
-    initializeStore();
+    await initializeStore();
     expect(config).toBeDefined();
   });
 
   it('should be callable with get/set methods', async () => {
     const { initializeStore, default: config } = await import('./config');
-    initializeStore();
+    await initializeStore();
 
     expect(config.get).toBeDefined();
     expect(config.set).toBeDefined();
@@ -99,7 +99,7 @@ describe('Config Store', () => {
 
   it('should support window bounds configuration', async () => {
     const { initializeStore, default: config } = await import('./config');
-    initializeStore();
+    await initializeStore();
 
     config.get('window.bounds');
     expect(mockStore.get).toHaveBeenCalledWith('window.bounds');
@@ -107,7 +107,7 @@ describe('Config Store', () => {
 
   it('should support app configuration', async () => {
     const { initializeStore, default: config } = await import('./config');
-    initializeStore();
+    await initializeStore();
 
     config.get('app.autoCheckForUpdates');
     expect(mockStore.get).toHaveBeenCalled();

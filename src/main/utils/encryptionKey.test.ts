@@ -35,18 +35,24 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-// Mock fs module
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn((filePath: string) => mockFilePaths.has(filePath)),
-  readFileSync: vi.fn((filePath: string) => {
-    if (mockFiles.has(filePath)) {
-      return mockFiles.get(filePath);
+// Mock fs/promises module
+vi.mock('node:fs/promises', () => ({
+  access: vi.fn((filePath: string) => {
+    if (mockFilePaths.has(filePath)) {
+      return Promise.resolve();
     }
-    throw new Error(`File not found: ${filePath}`);
+    return Promise.reject(new Error(`ENOENT: no such file or directory, access '${filePath}'`));
   }),
-  writeFileSync: vi.fn((filePath: string, data: Buffer) => {
+  readFile: vi.fn((filePath: string) => {
+    if (mockFiles.has(filePath)) {
+      return Promise.resolve(mockFiles.get(filePath));
+    }
+    return Promise.reject(new Error(`File not found: ${filePath}`));
+  }),
+  writeFile: vi.fn((filePath: string, data: Buffer) => {
     mockFiles.set(filePath, data);
     mockFilePaths.add(filePath);
+    return Promise.resolve();
   }),
 }));
 
@@ -61,7 +67,7 @@ describe('Encryption Key Module', () => {
     it('should return legacy key when safeStorage is unavailable', async () => {
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = getOrCreateEncryptionKey();
+      const key = await getOrCreateEncryptionKey();
 
       // Should compute the legacy key: SHA256('gogchat-/fake/path/userData')
       expect(key).toBeDefined();
@@ -80,7 +86,7 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = getOrCreateEncryptionKey();
+      const key = await getOrCreateEncryptionKey();
 
       // Should decrypt the stored key
       expect(key).toBe('supersecretkey123456789012345678901234567890');
@@ -93,7 +99,7 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = getOrCreateEncryptionKey();
+      const key = await getOrCreateEncryptionKey();
 
       // Should generate a new 64-char hex key (256-bit)
       expect(key).toBeDefined();
@@ -112,7 +118,7 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = getOrCreateEncryptionKey();
+      const key = await getOrCreateEncryptionKey();
 
       // Should return legacy key for migration
       expect(key).toBeDefined();
@@ -129,7 +135,7 @@ describe('Encryption Key Module', () => {
 
       const { needsMigration } = await import('./encryptionKey');
 
-      expect(needsMigration()).toBe(false);
+      expect(await needsMigration()).toBe(false);
     });
 
     it('should return false when key file exists', async () => {
@@ -142,7 +148,7 @@ describe('Encryption Key Module', () => {
 
       const { needsMigration } = await import('./encryptionKey');
 
-      expect(needsMigration()).toBe(false);
+      expect(await needsMigration()).toBe(false);
     });
 
     it('should return true when safeStorage available but no key file and config exists', async () => {
@@ -155,7 +161,7 @@ describe('Encryption Key Module', () => {
 
       const { needsMigration } = await import('./encryptionKey');
 
-      expect(needsMigration()).toBe(true);
+      expect(await needsMigration()).toBe(true);
     });
   });
 
@@ -166,7 +172,7 @@ describe('Encryption Key Module', () => {
 
       const { completeMigration } = await import('./encryptionKey');
 
-      const result = completeMigration();
+      const result = await completeMigration();
       expect(result).toBeNull();
     });
 
@@ -180,7 +186,7 @@ describe('Encryption Key Module', () => {
 
       const { completeMigration } = await import('./encryptionKey');
 
-      const result = completeMigration();
+      const result = await completeMigration();
       expect(result).toBeNull();
     });
 
@@ -190,7 +196,7 @@ describe('Encryption Key Module', () => {
 
       const { completeMigration } = await import('./encryptionKey');
 
-      const result = completeMigration();
+      const result = await completeMigration();
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(64); // New 256-bit key as hex
@@ -213,7 +219,7 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = getOrCreateEncryptionKey();
+      const key = await getOrCreateEncryptionKey();
 
       // Should fall back to legacy key
       expect(key).toBeDefined();

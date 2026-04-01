@@ -34,6 +34,12 @@ vi.mock('./logger.js', () => ({
   },
 }));
 
+// Mock trackedResources to avoid resourceCleanup dependency
+vi.mock('./trackedResources.js', () => ({
+  createTrackedInterval: (callback: () => void, delay: number, _name?: string) =>
+    setInterval(callback, delay),
+}));
+
 describe('IPCDeduplicator', () => {
   let deduplicator: IPCDeduplicator;
 
