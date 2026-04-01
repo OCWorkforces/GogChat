@@ -6,7 +6,12 @@
 
 import { logger } from './logger.js';
 import { toErrorMessage } from './errorHandler.js';
-import type { EventHandler, EventTarget, CleanupConfig } from './trackedResources.js';
+import type { EventHandler, EventTarget, CleanupConfig } from './cleanupTypes.js';
+import { destroyRateLimiter } from './rateLimiter.js';
+import { destroyDeduplicator } from './ipcDeduplicator.js';
+import { cleanupGlobalHandlers } from './ipcHelper.js';
+import { getIconCache } from './iconCache.js';
+import { clearConfigCache } from './configCache.js';
 
 /**
  * Cleanup task
@@ -236,7 +241,6 @@ export function getCleanupManager(): ResourceCleanupManager {
   return globalManager;
 }
 
-
 /**
  * Register built-in global cleanup callbacks
  * Uses lazy imports to avoid module-level coupling between resourceCleanup and utility modules
@@ -245,27 +249,13 @@ export function getCleanupManager(): ResourceCleanupManager {
 export function registerBuiltInGlobalCleanups(): void {
   const manager = getCleanupManager();
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { destroyRateLimiter } = require('./rateLimiter.js') as { destroyRateLimiter: () => void };
   manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter, 'Rate limiter');
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { destroyDeduplicator } = require('./ipcDeduplicator.js') as {
-    destroyDeduplicator: () => void;
-  };
   manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator, 'Deduplicator');
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { cleanupGlobalHandlers } = require('./ipcHelper.js') as {
-    cleanupGlobalHandlers: () => void;
-  };
   manager.registerGlobalCleanupCallback('ipcHandlers', cleanupGlobalHandlers, 'IPC handlers');
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getIconCache } = require('./iconCache.js') as { getIconCache: () => { clear: () => void } };
   manager.registerGlobalCleanupCallback('iconCache', () => getIconCache().clear(), 'Icon cache');
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { clearConfigCache } = require('./configCache.js') as { clearConfigCache: () => void };
   manager.registerGlobalCleanupCallback('configCache', clearConfigCache, 'Config cache');
 }

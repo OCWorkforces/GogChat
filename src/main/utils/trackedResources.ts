@@ -10,29 +10,7 @@ import { getCleanupManager } from './resourceCleanup.js';
 import { logger } from './logger.js';
 import { toErrorMessage } from './errorHandler.js';
 
-/**
- * Type for event handler functions
- */
-export type EventHandler = (...args: unknown[]) => void;
-
-/**
- * Type for event target with listener methods
- */
-export interface EventTarget {
-  on?: (event: string, handler: EventHandler) => void;
-  addEventListener?: (event: string, handler: EventHandler) => void;
-  removeListener?: (event: string, handler: EventHandler) => void;
-  off?: (event: string, handler: EventHandler) => void;
-}
-
-/**
- * Resource cleanup configuration
- */
-export interface CleanupConfig {
-  window?: BrowserWindow;
-  includeGlobalResources?: boolean;
-  logDetails?: boolean;
-}
+import type { EventHandler, EventTarget } from './cleanupTypes.js';
 
 /**
  * Setup window cleanup handlers

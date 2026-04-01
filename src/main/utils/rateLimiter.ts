@@ -3,6 +3,7 @@
  * Tracks message frequency per channel and blocks excessive requests
  */
 
+import { createTrackedInterval } from './trackedResources.js';
 import log from 'electron-log';
 import { RATE_LIMITS } from '../../shared/constants.js';
 import type { RateLimitEntry } from '../../shared/types.js';
@@ -17,7 +18,7 @@ export class IPCRateLimiter {
 
   constructor() {
     // Periodically clean up old entries to prevent memory leaks
-    this.cleanupInterval = setInterval(() => {
+    this.cleanupInterval = createTrackedInterval(() => {
       this.cleanup();
     }, this.cleanupIntervalMs);
   }
