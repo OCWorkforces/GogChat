@@ -2,15 +2,17 @@
 
 **Generated:** 2026-03-30
 
-3 source files: `constants.ts`, `types.ts`, `validators.ts`. Single source of truth for all cross-process contracts. **Edit this before touching IPC handlers or preload scripts.**
+5 source files: `constants.ts`, `types.ts`, `validators.ts`, `urlValidators.ts`, `dataValidators.ts`. Single source of truth for all cross-process contracts. **Edit this before touching IPC handlers or preload scripts.**
 
 ## FILES
 
-| File            | Role                                                             |
-| --------------- | ---------------------------------------------------------------- |
-| `constants.ts`  | IPC channel names, DOM selectors, timing, rate limits, whitelist |
-| `types.ts`      | TypeScript interfaces for IPC data, config schema, bridge API    |
-| `validators.ts` | Input sanitization — all IPC data must pass through here         |
+| File | Role |
+| --- | --- |
+| `constants.ts` | IPC channel names, DOM selectors, timing, rate limits, whitelist |
+| `types.ts` | TypeScript interfaces for IPC data, config schema, bridge API |
+| `validators.ts` | Input sanitization — all IPC data must pass through here |
+| `urlValidators.ts` | URL whitelist validation, Google auth URL detection, host checks |
+| `dataValidators.ts` | Data validation helpers for complex objects |
 
 ## KEY EXPORTS
 

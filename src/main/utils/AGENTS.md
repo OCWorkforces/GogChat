@@ -1,8 +1,8 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-03-30
+**Generated:** 2026-04-04
 
-22 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
+23 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
 
 ## MODULE INVENTORY
 
@@ -29,8 +29,7 @@
 | `packageInfo.ts`        | 78    | package.json singleton                | `getPackageInfo()`         |
 | `menuActionRegistry.ts` | 52    | Decouples features from appMenu        | exported functions        |
 | `ipcCommonValidators.ts`| 48    | Common IPC validation helpers         | exported const             |
-| `deepLinkUtils.ts`      | 27    | Deep link URL parsing                 | exported functions        |
-## MOST-REFERENCED UTILITIES
+| `mediaAccess.ts` | 123 | macOS camera/mic TCC permissions | exported functions |
 `resourceCleanup` (6 features), `accountWindowManager` (5), `ipcHelper` (5), `rateLimiter` (4), `iconCache` (4), `platform` (4), `performanceMonitor` (3), `packageInfo` (3), `errorHandler` (3).
 
 ## CROSS-UTILS DEPENDENCIES
@@ -38,6 +37,7 @@
 `resourceCleanup.ts` uses lazy `require()` via `registerBuiltInGlobalCleanups()` — no static imports from other utils. Called once in `index.ts` after `app.whenReady()`.
 `ipcHelper` → `rateLimiter`, `logger`, `errorHandler`. `ipcDeduplicator` → `logger`, `errorHandler`.
 `menuActionRegistry.ts` — zero imports from other utils. Pure in-memory `Map<string, MenuAction>`.
+`cleanupTypes.ts` — extracted from `resourceCleanup.ts` + `trackedResources.ts` to break circular dependency. Exports `EventHandler`, `EventTarget`, `CleanupConfig` types.
 
 ## KEY PATTERNS
 
