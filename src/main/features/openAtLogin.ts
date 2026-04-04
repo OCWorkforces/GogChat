@@ -44,6 +44,9 @@ export default ({ mainWindow }: { mainWindow?: BrowserWindow | null }) => {
 
 // Register autoLaunch action in menu registry for appMenu consumption
 // This replaces the direct feature→feature import boundary violation
-registerMenuAction('autoLaunch', { label: 'Get AutoLaunch instance', handler: () => autoLaunchInstance });
+registerMenuAction('autoLaunch', {
+  label: 'Get AutoLaunch instance',
+  handler: () => autoLaunchInstance,
+});
 
 export { autoLaunch };

@@ -526,7 +526,6 @@ describe('bootstrapPromotion feature', () => {
       account1Win.webContents.emit('did-navigate', {}, 'https://chat.google.com/u/1/');
       expect(mgr.promoteBootstrap).not.toHaveBeenCalled();
     });
-
   });
   // ── init() error path ─────────────────────────────────────────────────────────────────
 

@@ -51,7 +51,11 @@ import initDeepLinkHandler, {
 } from './deepLinkHandler';
 import { extractDeepLinkFromArgv } from '../utils/deepLinkUtils';
 import { app } from 'electron';
-import { createAccountWindow, getWindowForAccount, getMostRecentWindow } from '../utils/accountWindowManager';
+import {
+  createAccountWindow,
+  getWindowForAccount,
+  getMostRecentWindow,
+} from '../utils/accountWindowManager';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/validators';
 import { addTrackedListener } from '../utils/trackedResources';
 import log from 'electron-log';
@@ -215,7 +219,7 @@ describe('deepLinkHandler', () => {
     it('calls setAsDefaultProtocolClient with gogchat scheme', () => {
       registerDeepLinkProtocol();
       expect(app.setAsDefaultProtocolClient).toHaveBeenCalledWith(
-        expect.stringContaining('gogchat'),
+        expect.stringContaining('gogchat')
       );
     });
 
@@ -227,13 +231,14 @@ describe('deepLinkHandler', () => {
 
       registerDeepLinkProtocol();
 
-      expect(app.setAsDefaultProtocolClient).toHaveBeenCalledWith(
-        'gogchat',
-        process.execPath,
-        ['/path/to/script']
-      );
+      expect(app.setAsDefaultProtocolClient).toHaveBeenCalledWith('gogchat', process.execPath, [
+        '/path/to/script',
+      ]);
 
-      Object.defineProperty(process, 'defaultApp', { value: originalDefaultApp, configurable: true });
+      Object.defineProperty(process, 'defaultApp', {
+        value: originalDefaultApp,
+        configurable: true,
+      });
       process.argv = originalArgv;
     });
 
@@ -245,7 +250,10 @@ describe('deepLinkHandler', () => {
 
       expect(app.setAsDefaultProtocolClient).toHaveBeenCalledWith('gogchat');
 
-      Object.defineProperty(process, 'defaultApp', { value: originalDefaultApp, configurable: true });
+      Object.defineProperty(process, 'defaultApp', {
+        value: originalDefaultApp,
+        configurable: true,
+      });
     });
 
     it('logs error when setAsDefaultProtocolClient returns false', () => {
@@ -360,9 +368,7 @@ describe('deepLinkHandler', () => {
       // Keep windows null for init → processPendingDeepLink → navigateToUrl
       initDeepLinkHandler({});
 
-      expect(log.warn).toHaveBeenCalledWith(
-        '[DeepLink] Cannot navigate — window unavailable'
-      );
+      expect(log.warn).toHaveBeenCalledWith('[DeepLink] Cannot navigate — window unavailable');
     });
   });
 
@@ -379,7 +385,9 @@ describe('deepLinkHandler', () => {
 
       // Now make getWindowForAccount return an object that throws on isDestroyed
       vi.mocked(getWindowForAccount).mockReturnValue({
-        isDestroyed: () => { throw new Error('Window exploded'); },
+        isDestroyed: () => {
+          throw new Error('Window exploded');
+        },
       } as any);
 
       initDeepLinkHandler({});

@@ -1,35 +1,52 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-03-30
+**Generated:** 2026-04-04
 
-**Commit:** 562a769
+**Commit:** a98f1c1
 **Branch:** electrobun-engine
 
 ## OVERVIEW
 
 Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions. Electron 41 / Node.js 22+ / Chromium-based.
 
+## STRUCTURE
+
+```
+src/
+├── main/          # Electron main process (features, initializers, utils)
+│   ├── features/  # 20 self-contained feature modules, phased lifecycle
+│   ├── initializers/ # Feature registration + shutdown handler
+│   └── utils/     # 23 singleton utilities (accountWindowManager, featureManager, IPC)
+├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
+├── shared/        # Cross-process contracts (constants, types, validators)
+└── offline/       # Standalone fallback page (no IPC access)
+scripts/           # Dual-build system, lint, icon generation, notarization
+tests/             # 4 tiers: unit (colocated), integration, e2e, performance
+mac/               # DMG packaging support
+resources/         # Icon variants (tray, normal, badge, offline)
+```
+
 ## WHERE TO LOOK
 
-| Task | Location | Notes |
-| --- | --- | --- |
-| App init order | `src/main/index.ts` | Thin orchestrator; logic in `initializers/` |
-| Feature registration | `src/main/initializers/registerFeatures.ts` | 21 features with phases + deps |
-| Shutdown handler | `src/main/initializers/registerShutdown.ts` | Graceful cleanup + cache stats |
-| Multi-account mgr | `src/main/utils/accountWindowManager.ts` | Per-account windows + bootstrap |
-| Add new feature | `src/main/features/` | See `features/AGENTS.md` |
-| IPC channel names | `src/shared/constants.ts` | `IPC_CHANNELS` const |
-| Input validation | `src/shared/validators.ts` | All IPC must go through here |
-| Config schema | `src/shared/types.ts` + `src/main/config.ts` | Update both |
-| Encryption keys | `src/main/utils/encryptionKey.ts` | SafeStorage + legacy migration |
-| Menu action registry | `src/main/utils/menuActionRegistry.ts` | Decouples features from appMenu |
-| window.gogchat API | `src/preload/index.ts` + `src/shared/types.ts` | `GogChatBridgeAPI` |
-| Build system | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass |
-| CI/CD | `.github/workflows/` | pr-check + release |
-| DMG packaging | `mac/` | See `mac/AGENTS.md` |
-| Test helpers | `tests/helpers/electron-test.ts` | Playwright fixtures |
-| Electron mocks | `tests/mocks/electron.ts` | For unit tests |
-| Log files | `~/Library/Logs/GogChat/main.log` | macOS path |
+| Task                 | Location                                         | Notes                                       |
+| -------------------- | ------------------------------------------------ | ------------------------------------------- |
+| App init order       | `src/main/index.ts`                              | Thin orchestrator; logic in `initializers/` |
+| Feature registration | `src/main/initializers/registerFeatures.ts`      | 21 features with phases + deps              |
+| Shutdown handler     | `src/main/initializers/registerShutdown.ts`      | Graceful cleanup + cache stats              |
+| Multi-account mgr    | `src/main/utils/accountWindowManager.ts`         | Per-account windows + bootstrap             |
+| Add new feature      | `src/main/features/`                             | See `features/AGENTS.md`                    |
+| IPC channel names    | `src/shared/constants.ts`                        | `IPC_CHANNELS` const                        |
+| Input validation     | `src/shared/validators.ts`                       | All IPC must go through here                |
+| Config schema        | `src/shared/types.ts` + `src/main/config.ts`     | Update both                                 |
+| Encryption keys      | `src/main/utils/encryptionKey.ts`                | SafeStorage + legacy migration              |
+| Menu action registry | `src/main/utils/menuActionRegistry.ts`           | Decouples features from appMenu             |
+| window.gogchat API   | `src/preload/index.ts` + `src/shared/types.ts`   | `GogChatBridgeAPI`                          |
+| Build system         | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                                   |
+| CI/CD                | `.github/workflows/`                             | pr-check + release                          |
+| DMG packaging        | `mac/`                                           | See `mac/AGENTS.md`                         |
+| Test helpers         | `tests/helpers/electron-test.ts`                 | Playwright fixtures                         |
+| Electron mocks       | `tests/mocks/electron.ts`                        | For unit tests                              |
+| Log files            | `~/Library/Logs/GogChat/main.log`                | macOS path                                  |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -138,11 +155,13 @@ bun run hooks:install  # Install git pre-push hook
 
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 41 / Node.js 22+ / Chromium-based
-- Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/)`
+- Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
 - `overrideNotifications.ts` preload: `contextIsolation: false` (intentional exception)
 - DOM selectors in `shared/constants.ts` `SELECTORS` — may break on Google HTML changes
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 - CI: GitHub Actions — `pr-check.yml` + `release.yml`
+- Coverage thresholds: 94% statements, 92% branches, 94% functions/lines
+- Build history tracked in `.build-history.json` (last 20 builds)
 
 ## COMPLEXITY CENTERS (300+ lines)
 
@@ -150,7 +169,9 @@ bun run hooks:install  # Install git pre-push hook
 | --- | --- | --- |
 | `src/main/utils/accountWindowManager.ts` | 437 | Multi-account BrowserWindow management |
 | `src/main/utils/featureManager.ts` | 363 | Feature lifecycle, dependency resolution |
+| `scripts/build-rsbuild.js` | 363 | Dual-build orchestrator |
 | `src/main/utils/ipcHelper.ts` | 351 | Secure IPC handler factories |
+| `src/main/windowWrapper.ts` | 344 | Per-account BrowserWindow factory |
 | `src/main/utils/platform.ts` | 338 | macOS platform utils, enforceMacOSAppLocation |
 | `src/main/utils/performanceMonitor.ts` | 334 | Startup timing markers, memory snapshots |
 | `src/main/config.ts` | 328 | Encrypted electron-store with AES-256-GCM |
@@ -159,8 +180,6 @@ bun run hooks:install  # Install git pre-push hook
 | `src/shared/urlValidators.ts` | 303 | URL whitelist validation, Google auth URL detection |
 | `src/main/features/appMenu.ts` | 301 | Application menu, About dialog |
 | `src/main/features/externalLinks.ts` | 295 | External link handling with re-guard timer |
-| `src/main/windowWrapper.ts` | 286 | Per-account BrowserWindow factory |
 | `src/main/utils/resourceCleanup.ts` | 271 | Tracked intervals/timeouts + lazy cleanup |
-| `src/main/index.ts` | 245 | Thin app entry, delegates to initializers |
-| `src/main/initializers/registerDeferredFeatures.ts` | 185 | 15 deferred feature registrations |
-| `src/main/initializers/registerShutdown.ts` | 161 | Graceful shutdown + cache diagnostics |
+| `src/main/index.ts` | 238 | Thin app entry, delegates to initializers |
+| `src/main/initializers/registerShutdown.ts`         | 178   | Graceful shutdown + cache diagnostics               |

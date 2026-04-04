@@ -791,9 +791,12 @@ describe('AccountWindowManager — window state persistence', () => {
 
     manager.saveAccountWindowState(0);
 
-    expect(mockStore.set).toHaveBeenCalledWith('accountWindows', expect.objectContaining({
-      0: expect.objectContaining({ isMaximized: true }),
-    }));
+    expect(mockStore.set).toHaveBeenCalledWith(
+      'accountWindows',
+      expect.objectContaining({
+        0: expect.objectContaining({ isMaximized: true }),
+      })
+    );
   });
 
   it('saveAccountWindowState merges with existing account state', () => {
@@ -807,10 +810,13 @@ describe('AccountWindowManager — window state persistence', () => {
 
     manager.saveAccountWindowState(1);
 
-    expect(mockStore.set).toHaveBeenCalledWith('accountWindows', expect.objectContaining({
-      0: expect.objectContaining({ bounds: { x: 0, y: 0, width: 800, height: 600 } }),
-      1: expect.objectContaining({ isMaximized: false }),
-    }));
+    expect(mockStore.set).toHaveBeenCalledWith(
+      'accountWindows',
+      expect.objectContaining({
+        0: expect.objectContaining({ bounds: { x: 0, y: 0, width: 800, height: 600 } }),
+        1: expect.objectContaining({ isMaximized: false }),
+      })
+    );
   });
 
   it('saveAccountWindowState returns early for unregistered account', () => {
@@ -839,9 +845,12 @@ describe('AccountWindowManager — window state persistence', () => {
 
     manager.saveAccountWindowState(0);
 
-    expect(mockStore.set).toHaveBeenCalledWith('accountWindows', expect.objectContaining({
-      0: expect.any(Object),
-    }));
+    expect(mockStore.set).toHaveBeenCalledWith(
+      'accountWindows',
+      expect.objectContaining({
+        0: expect.any(Object),
+      })
+    );
   });
 
   it('getAccountWindowState returns saved state', () => {
@@ -863,7 +872,9 @@ describe('AccountWindowManager — window state persistence', () => {
   });
 
   it('getAccountWindowState returns null for missing account index', () => {
-    mockStore.get.mockReturnValue({ 1: { bounds: { x: 0, y: 0, width: 800, height: 600 }, isMaximized: false } });
+    mockStore.get.mockReturnValue({
+      1: { bounds: { x: 0, y: 0, width: 800, height: 600 }, isMaximized: false },
+    });
 
     const result = manager.getAccountWindowState(0);
     expect(result).toBeNull();

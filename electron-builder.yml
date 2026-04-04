@@ -76,6 +76,9 @@ mac:
   target:
     - target: dmg
   gatekeeperAssess: false
+  extendInfo:
+    NSCameraUsageDescription: "GogChat needs camera access for Google Meet and Huddle video calls."
+    NSMicrophoneUsageDescription: "GogChat needs microphone access for Google Meet and Huddle calls."
 
 # DMG Configuration
 dmg:

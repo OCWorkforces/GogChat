@@ -138,7 +138,9 @@ describe('passkeySupport feature', () => {
   it('falls back to shell.openPath when shell.openExternal throws', async () => {
     vi.stubGlobal('process', { ...process, platform: 'darwin' });
     vi.spyOn(electronMock.dialog, 'showMessageBox').mockResolvedValue({ response: 0 });
-    vi.spyOn(electronMock.shell, 'openExternal').mockRejectedValue(new Error('openExternal failed'));
+    vi.spyOn(electronMock.shell, 'openExternal').mockRejectedValue(
+      new Error('openExternal failed')
+    );
     vi.spyOn(electronMock.shell, 'openPath').mockResolvedValue('');
 
     const feature = await import('./passkeySupport.js');
@@ -161,7 +163,9 @@ describe('passkeySupport feature', () => {
   it('logs error when both shell.openExternal and shell.openPath fail', async () => {
     vi.stubGlobal('process', { ...process, platform: 'darwin' });
     vi.spyOn(electronMock.dialog, 'showMessageBox').mockResolvedValue({ response: 0 });
-    vi.spyOn(electronMock.shell, 'openExternal').mockRejectedValue(new Error('openExternal failed'));
+    vi.spyOn(electronMock.shell, 'openExternal').mockRejectedValue(
+      new Error('openExternal failed')
+    );
     vi.spyOn(electronMock.shell, 'openPath').mockRejectedValue(new Error('openPath failed'));
 
     const log = (await import('electron-log')).default;
@@ -250,7 +254,9 @@ describe('passkeySupport feature', () => {
     // Force the cleanup function to throw by removing all listeners
     // then patching ipcMain.removeListener to throw
     const origRemoveListener = electronMock.ipcMain.removeListener;
-    electronMock.ipcMain.removeListener = () => { throw new Error('remove failed'); };
+    electronMock.ipcMain.removeListener = () => {
+      throw new Error('remove failed');
+    };
 
     expect(() => feature.cleanupPasskeySupport()).not.toThrow();
     expect(log.error).toHaveBeenCalledWith(
@@ -289,11 +295,7 @@ describe('passkeySupport feature', () => {
     feature.default({} as never);
 
     // Send payload without timestamp — should not crash
-    electronMock.ipcMain.emit(
-      'passkeyAuthFailed',
-      {},
-      { errorType: 'NotAllowedError' }
-    );
+    electronMock.ipcMain.emit('passkeyAuthFailed', {}, { errorType: 'NotAllowedError' });
 
     for (let i = 0; i < 10; i++) await Promise.resolve();
 

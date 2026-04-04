@@ -100,6 +100,8 @@ export function validateAppleSystemPreferencesURL(url: unknown): string {
   const allowed = new Set([
     'x-apple.systempreferences:com.apple.preference.security?Privacy',
     'x-apple.systempreferences:com.apple.preference.security',
+    'x-apple.systempreferences:com.apple.preference.security?Privacy_Camera',
+    'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone',
   ]);
 
   if (!allowed.has(url)) {

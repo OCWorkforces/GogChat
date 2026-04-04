@@ -16,6 +16,7 @@ vi.mock('electron', () => ({
       webContents: {
         session: {
           setPermissionRequestHandler: vi.fn(),
+          setPermissionCheckHandler: vi.fn(),
           webRequest: { onHeadersReceived: vi.fn() },
           setSpellCheckerEnabled: vi.fn(),
         },
@@ -36,6 +37,9 @@ vi.mock('electron', () => ({
     vi.fn().mockImplementation(() => ({ on: vi.fn(), show: vi.fn(), close: vi.fn() })),
     { isSupported: vi.fn().mockReturnValue(false) }
   ),
+  systemPreferences: {
+    getMediaAccessStatus: vi.fn().mockReturnValue('granted'),
+  },
 }));
 
 vi.mock('electron-log', () => ({
@@ -59,6 +63,11 @@ vi.mock('./utils/iconCache', () => ({
   getIconCache: vi.fn().mockReturnValue({
     getIcon: vi.fn().mockReturnValue({ isEmpty: vi.fn().mockReturnValue(false) }),
   }),
+}));
+
+vi.mock('./utils/mediaAccess', () => ({
+  checkAndRequestMediaAccess: vi.fn().mockResolvedValue(true),
+  showDeniedPermissionDialog: vi.fn().mockResolvedValue(undefined),
 }));
 
 import createWindow from './windowWrapper';
@@ -175,18 +184,16 @@ describe('windowWrapper', () => {
       );
     });
 
-    it('grants allowed permissions', () => {
+    it('grants allowed non-media permissions', () => {
       createWindow('https://chat.google.com');
       const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
       const cb = vi.fn();
 
-      handler({}, 'notifications', cb);
+      handler({}, 'notifications', cb, {});
       expect(cb).toHaveBeenCalledWith(true);
-      handler({}, 'media', cb);
+      handler({}, 'mediaKeySystem', cb, {});
       expect(cb).toHaveBeenCalledWith(true);
-      handler({}, 'mediaKeySystem', cb);
-      expect(cb).toHaveBeenCalledWith(true);
-      handler({}, 'geolocation', cb);
+      handler({}, 'geolocation', cb, {});
       expect(cb).toHaveBeenCalledWith(true);
     });
 
@@ -195,12 +202,11 @@ describe('windowWrapper', () => {
       const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
       const cb = vi.fn();
 
-      handler({}, 'fullscreen', cb);
+      handler({}, 'fullscreen', cb, {});
       expect(cb).toHaveBeenCalledWith(false);
-      handler({}, 'clipboard-read', cb);
+      handler({}, 'clipboard-read', cb, {});
       expect(cb).toHaveBeenCalledWith(false);
     });
-
     it('uses partition when provided', () => {
       createWindow('https://chat.google.com', 'persist:account-1');
       expect(lastCreatedWindow).toBeDefined();
@@ -236,6 +242,94 @@ describe('windowWrapper', () => {
         'unresponsive',
         'responsive',
       ].forEach((e) => expect(wcEvents).toContain(e));
+    });
+  });
+
+  describe('media permission handling', () => {
+    it('grants media permission when camera and microphone are allowed', async () => {
+      const { checkAndRequestMediaAccess } = await import('./utils/mediaAccess');
+      vi.mocked(checkAndRequestMediaAccess).mockResolvedValue(true);
+
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
+      const cb = vi.fn();
+
+      await handler({}, 'media', cb, { mediaTypes: ['video', 'audio'] });
+      expect(cb).toHaveBeenCalledWith(true);
+    });
+
+    it('denies media permission when camera access is denied', async () => {
+      const { checkAndRequestMediaAccess } = await import('./utils/mediaAccess');
+      vi.mocked(checkAndRequestMediaAccess).mockImplementation((type) =>
+        Promise.resolve(type !== 'camera')
+      );
+
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
+      const cb = vi.fn();
+
+      await handler({}, 'media', cb, { mediaTypes: ['video', 'audio'] });
+      expect(cb).toHaveBeenCalledWith(false);
+    });
+
+    it('shows denied dialog when camera access is denied', async () => {
+      const { checkAndRequestMediaAccess, showDeniedPermissionDialog } =
+        await import('./utils/mediaAccess');
+      const { systemPreferences } = await import('electron');
+      vi.mocked(checkAndRequestMediaAccess).mockImplementation((type) =>
+        Promise.resolve(type !== 'camera')
+      );
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('denied');
+
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
+      const cb = vi.fn();
+
+      await handler({}, 'media', cb, { mediaTypes: ['video'] });
+      expect(showDeniedPermissionDialog).toHaveBeenCalledWith(expect.anything(), 'camera');
+    });
+  });
+
+  describe('permission check handler', () => {
+    it('installs setPermissionCheckHandler', () => {
+      createWindow('https://chat.google.com');
+      expect(wc().setPermissionCheckHandler).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('returns true for media video when TCC granted', async () => {
+      const { systemPreferences } = await import('electron');
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('granted');
+
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
+
+      expect(handler({}, 'media', '', { mediaType: 'video' })).toBe(true);
+    });
+
+    it('returns false for media video when TCC denied', async () => {
+      const { systemPreferences } = await import('electron');
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('denied');
+
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
+
+      expect(handler({}, 'media', '', { mediaType: 'video' })).toBe(false);
+    });
+
+    it('returns true for non-media allowed permissions', () => {
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
+
+      expect(handler({}, 'notifications', '', {})).toBe(true);
+      expect(handler({}, 'geolocation', '', {})).toBe(true);
+      expect(handler({}, 'mediaKeySystem', '', {})).toBe(true);
+    });
+
+    it('returns false for non-allowed permissions', () => {
+      createWindow('https://chat.google.com');
+      const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
+
+      expect(handler({}, 'fullscreen', '', {})).toBe(false);
     });
   });
 });

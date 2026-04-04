@@ -584,9 +584,7 @@ describe('logCacheStats detailed', () => {
     const fakeStore = { get: vi.fn(), set: vi.fn() } as never;
     vi.mocked(log.warn).mockClear();
     logCacheStats(fakeStore);
-    expect(log.warn).toHaveBeenCalledWith(
-      '[ConfigCache] Store does not have cache enabled'
-    );
+    expect(log.warn).toHaveBeenCalledWith('[ConfigCache] Store does not have cache enabled');
   });
 });
 

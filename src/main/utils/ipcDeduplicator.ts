@@ -190,9 +190,13 @@ export class IPCDeduplicator {
    */
   private startCleanup(): void {
     // Run cleanup every second
-    this.cleanupInterval = createTrackedInterval(() => {
-      this.cleanOldEntries();
-    }, 1000, 'ipc-deduplicator-cleanup');
+    this.cleanupInterval = createTrackedInterval(
+      () => {
+        this.cleanOldEntries();
+      },
+      1000,
+      'ipc-deduplicator-cleanup'
+    );
   }
 
   /**
