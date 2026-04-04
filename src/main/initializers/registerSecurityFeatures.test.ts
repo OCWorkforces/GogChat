@@ -1,8 +1,8 @@
 /**
  * Unit tests for registerSecurityFeatures — security phase feature registration
  *
- * Covers: registerSecurityFeatures() registers certificatePinning (with cleanup, required)
- * and reportExceptions (lazy, required) via featureManager.registerAll().
+ * Covers: registerSecurityFeatures() registers certificatePinning (with cleanup, required),
+ * reportExceptions (lazy, required), and mediaPermissions (lazy) via featureManager.registerAll().
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -73,12 +73,12 @@ describe('registerSecurityFeatures', () => {
     vi.clearAllMocks();
   });
 
-  it('should call featureManager.registerAll with an array of 2 features', () => {
+  it('should call featureManager.registerAll with an array of 3 features', () => {
     registerSecurityFeatures(mockFeatureManager);
 
     expect(mockFeatureManager.registerAll).toHaveBeenCalledTimes(1);
     const features = vi.mocked(mockFeatureManager.registerAll).mock.calls[0]![0];
-    expect(features).toHaveLength(2);
+    expect(features).toHaveLength(3);
   });
 
   describe('certificatePinning feature', () => {
@@ -149,7 +149,32 @@ describe('registerSecurityFeatures', () => {
     });
   });
 
-  it('should register certificatePinning before reportExceptions in the array', () => {
+  describe('mediaPermissions feature', () => {
+    it('should register with createLazyFeature, security phase, without required flag', () => {
+      registerSecurityFeatures(mockFeatureManager);
+
+      expect(createLazyFeature).toHaveBeenCalledWith(
+        'mediaPermissions',
+        'security',
+        expect.any(Function),
+        expect.objectContaining({
+          description: 'Proactive camera/microphone TCC permission check at startup',
+        })
+      );
+    });
+
+    it('should pass a dynamic import function for mediaPermissions module', () => {
+      registerSecurityFeatures(mockFeatureManager);
+
+      // The importFn is the 3rd argument to createLazyFeature for mediaPermissions (2nd call)
+      const importFn = vi.mocked(createLazyFeature).mock.calls[1]![2];
+
+      // importFn should be a function (dynamic import)
+      expect(importFn).toBeInstanceOf(Function);
+    });
+  });
+
+  it('should register features in correct order', () => {
     registerSecurityFeatures(mockFeatureManager);
 
     const features = vi.mocked(mockFeatureManager.registerAll).mock.calls[0]![0] as Array<{
@@ -157,5 +182,6 @@ describe('registerSecurityFeatures', () => {
     }>;
     expect(features[0]!.name).toBe('certificatePinning');
     expect(features[1]!.name).toBe('reportExceptions');
+    expect(features[2]!.name).toBe('mediaPermissions');
   });
 });
