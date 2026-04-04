@@ -14,5 +14,14 @@
     <!-- Allow outbound network connections -->
     <key>com.apple.security.network.client</key>
     <true/>
+    <!-- Allow camera access for Google Meet/Huddle video calls -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    <!-- Allow microphone access for Google Meet/Huddle calls -->
+    <key>com.apple.security.device.microphone</key>
+    <true/>
+    <!-- Allow audio input device access (required alongside microphone entitlement) -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
   </dict>
 </plist>

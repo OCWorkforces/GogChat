@@ -1,9 +1,10 @@
 import path from 'path';
-import { app, BrowserWindow, Notification } from 'electron';
+import { app, BrowserWindow, Notification, systemPreferences } from 'electron';
 import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import store from './config.js';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache.js';
+import { checkAndRequestMediaAccess, showDeniedPermissionDialog } from './utils/mediaAccess.js';
 
 const BENIGN_CSP_BLOCKED_HOSTS = new Set(['accounts.google.com', 'ogs.google.com']);
 
@@ -186,16 +187,72 @@ export default (url: string, partition?: string): BrowserWindow => {
     log.debug('[Security] COEP/COOP header stripping installed');
   };
 
-  window.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    const allowedPermissions = ['notifications', 'media', 'mediaKeySystem', 'geolocation'];
-    if (allowedPermissions.includes(permission)) {
-      log.debug(`[Security] Permission granted: ${permission}`);
-      callback(true);
-    } else {
-      log.warn(`[Security] Permission denied: ${permission}`);
-      callback(false);
+  // Chromium-level permission request handler
+  // For 'media' permission: checks macOS TCC status before granting
+  window.webContents.session.setPermissionRequestHandler(
+    async (_webContents, permission, callback, details) => {
+      if (permission === 'media') {
+        const mediaTypes: string[] = (details as { mediaTypes?: string[] }).mediaTypes ?? [];
+
+        let granted = true;
+        if (mediaTypes.includes('video')) {
+          granted &&= await checkAndRequestMediaAccess('camera');
+        }
+        if (mediaTypes.includes('audio')) {
+          granted &&= await checkAndRequestMediaAccess('microphone');
+        }
+
+        if (!granted) {
+          // Show dialog for denied types (non-blocking — don't block callback)
+          if (
+            mediaTypes.includes('video') &&
+            systemPreferences.getMediaAccessStatus('camera') === 'denied'
+          ) {
+            void showDeniedPermissionDialog(window, 'camera');
+          }
+          if (
+            mediaTypes.includes('audio') &&
+            systemPreferences.getMediaAccessStatus('microphone') === 'denied'
+          ) {
+            void showDeniedPermissionDialog(window, 'microphone');
+          }
+        }
+
+        log.debug(
+          `[Security] Media permission ${granted ? 'granted' : 'denied'}: ${mediaTypes.join(', ')}`
+        );
+        callback(granted);
+        return;
+      }
+
+      // Non-media permissions: simple allowlist (synchronous)
+      const allowedPermissions = ['notifications', 'mediaKeySystem', 'geolocation'];
+      if (allowedPermissions.includes(permission)) {
+        log.debug(`[Security] Permission granted: ${permission}`);
+        callback(true);
+      } else {
+        log.warn(`[Security] Permission denied: ${permission}`);
+        callback(false);
+      }
     }
-  });
+  );
+
+  // Chromium-level permission check handler (synchronous — returns cached TCC status)
+  window.webContents.session.setPermissionCheckHandler(
+    (_webContents, permission, _requestingOrigin, details) => {
+      if (permission === 'media') {
+        const mediaType = (details as { mediaType?: string }).mediaType;
+        if (mediaType === 'video') {
+          return systemPreferences.getMediaAccessStatus('camera') === 'granted';
+        }
+        if (mediaType === 'audio') {
+          return systemPreferences.getMediaAccessStatus('microphone') === 'granted';
+        }
+        return false;
+      }
+      return ['notifications', 'mediaKeySystem', 'geolocation'].includes(permission);
+    }
+  );
 
   // Proactively trigger macOS notification permission dialog at startup.
   // Electron's Notification internally calls UNUserNotificationCenter.requestAuthorization

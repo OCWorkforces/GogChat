@@ -39,5 +39,14 @@ export function registerSecurityFeatures(featureManager: FeatureManager): void {
         required: true,
       }
     ),
+
+    createLazyFeature(
+      'mediaPermissions',
+      'security',
+      () => import('../features/mediaPermissions.js'),
+      {
+        description: 'Proactive camera/microphone TCC permission check at startup',
+      }
+    ),
   ]);
 }
