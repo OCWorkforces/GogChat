@@ -160,7 +160,6 @@ export default function initDeepLinkHandler(_context: { accountWindowManager?: u
   }
 }
 
-
 export function cleanupDeepLinkHandler(): void {
   try {
     log.debug('[DeepLink] Cleaning up deep link handler');

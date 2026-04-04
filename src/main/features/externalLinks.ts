@@ -292,4 +292,7 @@ export { toggleExternalLinksGuard };
 
 // Register toggle guard action in menu registry for appMenu consumption
 // This replaces the direct feature→feature import boundary violation
-registerMenuAction('toggleExternalLinksGuard', { label: 'Toggle External Links Guard', handler: (window: BrowserWindow) => toggleExternalLinksGuard(window) });
+registerMenuAction('toggleExternalLinksGuard', {
+  label: 'Toggle External Links Guard',
+  handler: (window: BrowserWindow) => toggleExternalLinksGuard(window),
+});

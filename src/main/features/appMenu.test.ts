@@ -48,8 +48,10 @@ const { mockAboutHandler, mockAutoLaunchInstance, mockToggleGuardHandler } = vi.
 vi.mock('../utils/menuActionRegistry', () => ({
   getMenuAction: vi.fn((id: string) => {
     if (id === 'aboutPanel') return { label: 'Show About Panel', handler: mockAboutHandler };
-    if (id === 'autoLaunch') return { label: 'Get AutoLaunch', handler: () => mockAutoLaunchInstance };
-    if (id === 'toggleExternalLinksGuard') return { label: 'Toggle Guard', handler: mockToggleGuardHandler };
+    if (id === 'autoLaunch')
+      return { label: 'Get AutoLaunch', handler: () => mockAutoLaunchInstance };
+    if (id === 'toggleExternalLinksGuard')
+      return { label: 'Toggle Guard', handler: mockToggleGuardHandler };
     return undefined;
   }),
 }));
@@ -70,7 +72,6 @@ vi.mock('../config', () => ({
     clear: vi.fn(),
   },
 }));
-
 
 vi.mock('../../environment', () => ({
   default: {
@@ -269,7 +270,9 @@ describe('appMenu', () => {
 
     const template = Menu.buildFromTemplate.mock.calls[0][0];
     const helpMenu = template.find((item: any) => item.label === 'Help');
-    const versionItem = helpMenu.submenu.find((item: any) => item.label && item.label.includes('Version'));
+    const versionItem = helpMenu.submenu.find(
+      (item: any) => item.label && item.label.includes('Version')
+    );
 
     expect(versionItem).toBeDefined();
     expect(versionItem.enabled).toBe(false);

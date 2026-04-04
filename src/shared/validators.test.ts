@@ -210,6 +210,16 @@ describe('validateAppleSystemPreferencesURL', () => {
       'System Settings URL must be a string'
     );
   });
+
+  it('should accept Privacy_Camera System Settings URL', () => {
+    const url = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Camera';
+    expect(validateAppleSystemPreferencesURL(url)).toBe(url);
+  });
+
+  it('should accept Privacy_Microphone System Settings URL', () => {
+    const url = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone';
+    expect(validateAppleSystemPreferencesURL(url)).toBe(url);
+  });
 });
 
 describe('validateBoolean', () => {
@@ -715,9 +725,7 @@ describe('validateNotificationData', () => {
   });
 
   it('should validate icon as a favicon URL', () => {
-    expect(() =>
-      validateNotificationData({ title: 'T', icon: 'javascript:alert(1)' })
-    ).toThrow();
+    expect(() => validateNotificationData({ title: 'T', icon: 'javascript:alert(1)' })).toThrow();
     const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
     expect(validateNotificationData({ title: 'T', icon: dataUrl }).icon).toBe(dataUrl);
   });
@@ -752,12 +760,8 @@ describe('validateNotificationData', () => {
     expect(() => validateNotificationData('string')).toThrow(
       'Notification data must be a plain object'
     );
-    expect(() => validateNotificationData(123)).toThrow(
-      'Notification data must be a plain object'
-    );
-    expect(() => validateNotificationData([])).toThrow(
-      'Notification data must be a plain object'
-    );
+    expect(() => validateNotificationData(123)).toThrow('Notification data must be a plain object');
+    expect(() => validateNotificationData([])).toThrow('Notification data must be a plain object');
   });
 
   it('should throw for objects with custom prototypes', () => {

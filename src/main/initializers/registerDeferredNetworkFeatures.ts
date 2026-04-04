@@ -27,7 +27,9 @@ export function registerDeferredNetworkFeatures(
             if (mainWindow) {
               module.default(mainWindow);
               createTrackedTimeout(
-                () => { void module.checkForInternet(mainWindow); },
+                () => {
+                  void module.checkForInternet(mainWindow);
+                },
                 3000,
                 'initial-connectivity-check'
               );

@@ -231,9 +231,18 @@ describe('initializeStore', () => {
     await initializeStore();
 
     // All keys from old store should be set on new store
-    expect(mockStore.set).toHaveBeenCalledWith('window', expect.objectContaining({ isMaximized: true }));
-    expect(mockStore.set).toHaveBeenCalledWith('app', expect.objectContaining({ autoCheckForUpdates: false }));
-    expect(mockStore.set).toHaveBeenCalledWith('_meta', expect.objectContaining({ cacheVersion: '1.0.0' }));
+    expect(mockStore.set).toHaveBeenCalledWith(
+      'window',
+      expect.objectContaining({ isMaximized: true })
+    );
+    expect(mockStore.set).toHaveBeenCalledWith(
+      'app',
+      expect.objectContaining({ autoCheckForUpdates: false })
+    );
+    expect(mockStore.set).toHaveBeenCalledWith(
+      '_meta',
+      expect.objectContaining({ cacheVersion: '1.0.0' })
+    );
   });
 });
 
@@ -264,12 +273,13 @@ describe('validateAndUpdateCacheVersion', () => {
     await initializeStore();
 
     // Should update _meta with new cache version
-    expect(mockStore.set).toHaveBeenCalledWith('_meta', expect.objectContaining({
-      cacheVersion: '1.0.0',
-    }));
-    expect(log.info).toHaveBeenCalledWith(
-      expect.stringContaining('Cache invalidation triggered')
+    expect(mockStore.set).toHaveBeenCalledWith(
+      '_meta',
+      expect.objectContaining({
+        cacheVersion: '1.0.0',
+      })
     );
+    expect(log.info).toHaveBeenCalledWith(expect.stringContaining('Cache invalidation triggered'));
   });
 
   it('should update metadata when app version is different', async () => {
@@ -285,9 +295,12 @@ describe('validateAndUpdateCacheVersion', () => {
     const { initializeStore } = await import('./config');
     await initializeStore();
 
-    expect(mockStore.set).toHaveBeenCalledWith('_meta', expect.objectContaining({
-      lastAppVersion: '0.0.0',
-    }));
+    expect(mockStore.set).toHaveBeenCalledWith(
+      '_meta',
+      expect.objectContaining({
+        lastAppVersion: '0.0.0',
+      })
+    );
   });
 
   it('should not update metadata when versions match', async () => {
@@ -305,9 +318,7 @@ describe('validateAndUpdateCacheVersion', () => {
 
     // set should NOT be called with _meta (only the initial validateAndUpdateCacheVersion skips)
     expect(mockStore.set).not.toHaveBeenCalledWith('_meta', expect.anything());
-    expect(log.debug).toHaveBeenCalledWith(
-      expect.stringContaining('Cache version valid')
-    );
+    expect(log.debug).toHaveBeenCalledWith(expect.stringContaining('Cache version valid'));
   });
 
   it('should call clearCache on CachedStore when version changes', async () => {
@@ -379,10 +390,13 @@ describe('validateAndUpdateCacheVersion', () => {
 
     // cacheVersion is undefined (from {}), lastAppVersion is undefined
     // Both differ from actual values, so _meta should be updated
-    expect(mockStore.set).toHaveBeenCalledWith('_meta', expect.objectContaining({
-      cacheVersion: '1.0.0',
-      lastAppVersion: '0.0.0',
-    }));
+    expect(mockStore.set).toHaveBeenCalledWith(
+      '_meta',
+      expect.objectContaining({
+        cacheVersion: '1.0.0',
+        lastAppVersion: '0.0.0',
+      })
+    );
   });
 });
 
@@ -398,7 +412,9 @@ describe('getStore', () => {
 
   it('should throw before initializeStore is called', async () => {
     const { getStore } = await import('./config');
-    expect(() => getStore()).toThrow('Store not initialized. Call initializeStore() before using the store.');
+    expect(() => getStore()).toThrow(
+      'Store not initialized. Call initializeStore() before using the store.'
+    );
   });
 
   it('should return the store instance after initialization', async () => {
@@ -504,7 +520,9 @@ describe('Store Proxy', () => {
     expect(() => config.get).toThrow('Store not initialized');
 
     // set trap throws
-    expect(() => { (config as unknown as Record<string, unknown>).test = 'val'; }).toThrow('Store not initialized');
+    expect(() => {
+      (config as unknown as Record<string, unknown>).test = 'val';
+    }).toThrow('Store not initialized');
 
     // has trap throws
     expect(() => 'get' in config).toThrow('Store not initialized');

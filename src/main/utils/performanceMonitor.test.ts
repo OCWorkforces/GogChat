@@ -623,9 +623,7 @@ describe('PerformanceMonitor', () => {
 
       monitor.logSummary();
 
-      expect(log.default.error).toHaveBeenCalledWith(
-        expect.stringContaining('Target MISSED')
-      );
+      expect(log.default.error).toHaveBeenCalledWith(expect.stringContaining('Target MISSED'));
 
       vi.useRealTimers();
     });
@@ -645,9 +643,7 @@ describe('PerformanceMonitor', () => {
       monitor.logSummary();
 
       // Should log each warning in the warnings section
-      expect(log.default.warn).toHaveBeenCalledWith(
-        expect.stringContaining('warning-marker')
-      );
+      expect(log.default.warn).toHaveBeenCalledWith(expect.stringContaining('warning-marker'));
 
       vi.useRealTimers();
     });

@@ -10,7 +10,6 @@ import { getRateLimiter } from './rateLimiter.js';
 import { logger } from './logger.js';
 import { toError, toErrorMessage } from './errorHandler.js';
 
-
 /**
  * Configuration for creating a secure IPC handler
  */

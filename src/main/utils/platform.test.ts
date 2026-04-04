@@ -695,7 +695,9 @@ describe('PlatformUtils', () => {
       const mockStore = {
         get: vi.fn().mockReturnValue(undefined),
         set: vi.fn(),
-      } as unknown as import('electron-store').default<import('../../../src/shared/types.js').StoreType>;
+      } as unknown as import('electron-store').default<
+        import('../../../src/shared/types.js').StoreType
+      >;
 
       const result = isFirstAppLaunch(mockStore);
 
@@ -708,7 +710,9 @@ describe('PlatformUtils', () => {
       const mockStore = {
         get: vi.fn().mockReturnValue(true),
         set: vi.fn(),
-      } as unknown as import('electron-store').default<import('../../../src/shared/types.js').StoreType>;
+      } as unknown as import('electron-store').default<
+        import('../../../src/shared/types.js').StoreType
+      >;
 
       const result = isFirstAppLaunch(mockStore);
 
@@ -788,9 +792,7 @@ describe('PlatformUtils', () => {
       expect(shell.openExternal).not.toHaveBeenCalled();
 
       // Restore
-      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
-        (url: string) => url
-      );
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
     });
   });
 
@@ -803,9 +805,7 @@ describe('PlatformUtils', () => {
       const { openNewGitHubIssue } = await import('./platform');
       const { shell } = await import('electron');
       const { validateExternalURL } = await import('../../shared/validators.js');
-      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
-        (url: string) => url
-      );
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
       (shell.openExternal as ReturnType<typeof vi.fn>).mockClear();
 
       openNewGitHubIssue({
@@ -826,9 +826,7 @@ describe('PlatformUtils', () => {
     it('constructs URL with no optional parameters', async () => {
       const { openNewGitHubIssue } = await import('./platform');
       const { validateExternalURL } = await import('../../shared/validators.js');
-      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
-        (url: string) => url
-      );
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
 
       openNewGitHubIssue({
         repoUrl: 'https://github.com/OCWorkforces/GogChat',
@@ -846,9 +844,7 @@ describe('PlatformUtils', () => {
     it('constructs URL with empty labels array', async () => {
       const { openNewGitHubIssue } = await import('./platform');
       const { validateExternalURL } = await import('../../shared/validators.js');
-      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation(
-        (url: string) => url
-      );
+      (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
 
       openNewGitHubIssue({
         repoUrl: 'https://github.com/OCWorkforces/GogChat',
