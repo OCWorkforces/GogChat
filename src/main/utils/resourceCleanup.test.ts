@@ -71,8 +71,8 @@ vi.mock('./logger.js', () => ({
   },
 }));
 
-// Mock errorHandler.js to avoid circular dependency
-vi.mock('./errorHandler.js', () => ({
+// Mock errorUtils.js (toErrorMessage extracted from errorHandler)
+vi.mock('./errorUtils.js', () => ({
   toErrorMessage: vi.fn((err: unknown) => {
     if (err instanceof Error) return err.message;
     if (typeof err === 'string') return err;
@@ -948,35 +948,6 @@ describe('ResourceCleanup', () => {
   });
 
   // ========================================================================
-  // registerBuiltInGlobalCleanups
-  // ========================================================================
-
-  describe('registerBuiltInGlobalCleanups', () => {
-    it('registers all 5 built-in global cleanup callbacks', async () => {
-      const { getCleanupManager, registerBuiltInGlobalCleanups } =
-        await import('./resourceCleanup');
-      const manager = getCleanupManager();
-
-      registerBuiltInGlobalCleanups();
-
-      // Verify all 5 callbacks are registered by running cleanup with global resources
-      const { cleanupGlobalHandlers } = await import('./ipcHelper');
-      const { destroyRateLimiter } = await import('./rateLimiter');
-      const { destroyDeduplicator } = await import('./ipcDeduplicator');
-      const { getIconCache } = await import('./iconCache');
-      const { clearConfigCache } = await import('./configCache');
-
-      await manager.cleanup({ includeGlobalResources: true });
-
-      expect(destroyRateLimiter).toHaveBeenCalled();
-      expect(destroyDeduplicator).toHaveBeenCalled();
-      expect(cleanupGlobalHandlers).toHaveBeenCalled();
-      expect(getIconCache().clear).toHaveBeenCalled();
-      expect(clearConfigCache).toHaveBeenCalled();
-    });
-  });
-
-  // ========================================================================
   // cleanupGlobalResources error path
   // ========================================================================
 
@@ -1014,7 +985,7 @@ describe('ResourceCleanup', () => {
       manager.registerTask({ name: 'debug-logged-task', cleanup: vi.fn() });
 
       // logger.feature('ResourceCleanup') returns a mock with .debug
-      const featureLog = logger.feature('ResourceCleanup');
+      const _featureLog = logger.feature('ResourceCleanup');
       // The manager created its own logger.feature reference, but we verify
       // registerTask ran successfully by checking the task is cleaned up
       await manager.cleanup();

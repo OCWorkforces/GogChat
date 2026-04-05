@@ -66,6 +66,14 @@ export interface AccountWindowState {
 export type AccountWindowsMap = Record<number, AccountWindowState>;
 
 /**
+ * Factory interface for creating account BrowserWindows.
+ * Breaks the concrete coupling between accountWindowManager and windowWrapper.
+ */
+export interface WindowFactory {
+  createWindow(url: string, partition: string): Electron.BrowserWindow;
+}
+
+/**
  * Application configuration
  */
 export interface AppConfig {

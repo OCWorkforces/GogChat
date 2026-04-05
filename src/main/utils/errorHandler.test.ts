@@ -1,9 +1,12 @@
 /**
  * Unit tests for ErrorHandler — centralized error handling
  *
- * Covers: toErrorMessage, toError, isError utilities, ErrorHandler class,
- * wrapAsync, wrapSync, global handlers (unhandledRejection, uncaughtException),
- * singleton pattern, context stack, and initializeFeature helper.
+ * Covers: ErrorHandler class, wrapAsync, wrapSync, global handlers
+ * (unhandledRejection, uncaughtException), singleton pattern, context stack,
+ * and initializeFeature helper.
+ *
+ * Note: toErrorMessage, toError, isError utilities are tested in errorUtils.test.ts
+ * (extracted to break circular dependency).
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -44,81 +47,6 @@ describe('ErrorHandler', () => {
     vi.resetModules();
   });
 
-  // ========================================================================
-  // Utility functions: toErrorMessage, toError, isError
-  // ========================================================================
-
-  describe('toErrorMessage', () => {
-    it('returns error.message for Error instances', async () => {
-      const { toErrorMessage } = await import('./errorHandler');
-      const error = new Error('test error message');
-      expect(toErrorMessage(error)).toBe('test error message');
-    });
-
-    it('returns string as-is for string errors', async () => {
-      const { toErrorMessage } = await import('./errorHandler');
-      expect(toErrorMessage('just a string error')).toBe('just a string error');
-    });
-
-    it('returns String() for unknown types', async () => {
-      const { toErrorMessage } = await import('./errorHandler');
-      expect(toErrorMessage(12345)).toBe('12345');
-      expect(toErrorMessage(null)).toBe('null');
-      expect(toErrorMessage(undefined)).toBe('undefined');
-      expect(toErrorMessage({ code: 'ERR' })).toBe('[object Object]');
-    });
-  });
-
-  describe('toError', () => {
-    it('returns Error instance unchanged', async () => {
-      const { toError } = await import('./errorHandler');
-      const error = new Error('original');
-      const result = toError(error);
-      expect(result).toBe(error);
-      expect(result).toBeInstanceOf(Error);
-    });
-
-    it('wraps string into Error instance', async () => {
-      const { toError } = await import('./errorHandler');
-      const result = toError('string error');
-      expect(result).toBeInstanceOf(Error);
-      expect(result.message).toBe('string error');
-    });
-
-    it('wraps unknown types into Error instance', async () => {
-      const { toError } = await import('./errorHandler');
-      const result = toError(42);
-      expect(result).toBeInstanceOf(Error);
-      expect(result.message).toBe('42');
-    });
-
-    it('converts objects to Error via toErrorMessage', async () => {
-      const { toError, toErrorMessage } = await import('./errorHandler');
-      // Objects with message property are passed through toErrorMessage
-      // since they are not instanceof Error
-      const result = toError({ message: 'custom error' });
-      expect(result).toBeInstanceOf(Error);
-      // toErrorMessage({ message: '...' }) returns '[object Object]'
-      expect(result.message).toBe(toErrorMessage({ message: 'custom error' }));
-    });
-  });
-
-  describe('isError', () => {
-    it('returns true for Error instances', async () => {
-      const { isError } = await import('./errorHandler');
-      expect(isError(new Error('test'))).toBe(true);
-    });
-
-    it('returns false for non-Error types', async () => {
-      const { isError } = await import('./errorHandler');
-      expect(isError('string')).toBe(false);
-      expect(isError(123)).toBe(false);
-      expect(isError(null)).toBe(false);
-      expect(isError(undefined)).toBe(false);
-      expect(isError({ message: 'error' })).toBe(false);
-      expect(isError({})).toBe(false);
-    });
-  });
 
   // ========================================================================
   // Singleton

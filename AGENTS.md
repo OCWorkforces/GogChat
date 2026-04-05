@@ -165,21 +165,21 @@ bun run hooks:install  # Install git pre-push hook
 
 ## COMPLEXITY CENTERS (300+ lines)
 
-| File | Lines | Purpose |
-| --- | --- | --- |
-| `src/main/utils/accountWindowManager.ts` | 437 | Multi-account BrowserWindow management |
-| `src/main/utils/featureManager.ts` | 363 | Feature lifecycle, dependency resolution |
-| `scripts/build-rsbuild.js` | 363 | Dual-build orchestrator |
-| `src/main/utils/ipcHelper.ts` | 351 | Secure IPC handler factories |
-| `src/main/windowWrapper.ts` | 344 | Per-account BrowserWindow factory |
-| `src/main/utils/platform.ts` | 338 | macOS platform utils, enforceMacOSAppLocation |
-| `src/main/utils/performanceMonitor.ts` | 334 | Startup timing markers, memory snapshots |
-| `src/main/config.ts` | 328 | Encrypted electron-store with AES-256-GCM |
-| `src/main/utils/ipcDeduplicator.ts` | 321 | IPC request deduplication (100ms window) |
-| `src/main/utils/errorHandler.ts` | 318 | Structured error wrapping, feature init guard |
-| `src/shared/urlValidators.ts` | 303 | URL whitelist validation, Google auth URL detection |
-| `src/main/features/appMenu.ts` | 301 | Application menu, About dialog |
-| `src/main/features/externalLinks.ts` | 295 | External link handling with re-guard timer |
-| `src/main/utils/resourceCleanup.ts` | 271 | Tracked intervals/timeouts + lazy cleanup |
-| `src/main/index.ts` | 238 | Thin app entry, delegates to initializers |
-| `src/main/initializers/registerShutdown.ts`         | 178   | Graceful shutdown + cache diagnostics               |
+| File                                        | Lines | Purpose                                             |
+| ------------------------------------------- | ----- | --------------------------------------------------- |
+| `src/main/utils/accountWindowManager.ts`    | 437   | Multi-account BrowserWindow management              |
+| `src/main/utils/featureManager.ts`          | 363   | Feature lifecycle, dependency resolution            |
+| `scripts/build-rsbuild.js`                  | 363   | Dual-build orchestrator                             |
+| `src/main/utils/ipcHelper.ts`               | 351   | Secure IPC handler factories                        |
+| `src/main/windowWrapper.ts`                 | 344   | Per-account BrowserWindow factory                   |
+| `src/main/utils/platform.ts`                | 338   | macOS platform utils, enforceMacOSAppLocation       |
+| `src/main/utils/performanceMonitor.ts`      | 334   | Startup timing markers, memory snapshots            |
+| `src/main/config.ts`                        | 328   | Encrypted electron-store with AES-256-GCM           |
+| `src/main/utils/ipcDeduplicator.ts`         | 321   | IPC request deduplication (100ms window)            |
+| `src/main/utils/errorHandler.ts`            | 318   | Structured error wrapping, feature init guard       |
+| `src/shared/urlValidators.ts`               | 303   | URL whitelist validation, Google auth URL detection |
+| `src/main/features/appMenu.ts`              | 301   | Application menu, About dialog                      |
+| `src/main/features/externalLinks.ts`        | 295   | External link handling with re-guard timer          |
+| `src/main/utils/resourceCleanup.ts`         | 271   | Tracked intervals/timeouts + lazy cleanup           |
+| `src/main/index.ts`                         | 238   | Thin app entry, delegates to initializers           |
+| `src/main/initializers/registerShutdown.ts` | 178   | Graceful shutdown + cache diagnostics               |

@@ -5,7 +5,7 @@
  */
 
 import { logger } from './logger.js';
-import { toError } from './errorHandler.js';
+import { toError } from './errorUtils.js';
 import { createTrackedInterval } from './trackedResources.js';
 
 /**

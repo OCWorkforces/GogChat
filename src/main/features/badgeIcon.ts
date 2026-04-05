@@ -1,4 +1,4 @@
-import { toErrorMessage } from '../utils/errorHandler.js';
+import { toErrorMessage } from '../utils/errorUtils.js';
 import { app, BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants.js';

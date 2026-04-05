@@ -68,7 +68,7 @@ describe('openAtLogin', () => {
     const fakeWindow = { hide: vi.fn() };
     vi.mocked(store.get).mockReturnValue(true);
 
-    openAtLogin({ mainWindow: fakeWindow as any });
+    openAtLogin({ mainWindow: fakeWindow as { hide: () => void } });
     expect(fakeWindow.hide).toHaveBeenCalled();
   });
 });

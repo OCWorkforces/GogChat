@@ -21,9 +21,6 @@ vi.mock('../config.js', () => ({
     set: vi.fn(),
   },
 }));
-vi.mock('../windowWrapper.js', () => ({
-  default: vi.fn(),
-}));
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
@@ -38,7 +35,6 @@ import {
 } from './accountWindowManager';
 import { MockBrowserWindow } from '../../../tests/mocks/electron';
 import type { BrowserWindow } from 'electron';
-import windowWrapper from '../windowWrapper.js';
 import store from '../config.js';
 
 // ---------------------------------------------------------------------------
@@ -47,6 +43,16 @@ import store from '../config.js';
 
 function makeWindow(): MockBrowserWindow {
   return new MockBrowserWindow();
+}
+
+/**
+ * Creates a mock WindowFactory that returns the given window on createWindow().
+ * Call `factory.createWindow.mockReturnValue(win)` to change the returned window.
+ */
+function makeMockFactory() {
+  return {
+    createWindow: vi.fn<(url: string, partition: string) => Electron.BrowserWindow>(),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -63,8 +69,8 @@ describe('AccountWindowManager — bootstrap tracking', () => {
     win0 = makeWindow();
     win1 = makeWindow();
     // Register two windows so the manager knows about them
-    manager.registerWindow(win0 as any, 0);
-    manager.registerWindow(win1 as any, 1);
+    manager.registerWindow(win0 as unknown as BrowserWindow, 0);
+    manager.registerWindow(win1 as unknown as BrowserWindow, 1);
   });
 
   // --- markAsBootstrap ---
@@ -196,7 +202,7 @@ describe('AccountWindowManager — bootstrap cleanup on window close', () => {
   beforeEach(() => {
     manager = new AccountWindowManager();
     win0 = makeWindow();
-    manager.registerWindow(win0 as any, 0);
+    manager.registerWindow(win0 as unknown as BrowserWindow, 0);
     manager.markAsBootstrap(0);
   });
 
@@ -219,7 +225,7 @@ describe('AccountWindowManager — bootstrap cleared on destroyAll', () => {
   beforeEach(() => {
     manager = new AccountWindowManager();
     const win = makeWindow();
-    manager.registerWindow(win as any, 0);
+    manager.registerWindow(win as unknown as BrowserWindow, 0);
     manager.markAsBootstrap(0);
   });
 
@@ -241,9 +247,9 @@ describe('AccountWindowManager — singleton bootstrap', () => {
 
   it('bootstrap API available on singleton', () => {
     const m = getAccountWindowManager();
-    // Create a window and register manually since createAccountWindow needs windowWrapper
+    // Create a window and register manually since createAccountWindow needs a WindowFactory
     const win = makeWindow();
-    m.registerWindow(win as any, 0);
+    m.registerWindow(win as unknown as BrowserWindow, 0);
     m.markAsBootstrap(0);
     expect(m.isBootstrap(0)).toBe(true);
     m.promoteBootstrap(0);
@@ -253,7 +259,7 @@ describe('AccountWindowManager — singleton bootstrap', () => {
   it('destroyAccountWindowManager resets bootstrap state', () => {
     const m = getAccountWindowManager();
     const win = makeWindow();
-    m.registerWindow(win as any, 0);
+    m.registerWindow(win as unknown as BrowserWindow, 0);
     m.markAsBootstrap(0);
     destroyAccountWindowManager();
     // New singleton should have clean state
@@ -277,7 +283,7 @@ describe('AccountWindowManager — createAccountWindow auth-flow guard', () => {
   beforeEach(() => {
     manager = new AccountWindowManager();
     win = makeWindow();
-    manager.registerWindow(win as any, 0);
+    manager.registerWindow(win as unknown as BrowserWindow, 0);
   });
 
   describe('bootstrap window in mid-auth flow — loadURL is skipped', () => {
@@ -565,21 +571,24 @@ describe('AccountWindowManager — lookup methods', () => {
 
 describe('AccountWindowManager — createAccountWindow (new window path)', () => {
   let manager: AccountWindowManager;
-  const mockWindowWrapper = vi.mocked(windowWrapper);
+  let mockFactory: ReturnType<typeof makeMockFactory>;
 
   beforeEach(() => {
     nextWebContentsId = 3000;
-    manager = new AccountWindowManager();
-    mockWindowWrapper.mockReset();
+    mockFactory = makeMockFactory();
+    manager = new AccountWindowManager(mockFactory);
   });
 
-  it('creates a new window via windowWrapper when no existing window', () => {
+  it('creates a new window via WindowFactory when no existing window', () => {
     const newWin = makeTypedWindow();
-    mockWindowWrapper.mockReturnValue(newWin);
+    mockFactory.createWindow.mockReturnValue(newWin);
 
     const result = manager.createAccountWindow('https://chat.google.com', 0);
 
-    expect(mockWindowWrapper).toHaveBeenCalledWith('https://chat.google.com', 'persist:account-0');
+    expect(mockFactory.createWindow).toHaveBeenCalledWith(
+      'https://chat.google.com',
+      'persist:account-0'
+    );
     expect(result).toBe(newWin);
     expect(manager.hasAccount(0)).toBe(true);
     expect(manager.getAccountWindow(0)).toBe(newWin);
@@ -587,11 +596,14 @@ describe('AccountWindowManager — createAccountWindow (new window path)', () =>
 
   it('creates new window with correct partition for account index 3', () => {
     const newWin = makeTypedWindow();
-    mockWindowWrapper.mockReturnValue(newWin);
+    mockFactory.createWindow.mockReturnValue(newWin);
 
     manager.createAccountWindow('https://chat.google.com', 3);
 
-    expect(mockWindowWrapper).toHaveBeenCalledWith('https://chat.google.com', 'persist:account-3');
+    expect(mockFactory.createWindow).toHaveBeenCalledWith(
+      'https://chat.google.com',
+      'persist:account-3'
+    );
   });
 
   it('restores minimized existing window instead of creating new', () => {
@@ -610,7 +622,7 @@ describe('AccountWindowManager — createAccountWindow (new window path)', () =>
     expect(showSpy).toHaveBeenCalled();
     expect(focusSpy).toHaveBeenCalled();
     expect(result).toBe(win);
-    expect(mockWindowWrapper).not.toHaveBeenCalled();
+    expect(mockFactory.createWindow).not.toHaveBeenCalled();
   });
 
   it('focuses non-minimized existing window and calls loadURL', () => {
@@ -634,11 +646,14 @@ describe('AccountWindowManager — createAccountWindow (new window path)', () =>
     (win as unknown as MockBrowserWindow).destroy();
 
     const newWin = makeTypedWindow();
-    mockWindowWrapper.mockReturnValue(newWin);
+    mockFactory.createWindow.mockReturnValue(newWin);
 
     const result = manager.createAccountWindow('https://chat.google.com', 0);
 
-    expect(mockWindowWrapper).toHaveBeenCalledWith('https://chat.google.com', 'persist:account-0');
+    expect(mockFactory.createWindow).toHaveBeenCalledWith(
+      'https://chat.google.com',
+      'persist:account-0'
+    );
     expect(result).toBe(newWin);
   });
 
@@ -986,11 +1001,10 @@ describe('AccountWindowManager — singleton lifecycle', () => {
 // ---------------------------------------------------------------------------
 
 describe('AccountWindowManager — module-level convenience functions', () => {
-  const mockWindowWrapper = vi.mocked(windowWrapper);
+  let mockFactory: ReturnType<typeof makeMockFactory>;
 
   afterEach(() => {
     destroyAccountWindowManager();
-    mockWindowWrapper.mockReset();
   });
 
   it('getMostRecentWindow delegates to singleton', () => {
@@ -1026,13 +1040,21 @@ describe('AccountWindowManager — module-level convenience functions', () => {
     expect(getAccountIndexFn(win)).toBe(5);
   });
 
-  it('createAccountWindow delegates to singleton and creates via windowWrapper', () => {
+  it('createAccountWindow delegates to singleton and creates via WindowFactory', () => {
+    mockFactory = makeMockFactory();
+    // Initialize singleton with mock factory (first call creates the instance)
+    destroyAccountWindowManager();
+    getAccountWindowManager(mockFactory);
+
     const newWin = makeTypedWindow();
-    mockWindowWrapper.mockReturnValue(newWin);
+    mockFactory.createWindow.mockReturnValue(newWin);
 
     const result = createAccountWindowFn('https://chat.google.com', 0);
 
-    expect(mockWindowWrapper).toHaveBeenCalledWith('https://chat.google.com', 'persist:account-0');
+    expect(mockFactory.createWindow).toHaveBeenCalledWith(
+      'https://chat.google.com',
+      'persist:account-0'
+    );
     expect(result).toBe(newWin);
   });
 

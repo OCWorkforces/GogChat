@@ -255,6 +255,9 @@ describe('windowWrapper', () => {
       const cb = vi.fn();
 
       await handler({}, 'media', cb, { mediaTypes: ['video', 'audio'] });
+      // Flush microtasks — installPermissionRequestHandler uses void async IIFE,
+      // so callback fires asynchronously after the outer handler returns.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(cb).toHaveBeenCalledWith(true);
     });
 

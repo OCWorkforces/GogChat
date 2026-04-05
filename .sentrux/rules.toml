@@ -6,6 +6,8 @@
 max_cycles = 0          # Zero circular dependencies (currently perfect)
 max_cc = 30             # Max cyclomatic complexity per function
 no_god_files = true     # Flag files with excessive fan-out
+max_depth = 11          # Prevent depth regression (current: 11)
+min_modularity = 0.15   # Modularity floor (current: 0.17, headroom allowed)
 
 # Layer definitions — defines the architectural hierarchy.
 # Convention: importing layers must have LOWER order numbers than the layers they import from.
@@ -20,6 +22,11 @@ order = 0
 name = "features"
 paths = ["src/main/features/*"]
 order = 1
+
+[[layers]]
+name = "initializers"
+paths = ["src/main/initializers/*"]
+order = 1.5
 
 [[layers]]
 name = "preload"
@@ -66,3 +73,9 @@ reason = "Shared contracts must be process-independent — no main process impor
 from = "src/shared/*"
 to = "src/preload/*"
 reason = "Shared contracts must be process-independent — no preload imports"
+
+# Initializers must not import from features (initializers orchestrate, not depend on features).
+[[boundaries]]
+from = "src/main/initializers/*"
+to = "src/main/features/*"
+reason = "Initializers orchestrate feature registration — must not import feature internals"

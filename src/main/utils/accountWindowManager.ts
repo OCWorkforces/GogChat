@@ -10,9 +10,16 @@
 import { BrowserWindow } from 'electron';
 import { isGoogleAuthUrl } from '../../shared/validators.js';
 import log from 'electron-log';
-import windowWrapper from '../windowWrapper.js';
 import store from '../config.js';
-import type { AccountWindowState } from '../../shared/types.js';
+import type { AccountWindowState, WindowFactory } from '../../shared/types.js';
+import {
+  markAsBootstrap as _markAsBootstrap,
+  isBootstrap as _isBootstrap,
+  promoteBootstrap as _promoteBootstrap,
+  clearBootstrap as _clearBootstrap,
+  getBootstrapAccounts as _getBootstrapAccounts,
+  clearAllBootstrap,
+} from './bootstrapTracker.js';
 
 /**
  * Account window registration entry
@@ -31,13 +38,6 @@ export class AccountWindowManager {
   private reverseLookup = new Map<BrowserWindow, number>();
   private mostRecentAccountIndex: number | null = null;
   /**
-   * Tracks which account indices are currently bootstrap windows.
-   * A bootstrap window is a temporary login window created before the
-   * account has completed first authentication. It should be promoted
-   * (kept and re-labelled as a real account) or closed after login.
-   */
-  private bootstrapAccounts = new Set<number>();
-  /**
    * Tracks event listeners attached to windows so they can be removed on re-register.
    * Prevents stale closures from firing with wrong accountIndex on focus/show events.
    */
@@ -50,6 +50,11 @@ export class AccountWindowManager {
    * Used by getAccountForWebContents() to avoid O(n) iteration.
    */
   private webContentsToAccountIndex = new Map<number, number>();
+
+  constructor(private readonly windowFactory?: WindowFactory) {
+    // Reset shared bootstrap tracker so each manager instance starts clean
+    clearAllBootstrap();
+  }
 
   /**
    * Register a BrowserWindow for a specific account index
@@ -175,7 +180,7 @@ export class AccountWindowManager {
       this.mostRecentAccountIndex = accountIndex;
       // If this is a bootstrap window already mid-auth-flow, do not interrupt
       // sign-in by calling loadURL again.
-      const isBootstrapWindow = this.bootstrapAccounts.has(accountIndex);
+      const isBootstrapWindow = _isBootstrap(accountIndex);
       const currentUrl = existingWindow.webContents.getURL();
       if (isBootstrapWindow && isGoogleAuthUrl(currentUrl)) {
         log.info(
@@ -187,8 +192,11 @@ export class AccountWindowManager {
       return existingWindow;
     }
 
+    if (!this.windowFactory) {
+      throw new Error('[AccountWindowManager] No WindowFactory injected — cannot create window');
+    }
     const partition = `persist:account-${accountIndex}`;
-    const window = windowWrapper(url, partition);
+    const window = this.windowFactory.createWindow(url, partition);
 
     this.registerWindow(window, accountIndex);
 
@@ -222,7 +230,7 @@ export class AccountWindowManager {
 
       this.reverseLookup.delete(entry.window);
       this.windows.delete(accountIndex);
-      this.bootstrapAccounts.delete(accountIndex);
+      _clearBootstrap(accountIndex);
 
       if (this.mostRecentAccountIndex === accountIndex) {
         // Find the next most recent
@@ -255,8 +263,7 @@ export class AccountWindowManager {
       );
       return;
     }
-    this.bootstrapAccounts.add(accountIndex);
-    log.debug(`[AccountWindowManager] Account ${accountIndex} marked as bootstrap window`);
+    _markAsBootstrap(accountIndex);
   }
 
   /**
@@ -265,7 +272,7 @@ export class AccountWindowManager {
    * @returns True if the window is a bootstrap window
    */
   isBootstrap(accountIndex: number): boolean {
-    return this.bootstrapAccounts.has(accountIndex);
+    return _isBootstrap(accountIndex);
   }
 
   /**
@@ -275,13 +282,7 @@ export class AccountWindowManager {
    * @returns True if the window was previously marked as bootstrap
    */
   promoteBootstrap(accountIndex: number): boolean {
-    const wasBootstrap = this.bootstrapAccounts.delete(accountIndex);
-    if (wasBootstrap) {
-      log.info(
-        `[AccountWindowManager] Account ${accountIndex} promoted from bootstrap to authenticated`
-      );
-    }
-    return wasBootstrap;
+    return _promoteBootstrap(accountIndex);
   }
 
   /**
@@ -290,15 +291,14 @@ export class AccountWindowManager {
    * @param accountIndex - The account index to clear
    */
   clearBootstrap(accountIndex: number): void {
-    this.bootstrapAccounts.delete(accountIndex);
-    log.debug(`[AccountWindowManager] Bootstrap flag cleared for account ${accountIndex}`);
+    _clearBootstrap(accountIndex);
   }
 
   /**
    * Return all account indices currently in bootstrap state.
    */
   getBootstrapAccounts(): number[] {
-    return Array.from(this.bootstrapAccounts);
+    return _getBootstrapAccounts();
   }
 
   /**
@@ -373,7 +373,7 @@ export class AccountWindowManager {
 
     this.windows.clear();
     this.reverseLookup.clear();
-    this.bootstrapAccounts.clear();
+    clearAllBootstrap();
     this.windowListeners.clear();
     this.mostRecentAccountIndex = null;
   }
@@ -386,9 +386,9 @@ let accountWindowManager: AccountWindowManager | null = null;
 /**
  * Get the global account window manager instance
  */
-export function getAccountWindowManager(): AccountWindowManager {
+export function getAccountWindowManager(factory?: WindowFactory): AccountWindowManager {
   if (!accountWindowManager) {
-    accountWindowManager = new AccountWindowManager();
+    accountWindowManager = new AccountWindowManager(factory);
   }
   return accountWindowManager;
 }
