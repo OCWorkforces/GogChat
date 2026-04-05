@@ -107,6 +107,9 @@ describe('permissionHandler', () => {
       await getRequestHandler()(null, 'media', callback, {
         mediaTypes: ['video', 'audio'],
       });
+      // Flush microtasks — installPermissionRequestHandler uses void async IIFE,
+      // so callback fires asynchronously after the outer handler returns.
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mockCheckMedia).toHaveBeenCalledWith('camera');
       expect(mockCheckMedia).toHaveBeenCalledWith('microphone');
