@@ -1,6 +1,6 @@
 # src/offline/ — Standalone Offline Fallback Page
 
-**Generated:** 2026-03-30
+**Generated:** 2026-04-05
 **Parent docs:** `../../AGENTS.md` (project)
 
 ## OVERVIEW
