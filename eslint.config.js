@@ -112,6 +112,11 @@ export default [
         clearImmediate: 'readonly',
         fetch: 'readonly',
         performance: 'readonly',
+        // Browser globals for preload test files
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        MutationObserver: 'readonly',
       },
     },
     plugins: {
@@ -138,6 +143,7 @@ export default [
   // Preload scripts configuration (browser environment)
   {
     files: ['src/preload/**/*.ts'],
+    ignores: ['src/preload/**/*.test.ts'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {

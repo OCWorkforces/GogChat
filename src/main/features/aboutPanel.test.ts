@@ -2,6 +2,7 @@
  * Unit tests for aboutPanel feature.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BrowserWindow as BrowserWindowType } from 'electron';
 
 vi.mock('electron', () => ({
   app: {
@@ -37,20 +38,20 @@ describe('aboutPanel', () => {
     vi.clearAllMocks();
   });
 
-  function makeFakeWindow(id: number) {
+  function makeFakeWindow(id: number): BrowserWindowType {
     return {
       id,
       isDestroyed: vi.fn().mockReturnValue(false),
       setAlwaysOnTop: vi.fn(),
       once: vi.fn(),
-    };
+    } as unknown as BrowserWindowType;
   }
 
   it('calls setAboutPanelOptions with correct package info', () => {
     const mainWindow = makeFakeWindow(1);
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
 
-    aboutPanel(mainWindow as any);
+    aboutPanel(mainWindow);
 
     expect(app.setAboutPanelOptions).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -65,7 +66,7 @@ describe('aboutPanel', () => {
     const mainWindow = makeFakeWindow(1);
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
 
-    aboutPanel(mainWindow as any);
+    aboutPanel(mainWindow);
     expect(app.showAboutPanel).toHaveBeenCalled();
   });
 
@@ -73,7 +74,7 @@ describe('aboutPanel', () => {
     const mainWindow = makeFakeWindow(1);
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
 
-    aboutPanel(mainWindow as any);
+    aboutPanel(mainWindow);
 
     const callArgs = vi.mocked(app.setAboutPanelOptions).mock.calls[0][0];
     expect(callArgs.version).toBe('Darwin, 23.0.0, arm64');
@@ -83,11 +84,11 @@ describe('aboutPanel', () => {
     const mainWindow = makeFakeWindow(1);
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
 
-    aboutPanel(mainWindow as any);
+    aboutPanel(mainWindow);
     vi.mocked(app.setAboutPanelOptions).mockClear();
     vi.mocked(app.showAboutPanel).mockClear();
 
-    aboutPanel(mainWindow as any);
+    aboutPanel(mainWindow);
   });
 
   it('finds and configures the about window when a new window is created', () => {
@@ -95,6 +96,6 @@ describe('aboutPanel', () => {
     const aboutWin = makeFakeWindow(2);
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow, aboutWin]);
 
-    aboutPanel(mainWindow as any);
+    aboutPanel(mainWindow);
   });
 });

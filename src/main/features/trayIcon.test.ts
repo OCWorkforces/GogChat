@@ -36,14 +36,20 @@ vi.mock('electron-log', () => ({
 }));
 
 import createTrayIcon, { cleanupTrayIcon } from './trayIcon';
-import { Tray, Menu } from 'electron';
+import { Tray, Menu, BrowserWindow } from 'electron';
+
+/**
+ * Minimal window interface required by createTrayIcon
+ * Uses Pick to extract only the methods actually used by createTrayIcon
+ */
+type TrayWindow = Pick<BrowserWindow, 'isMinimized' | 'restore' | 'show' | 'focus'>;
 
 describe('trayIcon', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  function makeFakeWindow() {
+  function makeFakeWindow(): TrayWindow {
     return {
       isMinimized: vi.fn().mockReturnValue(false),
       restore: vi.fn(),
@@ -61,34 +67,34 @@ describe('trayIcon', () => {
 
   it('creates a tray icon', () => {
     const window = makeFakeWindow();
-    const tray = createTrayIcon(window as any);
+    const tray = createTrayIcon(window as BrowserWindow);
     expect(tray).toBeDefined();
   });
 
   it('sets ignore double click events', () => {
     const window = makeFakeWindow();
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
     expect(tray.setIgnoreDoubleClickEvents).toHaveBeenCalledWith(true);
   });
 
   it('sets tooltip', () => {
     const window = makeFakeWindow();
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
     expect(tray.setToolTip).toHaveBeenCalledWith('GogChat');
   });
 
   it('registers click handler for open action', () => {
     const window = makeFakeWindow();
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
     expect(tray.on).toHaveBeenCalledWith('click', expect.any(Function));
   });
 
   it('sets context menu with menu template', () => {
     const window = makeFakeWindow();
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
     expect(Menu.buildFromTemplate).toHaveBeenCalled();
     expect(tray.setContextMenu).toHaveBeenCalled();
@@ -96,7 +102,7 @@ describe('trayIcon', () => {
 
   it('shows and focuses window on open click', () => {
     const window = makeFakeWindow();
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
 
     const clickHandler = tray.on.mock.calls.find((c: [string]) => c[0] === 'click')?.[1];
@@ -110,7 +116,7 @@ describe('trayIcon', () => {
   it('restores window if minimized on open click', () => {
     const window = makeFakeWindow();
     vi.mocked(window.isMinimized).mockReturnValue(true);
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
 
     const clickHandler = tray.on.mock.calls.find((c: [string]) => c[0] === 'click')?.[1];
@@ -122,7 +128,7 @@ describe('trayIcon', () => {
 
   it('cleanup destroys tray icon', () => {
     const window = makeFakeWindow();
-    createTrayIcon(window as any);
+    createTrayIcon(window as BrowserWindow);
     const tray = getLastTrayInstance()!;
 
     cleanupTrayIcon();

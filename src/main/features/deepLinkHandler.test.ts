@@ -2,6 +2,7 @@
  * Unit tests for deepLinkHandler feature.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BrowserWindow } from 'electron';
 
 vi.mock('electron', () => {
   const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
@@ -60,11 +61,33 @@ import { validateDeepLinkURL, validateExternalURL } from '../../shared/validator
 import { addTrackedListener } from '../utils/trackedResources';
 import log from 'electron-log';
 
-function getAppListeners() {
-  return (app as any).__listeners as Record<string, Array<(...args: unknown[]) => void>>;
+/**
+ * Interface for the mock app with internal listener storage
+ */
+interface MockAppWithListeners {
+  setAsDefaultProtocolClient: typeof app.setAsDefaultProtocolClient;
+  on: typeof app.on;
+  removeListener: typeof app.removeListener;
+  __listeners: Record<string, Array<(...args: unknown[]) => void>>;
 }
 
-function makeFakeWindow() {
+/**
+ * Fake window mock for testing BrowserWindow interactions
+ */
+interface FakeWindow {
+  isDestroyed: ReturnType<typeof vi.fn>;
+  loadURL: ReturnType<typeof vi.fn>;
+  isMinimized: ReturnType<typeof vi.fn>;
+  restore: ReturnType<typeof vi.fn>;
+  show: ReturnType<typeof vi.fn>;
+  focus: ReturnType<typeof vi.fn>;
+}
+
+function getAppListeners(): Record<string, Array<(...args: unknown[]) => void>> {
+  return (app as unknown as MockAppWithListeners).__listeners;
+}
+
+function makeFakeWindow(): FakeWindow {
   return {
     isDestroyed: vi.fn().mockReturnValue(false),
     loadURL: vi.fn().mockResolvedValue(undefined),
@@ -88,7 +111,7 @@ describe('deepLinkHandler', () => {
   describe('processDeepLink', () => {
     it('validates the deep link URL', () => {
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as any);
+      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as FakeWindow);
 
       processDeepLink('gogchat://chat.google.com/room/test');
       expect(validateDeepLinkURL).toHaveBeenCalledWith('gogchat://chat.google.com/room/test');
@@ -97,7 +120,7 @@ describe('deepLinkHandler', () => {
     it('creates window for account index from URL path', () => {
       vi.mocked(getWindowForAccount).mockReturnValue(null);
       const fakeWindow = makeFakeWindow();
-      vi.mocked(createAccountWindow).mockReturnValue(fakeWindow as any);
+      vi.mocked(createAccountWindow).mockReturnValue(fakeWindow as FakeWindow);
 
       processDeepLink('gogchat://chat.google.com/u/3/room/test');
       expect(createAccountWindow).toHaveBeenCalledWith(expect.stringContaining('/u/3/'), 3);
@@ -105,7 +128,7 @@ describe('deepLinkHandler', () => {
 
     it('defaults to account index 0 when no /u/N path', () => {
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as any);
+      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as FakeWindow);
 
       processDeepLink('gogchat://chat.google.com/room/test');
       expect(createAccountWindow).toHaveBeenCalledWith(expect.any(String), 0);
@@ -121,7 +144,7 @@ describe('deepLinkHandler', () => {
 
     it('buffers URL when no window available', () => {
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(null as any);
+      vi.mocked(createAccountWindow).mockReturnValue(null as unknown as BrowserWindow | null);
 
       processDeepLink('gogchat://chat.google.com/room/test');
       // Should not throw — URL gets buffered
@@ -166,7 +189,7 @@ describe('deepLinkHandler', () => {
   describe('setupDeepLinkListener', () => {
     it('registers listener and routes URLs correctly', () => {
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as any);
+      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as FakeWindow);
 
       // First call registers
       setupDeepLinkListener();
@@ -306,7 +329,7 @@ describe('deepLinkHandler', () => {
   describe('initDeepLinkHandler', () => {
     it('calls registerDeepLinkProtocol and processes pending links', () => {
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as any);
+      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as FakeWindow);
 
       initDeepLinkHandler({});
 
@@ -320,14 +343,14 @@ describe('deepLinkHandler', () => {
 
       // First, buffer a URL by processing when window is unavailable
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(null as any);
+      vi.mocked(createAccountWindow).mockReturnValue(null as unknown as BrowserWindow | null);
       vi.mocked(getMostRecentWindow).mockReturnValue(null);
       processDeepLink('gogchat://chat.google.com/room/buffered');
 
       // Now make window available for init
       const fakeWindow = makeFakeWindow();
-      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as any);
-      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as any);
+      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as FakeWindow);
+      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as FakeWindow);
 
       initDeepLinkHandler({});
 
@@ -343,8 +366,8 @@ describe('deepLinkHandler', () => {
 
       const fakeWindow = makeFakeWindow();
       fakeWindow.isMinimized.mockReturnValue(true);
-      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as any);
-      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as any);
+      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as FakeWindow);
+      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as FakeWindow);
 
       processDeepLink('gogchat://chat.google.com/room/test');
 
@@ -361,7 +384,7 @@ describe('deepLinkHandler', () => {
 
       // Buffer a deep link
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(null as any);
+      vi.mocked(createAccountWindow).mockReturnValue(null as unknown as BrowserWindow | null);
       vi.mocked(getMostRecentWindow).mockReturnValue(null);
       processDeepLink('gogchat://chat.google.com/room/nowhere');
 
@@ -379,16 +402,19 @@ describe('deepLinkHandler', () => {
 
       // Buffer a URL first
       vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(null as any);
+      vi.mocked(createAccountWindow).mockReturnValue(null as unknown as BrowserWindow | null);
       vi.mocked(getMostRecentWindow).mockReturnValue(null);
       processDeepLink('gogchat://chat.google.com/room/error');
 
       // Now make getWindowForAccount return an object that throws on isDestroyed
-      vi.mocked(getWindowForAccount).mockReturnValue({
-        isDestroyed: () => {
+      const errorWindow = {
+        isDestroyed: (): never => {
           throw new Error('Window exploded');
         },
-      } as any);
+      };
+      vi.mocked(getWindowForAccount).mockReturnValue(
+        errorWindow as unknown as BrowserWindow | null
+      );
 
       initDeepLinkHandler({});
 

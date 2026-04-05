@@ -2,6 +2,7 @@
  * Unit tests for appMenu feature.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
 
 vi.mock('electron', () => ({
   Menu: {
@@ -100,13 +101,31 @@ vi.mock('../utils/packageInfo', () => ({
 }));
 
 import appMenu from './appMenu';
-import { getMenuAction } from '../utils/menuActionRegistry';
-import { Menu, app, dialog, clipboard } from 'electron';
+import { _getMenuAction } from '../utils/menuActionRegistry';
+import { Menu, app, _dialog, clipboard } from 'electron';
 import store from '../config';
 import { IPC_CHANNELS } from '../../shared/constants';
 import { openNewGitHubIssue } from '../utils/platform';
 
-function makeFakeWindow() {
+interface FakeWindow {
+  hide: ReturnType<typeof vi.fn>;
+  loadURL: ReturnType<typeof vi.fn>;
+  webContents: {
+    send: ReturnType<typeof vi.fn>;
+    getURL: ReturnType<typeof vi.fn>;
+    goBack: ReturnType<typeof vi.fn>;
+    goForward: ReturnType<typeof vi.fn>;
+    session: {
+      clearStorageData: ReturnType<typeof vi.fn>;
+      clearCache: ReturnType<typeof vi.fn>;
+      setSpellCheckerEnabled: ReturnType<typeof vi.fn>;
+    };
+  };
+  setMenuBarVisibility: ReturnType<typeof vi.fn>;
+  setAutoHideMenuBar: ReturnType<typeof vi.fn>;
+}
+
+function makeFakeWindow(): FakeWindow {
   return {
     hide: vi.fn(),
     loadURL: vi.fn().mockResolvedValue(undefined),
@@ -133,20 +152,22 @@ describe('appMenu', () => {
 
   it('builds and sets the application menu', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
     expect(Menu.buildFromTemplate).toHaveBeenCalled();
     expect(Menu.setApplicationMenu).toHaveBeenCalled();
   });
 
   it('includes File menu with Close To Tray action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const fileMenu = template.find((item: any) => item.label === 'File');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const fileMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'File');
     expect(fileMenu).toBeDefined();
 
-    const closeToTray = fileMenu.submenu.find((item: any) => item.label === 'Close To Tray');
+    const closeToTray = fileMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Close To Tray'
+    );
     expect(closeToTray).toBeDefined();
     expect(closeToTray.accelerator).toBe('CommandOrControl+W');
 
@@ -157,11 +178,11 @@ describe('appMenu', () => {
 
   it('includes File menu with Quit action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const fileMenu = template.find((item: any) => item.label === 'File');
-    const quit = fileMenu.submenu.find((item: any) => item.label === 'Quit');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const fileMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'File');
+    const quit = fileMenu.submenu.find((item: MenuItemConstructorOptions) => item.label === 'Quit');
 
     quit.click();
     expect(app.exit).toHaveBeenCalled();
@@ -169,11 +190,13 @@ describe('appMenu', () => {
 
   it('includes File menu with Sign Out action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const fileMenu = template.find((item: any) => item.label === 'File');
-    const signOut = fileMenu.submenu.find((item: any) => item.label === 'Sign Out');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const fileMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'File');
+    const signOut = fileMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Sign Out'
+    );
 
     signOut.click();
     expect(window.loadURL).toHaveBeenCalledWith('https://accounts.google.com/logout');
@@ -181,11 +204,13 @@ describe('appMenu', () => {
 
   it('includes View menu with Search action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const viewMenu = template.find((item: any) => item.label === 'View');
-    const search = viewMenu.submenu.find((item: any) => item.label === 'Search');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const viewMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'View');
+    const search = viewMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Search'
+    );
 
     search.click();
     expect(window.webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.SEARCH_SHORTCUT);
@@ -193,11 +218,13 @@ describe('appMenu', () => {
 
   it('includes View menu with Copy Current URL action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const viewMenu = template.find((item: any) => item.label === 'View');
-    const copyUrl = viewMenu.submenu.find((item: any) => item.label === 'Copy Current URL');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const viewMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'View');
+    const copyUrl = viewMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Copy Current URL'
+    );
 
     copyUrl.click();
     expect(clipboard.writeText).toHaveBeenCalledWith('https://chat.google.com');
@@ -205,29 +232,37 @@ describe('appMenu', () => {
 
   it('includes Preferences menu with checkbox items', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const prefsMenu = template.find((item: any) => item.label === 'Preferences');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const prefsMenu = template.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Preferences'
+    );
 
     const autoUpdates = prefsMenu.submenu.find(
-      (item: any) => item.label === 'Auto check for Updates'
+      (item: MenuItemConstructorOptions) => item.label === 'Auto check for Updates'
     );
     expect(autoUpdates).toBeDefined();
     expect(autoUpdates.checked).toBe(true);
 
-    const startHidden = prefsMenu.submenu.find((item: any) => item.label === 'Start Hidden');
+    const startHidden = prefsMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Start Hidden'
+    );
     expect(startHidden).toBeDefined();
     expect(startHidden.checked).toBe(false);
   });
 
   it('Preferences checkbox updates store on click', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const prefsMenu = template.find((item: any) => item.label === 'Preferences');
-    const startHidden = prefsMenu.submenu.find((item: any) => item.label === 'Start Hidden');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const prefsMenu = template.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Preferences'
+    );
+    const startHidden = prefsMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Start Hidden'
+    );
 
     startHidden.click({ checked: true });
     expect(store.set).toHaveBeenCalledWith('app.startHidden', true);
@@ -235,11 +270,13 @@ describe('appMenu', () => {
 
   it('includes Help menu with About action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const helpMenu = template.find((item: any) => item.label === 'Help');
-    const about = helpMenu.submenu.find((item: any) => item.label === 'About');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const helpMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'Help');
+    const about = helpMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'About'
+    );
 
     about.click();
     expect(mockAboutHandler).toHaveBeenCalledWith(window);
@@ -247,13 +284,15 @@ describe('appMenu', () => {
 
   it('includes Help menu with Report issue action', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const helpMenu = template.find((item: any) => item.label === 'Help');
-    const troubleshooting = helpMenu.submenu.find((item: any) => item.label === 'Troubleshooting');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const helpMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'Help');
+    const troubleshooting = helpMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Troubleshooting'
+    );
     const reportIssue = troubleshooting.submenu.find(
-      (item: any) => item.label === 'Report issue...'
+      (item: MenuItemConstructorOptions) => item.label === 'Report issue...'
     );
 
     reportIssue.click();
@@ -266,12 +305,12 @@ describe('appMenu', () => {
 
   it('shows version info in Help menu', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const helpMenu = template.find((item: any) => item.label === 'Help');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const helpMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'Help');
     const versionItem = helpMenu.submenu.find(
-      (item: any) => item.label && item.label.includes('Version')
+      (item: MenuItemConstructorOptions) => item.label && item.label.includes('Version')
     );
 
     expect(versionItem).toBeDefined();
@@ -280,11 +319,13 @@ describe('appMenu', () => {
 
   it('Relaunch action relaunches without --hidden flag', () => {
     const window = makeFakeWindow();
-    appMenu(window as any);
+    appMenu(window as BrowserWindow);
 
-    const template = Menu.buildFromTemplate.mock.calls[0][0];
-    const fileMenu = template.find((item: any) => item.label === 'File');
-    const relaunch = fileMenu.submenu.find((item: any) => item.label === 'Relaunch');
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const fileMenu = template.find((item: MenuItemConstructorOptions) => item.label === 'File');
+    const relaunch = fileMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Relaunch'
+    );
 
     relaunch.click();
     expect(app.relaunch).toHaveBeenCalled();

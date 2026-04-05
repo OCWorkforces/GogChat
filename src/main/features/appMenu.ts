@@ -162,7 +162,10 @@ export default (window: BrowserWindow) => {
             void (async () => {
               const autoLaunchAction = getMenuAction('autoLaunch');
               if (!autoLaunchAction) return;
-              const instance = autoLaunchAction.handler();
+              const instance = autoLaunchAction.handler() as {
+                enable: () => Promise<void>;
+                disable: () => Promise<void>;
+              };
               if (menuItem.checked) {
                 await instance.enable();
               } else {
