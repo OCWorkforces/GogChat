@@ -29,6 +29,7 @@ vi.mock('../utils/performanceMonitor.js', () => ({
 }));
 
 vi.mock('electron-unhandled', () => ({ default: vi.fn() }));
+vi.mock('electron-log', () => ({ default: { error: vi.fn() } }));
 vi.mock('../utils/featureTypes.js', () => ({
   createFeature: vi.fn(
     (
