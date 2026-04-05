@@ -8,7 +8,7 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { getCleanupManager } from './resourceCleanup.js';
 import { logger } from './logger.js';
-import { toErrorMessage } from './errorHandler.js';
+import { toErrorMessage } from './errorUtils.js';
 
 import type { EventHandler, EventTarget } from './cleanupTypes.js';
 

@@ -5,13 +5,8 @@
  */
 
 import { logger } from './logger.js';
-import { toErrorMessage } from './errorHandler.js';
+import { toErrorMessage } from './errorUtils.js';
 import type { EventHandler, EventTarget, CleanupConfig } from './cleanupTypes.js';
-import { destroyRateLimiter } from './rateLimiter.js';
-import { destroyDeduplicator } from './ipcDeduplicator.js';
-import { cleanupGlobalHandlers } from './ipcHelper.js';
-import { getIconCache } from './iconCache.js';
-import { clearConfigCache } from './configCache.js';
 
 /**
  * Cleanup task
@@ -239,23 +234,4 @@ export function getCleanupManager(): ResourceCleanupManager {
     globalManager = new ResourceCleanupManager();
   }
   return globalManager;
-}
-
-/**
- * Register built-in global cleanup callbacks
- * Uses lazy imports to avoid module-level coupling between resourceCleanup and utility modules
- * Must be called once during app initialization (before any cleanup could happen)
- */
-export function registerBuiltInGlobalCleanups(): void {
-  const manager = getCleanupManager();
-
-  manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter, 'Rate limiter');
-
-  manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator, 'Deduplicator');
-
-  manager.registerGlobalCleanupCallback('ipcHandlers', cleanupGlobalHandlers, 'IPC handlers');
-
-  manager.registerGlobalCleanupCallback('iconCache', () => getIconCache().clear(), 'Icon cache');
-
-  manager.registerGlobalCleanupCallback('configCache', clearConfigCache, 'Config cache');
 }
