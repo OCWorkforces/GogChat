@@ -178,7 +178,7 @@ describe('initializeStore', () => {
 
   it('should continue with legacy store if completeMigration returns null', async () => {
     const { needsMigration, completeMigration } = await import('./utils/encryptionKey');
-    const log = (await import('electron-log')).default;
+    const _log = (await import('electron-log')).default;
     vi.mocked(needsMigration).mockResolvedValue(true);
     vi.mocked(completeMigration).mockResolvedValue(null);
 
@@ -283,7 +283,7 @@ describe('validateAndUpdateCacheVersion', () => {
   });
 
   it('should update metadata when app version is different', async () => {
-    const log = (await import('electron-log')).default;
+    const _log = (await import('electron-log')).default;
     // Same cache version but different app version
     mockStore.get.mockImplementation((key: string) => {
       if (key === '_meta') {
@@ -335,8 +335,8 @@ describe('validateAndUpdateCacheVersion', () => {
     });
 
     // We need to add clearCache to the mock store instance
-    const originalMockStoreClass = MockStore;
-    const OriginalClear = MockStore.prototype;
+    const _originalMockStoreClass = MockStore;
+    const _OriginalClear = MockStore.prototype;
 
     const { initializeStore } = await import('./config');
     // Patch the clearCache onto mockStore before calling initializeStore
