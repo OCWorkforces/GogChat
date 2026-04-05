@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-04
+**Generated:** 2026-04-05
 
-**Commit:** a98f1c1
+**Commit:** 8a40ceb
 **Branch:** electrobun-engine
 
 ## OVERVIEW
@@ -14,10 +14,10 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 ```
 src/
 ├── main/          # Electron main process (features, initializers, utils)
-│   ├── features/  # 20 self-contained feature modules, phased lifecycle
+│   ├── features/  # 22 self-contained feature modules, phased lifecycle
 │   ├── initializers/ # Feature registration + shutdown handler
-│   └── utils/     # 23 singleton utilities (accountWindowManager, featureManager, IPC)
-├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
+│   └── utils/     # 32 utility modules (singletons, helpers, types)
+├── preload/       # 9 bridge scripts (CJS, sandbox-compatible)
 ├── shared/        # Cross-process contracts (constants, types, validators)
 └── offline/       # Standalone fallback page (no IPC access)
 scripts/           # Dual-build system, lint, icon generation, notarization
@@ -31,7 +31,7 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Task                 | Location                                         | Notes                                       |
 | -------------------- | ------------------------------------------------ | ------------------------------------------- |
 | App init order       | `src/main/index.ts`                              | Thin orchestrator; logic in `initializers/` |
-| Feature registration | `src/main/initializers/registerFeatures.ts`      | 21 features with phases + deps              |
+| Feature registration | `src/main/initializers/registerFeatures.ts`      | 22 features with phases + deps              |
 | Shutdown handler     | `src/main/initializers/registerShutdown.ts`      | Graceful cleanup + cache stats              |
 | Multi-account mgr    | `src/main/utils/accountWindowManager.ts`         | Per-account windows + bootstrap             |
 | Add new feature      | `src/main/features/`                             | See `features/AGENTS.md`                    |

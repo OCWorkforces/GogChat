@@ -2,35 +2,44 @@
 
 **Generated:** 2026-04-04
 
-23 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
+31 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
 
 ## MODULE INVENTORY
 
-| File                      | Lines | Purpose                                | Singleton                   |
-| ------------------------- | ----- | -------------------------------------- | --------------------------- |
-| `accountWindowManager.ts` | 437   | Multi-account BrowserWindow management | `getAccountWindowManager()` |
-| `featureManager.ts`       | 363   | Feature lifecycle orchestrator        | `getFeatureManager()`       |
-| `ipcHelper.ts`            | 351   | Secure IPC handler factories           | `getIPCManager()`           |
-| `platform.ts`            | 338   | macOS platform utils                  | `getPlatformUtils()`        |
-| `performanceMonitor.ts`  | 334   | Startup timing + memory snapshots     | `getPerformanceMonitor()`   |
-| `ipcDeduplicator.ts`     | 321   | Dedup rapid same-key requests         | `getDeduplicator()`         |
-| `errorHandler.ts`        | 318   | Structured error wrapping             | `getErrorHandler()`         |
-| `resourceCleanup.ts`     | 271   | Interval/listener/task cleanup        | `getCleanupManager()`       |
-| `iconCache.ts`           | 218   | NativeImage preload cache             | `getIconCache()`            |
-| `bootstrapWatcher.ts`    | 205   | Bootstrap window navigation watching   | exported functions         |
-| `rateLimiter.ts`        | 191   | IPC DoS prevention                    | `getRateLimiter()`          |
-| `trackedResources.ts`   | 168   | Tracked timeout/interval/listener      | exported functions         |
-| `configCache.ts`        | 157   | In-memory layer for electron-store     | `addCacheLayer()`          |
-| `featureTypes.ts`       | 143   | Feature config types + factory fns     | exported functions        |
-| `encryptionKey.ts`      | 116   | SafeStorage encryption key management  | exported functions        |
-| `logger.ts`             | 112   | Scoped structured logging              | `logger.*`                 |
-| `featureSorter.ts`      | 110   | Topological sort for feature deps     | exported functions        |
-| `configProfiler.ts`     | 106   | Dev-only store perf profiler          | —                          |
-| `packageInfo.ts`        | 78    | package.json singleton                | `getPackageInfo()`         |
-| `menuActionRegistry.ts` | 52    | Decouples features from appMenu        | exported functions        |
-| `ipcCommonValidators.ts`| 48    | Common IPC validation helpers         | exported const             |
-| `mediaAccess.ts` | 123 | macOS camera/mic TCC permissions | exported functions |
-`resourceCleanup` (6 features), `accountWindowManager` (5), `ipcHelper` (5), `rateLimiter` (4), `iconCache` (4), `platform` (4), `performanceMonitor` (3), `packageInfo` (3), `errorHandler` (3).
+| File                      | Lines | Purpose                                  | Singleton                   |
+| ------------------------- | ----- | ---------------------------------------- | --------------------------- |
+| `accountWindowManager.ts` | 437   | Multi-account BrowserWindow management   | `getAccountWindowManager()` |
+| `featureManager.ts`       | 363   | Feature lifecycle orchestrator           | `getFeatureManager()`       |
+| `platform.ts`             | 338   | macOS platform utils                     | `getPlatformUtils()`        |
+| `performanceMonitor.ts`   | 334   | Startup timing + memory snapshots        | `getPerformanceMonitor()`   |
+| `ipcDeduplicator.ts`      | 326   | Dedup rapid same-key requests            | `getDeduplicator()`         |
+| `errorHandler.ts`         | 277   | Structured error wrapping                | `getErrorHandler()`         |
+| `ipcHelper.ts`            | 264   | Secure IPC handler factories             | `getIPCManager()`           |
+| `resourceCleanup.ts`      | 237   | Interval/listener/task cleanup           | `getCleanupManager()`       |
+| `iconCache.ts`            | 218   | NativeImage preload cache                | `getIconCache()`            |
+| `bootstrapWatcher.ts`     | 205   | Bootstrap window navigation watching     | exported functions          |
+| `rateLimiter.ts`          | 199   | IPC DoS prevention                       | `getRateLimiter()`          |
+| `configCache.ts`          | 179   | In-memory layer for electron-store       | `addCacheLayer()`           |
+| `configSchema.ts`         | 159   | electron-store schema definition         | exported const              |
+| `trackedResources.ts`     | 146   | Tracked timeout/interval/listener        | exported functions          |
+| `featureTypes.ts`         | 143   | Feature config types + factory fns       | exported functions          |
+| `encryptionKey.ts`        | 128   | SafeStorage encryption key management    | exported functions          |
+| `mediaAccess.ts`          | 123   | macOS camera/mic TCC permissions         | exported functions          |
+| `logger.ts`               | 112   | Scoped structured logging                | `logger.*`                  |
+| `featureSorter.ts`        | 110   | Topological sort for feature deps        | exported functions          |
+| `configProfiler.ts`       | 106   | Dev-only store perf profiler             | —                           |
+| `permissionHandler.ts`    | 98    | Chromium permission request/check handlers | exported functions        |
+| `benignLogFilter.ts`      | 93    | Filter benign console messages           | exported functions          |
+| `packageInfo.ts`          | 78    | package.json singleton                   | `getPackageInfo()`          |
+| `cspHeaderHandler.ts`     | 78    | Strip COEP/COOP headers for benign hosts | exported functions          |
+| `bootstrapTracker.ts`     | 74    | Tracks bootstrap window state            | exported functions          |
+| `menuActionRegistry.ts`   | 52    | Decouples features from appMenu          | exported functions          |
+| `errorUtils.ts`           | 49    | Zero-dependency error helpers            | exported functions          |
+| `ipcCommonValidators.ts`  | 48    | Common IPC validation helpers            | exported const              |
+| `cleanupTypes.ts`         | 30    | Shared cleanup types                     | exported types              |
+| `deepLinkUtils.ts`        | 27    | Deep link URL extraction from argv       | exported functions          |
+| `windowDefaults.ts`       | 19    | Window-related defaults from store       | exported functions          |
+`platform` (8 features), `accountWindowManager` (5), `ipcHelper` (4), `resourceCleanup` (4), `rateLimiter` (3), `iconCache` (3), `packageInfo` (3).
 
 ## CROSS-UTILS DEPENDENCIES
 
@@ -38,6 +47,14 @@
 `ipcHelper` → `rateLimiter`, `logger`, `errorHandler`. `ipcDeduplicator` → `logger`, `errorHandler`.
 `menuActionRegistry.ts` — zero imports from other utils. Pure in-memory `Map<string, MenuAction>`.
 `cleanupTypes.ts` — extracted from `resourceCleanup.ts` + `trackedResources.ts` to break circular dependency. Exports `EventHandler`, `EventTarget`, `CleanupConfig` types.
+`errorUtils.ts` — zero imports from other utils. Extracted to break circular dependency between `ipcHelper`, `ipcDeduplicator`, `resourceCleanup`, and `trackedResources`.
+`permissionHandler.ts` → used by `windowWrapper.ts`. Chromium permission request/check handlers.
+`cspHeaderHandler.ts` → used by `windowWrapper.ts`. Also imported by `benignLogFilter.ts`.
+`benignLogFilter.ts` → used by `windowWrapper.ts`. Filters benign console messages.
+`windowDefaults.ts` → used by `windowWrapper.ts`. Reads window defaults from store to keep windowWrapper decoupled from config.
+`bootstrapTracker.ts` → used by `accountWindowManager.ts`. Tracks bootstrap window state.
+`deepLinkUtils.ts` → used by `singleInstance` feature. Extracts deep link URLs from argv.
+`configSchema.ts` → used by `config.ts`. Exports `schema` and `CACHE_VERSION`.
 
 ## KEY PATTERNS
 

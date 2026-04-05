@@ -2,7 +2,7 @@
 
 **Generated:** 2026-03-30
 
-20 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
+22 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
 
 ## FEATURE CONTRACT
 
@@ -23,6 +23,7 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | ----------------------- | ---------- | ------------------------------------------------------ |
 | `certificatePinning.ts` | `security` | none (cert-error event)                                |
 | `reportExceptions.ts`   | `security` | none                                                   |
+| `mediaPermissions.ts`   | `security` | none; macOS camera/mic TCC permissions                 |
 | `userAgent.ts`          | `critical` | none                                                   |
 | `singleInstance.ts`     | `ui`       | none; receives `{ accountWindowManager }` context      |
 | `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context      |
@@ -85,16 +86,24 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 
 | File | Lines | Notes |
 | --- | --- | --- |
-| `appMenu.ts` | 301 | Uses `getMenuAction()` for 3 actions |
-| `externalLinks.ts` | 295 | URL validation, account routing |
+| `appMenu.ts` | 304 | Uses `getMenuAction()` for 3 actions |
+| `externalLinks.ts` | 298 | URL validation, account routing |
 | `certificatePinning.ts` | 187 | Cert validation before app.ready |
-| `deepLinkHandler.ts` | 173 | Protocol registration, deep linking |
+| `deepLinkHandler.ts` | 172 | Protocol registration, deep linking |
 | `windowState.ts` | 175 | 3 declared deps (most coupled) |
 | `handleNotification.ts` | 154 | Notification show/hide logic |
 | `inOnline.ts` | 154 | Online status monitoring |
 | `badgeIcon.ts` | 141 | Unread count badge updates |
 | `passkeySupport.ts` | 122 | Passkey auth event handling |
 | `trayIcon.ts` | 90 | System tray icon + menu |
-| `closeToTray.ts` | 55 | Hide to tray on window close |
-| `aboutPanel.ts` | 51 | About dialog self-registration |
+| `appUpdates.ts` | 78 | Auto-update check |
+| `openAtLogin.ts` | 74 | Auto-launch self-registers in menuActionRegistry |
+| `userAgent.ts` | 71 | Custom user-agent override |
+| `reportExceptions.ts` | 68 | Startup error capture |
 | `bootstrapPromotion.ts` | 60 | Auth detection, child window handling |
+| `closeToTray.ts` | 55 | Hide to tray on window close |
+| `singleInstance.ts` | 52 | Single-instance enforcement |
+| `aboutPanel.ts` | 51 | About dialog self-registration |
+| `firstLaunch.ts` | 44 | First-launch onboarding |
+| `mediaPermissions.ts` | 36 | Camera/mic TCC permission check |
+| `contextMenu.ts` | 36 | Right-click context menu |

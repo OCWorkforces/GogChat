@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-03-30
+**Generated:** 2026-04-05
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -9,7 +9,7 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Task | File | Notes |
 | --- | --- | --- |
 | App init sequence | `index.ts` | Thin orchestrator, delegates to initializers/ |
-| Feature registration | `initializers/registerFeatures.ts` | All 21 features with phases + deps |
+| Feature registration | `initializers/registerFeatures.ts` | 22 features with phases + deps |
 | Shutdown handler | `initializers/registerShutdown.ts` | Graceful cleanup + cache stats |
 | Multi-account mgr | `utils/accountWindowManager.ts` | Per-account windows + bootstrap |
 | BrowserWindow creation | `windowWrapper.ts` | Per-account factory with partition support |
@@ -24,6 +24,7 @@ Electron main process. Node.js environment with full system access. Owns app lif
 BEFORE app.ready:
   setupCertificatePinning()   ← MUST precede any HTTP
   reportExceptions()           ← catches startup panics
+  mediaPermissions()            ← macOS camera/mic TCC checks
   enforceSingleInstance()      ← exits if duplicate running
   registerAllFeatures(fm, cb)  ← delegates to initializers/registerFeatures.ts
   setupDeepLinkListener()      ← open-url event (before app.ready)
