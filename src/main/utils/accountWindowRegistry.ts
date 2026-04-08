@@ -176,9 +176,11 @@ export class AccountWindowRegistry {
       this.windowListeners.delete(entry.window);
 
       // Remove all webContents listeners to prevent leaks
-      const webContents = entry.window.webContents;
-      if (webContents && !webContents.isDestroyed()) {
-        webContents.removeAllListeners();
+      if (!entry.window.isDestroyed()) {
+        const webContents = entry.window.webContents;
+        if (webContents && !webContents.isDestroyed()) {
+          webContents.removeAllListeners();
+        }
       }
 
       // Clean up webContents reverse index
