@@ -57,6 +57,8 @@ class PerformanceMonitor {
   private markers: Map<string, number> = new Map();
   private memorySnapshots: MemorySnapshot[] = [];
   private warnings: string[] = [];
+  private readonly MAX_SNAPSHOTS = 100;
+  private readonly MAX_WARNINGS = 50;
   private enabled: boolean = true;
 
   constructor() {
@@ -81,6 +83,9 @@ class PerformanceMonitor {
       rss: Math.round((memUsage.rss / 1024 / 1024) * 100) / 100,
     };
 
+    if (this.memorySnapshots.length >= this.MAX_SNAPSHOTS) {
+      this.memorySnapshots.shift();
+    }
     this.memorySnapshots.push(snapshot);
     log.debug(
       `[Performance] Memory snapshot [${label}]: ${snapshot.heapUsed}MB heap, ${snapshot.rss}MB RSS`
@@ -113,10 +118,16 @@ class PerformanceMonitor {
       elapsed < PERFORMANCE_TARGETS.CRITICAL_THRESHOLD_MS
     ) {
       const warning = `Marker '${name}' at ${elapsed}ms approaching target threshold (${PERFORMANCE_TARGETS.STARTUP_TIME_MS}ms)`;
+      if (this.warnings.length >= this.MAX_WARNINGS) {
+        this.warnings.shift();
+      }
       this.warnings.push(warning);
       log.warn(`[Performance] ${warning}`);
     } else if (elapsed > PERFORMANCE_TARGETS.CRITICAL_THRESHOLD_MS) {
       const warning = `Marker '${name}' at ${elapsed}ms EXCEEDS target threshold (${PERFORMANCE_TARGETS.STARTUP_TIME_MS}ms)`;
+      if (this.warnings.length >= this.MAX_WARNINGS) {
+        this.warnings.shift();
+      }
       this.warnings.push(warning);
       log.error(`[Performance] ${warning}`);
     }

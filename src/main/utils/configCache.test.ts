@@ -363,6 +363,20 @@ describe('ConfigCache', () => {
       expect(stats.hits).toBeGreaterThan(0);
     });
   });
+
+  it('should pass defaultValue to underlying store.get() when provided', () => {
+    // This covers the `defaultValue !== undefined` branch (line 81)
+    // Get a non-existent key with an explicit default value
+    const value = cachedStore.get('nonexistent' as never, 'my-default' as never);
+    expect(value).toBe('my-default');
+
+    // Second call should hit cache and return cached value (my-default)
+    const value2 = cachedStore.get('nonexistent' as never, 'my-default' as never);
+    expect(value2).toBe('my-default');
+
+    const stats = cachedStore.getCacheStats();
+    expect(stats.hits).toBeGreaterThan(0);
+  });
 });
 
 describe('isCachedStore type guard', () => {

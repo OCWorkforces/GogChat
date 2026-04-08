@@ -1015,4 +1015,56 @@ describe('ResourceCleanup', () => {
       expect(manager.getRegisteredCallbackIds()).toEqual([]);
     });
   });
+
+  // ========================================================================
+  // cleanup() when isCleaningUp=true but cleanupPromise=null (line 143)
+  // ========================================================================
+
+  describe('cleanup guard: isCleaningUp without cleanupPromise', () => {
+    it('returns immediately when isCleaningUp is true but cleanupPromise is null', async () => {
+      const { ResourceCleanupManager } = await import('./resourceCleanup');
+      const manager = new ResourceCleanupManager();
+      const cleanupFn = vi.fn();
+      manager.registerTask({ name: 'guarded-task', cleanup: cleanupFn });
+
+      // Manually set the guard flag without a promise (defensive code path)
+      const managerAny = manager as unknown as Record<string, unknown>;
+      managerAny['isCleaningUp'] = true;
+      managerAny['cleanupPromise'] = null;
+
+      // cleanup() should return immediately without executing tasks
+      await manager.cleanup();
+      expect(cleanupFn).not.toHaveBeenCalled();
+
+      // Reset flag so further tests are clean
+      managerAny['isCleaningUp'] = false;
+    });
+  });
+
+  // ========================================================================
+  // cleanupListeners: target without removeListener AND without off
+  // ========================================================================
+
+  describe('cleanupListeners: target without listener removal methods', () => {
+    it('handles target with neither removeListener nor off gracefully', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const handler = vi.fn();
+
+      // Create a target that has on() for registration but no removeListener/off
+      const target = {
+        on: vi.fn(),
+      };
+
+      // Directly track (bypassing addTrackedListener which validates)
+      manager.trackListener(
+        target as unknown as import('./cleanupTypes').EventTarget,
+        'orphan-event',
+        handler
+      );
+
+      // Cleanup should not throw even though removal methods are missing
+      await expect(manager.cleanup()).resolves.toBeUndefined();
+    });
+  });
 });

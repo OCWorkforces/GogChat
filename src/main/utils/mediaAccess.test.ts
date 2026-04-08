@@ -236,5 +236,30 @@ describe('mediaAccess', () => {
       expect(mockValidateURL).toHaveBeenCalled();
       expect(mockOpenExternal).not.toHaveBeenCalled();
     });
+
+    it('returns false for unexpected/unrecognized media access status (default case)', async () => {
+      // Force an unrecognized status value to exercise the switch default branch
+      mockGetMediaAccessStatus.mockReturnValue('some-future-status');
+
+      const result = await checkAndRequestMediaAccess('camera');
+
+      expect(result).toBe(false);
+      expect(mockAskForMediaAccess).not.toHaveBeenCalled();
+    });
+
+    it('logs fallback error when both openExternal and openPath fail', async () => {
+      const log = await import('electron-log');
+      mockShowMessageBox.mockResolvedValue({ response: 0 });
+      mockOpenExternal.mockRejectedValue(new Error('openExternal failed'));
+      mockOpenPath.mockRejectedValue(new Error('openPath also failed'));
+
+      await showDeniedPermissionDialog(mockWindow, 'camera');
+
+      expect(mockOpenPath).toHaveBeenCalledWith('/System/Applications/System Settings.app');
+      expect(log.default.error).toHaveBeenCalledWith(
+        '[MediaAccess] Fallback also failed:',
+        expect.any(Error)
+      );
+    });
   });
 });

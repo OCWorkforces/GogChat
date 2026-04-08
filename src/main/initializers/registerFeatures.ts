@@ -11,7 +11,9 @@ import log from 'electron-log';
 import type { FeatureManager } from '../utils/featureManager.js';
 import { registerSecurityFeatures } from './registerSecurityFeatures.js';
 import { registerUIFeatures } from './registerUIFeatures.js';
-import { registerDeferredFeatures } from './registerDeferredFeatures.js';
+import { registerDeferredSystemFeatures } from './registerDeferredSystemFeatures.js';
+import { registerDeferredWindowFeatures } from './registerDeferredWindowFeatures.js';
+import { registerDeferredNetworkFeatures } from './registerDeferredNetworkFeatures.js';
 
 /**
  * Register all application features with the feature manager.
@@ -30,7 +32,9 @@ export function registerAllFeatures(
 ): void {
   registerSecurityFeatures(featureManager);
   registerUIFeatures(featureManager);
-  registerDeferredFeatures(featureManager, callbacks);
+  registerDeferredSystemFeatures(featureManager, callbacks);
+  registerDeferredWindowFeatures(featureManager, callbacks);
+  registerDeferredNetworkFeatures(featureManager, callbacks);
 
   log.info('[Features] All features registered');
 }

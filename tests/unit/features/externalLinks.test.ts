@@ -71,7 +71,7 @@ vi.mock('../../../src/main/utils/accountWindowManager', () => ({
   }),
 }));
 
-vi.mock('../../../src/main/features/bootstrapPromotion', () => ({
+vi.mock('../../../src/main/utils/bootstrapWatcher', () => ({
   watchBootstrapAccount: (...args: unknown[]) => mockWatchBootstrapAccount(...args),
 }));
 

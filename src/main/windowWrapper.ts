@@ -1,16 +1,13 @@
 import path from 'path';
 import { app, BrowserWindow, Notification } from 'electron';
-import type { Event, WebContentsConsoleMessageEventParams } from 'electron';
 import { getWindowDefaults } from './utils/windowDefaults.js';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache.js';
 import { installPermissionHandlers } from './utils/permissionHandler.js';
 import { installHeaderFix } from './utils/cspHeaderHandler.js';
-import {
-  isBenignRendererConsoleMessage,
-  isBenignSubframeLoadFailure,
-  installBenignWarningFilter,
-} from './utils/benignLogFilter.js';
+import { installBenignWarningFilter } from './utils/benignLogFilter.js';
+import { attachEventLogging } from './utils/windowEventLogger.js';
+import { attachHealthMonitoring } from './utils/windowHealthMonitor.js';
 
 installBenignWarningFilter();
 
@@ -67,65 +64,8 @@ export default (url: string, partition?: string): BrowserWindow => {
     window.webContents.session.setSpellCheckerEnabled(!defaults.disableSpellChecker);
   });
 
-  window.on('show', () => {
-    log.debug(`[Window] show visible=${window.isVisible()} focused=${window.isFocused()}`);
-  });
-  window.on('hide', () => {
-    log.debug(`[Window] hide visible=${window.isVisible()} focused=${window.isFocused()}`);
-  });
-  window.on('focus', () => {
-    log.debug(`[Window] focus visible=${window.isVisible()} focused=${window.isFocused()}`);
-  });
-  window.on('blur', () => {
-    log.debug(`[Window] blur visible=${window.isVisible()} focused=${window.isFocused()}`);
-  });
-  window.on('minimize', () => {
-    log.debug(`[Window] minimize visible=${window.isVisible()} focused=${window.isFocused()}`);
-  });
-  window.on('restore', () => {
-    log.debug(`[Window] restore visible=${window.isVisible()} focused=${window.isFocused()}`);
-  });
-
-  window.webContents.on('console-message', (event: Event<WebContentsConsoleMessageEventParams>) => {
-    if (isBenignRendererConsoleMessage(event.message, event.sourceId)) {
-      log.debug(`[Renderer:suppressed] ${event.message} (${event.sourceId}:${event.lineNumber})`);
-      return;
-    }
-
-    log.info(`[Renderer:${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`);
-  });
-  window.webContents.on(
-    'did-fail-load',
-    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      if (isBenignSubframeLoadFailure(errorCode, validatedURL, isMainFrame)) {
-        log.debug(
-          `[Load] Suppressed expected subframe failure: ${errorDescription} (${errorCode}) - ${validatedURL}`
-        );
-        return;
-      }
-
-      log.error(
-        `[Load] FAILED ${isMainFrame ? '(main frame)' : '(subframe)'}: ${errorDescription} (${errorCode}) — ${validatedURL}`
-      );
-    }
-  );
-  window.webContents.on('did-finish-load', () => {
-    log.info(`[Load] did-finish-load: ${window.webContents.getURL()}`);
-  });
-  window.webContents.on('did-navigate', (_event, navUrl, httpResponseCode) => {
-    log.info(`[Nav] did-navigate: ${navUrl} (HTTP ${httpResponseCode})`);
-  });
-  window.webContents.on('render-process-gone', (_event, details) => {
-    log.error(
-      `[Renderer] render-process-gone reason=${details.reason} exitCode=${details.exitCode}`
-    );
-  });
-  window.webContents.on('unresponsive', () => {
-    log.warn('[Renderer] unresponsive');
-  });
-  window.webContents.on('responsive', () => {
-    log.info('[Renderer] responsive');
-  });
+  attachEventLogging(window);
+  attachHealthMonitoring(window);
 
   installHeaderFix(window);
   void window.loadURL(url);

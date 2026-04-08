@@ -102,7 +102,12 @@ describe('registerUIFeatures', () => {
       );
     });
 
-    it('should call restoreFirstInstance with accountWindowManager on init', () => {
+    it('should call restoreFirstInstance with accountWindowManager on init', async () => {
+      const mockRestoreLocal = vi.fn();
+      vi.doMock('../features/singleInstance.js', () => ({
+        restoreFirstInstance: mockRestoreLocal,
+      }));
+
       registerUIFeatures(mockFeatureManager);
 
       const calls = vi.mocked(createFeature).mock.calls;
@@ -110,11 +115,13 @@ describe('registerUIFeatures', () => {
       const initFn = singleInstanceCall![2];
 
       const mockAccountWindowManager = { getWindow: vi.fn() };
-      initFn({ accountWindowManager: mockAccountWindowManager });
+      await initFn({ accountWindowManager: mockAccountWindowManager });
 
-      expect(mockRestoreFirstInstance).toHaveBeenCalledWith({
+      expect(mockRestoreLocal).toHaveBeenCalledWith({
         accountWindowManager: mockAccountWindowManager,
       });
+
+      vi.doUnmock('../features/singleInstance.js');
     });
   });
 

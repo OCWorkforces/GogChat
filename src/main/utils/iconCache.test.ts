@@ -267,4 +267,28 @@ describe('IconCacheManager', () => {
       expect(stats.leastAccessed).toBeDefined();
     });
   });
+
+  describe('warmCache with some empty icons', () => {
+    it('should not count empty icons in loaded count', () => {
+      const cache = getIconCache();
+      let callCount = 0;
+
+      // Make every other icon empty
+      vi.mocked(nativeImage.createFromPath).mockImplementation(() => {
+        callCount++;
+        const isEmpty = callCount % 2 === 0;
+        return {
+          isEmpty: () => isEmpty,
+          getSize: () => ({ width: isEmpty ? 0 : 16, height: isEmpty ? 0 : 16 }),
+        } as ReturnType<typeof nativeImage.createFromPath>;
+      });
+
+      const loaded = cache.warmCache();
+
+      // With 9 common icons and every other being empty,
+      // loaded should be less than total
+      expect(loaded).toBeLessThan(9);
+      expect(loaded).toBeGreaterThan(0);
+    });
+  });
 });

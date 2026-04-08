@@ -688,4 +688,76 @@ describe('IPCDeduplicator', () => {
       );
     });
   });
+
+  // ========================================================================
+  // Entry-cleared-before-resolution edge cases (lines 103, 111)
+  // ========================================================================
+
+  describe('Entry cleared before promise resolution', () => {
+    it('handles entry removed from cache before .then() resolves', async () => {
+      let resolveManual: (value: string) => void;
+      const manualPromise = new Promise<string>((resolve) => {
+        resolveManual = resolve;
+      });
+
+      const fn = vi.fn().mockReturnValue(manualPromise);
+
+      const resultPromise = deduplicator.deduplicate('clear-then', fn);
+
+      // Clear the cache entry before the promise resolves
+      deduplicator.clear('clear-then');
+
+      // Now resolve — .then() runs but entry is gone from cache
+      resolveManual!('late-result');
+
+      const result = await resultPromise;
+      expect(result).toBe('late-result');
+    });
+
+    it('handles entry removed from cache before .catch() runs', async () => {
+      let rejectManual: (error: Error) => void;
+      const manualPromise = new Promise<string>((_resolve, reject) => {
+        rejectManual = reject;
+      });
+
+      const fn = vi.fn().mockReturnValue(manualPromise);
+
+      const resultPromise = deduplicator.deduplicate('clear-catch', fn);
+
+      // Clear the cache entry before the promise rejects
+      deduplicator.clear('clear-catch');
+
+      // Now reject — .catch() runs but entry is gone from cache
+      rejectManual!(new Error('late-error'));
+
+      await expect(resultPromise).rejects.toThrow('late-error');
+    });
+  });
+
+  // ========================================================================
+  // cleanOldEntries with no expired entries (line 215 false branch)
+  // ========================================================================
+
+  describe('cleanOldEntries with no expired entries', () => {
+    it('does nothing when all entries are within expiration window', async () => {
+      // Use a longer window so entries survive the 1s cleanup interval
+      const longWindowDed = new IPCDeduplicator({
+        windowMs: 1000, // windowMs * 2 = 2000ms expiration
+        maxCacheSize: 10,
+        debug: false,
+      });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await longWindowDed.deduplicate('survive-key', fn);
+      expect(longWindowDed.getCacheSize()).toBe(1);
+
+      // Advance 1000ms to trigger cleanup interval — entry is 1000ms old,
+      // but expiration is windowMs * 2 = 2000ms, so it survives
+      vi.advanceTimersByTime(1000);
+
+      expect(longWindowDed.getCacheSize()).toBe(1);
+
+      longWindowDed.destroy();
+    });
+  });
 });

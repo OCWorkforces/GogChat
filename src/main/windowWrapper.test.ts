@@ -69,6 +69,29 @@ vi.mock('./utils/mediaAccess', () => ({
   checkAndRequestMediaAccess: vi.fn().mockResolvedValue(true),
   showDeniedPermissionDialog: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('./utils/windowEventLogger', () => ({
+  attachEventLogging: vi.fn((win: { on: (...args: unknown[]) => void }) => {
+    for (const event of ['show', 'hide', 'focus', 'blur', 'minimize', 'restore']) {
+      win.on(event, () => {});
+    }
+  }),
+}));
+
+vi.mock('./utils/windowHealthMonitor', () => ({
+  attachHealthMonitoring: vi.fn((win: { webContents: { on: (...args: unknown[]) => void } }) => {
+    for (const event of [
+      'console-message',
+      'did-fail-load',
+      'did-finish-load',
+      'did-navigate',
+      'render-process-gone',
+      'unresponsive',
+      'responsive',
+    ]) {
+      win.webContents.on(event, () => {});
+    }
+  }),
+}));
 
 import createWindow from './windowWrapper';
 

@@ -80,9 +80,12 @@ vi.mock('../utils/deepLinkUtils.js', () => ({
   extractDeepLinkFromArgv: extractDeepLinkFromArgvMock,
 }));
 
-const processDeepLinkMock = vi.fn();
-vi.mock('./deepLinkHandler.js', () => ({
-  processDeepLink: processDeepLinkMock,
+const processDeepLinkHandlerMock = vi.fn();
+vi.mock('../utils/menuActionRegistry.js', () => ({
+  getMenuAction: vi.fn(() => ({
+    label: 'Process deep link',
+    handler: processDeepLinkHandlerMock,
+  })),
 }));
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
@@ -99,7 +102,7 @@ describe('singleInstance feature', () => {
     appMock.exit.mockClear();
     appMock.on.mockClear();
     extractDeepLinkFromArgvMock.mockReturnValue(null);
-    processDeepLinkMock.mockClear();
+    processDeepLinkHandlerMock.mockClear();
   });
 
   // ── enforceSingleInstance ────────────────────────────────────────────────────
@@ -230,7 +233,7 @@ describe('singleInstance feature', () => {
 
       secondInstanceHandler?.({}, ['node', 'app', deepLinkUrl]);
 
-      expect(processDeepLinkMock).toHaveBeenCalledWith(deepLinkUrl);
+      expect(processDeepLinkHandlerMock).toHaveBeenCalledWith(deepLinkUrl);
     });
 
     it('does not process deep link when no URL in argv', async () => {
@@ -246,7 +249,7 @@ describe('singleInstance feature', () => {
 
       secondInstanceHandler?.({}, ['node', 'app']);
 
-      expect(processDeepLinkMock).not.toHaveBeenCalled();
+      expect(processDeepLinkHandlerMock).not.toHaveBeenCalled();
     });
 
     it('passes correct argv to extractDeepLinkFromArgv', async () => {
@@ -281,6 +284,30 @@ describe('singleInstance feature', () => {
 
       expect(fakeWindow.show).toHaveBeenCalled();
       expect(fakeWindow.focus).toHaveBeenCalled();
+    });
+
+    it('logs warning when processDeepLink action is not registered', async () => {
+      const deepLinkUrl = 'gogchat://room/unregistered';
+      extractDeepLinkFromArgvMock.mockReturnValue(deepLinkUrl);
+
+      const { getMenuAction } = await import('../utils/menuActionRegistry.js');
+      vi.mocked(getMenuAction).mockReturnValueOnce(undefined);
+
+      const { restoreFirstInstance } = await import('./singleInstance.js');
+
+      restoreFirstInstance({});
+
+      const secondInstanceHandler = appMock.on.mock.calls.find(
+        (call: unknown[]) => (call[0] as string) === 'second-instance'
+      )?.[1] as (event: unknown, argv: string[]) => void;
+
+      secondInstanceHandler?.({}, ['node', 'app', deepLinkUrl]);
+
+      const logMock = await import('electron-log');
+      expect(logMock.default.warn).toHaveBeenCalledWith(
+        '[SingleInstance] processDeepLink action not registered \u2014 deep link dropped'
+      );
+      expect(processDeepLinkHandlerMock).not.toHaveBeenCalled();
     });
   });
 });

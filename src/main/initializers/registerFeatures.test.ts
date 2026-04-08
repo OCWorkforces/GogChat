@@ -2,21 +2,28 @@
  * Unit tests for registerFeatures — top-level feature registration orchestrator
  *
  * Covers: registerAllFeatures() delegates to registerSecurityFeatures,
- * registerUIFeatures, registerDeferredFeatures in order, and logs completion.
+ * registerUIFeatures, and the 3 deferred sub-registrars in order, and logs completion.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks (available inside vi.mock factories) ──────────────────────
 
-const { mockLogInfo, mockRegisterSecurity, mockRegisterUI, mockRegisterDeferred } = vi.hoisted(
-  () => ({
-    mockLogInfo: vi.fn(),
-    mockRegisterSecurity: vi.fn(),
-    mockRegisterUI: vi.fn(),
-    mockRegisterDeferred: vi.fn(),
-  })
-);
+const {
+  mockLogInfo,
+  mockRegisterSecurity,
+  mockRegisterUI,
+  mockRegisterDeferredSystem,
+  mockRegisterDeferredWindow,
+  mockRegisterDeferredNetwork,
+} = vi.hoisted(() => ({
+  mockLogInfo: vi.fn(),
+  mockRegisterSecurity: vi.fn(),
+  mockRegisterUI: vi.fn(),
+  mockRegisterDeferredSystem: vi.fn(),
+  mockRegisterDeferredWindow: vi.fn(),
+  mockRegisterDeferredNetwork: vi.fn(),
+}));
 
 vi.mock('electron-log', () => ({
   default: {
@@ -35,8 +42,16 @@ vi.mock('./registerUIFeatures.js', () => ({
   registerUIFeatures: mockRegisterUI,
 }));
 
-vi.mock('./registerDeferredFeatures.js', () => ({
-  registerDeferredFeatures: mockRegisterDeferred,
+vi.mock('./registerDeferredSystemFeatures.js', () => ({
+  registerDeferredSystemFeatures: mockRegisterDeferredSystem,
+}));
+
+vi.mock('./registerDeferredWindowFeatures.js', () => ({
+  registerDeferredWindowFeatures: mockRegisterDeferredWindow,
+}));
+
+vi.mock('./registerDeferredNetworkFeatures.js', () => ({
+  registerDeferredNetworkFeatures: mockRegisterDeferredNetwork,
 }));
 
 import { registerAllFeatures } from './registerFeatures';
@@ -71,22 +86,44 @@ describe('registerFeatures', () => {
     expect(mockRegisterUI).toHaveBeenCalledWith(mockFeatureManager);
   });
 
-  it('should call registerDeferredFeatures with featureManager and callbacks', () => {
+  it('should call registerDeferredSystemFeatures with featureManager and callbacks', () => {
     registerAllFeatures(mockFeatureManager, mockCallbacks);
 
-    expect(mockRegisterDeferred).toHaveBeenCalledTimes(1);
-    expect(mockRegisterDeferred).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
+    expect(mockRegisterDeferredSystem).toHaveBeenCalledTimes(1);
+    expect(mockRegisterDeferredSystem).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
   });
 
-  it('should call sub-registrars in order: security → ui → deferred', () => {
+  it('should call registerDeferredWindowFeatures with featureManager and callbacks', () => {
+    registerAllFeatures(mockFeatureManager, mockCallbacks);
+
+    expect(mockRegisterDeferredWindow).toHaveBeenCalledTimes(1);
+    expect(mockRegisterDeferredWindow).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
+  });
+
+  it('should call registerDeferredNetworkFeatures with featureManager and callbacks', () => {
+    registerAllFeatures(mockFeatureManager, mockCallbacks);
+
+    expect(mockRegisterDeferredNetwork).toHaveBeenCalledTimes(1);
+    expect(mockRegisterDeferredNetwork).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
+  });
+
+  it('should call sub-registrars in order: security → ui → deferredSystem → deferredWindow → deferredNetwork', () => {
     const callOrder: string[] = [];
     mockRegisterSecurity.mockImplementation(() => callOrder.push('security'));
     mockRegisterUI.mockImplementation(() => callOrder.push('ui'));
-    mockRegisterDeferred.mockImplementation(() => callOrder.push('deferred'));
+    mockRegisterDeferredSystem.mockImplementation(() => callOrder.push('deferredSystem'));
+    mockRegisterDeferredWindow.mockImplementation(() => callOrder.push('deferredWindow'));
+    mockRegisterDeferredNetwork.mockImplementation(() => callOrder.push('deferredNetwork'));
 
     registerAllFeatures(mockFeatureManager, mockCallbacks);
 
-    expect(callOrder).toEqual(['security', 'ui', 'deferred']);
+    expect(callOrder).toEqual([
+      'security',
+      'ui',
+      'deferredSystem',
+      'deferredWindow',
+      'deferredNetwork',
+    ]);
   });
 
   it('should log completion message after all registrations', () => {
@@ -99,7 +136,9 @@ describe('registerFeatures', () => {
     const callOrder: string[] = [];
     mockRegisterSecurity.mockImplementation(() => callOrder.push('security'));
     mockRegisterUI.mockImplementation(() => callOrder.push('ui'));
-    mockRegisterDeferred.mockImplementation(() => callOrder.push('deferred'));
+    mockRegisterDeferredSystem.mockImplementation(() => callOrder.push('deferredSystem'));
+    mockRegisterDeferredWindow.mockImplementation(() => callOrder.push('deferredWindow'));
+    mockRegisterDeferredNetwork.mockImplementation(() => callOrder.push('deferredNetwork'));
     mockLogInfo.mockImplementation((msg: string) => {
       if (msg === '[Features] All features registered') {
         callOrder.push('log');
@@ -108,7 +147,14 @@ describe('registerFeatures', () => {
 
     registerAllFeatures(mockFeatureManager, mockCallbacks);
 
-    expect(callOrder).toEqual(['security', 'ui', 'deferred', 'log']);
+    expect(callOrder).toEqual([
+      'security',
+      'ui',
+      'deferredSystem',
+      'deferredWindow',
+      'deferredNetwork',
+      'log',
+    ]);
   });
 
   it('should pass the same featureManager reference to all sub-registrars', () => {
@@ -116,10 +162,12 @@ describe('registerFeatures', () => {
 
     expect(mockRegisterSecurity.mock.calls[0]![0]).toBe(mockFeatureManager);
     expect(mockRegisterUI.mock.calls[0]![0]).toBe(mockFeatureManager);
-    expect(mockRegisterDeferred.mock.calls[0]![0]).toBe(mockFeatureManager);
+    expect(mockRegisterDeferredSystem.mock.calls[0]![0]).toBe(mockFeatureManager);
+    expect(mockRegisterDeferredWindow.mock.calls[0]![0]).toBe(mockFeatureManager);
+    expect(mockRegisterDeferredNetwork.mock.calls[0]![0]).toBe(mockFeatureManager);
   });
 
-  it('should only pass callbacks to registerDeferredFeatures (not security/ui)', () => {
+  it('should only pass callbacks to deferred sub-registrars (not security/ui)', () => {
     registerAllFeatures(mockFeatureManager, mockCallbacks);
 
     // Security gets only featureManager
@@ -130,8 +178,22 @@ describe('registerFeatures', () => {
     expect(mockRegisterUI).toHaveBeenCalledWith(mockFeatureManager);
     expect(mockRegisterUI.mock.calls[0]).toHaveLength(1);
 
-    // Deferred gets both
-    expect(mockRegisterDeferred).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
-    expect(mockRegisterDeferred.mock.calls[0]).toHaveLength(2);
+    // Deferred sub-registrars get both
+    expect(mockRegisterDeferredSystem).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
+    expect(mockRegisterDeferredSystem.mock.calls[0]).toHaveLength(2);
+
+    expect(mockRegisterDeferredWindow).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
+    expect(mockRegisterDeferredWindow.mock.calls[0]).toHaveLength(2);
+
+    expect(mockRegisterDeferredNetwork).toHaveBeenCalledWith(mockFeatureManager, mockCallbacks);
+    expect(mockRegisterDeferredNetwork.mock.calls[0]).toHaveLength(2);
+  });
+
+  it('should propagate the exact same callbacks reference to all deferred sub-registrars', () => {
+    registerAllFeatures(mockFeatureManager, mockCallbacks);
+
+    expect(mockRegisterDeferredSystem.mock.calls[0]![1]).toBe(mockCallbacks);
+    expect(mockRegisterDeferredWindow.mock.calls[0]![1]).toBe(mockCallbacks);
+    expect(mockRegisterDeferredNetwork.mock.calls[0]![1]).toBe(mockCallbacks);
   });
 });

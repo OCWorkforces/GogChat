@@ -8,7 +8,6 @@
 import { createFeature } from '../utils/featureTypes.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import overrideUserAgent from '../features/userAgent.js';
-import { restoreFirstInstance } from '../features/singleInstance.js';
 
 export function registerUIFeatures(featureManager: FeatureManager): void {
   featureManager.registerAll([
@@ -23,7 +22,8 @@ export function registerUIFeatures(featureManager: FeatureManager): void {
     createFeature(
       'singleInstance',
       'ui',
-      ({ accountWindowManager }) => {
+      async ({ accountWindowManager }) => {
+        const { restoreFirstInstance } = await import('../features/singleInstance.js');
         // Pass account window manager for dynamic window lookup on second-instance
         restoreFirstInstance({ accountWindowManager });
       },

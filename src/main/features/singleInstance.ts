@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import log from 'electron-log';
-import { processDeepLink } from './deepLinkHandler.js';
+import { getMenuAction } from '../utils/menuActionRegistry.js';
 import { extractDeepLinkFromArgv } from '../utils/deepLinkUtils.js';
 import { getMostRecentWindow } from '../utils/accountWindowManager.js';
 
@@ -32,7 +32,12 @@ const restoreFirstInstance = (_context: { accountWindowManager?: unknown }) => {
     const deepLinkUrl = extractDeepLinkFromArgv(argv);
     if (deepLinkUrl) {
       log.info('[SingleInstance] Received deep link from second instance');
-      processDeepLink(deepLinkUrl);
+      const action = getMenuAction('processDeepLink');
+      if (action) {
+        action.handler(deepLinkUrl);
+      } else {
+        log.warn('[SingleInstance] processDeepLink action not registered — deep link dropped');
+      }
     }
   });
 };

@@ -8,6 +8,7 @@ import {
   getWindowForAccount,
 } from '../utils/accountWindowManager.js';
 import { addTrackedListener } from '../utils/trackedResources.js';
+import { registerMenuAction } from '../utils/menuActionRegistry.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;
@@ -155,6 +156,11 @@ export default function initDeepLinkHandler(_context: { accountWindowManager?: u
     registerDeepLinkProtocol();
     processPendingDeepLink();
     log.info('[DeepLink] Deep link handler initialized');
+
+    registerMenuAction('processDeepLink', {
+      label: 'Process deep link',
+      handler: (url: string) => processDeepLink(url),
+    });
   } catch (error: unknown) {
     log.error('[DeepLink] Failed to initialize deep link handler:', error);
   }
