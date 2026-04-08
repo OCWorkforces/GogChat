@@ -1,14 +1,16 @@
 /**
- * Account Window Manager - Multi-account session management
+ * Account Window Manager - Multi-account session management (Facade)
  *
- * Provides isolated BrowserWindow instances per account using Electron's
- * partition concept. Each account gets its own session storage.
+ * Public API facade for per-account BrowserWindow management.
+ * Delegates window registry operations to {@link AccountWindowRegistry}
+ * and window creation/routing to {@link routeAccountWindow}.
+ *
+ * All consumers import from this module — internal structure is transparent.
  *
  * @module accountWindowManager
  */
 
 import { BrowserWindow } from 'electron';
-import { isGoogleAuthUrl } from '../../shared/validators.js';
 import log from 'electron-log';
 import store from '../config.js';
 import type { AccountWindowState, WindowFactory } from '../../shared/types.js';
@@ -20,244 +22,81 @@ import {
   getBootstrapAccounts as _getBootstrapAccounts,
   clearAllBootstrap,
 } from './bootstrapTracker.js';
-
-/**
- * Account window registration entry
- */
-interface AccountWindowEntry {
-  window: BrowserWindow;
-  accountIndex: number;
-  createdAt: number;
-}
+import { AccountWindowRegistry } from './accountWindowRegistry.js';
+import { routeAccountWindow } from './accountRouter.js';
 
 /**
  * Account Window Manager - Manages per-account BrowserWindow instances
+ *
+ * Facade that delegates to:
+ * - {@link AccountWindowRegistry} for window registration/lookup/lifecycle
+ * - {@link routeAccountWindow} for window creation routing
  */
 export class AccountWindowManager {
-  private windows = new Map<number, AccountWindowEntry>();
-  private reverseLookup = new Map<BrowserWindow, number>();
-  private mostRecentAccountIndex: number | null = null;
-  /**
-   * Tracks event listeners attached to windows so they can be removed on re-register.
-   * Prevents stale closures from firing with wrong accountIndex on focus/show events.
-   */
-  private windowListeners = new Map<
-    BrowserWindow,
-    { focus: () => void; show: () => void; closed: () => void }
-  >();
-  /**
-   * Reverse index for O(1) webContents.id → accountIndex lookup.
-   * Used by getAccountForWebContents() to avoid O(n) iteration.
-   */
-  private webContentsToAccountIndex = new Map<number, number>();
+  private readonly registry: AccountWindowRegistry;
 
   constructor(private readonly windowFactory?: WindowFactory) {
     // Reset shared bootstrap tracker so each manager instance starts clean
     clearAllBootstrap();
+    this.registry = new AccountWindowRegistry();
   }
 
-  /**
-   * Register a BrowserWindow for a specific account index
-   * @param window - The BrowserWindow to register
-   * @param accountIndex - The account index (0, 1, 2, ...)
-   */
+  // ─── Registry delegates ──────────────────────────────────────────────────
+
   registerWindow(window: BrowserWindow, accountIndex: number): void {
-    // Clean up existing entry if re-registering
-    if (this.reverseLookup.has(window)) {
-      const existingIndex = this.reverseLookup.get(window);
-      if (existingIndex !== undefined && existingIndex !== accountIndex) {
-        this.windows.delete(existingIndex);
-      }
-    }
-
-    const entry: AccountWindowEntry = {
-      window,
-      accountIndex,
-      createdAt: Date.now(),
-    };
-
-    this.windows.set(accountIndex, entry);
-    this.reverseLookup.set(window, accountIndex);
-    // Remove old listeners if re-registering (prevents listener leak)
-    const existingListeners = this.windowListeners.get(window);
-    if (existingListeners) {
-      window.removeListener('focus', existingListeners.focus);
-      window.removeListener('show', existingListeners.show);
-      window.removeListener('closed', existingListeners.closed);
-    }
-
-    const focusHandler = () => {
-      this.mostRecentAccountIndex = accountIndex;
-    };
-    const showHandler = () => {
-      this.mostRecentAccountIndex = accountIndex;
-    };
-    const closedHandler = () => {
-      this.unregisterAccount(accountIndex);
-    };
-
-    window.on('focus', focusHandler);
-    window.on('show', showHandler);
-    window.on('closed', closedHandler);
-
-    this.windowListeners.set(window, {
-      focus: focusHandler,
-      show: showHandler,
-      closed: closedHandler,
-    });
-    this.webContentsToAccountIndex.set(window.webContents.id, accountIndex);
-    log.info(`[AccountWindowManager] Registered window for account ${accountIndex}`);
+    this.registry.registerWindow(window, accountIndex);
   }
 
-  /**
-   * Get the account index for a given BrowserWindow
-   * @param window - The BrowserWindow to look up
-   * @returns The account index or null if not found
-   */
   getAccountIndex(window: BrowserWindow): number | null {
-    const index = this.reverseLookup.get(window);
-    return index !== undefined ? index : null;
+    return this.registry.getAccountIndex(window);
   }
 
-  /**
-   * Get the BrowserWindow for a specific account index
-   * @param accountIndex - The account index to look up
-   * @returns The BrowserWindow or null if not found
-   */
   getAccountWindow(accountIndex: number): BrowserWindow | null {
-    const entry = this.windows.get(accountIndex);
-    return entry?.window ?? null;
+    return this.registry.getAccountWindow(accountIndex);
   }
 
-  /**
-   * Get webContents for a specific account
-   * @param accountIndex - The account index
-   * @returns The webContents or null if window doesn't exist
-   */
   getAccountWebContents(accountIndex: number): Electron.WebContents | null {
-    const window = this.getAccountWindow(accountIndex);
-    return window?.webContents ?? null;
+    return this.registry.getAccountWebContents(accountIndex);
   }
 
   getAccountForWebContents(webContentsId: number): number | null {
-    const index = this.webContentsToAccountIndex.get(webContentsId);
-    return index !== undefined ? index : null;
+    return this.registry.getAccountForWebContents(webContentsId);
   }
 
-  /**
-   * Get all registered account windows
-   * @returns Array of all BrowserWindows
-   */
   getAllWindows(): BrowserWindow[] {
-    return Array.from(this.windows.values()).map((entry) => entry.window);
+    return this.registry.getAllWindows();
   }
 
-  /**
-   * Get the most recently created account window
-   * @returns The most recent BrowserWindow or null if none exist
-   */
   getMostRecentWindow(): BrowserWindow | null {
-    if (this.mostRecentAccountIndex === null) {
-      return null;
-    }
-    return this.getAccountWindow(this.mostRecentAccountIndex);
+    return this.registry.getMostRecentWindow();
   }
 
-  /**
-   * Create a new account window with isolated session partition
-   * @param url - The URL to load
-   * @param accountIndex - The account index for this window
-   * @returns The created BrowserWindow
-   */
-  createAccountWindow(url: string, accountIndex: number): BrowserWindow {
-    const existingWindow = this.getAccountWindow(accountIndex);
-    if (existingWindow && !existingWindow.isDestroyed()) {
-      if (existingWindow.isMinimized()) {
-        existingWindow.restore();
-      }
-      existingWindow.show();
-      existingWindow.focus();
-      this.mostRecentAccountIndex = accountIndex;
-      // If this is a bootstrap window already mid-auth-flow, do not interrupt
-      // sign-in by calling loadURL again.
-      const isBootstrapWindow = _isBootstrap(accountIndex);
-      const currentUrl = existingWindow.webContents.getURL();
-      if (isBootstrapWindow && isGoogleAuthUrl(currentUrl)) {
-        log.info(
-          `[AccountWindowManager] Skipping loadURL for account ${accountIndex} — bootstrap window is mid-auth (${currentUrl})`
-        );
-        return existingWindow;
-      }
-      void existingWindow.loadURL(url);
-      return existingWindow;
-    }
-
-    if (!this.windowFactory) {
-      throw new Error('[AccountWindowManager] No WindowFactory injected — cannot create window');
-    }
-    const partition = `persist:account-${accountIndex}`;
-    const window = this.windowFactory.createWindow(url, partition);
-
-    this.registerWindow(window, accountIndex);
-
-    log.info(
-      `[AccountWindowManager] Created account window ${accountIndex} with partition: ${partition}`
-    );
-
-    return window;
-  }
-
-  /**
-   * Remove a window from management (without destroying it)
-   * @param accountIndex - The account index to remove
-   */
   unregisterAccount(accountIndex: number): void {
-    const entry = this.windows.get(accountIndex);
-    if (entry) {
-      // Clean up event listeners
-      const listeners = this.windowListeners.get(entry.window);
-      if (listeners && !entry.window.isDestroyed()) {
-        entry.window.removeListener('focus', listeners.focus);
-        entry.window.removeListener('show', listeners.show);
-        entry.window.removeListener('closed', listeners.closed);
-      }
-      this.windowListeners.delete(entry.window);
+    this.registry.unregisterAccount(accountIndex);
+  }
 
-      // Clean up webContents reverse index
-      if (!entry.window.isDestroyed()) {
-        this.webContentsToAccountIndex.delete(entry.window.webContents.id);
-      }
+  hasAccount(accountIndex: number): boolean {
+    return this.registry.hasAccount(accountIndex);
+  }
 
-      this.reverseLookup.delete(entry.window);
-      this.windows.delete(accountIndex);
-      _clearBootstrap(accountIndex);
+  getAccountCount(): number {
+    return this.registry.getAccountCount();
+  }
 
-      if (this.mostRecentAccountIndex === accountIndex) {
-        // Find the next most recent
-        let newestIndex: number | null = null;
-        let newestTime = 0;
-        for (const [idx, e] of this.windows) {
-          if (e.createdAt > newestTime) {
-            newestTime = e.createdAt;
-            newestIndex = idx;
-          }
-        }
-        this.mostRecentAccountIndex = newestIndex;
-      }
+  destroyAll(): void {
+    this.registry.destroyAll();
+  }
 
-      log.info(`[AccountWindowManager] Unregistered account ${accountIndex}`);
-    }
+  // ─── Router delegate ─────────────────────────────────────────────────────
+
+  createAccountWindow(url: string, accountIndex: number): BrowserWindow {
+    return routeAccountWindow(this.registry, this.windowFactory, url, accountIndex);
   }
 
   // ─── Bootstrap window tracking ───────────────────────────────────────────
 
-  /**
-   * Mark an existing account window as a bootstrap (pre-auth) window.
-   * Calling this on an unknown accountIndex is a no-op.
-   * @param accountIndex - The account index to mark
-   */
   markAsBootstrap(accountIndex: number): void {
-    if (!this.windows.has(accountIndex)) {
+    if (!this.registry.hasAccount(accountIndex)) {
       log.warn(
         `[AccountWindowManager] markAsBootstrap: account ${accountIndex} not registered — ignored`
       );
@@ -266,62 +105,24 @@ export class AccountWindowManager {
     _markAsBootstrap(accountIndex);
   }
 
-  /**
-   * Query whether an account window is currently in bootstrap state.
-   * @param accountIndex - The account index to query
-   * @returns True if the window is a bootstrap window
-   */
   isBootstrap(accountIndex: number): boolean {
     return _isBootstrap(accountIndex);
   }
 
-  /**
-   * Promote a bootstrap window to a real authenticated account window.
-   * Clears the bootstrap flag; the window remains registered and open.
-   * @param accountIndex - The account index to promote
-   * @returns True if the window was previously marked as bootstrap
-   */
   promoteBootstrap(accountIndex: number): boolean {
     return _promoteBootstrap(accountIndex);
   }
 
-  /**
-   * Clear the bootstrap flag for an account without promoting it.
-   * Use this when the bootstrap window should be discarded rather than kept.
-   * @param accountIndex - The account index to clear
-   */
   clearBootstrap(accountIndex: number): void {
     _clearBootstrap(accountIndex);
   }
 
-  /**
-   * Return all account indices currently in bootstrap state.
-   */
   getBootstrapAccounts(): number[] {
     return _getBootstrapAccounts();
   }
 
-  /**
-   * Check if an account window exists
-   * @param accountIndex - The account index to check
-   * @returns True if the account window exists
-   */
-  hasAccount(accountIndex: number): boolean {
-    return this.windows.has(accountIndex);
-  }
+  // ─── Window state persistence ────────────────────────────────────────────
 
-  /**
-   * Get the number of registered accounts
-   * @returns The count of registered accounts
-   */
-  getAccountCount(): number {
-    return this.windows.size;
-  }
-
-  /**
-   * Save window state for an account to the store
-   * @param accountIndex - The account index
-   */
   saveAccountWindowState(accountIndex: number): void {
     const window = this.getAccountWindow(accountIndex);
     if (!window || window.isDestroyed()) {
@@ -346,36 +147,9 @@ export class AccountWindowManager {
     log.debug(`[AccountWindowManager] Saved state for account ${accountIndex}`);
   }
 
-  /**
-   * Get saved window state for an account from the store
-   * @param accountIndex - The account index
-   * @returns The saved window state or default
-   */
   getAccountWindowState(accountIndex: number): AccountWindowState | null {
     const accountWindows = store.get('accountWindows');
     return accountWindows?.[accountIndex] ?? null;
-  }
-
-  /**
-   * Cleanup and destroy all account windows
-   */
-  destroyAll(): void {
-    log.info(`[AccountWindowManager] Destroying ${this.windows.size} account windows`);
-
-    // Clear webContents reverse index first
-    this.webContentsToAccountIndex.clear();
-
-    for (const entry of this.windows.values()) {
-      if (!entry.window.isDestroyed()) {
-        entry.window.destroy();
-      }
-    }
-
-    this.windows.clear();
-    this.reverseLookup.clear();
-    clearAllBootstrap();
-    this.windowListeners.clear();
-    this.mostRecentAccountIndex = null;
   }
 }
 
