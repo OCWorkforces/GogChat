@@ -117,6 +117,17 @@ export default [
         document: 'readonly',
         navigator: 'readonly',
         MutationObserver: 'readonly',
+        // DOM types used in preload test type annotations
+        Event: 'readonly',
+        EventListener: 'readonly',
+        EventListenerOrEventListenerObject: 'readonly',
+        MutationRecord: 'readonly',
+        MutationCallback: 'readonly',
+        NodeListOf: 'readonly',
+        Element: 'readonly',
+        HTMLLinkElement: 'readonly',
+        DOMException: 'readonly',
+        Notification: 'readonly',
       },
     },
     plugins: {
