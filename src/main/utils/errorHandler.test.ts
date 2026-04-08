@@ -47,7 +47,6 @@ describe('ErrorHandler', () => {
     vi.resetModules();
   });
 
-
   // ========================================================================
   // Singleton
   // ========================================================================
@@ -283,6 +282,21 @@ describe('ErrorHandler', () => {
       const result = await handler.wrapAsync({ feature: 'cleanupTest' }, async () => 'second');
       expect(result).toBe('second');
     });
+
+    it('uses "unknown" as feature name when context.feature is missing and operation throws', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      await expect(
+        handler.wrapAsync({}, async () => {
+          throw new Error('no-feature error');
+        })
+      ).rejects.toThrow('no-feature error');
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes("'unknown'"))).toBe(true);
+    });
   });
 
   // ========================================================================
@@ -358,6 +372,21 @@ describe('ErrorHandler', () => {
       // Second call should still work - context was cleaned
       const result = handler.wrapSync({ feature: 'syncCleanup' }, () => 'second');
       expect(result).toBe('second');
+    });
+
+    it('uses "unknown" as feature name when context.feature is missing and operation throws', async () => {
+      const { getErrorHandler } = await import('./errorHandler');
+      const log = await import('electron-log');
+      const handler = getErrorHandler();
+
+      expect(() => {
+        handler.wrapSync({}, () => {
+          throw new Error('no-feature sync error');
+        });
+      }).toThrow('no-feature sync error');
+
+      const errorCalls = log.default.error.mock.calls;
+      expect(errorCalls.some((call) => call[0]?.includes("'unknown'"))).toBe(true);
     });
   });
 

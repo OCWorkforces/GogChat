@@ -663,4 +663,75 @@ describe('PerformanceMonitor', () => {
       expect(memStats!.peak.heapUsed).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('Array cap enforcement', () => {
+    it('should cap memorySnapshots at MAX_SNAPSHOTS (100) with FIFO eviction', () => {
+      vi.useFakeTimers();
+      const monitor = getPerformanceMonitor();
+      // Constructor already adds 1 snapshot ('startup') at time 0
+      // Add 110 more snapshots via mark(..., captureMemory=true) → total 111 pushes
+      for (let i = 0; i < 110; i++) {
+        vi.advanceTimersByTime(10); // advance 10ms per snapshot so timestamps differ
+        monitor.mark(`snap-${i}`, undefined, true);
+      }
+
+      const metrics = monitor.exportToJSON();
+      // Should be capped at 100
+      expect(metrics.memorySnapshots.length).toBe(100);
+      // The startup snapshot (timestamp ~0) should have been evicted
+      // First remaining snapshot should have timestamp > 0
+      expect(metrics.memorySnapshots[0]!.timestamp).toBeGreaterThan(0);
+
+      vi.useRealTimers();
+    });
+
+    it('should cap warnings at MAX_WARNINGS (50) with FIFO eviction', () => {
+      vi.useFakeTimers();
+      const monitor = getPerformanceMonitor();
+
+      // Generate 60 warnings by advancing time past CRITICAL_THRESHOLD_MS (3500ms)
+      // each mark at >3500ms adds a warning
+      for (let i = 0; i < 60; i++) {
+        vi.setSystemTime(Date.now() + 3600);
+        monitor.mark(`warn-${i}`);
+      }
+
+      const metrics = monitor.exportToJSON();
+      expect(metrics.warnings.length).toBeLessThanOrEqual(50);
+      // Oldest warnings should have been evicted — first warning should NOT be warn-0
+      expect(metrics.warnings[0]).not.toContain("'warn-0'");
+      // The most recent warning should still be present
+      expect(metrics.warnings[metrics.warnings.length - 1]).toContain("'warn-59'");
+
+      vi.useRealTimers();
+    });
+
+    it('should evict oldest snapshot (FIFO) when at capacity', () => {
+      vi.useFakeTimers();
+      const monitor = getPerformanceMonitor();
+      // Reset to clear the startup snapshot, then reset adds 1 snapshot at time 0
+      monitor.reset();
+
+      // Fill to exactly MAX_SNAPSHOTS: reset already added 1, add 99 more
+      for (let i = 0; i < 99; i++) {
+        vi.advanceTimersByTime(10);
+        monitor.mark(`fill-${i}`, undefined, true);
+      }
+
+      const metricsBefore = monitor.exportToJSON();
+      expect(metricsBefore.memorySnapshots.length).toBe(100);
+      const firstTimestamp = metricsBefore.memorySnapshots[0]!.timestamp;
+
+      // Add one more — should evict the oldest
+      vi.advanceTimersByTime(10);
+      monitor.mark('overflow', undefined, true);
+
+      const metricsAfter = monitor.exportToJSON();
+      expect(metricsAfter.memorySnapshots.length).toBe(100);
+      // The first entry should now have a different (later) timestamp
+      expect(metricsAfter.memorySnapshots[0]!.timestamp).toBeGreaterThan(firstTimestamp);
+
+      vi.useRealTimers();
+    });
+  });
 });
