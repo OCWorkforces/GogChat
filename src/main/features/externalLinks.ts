@@ -7,9 +7,7 @@ import {
   isGoogleAuthUrl,
 } from '../../shared/validators.js';
 import { createTrackedInterval } from '../utils/trackedResources.js';
-// Architecture: watchBootstrapAccount is defined in ../utils/bootstrapWatcher.ts,
-// re-exported through bootstrapPromotion.ts for backward compatibility.
-import { watchBootstrapAccount } from './bootstrapPromotion.js';
+import { watchBootstrapAccount } from '../utils/bootstrapWatcher.js';
 import {
   createAccountWindow,
   getAccountIndex,
