@@ -150,6 +150,7 @@ export class MockBrowserWindow extends EventEmitter {
  */
 export class MockWebContents extends EventEmitter {
   public url = '';
+  private destroyed = false;
   public session: MockSession;
 
   constructor() {
@@ -172,6 +173,14 @@ export class MockWebContents extends EventEmitter {
 
   getURL(): string {
     return this.url;
+  }
+
+  isDestroyed(): boolean {
+    return this.destroyed;
+  }
+
+  destroy(): void {
+    this.destroyed = true;
   }
 
   openDevTools(): void {
