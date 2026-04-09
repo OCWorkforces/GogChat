@@ -1,8 +1,8 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-03-30
+**Generated:** 2026-04-09
 
-22 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
+21 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
 
 ## FEATURE CONTRACT
 
