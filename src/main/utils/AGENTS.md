@@ -1,14 +1,15 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-04
+**Generated:** 2026-04-09
 
-31 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
+35 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
 
 ## MODULE INVENTORY
 
 | File                      | Lines | Purpose                                  | Singleton                   |
 | ------------------------- | ----- | ---------------------------------------- | --------------------------- |
 | `accountWindowManager.ts` | 437   | Multi-account BrowserWindow management   | `getAccountWindowManager()` |
+| `accountWindowRegistry.ts` | 255   | Window registration, lookup, lifecycle   | exported functions          |
 | `featureManager.ts`       | 363   | Feature lifecycle orchestrator           | `getFeatureManager()`       |
 | `platform.ts`             | 338   | macOS platform utils                     | `getPlatformUtils()`        |
 | `performanceMonitor.ts`   | 334   | Startup timing + memory snapshots        | `getPerformanceMonitor()`   |
@@ -34,10 +35,13 @@
 | `cspHeaderHandler.ts`     | 78    | Strip COEP/COOP headers for benign hosts | exported functions          |
 | `bootstrapTracker.ts`     | 74    | Tracks bootstrap window state            | exported functions          |
 | `menuActionRegistry.ts`   | 52    | Decouples features from appMenu          | exported functions          |
+| `accountRouter.ts`         | 65    | Window creation and routing logic        | exported functions          |
 | `errorUtils.ts`           | 49    | Zero-dependency error helpers            | exported functions          |
 | `ipcCommonValidators.ts`  | 48    | Common IPC validation helpers            | exported const              |
 | `cleanupTypes.ts`         | 30    | Shared cleanup types                     | exported types              |
 | `deepLinkUtils.ts`        | 27    | Deep link URL extraction from argv       | exported functions          |
+| `windowEventLogger.ts`     | 25    | Window lifecycle event logging           | exported functions          |
+| `windowHealthMonitor.ts`   | 69    | Window health monitoring                 | exported functions          |
 | `windowDefaults.ts`       | 19    | Window-related defaults from store       | exported functions          |
 `platform` (8 features), `accountWindowManager` (5), `ipcHelper` (4), `resourceCleanup` (4), `rateLimiter` (3), `iconCache` (3), `packageInfo` (3).
 

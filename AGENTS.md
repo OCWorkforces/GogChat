@@ -1,9 +1,9 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-05
+**Generated:** 2026-04-09
 
-**Commit:** 8a40ceb
-**Branch:** electrobun-engine
+**Commit:** 0ba7877
+**Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
 
@@ -14,10 +14,10 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 ```
 src/
 ├── main/          # Electron main process (features, initializers, utils)
-│   ├── features/  # 22 self-contained feature modules, phased lifecycle
+│   ├── features/  # 21 self-contained feature modules, phased lifecycle
 │   ├── initializers/ # Feature registration + shutdown handler
-│   └── utils/     # 32 utility modules (singletons, helpers, types)
-├── preload/       # 9 bridge scripts (CJS, sandbox-compatible)
+│   └── utils/     # 35 utility modules (singletons, helpers, types)
+├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
 ├── shared/        # Cross-process contracts (constants, types, validators)
 └── offline/       # Standalone fallback page (no IPC access)
 scripts/           # Dual-build system, lint, icon generation, notarization
