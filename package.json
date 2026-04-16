@@ -1,7 +1,7 @@
 {
   "name": "gogchat",
   "productName": "GogChat",
-  "version": "3.9.9",
+  "version": "3.9.10",
   "description": "Unofficial Google Chat desktop client built with Electron and Rust.",
   "private": true,
   "repository": "https://github.com/OCWorkforces/GogChat",
@@ -53,7 +53,7 @@
     "@typescript-eslint/parser": "^8.58.2",
     "@vitest/coverage-v8": "^4.1.4",
     "@vitest/ui": "^4.1.4",
-    "electron": "^41.2.0",
+    "electron": "^41.2.1",
     "electron-builder": "^26.8.1",
     "esbuild": "^0.28.0",
     "eslint": "^10.2.0",
