@@ -1,0 +1,252 @@
+/**
+ * Tests for preload/index.ts — renderer↔main contextBridge API
+ * SECURITY CRITICAL: this is the ONLY bridge between renderer and main processes.
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('electron', () => ({
+  contextBridge: { exposeInMainWorld: vi.fn() },
+  ipcRenderer: {
+    send: vi.fn(),
+    on: vi.fn(),
+    removeListener: vi.fn(),
+  },
+}));
+
+vi.mock('../shared/validators.js', () => ({
+  validateUnreadCount: vi.fn((v: number) => v),
+  validateFaviconURL: vi.fn((v: string) => v),
+  validatePasskeyFailureData: vi.fn((v: string) => ({ errorType: v, timestamp: 12345 })),
+}));
+
+vi.mock('../shared/constants.js', () => ({
+  IPC_CHANNELS: {
+    UNREAD_COUNT: 'unread-count',
+    FAVICON_CHANGED: 'favicon-changed',
+    NOTIFICATION_CLICKED: 'notification-clicked',
+    CHECK_IF_ONLINE: 'check-if-online',
+    PASSKEY_AUTH_FAILED: 'passkey-auth-failed',
+    SEARCH_SHORTCUT: 'search-shortcut',
+    ONLINE_STATUS: 'online-status',
+  },
+}));
+
+// Side-effect modules — stub out to keep test hermetic
+vi.mock('./disableWebAuthn.js', () => ({}));
+vi.mock('./faviconChanged.js', () => ({}));
+vi.mock('./offline.js', () => ({}));
+vi.mock('./passkeyMonitor.js', () => ({}));
+vi.mock('./searchShortcut.js', () => ({}));
+vi.mock('./unreadCount.js', () => ({}));
+
+import { contextBridge, ipcRenderer } from 'electron';
+import {
+  validateUnreadCount,
+  validateFaviconURL,
+  validatePasskeyFailureData,
+} from '../shared/validators.js';
+import type { GogChatBridgeAPI } from '../shared/types.js';
+
+type ExposeMock = ReturnType<typeof vi.fn> & {
+  mock: { calls: Array<[string, GogChatBridgeAPI]> };
+};
+
+async function loadPreload(): Promise<GogChatBridgeAPI> {
+  await import('./index');
+  const exposeMock = contextBridge.exposeInMainWorld as unknown as ExposeMock;
+  const call = exposeMock.mock.calls[0];
+  if (!call) throw new Error('contextBridge.exposeInMainWorld was not called');
+  return call[1];
+}
+
+describe('preload/index.ts', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  describe('contextBridge.exposeInMainWorld', () => {
+    it('is called exactly once with "gogchat" as namespace', async () => {
+      await loadPreload();
+      expect(contextBridge.exposeInMainWorld).toHaveBeenCalledTimes(1);
+      expect(contextBridge.exposeInMainWorld).toHaveBeenCalledWith('gogchat', expect.any(Object));
+    });
+
+    it('exposes exactly the 7 documented API methods', async () => {
+      const api = await loadPreload();
+      expect(typeof api.sendUnreadCount).toBe('function');
+      expect(typeof api.sendFaviconChanged).toBe('function');
+      expect(typeof api.sendNotificationClicked).toBe('function');
+      expect(typeof api.checkIfOnline).toBe('function');
+      expect(typeof api.reportPasskeyFailure).toBe('function');
+      expect(typeof api.onSearchShortcut).toBe('function');
+      expect(typeof api.onOnlineStatus).toBe('function');
+    });
+
+    it('does NOT leak raw ipcRenderer or other electron internals', async () => {
+      const api = await loadPreload();
+      const record = api as unknown as Record<string, unknown>;
+      expect(record.ipcRenderer).toBeUndefined();
+      expect(record.contextBridge).toBeUndefined();
+      expect(record.require).toBeUndefined();
+      expect(record.process).toBeUndefined();
+    });
+  });
+
+  describe('sendUnreadCount', () => {
+    it('validates and forwards valid count', async () => {
+      const api = await loadPreload();
+      api.sendUnreadCount(5);
+      expect(validateUnreadCount).toHaveBeenCalledWith(5);
+      expect(ipcRenderer.send).toHaveBeenCalledWith('unread-count', 5);
+    });
+
+    it('does NOT call ipcRenderer.send when validator throws; logs error', async () => {
+      vi.mocked(validateUnreadCount).mockImplementationOnce(() => {
+        throw new Error('bad count');
+      });
+      const api = await loadPreload();
+      api.sendUnreadCount(-1);
+      expect(ipcRenderer.send).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[GogChat API] Invalid unread count:',
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('sendFaviconChanged', () => {
+    it('validates and forwards valid href', async () => {
+      const api = await loadPreload();
+      api.sendFaviconChanged('https://example.com/fav.ico');
+      expect(validateFaviconURL).toHaveBeenCalledWith('https://example.com/fav.ico');
+      expect(ipcRenderer.send).toHaveBeenCalledWith(
+        'favicon-changed',
+        'https://example.com/fav.ico'
+      );
+    });
+
+    it('does NOT send when validator throws', async () => {
+      vi.mocked(validateFaviconURL).mockImplementationOnce(() => {
+        throw new Error('bad url');
+      });
+      const api = await loadPreload();
+      api.sendFaviconChanged('javascript:alert(1)');
+      expect(ipcRenderer.send).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[GogChat API] Invalid favicon URL:',
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('sendNotificationClicked', () => {
+    it('sends on NOTIFICATION_CLICKED channel with no payload', async () => {
+      const api = await loadPreload();
+      api.sendNotificationClicked();
+      expect(ipcRenderer.send).toHaveBeenCalledWith('notification-clicked');
+    });
+  });
+
+  describe('checkIfOnline', () => {
+    it('sends on CHECK_IF_ONLINE channel with no payload', async () => {
+      const api = await loadPreload();
+      api.checkIfOnline();
+      expect(ipcRenderer.send).toHaveBeenCalledWith('check-if-online');
+    });
+  });
+
+  describe('reportPasskeyFailure', () => {
+    it('validates and forwards validated payload', async () => {
+      const api = await loadPreload();
+      api.reportPasskeyFailure('NotAllowedError');
+      expect(validatePasskeyFailureData).toHaveBeenCalledWith('NotAllowedError');
+      expect(ipcRenderer.send).toHaveBeenCalledWith('passkey-auth-failed', {
+        errorType: 'NotAllowedError',
+        timestamp: 12345,
+      });
+    });
+
+    it('does NOT send when validator throws', async () => {
+      vi.mocked(validatePasskeyFailureData).mockImplementationOnce(() => {
+        throw new Error('bad passkey data');
+      });
+      const api = await loadPreload();
+      api.reportPasskeyFailure('');
+      expect(ipcRenderer.send).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[GogChat API] Invalid passkey failure data:',
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('onSearchShortcut', () => {
+    it('registers listener on SEARCH_SHORTCUT channel', async () => {
+      const api = await loadPreload();
+      const cb = vi.fn();
+      api.onSearchShortcut(cb);
+      expect(ipcRenderer.on).toHaveBeenCalledWith('search-shortcut', expect.any(Function));
+    });
+
+    it('invokes the provided callback when listener fires', async () => {
+      const api = await loadPreload();
+      const cb = vi.fn();
+      api.onSearchShortcut(cb);
+      const onMock = vi.mocked(ipcRenderer.on);
+      const [, listener] = onMock.mock.calls[0] ?? [];
+      expect(listener).toBeDefined();
+      (listener as (...args: unknown[]) => void)();
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns cleanup fn that calls removeListener with same listener', async () => {
+      const api = await loadPreload();
+      const cb = vi.fn();
+      const cleanup = api.onSearchShortcut(cb);
+      const onMock = vi.mocked(ipcRenderer.on);
+      const [, listener] = onMock.mock.calls[0] ?? [];
+      cleanup();
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('search-shortcut', listener);
+    });
+  });
+
+  describe('onOnlineStatus', () => {
+    it('registers listener on ONLINE_STATUS channel', async () => {
+      const api = await loadPreload();
+      const cb = vi.fn();
+      api.onOnlineStatus(cb);
+      expect(ipcRenderer.on).toHaveBeenCalledWith('online-status', expect.any(Function));
+    });
+
+    it('extracts online boolean from event args and invokes callback', async () => {
+      const api = await loadPreload();
+      const cb = vi.fn();
+      api.onOnlineStatus(cb);
+      const onMock = vi.mocked(ipcRenderer.on);
+      const [, listener] = onMock.mock.calls[0] ?? [];
+      expect(listener).toBeDefined();
+      // Simulate main → renderer dispatch: (event, online)
+      (listener as (event: unknown, online: boolean) => void)({}, true);
+      expect(cb).toHaveBeenCalledWith(true);
+
+      (listener as (event: unknown, online: boolean) => void)({}, false);
+      expect(cb).toHaveBeenCalledWith(false);
+      expect(cb).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns cleanup fn that calls removeListener with same listener', async () => {
+      const api = await loadPreload();
+      const cb = vi.fn();
+      const cleanup = api.onOnlineStatus(cb);
+      const onMock = vi.mocked(ipcRenderer.on);
+      const [, listener] = onMock.mock.calls[0] ?? [];
+      cleanup();
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('online-status', listener);
+    });
+  });
+});
