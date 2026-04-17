@@ -1,8 +1,8 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-09
+**Generated:** 2026-04-18
 
-21 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
+23 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
 
 ## FEATURE CONTRACT
 
@@ -42,6 +42,8 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `contextMenu.ts`        | `deferred` | none (cleanup via `registerCleanupTask`)               |
 | `firstLaunch.ts`        | `deferred` | none                                                   |
 | `aboutPanel.ts`         | on-demand  | none; self-registers in `menuActionRegistry`, called from appMenu |
+| `menuActionRegistry.ts` | utility    | none; registry for feature-provided menu actions (moved from utils/) |
+| `deepLinkUtils.ts`      | utility    | none; deep link URL extraction from argv (moved from utils/)        |
 
 ## MENU ACTION REGISTRY
 
@@ -107,3 +109,5 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 | `firstLaunch.ts` | 44 | First-launch onboarding |
 | `mediaPermissions.ts` | 36 | Camera/mic TCC permission check |
 | `contextMenu.ts` | 36 | Right-click context menu |
+| `menuActionRegistry.ts` | 52 | Registry decoupling features from appMenu (moved from utils/) |
+| `deepLinkUtils.ts` | 27 | Deep link URL extraction from argv (moved from utils/) |

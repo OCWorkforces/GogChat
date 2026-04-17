@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-09
+**Generated:** 2026-04-18
 
-**Commit:** 0ba7877
+**Commit:** cf15b13
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -14,11 +14,11 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 ```
 src/
 ├── main/          # Electron main process (features, initializers, utils)
-│   ├── features/  # 21 self-contained feature modules, phased lifecycle
+│   ├── features/  # 23 self-contained feature modules, phased lifecycle
 │   ├── initializers/ # Feature registration + shutdown handler
-│   └── utils/     # 35 utility modules (singletons, helpers, types)
-├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
-├── shared/        # Cross-process contracts (constants, types, validators)
+│   └── utils/     # 32 utility modules (singletons, helpers, types)
+├── preload/       # 7 bridge scripts (CJS, sandbox-compatible)
+├── shared/        # Cross-process contracts (constants, validators, types/ subdirectory)
 └── offline/       # Standalone fallback page (no IPC access)
 scripts/           # Dual-build system, lint, icon generation, notarization
 tests/             # 4 tiers: unit (colocated), integration, e2e, performance
@@ -39,7 +39,7 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Input validation     | `src/shared/validators.ts`                       | All IPC must go through here                |
 | Config schema        | `src/shared/types.ts` + `src/main/config.ts`     | Update both                                 |
 | Encryption keys      | `src/main/utils/encryptionKey.ts`                | SafeStorage + legacy migration              |
-| Menu action registry | `src/main/utils/menuActionRegistry.ts`           | Decouples features from appMenu             |
+| Menu action registry | `src/main/features/menuActionRegistry.ts`        | Decouples features from appMenu             |
 | window.gogchat API   | `src/preload/index.ts` + `src/shared/types.ts`   | `GogChatBridgeAPI`                          |
 | Build system         | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                                   |
 | CI/CD                | `.github/workflows/`                             | pr-check + release                          |
@@ -91,6 +91,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **Package manager**: `bun` only (no yarn/pnpm/npm)
 - **Node version**: >=22.0.0 (engineStrict enforced)
 - **TypeScript**: 6.0+ with strict mode (`noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`)
+- **ESLint**: `@typescript-eslint/consistent-type-imports: error` enforces `import type` for type-only imports
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
 - **New settings**: Update `StoreType` in `shared/types.ts` → add schema in `config.ts`
 - **IPC handler pattern**: rate limit → validate → handle → catch (see `src/main/AGENTS.md`)
@@ -119,6 +120,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **Never** interrupt a bootstrap window mid-auth-flow with `loadURL` — check `isGoogleAuthUrl()` first
 - **Never** destroy a window without unregistering from `accountWindowManager`
 - **Never** import from other features directly — use `menuActionRegistry`
+- **Never** mix runtime imports with type-only imports — use `import type` syntax consistently (ESLint enforced)
 
 ## SECURITY LAYERS (defense-in-depth)
 
@@ -172,14 +174,19 @@ bun run hooks:install  # Install git pre-push hook
 | `scripts/build-rsbuild.js`                  | 363   | Dual-build orchestrator                             |
 | `src/main/utils/ipcHelper.ts`               | 351   | Secure IPC handler factories                        |
 | `src/main/windowWrapper.ts`                 | 344   | Per-account BrowserWindow factory                   |
-| `src/main/utils/platform.ts`                | 338   | macOS platform utils, enforceMacOSAppLocation       |
-| `src/main/utils/performanceMonitor.ts`      | 334   | Startup timing markers, memory snapshots            |
+| `src/main/utils/performanceMonitor.ts`      | 292   | Startup timing markers, memory snapshots            |
 | `src/main/config.ts`                        | 328   | Encrypted electron-store with AES-256-GCM           |
-| `src/main/utils/ipcDeduplicator.ts`         | 321   | IPC request deduplication (100ms window)            |
-| `src/main/utils/errorHandler.ts`            | 318   | Structured error wrapping, feature init guard       |
+| `src/main/utils/ipcDeduplicator.ts`         | 263   | IPC request deduplication (100ms window)            |
+| `src/main/utils/errorHandler.ts`            | 245   | Structured error wrapping, feature init guard       |
 | `src/shared/urlValidators.ts`               | 303   | URL whitelist validation, Google auth URL detection |
 | `src/main/features/appMenu.ts`              | 301   | Application menu, About dialog                      |
 | `src/main/features/externalLinks.ts`        | 295   | External link handling with re-guard timer          |
-| `src/main/utils/resourceCleanup.ts`         | 271   | Tracked intervals/timeouts + lazy cleanup           |
+| `src/main/utils/resourceCleanup.ts`         | 372   | Tracked intervals/timeouts/listeners + lazy cleanup |
+| `src/main/utils/platformHelpers.ts`         | 141   | macOS platform helpers (enforceLocation, etc.)      |
+| `src/main/utils/platformUtils.ts`           | 159   | Platform utilities singleton (getLogPath, etc.)     |
+| `src/main/utils/performanceExport.ts`       | 128   | Performance export/log helpers                       |
+| `src/main/utils/windowUtils.ts`             | 121   | Merged window utilities (events, health, defaults)  |
+| `src/main/utils/featureTypes.ts`            | 178   | Feature config types + initializeFeature            |
+| `src/main/utils/ipcDeduplicationPatterns.ts`| 70    | Dedup patterns (createDeduplicatedHandler, etc.)    |
 | `src/main/index.ts`                         | 238   | Thin app entry, delegates to initializers           |
 | `src/main/initializers/registerShutdown.ts` | 178   | Graceful shutdown + cache diagnostics               |

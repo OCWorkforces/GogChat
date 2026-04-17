@@ -1,8 +1,8 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-09
+**Generated:** 2026-04-18
 
-35 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
+32 utility modules. All singletons follow `getXxx()` / `destroyXxx()` pattern. Cleanup registered lazily via `registerBuiltInGlobalCleanups()` — no direct imports from other utils at module level in `resourceCleanup.ts`.
 
 ## MODULE INVENTORY
 
@@ -11,18 +11,20 @@
 | `accountWindowManager.ts` | 437   | Multi-account BrowserWindow management   | `getAccountWindowManager()` |
 | `accountWindowRegistry.ts` | 255   | Window registration, lookup, lifecycle   | exported functions          |
 | `featureManager.ts`       | 363   | Feature lifecycle orchestrator           | `getFeatureManager()`       |
-| `platform.ts`             | 338   | macOS platform utils                     | `getPlatformUtils()`        |
-| `performanceMonitor.ts`   | 334   | Startup timing + memory snapshots        | `getPerformanceMonitor()`   |
-| `ipcDeduplicator.ts`      | 326   | Dedup rapid same-key requests            | `getDeduplicator()`         |
-| `errorHandler.ts`         | 277   | Structured error wrapping                | `getErrorHandler()`         |
+| `platformUtils.ts`        | 159   | Platform utilities singleton            | `getPlatformUtils()`        |
+| `platformHelpers.ts`      | 141   | macOS platform helpers (enforceLocation) | exported functions         |
+| `platformDetection.ts`    | 53    | macOS detection helpers (isMacOS, arch)  | exported functions         |
+| `performanceMonitor.ts`   | 292   | Startup timing + memory snapshots        | `getPerformanceMonitor()`   |
+| `ipcDeduplicator.ts`      | 263   | Dedup rapid same-key requests            | `getDeduplicator()`         |
+| `errorHandler.ts`         | 245   | Structured error wrapping                | `getErrorHandler()`         |
 | `ipcHelper.ts`            | 264   | Secure IPC handler factories             | `getIPCManager()`           |
-| `resourceCleanup.ts`      | 237   | Interval/listener/task cleanup           | `getCleanupManager()`       |
+| `resourceCleanup.ts`      | 372   | Interval/timeout/listener/task cleanup     | `getCleanupManager()`       |
 | `iconCache.ts`            | 218   | NativeImage preload cache                | `getIconCache()`            |
 | `bootstrapWatcher.ts`     | 205   | Bootstrap window navigation watching     | exported functions          |
 | `rateLimiter.ts`          | 199   | IPC DoS prevention                       | `getRateLimiter()`          |
 | `configCache.ts`          | 179   | In-memory layer for electron-store       | `addCacheLayer()`           |
 | `configSchema.ts`         | 159   | electron-store schema definition         | exported const              |
-| `featureTypes.ts`         | 143   | Feature config types + factory fns       | exported functions          |
+| `featureTypes.ts`         | 178   | Feature config types + `initializeFeature` | exported functions        |
 | `encryptionKey.ts`        | 128   | SafeStorage encryption key management    | exported functions          |
 | `mediaAccess.ts`          | 123   | macOS camera/mic TCC permissions         | exported functions          |
 | `logger.ts`               | 112   | Scoped structured logging                | `logger.*`                  |
@@ -37,11 +39,10 @@
 | `errorUtils.ts`           | 49    | Zero-dependency error helpers            | exported functions          |
 | `ipcCommonValidators.ts`  | 48    | Common IPC validation helpers            | exported const              |
 | `cleanupTypes.ts`         | 30    | Shared cleanup types                     | exported types              |
-| `deepLinkUtils.ts`        | 27    | Deep link URL extraction from argv       | exported functions          |
-| `windowEventLogger.ts`     | 25    | Window lifecycle event logging           | exported functions          |
-| `windowHealthMonitor.ts`   | 69    | Window health monitoring                 | exported functions          |
-| `windowDefaults.ts`       | 19    | Window-related defaults from store       | exported functions          |
-`platform` (8 features), `accountWindowManager` (5), `ipcHelper` (4), `resourceCleanup` (4), `rateLimiter` (3), `iconCache` (3), `packageInfo` (3).
+| `windowUtils.ts`          | 121   | Merged window utilities (events/health/defaults) | exported functions   |
+| `performanceExport.ts`    | 128   | Performance export/log helpers           | exported functions          |
+| `ipcDeduplicationPatterns.ts` | 70 | Dedup patterns (createDeduplicatedHandler) | exported functions      |
+`platformUtils`/`platformHelpers`/`platformDetection` (split from former platform module), `accountWindowManager` (5), `ipcHelper` (4), `resourceCleanup` (4 — also absorbs tracked intervals/timeouts/listeners previously in a separate tracked-resources module), `rateLimiter` (3), `iconCache` (3), `packageInfo` (3).
 
 ## CROSS-UTILS DEPENDENCIES
 
@@ -52,9 +53,11 @@
 `permissionHandler.ts` → used by `windowWrapper.ts`. Chromium permission request/check handlers.
 `cspHeaderHandler.ts` → used by `windowWrapper.ts`. Also imported by `benignLogFilter.ts`.
 `benignLogFilter.ts` → used by `windowWrapper.ts`. Filters benign console messages.
-`windowDefaults.ts` → used by `windowWrapper.ts`. Reads window defaults from store to keep windowWrapper decoupled from config.
+`windowUtils.ts` → used by `windowWrapper.ts`. Unified module for window event logging, health monitoring, and store-backed defaults (previously three separate files).
+`ipcDeduplicationPatterns.ts` → used alongside `ipcDeduplicator.ts`. Provides `createDeduplicatedHandler`, `withDeduplication` patterns.
+`performanceExport.ts` → used alongside `performanceMonitor.ts`. Provides `exportPerformanceMetrics`, `logPerformanceSummary`.
 `bootstrapTracker.ts` → used by `accountWindowManager.ts`. Tracks bootstrap window state.
-`deepLinkUtils.ts` → used by `singleInstance` feature. Extracts deep link URLs from argv.
+Menu action registry now lives in `../features/menuActionRegistry.ts` (moved from utils/). `deepLinkUtils.ts` also moved to `../features/deepLinkUtils.ts`.
 `configSchema.ts` → used by `config.ts`. Exports `schema` and `CACHE_VERSION`.
 
 ## KEY PATTERNS
@@ -65,9 +68,9 @@
 
 **IPC helper factories**: `createSecureIPCHandler()`, `createSecureReplyHandler()`, `createSecureInvokeHandler()` — all return cleanup fn. Prefer over raw `ipcMain.on()`.
 
-**Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up. Global cleanups are registered lazily via `registerBuiltInGlobalCleanups()` to avoid coupling.
+**Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `setupWindowCleanup()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up. Global cleanups are registered lazily via `registerBuiltInGlobalCleanups()` to avoid coupling.
 
-**Menu action registry**: `registerMenuAction(id, { label, handler })` / `getMenuAction(id)` / `clearMenuActions()`. Features self-register actions; appMenu consumes them. Eliminates feature→feature imports.
+**Menu action registry**: `registerMenuAction(id, { label, handler })` / `getMenuAction(id)` / `clearMenuActions()`. Features self-register actions; appMenu consumes them. Eliminates feature→feature imports. Now located in `../features/menuActionRegistry.ts`.
 
 **Error handler**: `initializeFeature('name', async () => {...}, 'phase')`, `wrapAsync({ feature, operation }, async () => {...})`.
 
