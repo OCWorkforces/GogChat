@@ -54,3 +54,5 @@ package-lock.json
 .agents/
 .sisyphus/
 tsconfig.tsbuildinfo
+# CocoIndex Code (ccc)
+/.cocoindex_code/
