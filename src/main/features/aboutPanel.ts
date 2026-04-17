@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import os from 'os';
 import { getPackageInfo } from '../utils/packageInfo.js';
-import { registerMenuAction } from '../utils/menuActionRegistry.js';
+import { registerMenuAction } from './menuActionRegistry.js';
 let aboutWindow: BrowserWindow | null = null;
 
 const focusAboutWindow = (window: BrowserWindow): void => {

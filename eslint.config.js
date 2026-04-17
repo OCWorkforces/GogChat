@@ -72,6 +72,7 @@ export default [
       'prettier/prettier': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -140,6 +141,7 @@ export default [
       'prettier/prettier': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -200,6 +202,7 @@ export default [
       'prettier/prettier': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -242,6 +245,7 @@ export default [
       'prettier/prettier': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

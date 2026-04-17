@@ -3,14 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { IPCDeduplicator, getDeduplicator, destroyDeduplicator } from './ipcDeduplicator';
 import {
-  IPCDeduplicator,
-  getDeduplicator,
-  destroyDeduplicator,
   deduplicationPatterns,
   createDeduplicatedHandler,
   withDeduplication,
-} from './ipcDeduplicator';
+} from './ipcDeduplicationPatterns';
 
 // Mock electron-log
 vi.mock('electron-log', () => ({
@@ -34,8 +32,8 @@ vi.mock('./logger.js', () => ({
   },
 }));
 
-// Mock trackedResources to avoid resourceCleanup dependency
-vi.mock('./trackedResources.js', () => ({
+// Mock resourceCleanup to avoid pulling in real cleanup manager
+vi.mock('./resourceCleanup.js', () => ({
   createTrackedInterval: (callback: () => void, delay: number, _name?: string) =>
     setInterval(callback, delay),
 }));

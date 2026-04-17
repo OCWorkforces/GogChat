@@ -21,7 +21,7 @@ import {
   createAccountWindow,
   getWindowForAccount,
 } from '../utils/accountWindowManager.js';
-import { createTrackedTimeout } from '../utils/trackedResources.js';
+import { createTrackedTimeout } from '../utils/resourceCleanup.js';
 import { compareStorePerformance } from '../utils/configProfiler.js';
 import environment from '../../environment.js';
 import type { FeatureManager } from '../utils/featureManager.js';

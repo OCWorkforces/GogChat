@@ -3,7 +3,8 @@
  * Validates SSL certificates to prevent MITM attacks
  */
 
-import { app, Certificate } from 'electron';
+import type { Certificate } from 'electron';
+import { app } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import log from 'electron-log';

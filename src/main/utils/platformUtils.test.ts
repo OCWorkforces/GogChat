@@ -6,6 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type Store from 'electron-store';
+import type { StoreType } from '../../shared/types.js';
 
 // ========================================================================
 // Mock electron first — must come before any imports that use electron
@@ -122,17 +124,17 @@ describe('PlatformUtils', () => {
 
   describe('Singleton', () => {
     it('getPlatformUtils returns the same instance on repeated calls', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const instance1 = getPlatformUtils();
       const instance2 = getPlatformUtils();
       expect(instance1).toBe(instance2);
     });
 
     it('getPlatformUtils returns different instances after resetModules', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const instance1 = getPlatformUtils();
       vi.resetModules();
-      const { getPlatformUtils: getFresh } = await import('./platform');
+      const { getPlatformUtils: getFresh } = await import('./platformUtils');
       const instance2 = getFresh();
       expect(instance1).not.toBe(instance2);
     });
@@ -144,7 +146,7 @@ describe('PlatformUtils', () => {
 
   describe('getAppIconPath()', () => {
     it('returns path to mac.icns icon', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const iconPath = pu.getAppIconPath();
       expect(iconPath).toContain('mac.icns');
@@ -158,7 +160,7 @@ describe('PlatformUtils', () => {
 
   describe('getTrayIconPath()', () => {
     it('returns path to tray template icon', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const trayPath = pu.getTrayIconPath();
       expect(trayPath).toContain('iconTemplate.png');
@@ -172,7 +174,7 @@ describe('PlatformUtils', () => {
 
   describe('createTrayIcon()', () => {
     it('creates tray icon from template image', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const tray = pu.createTrayIcon();
@@ -185,7 +187,7 @@ describe('PlatformUtils', () => {
     });
 
     it('resizes icon to 16x16 for macOS tray', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       pu.createTrayIcon();
@@ -196,7 +198,7 @@ describe('PlatformUtils', () => {
     });
 
     it('creates Tray with resized icon', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       pu.createTrayIcon();
@@ -206,7 +208,7 @@ describe('PlatformUtils', () => {
     });
 
     it('ignores double-click events on tray', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       pu.createTrayIcon();
@@ -223,7 +225,7 @@ describe('PlatformUtils', () => {
 
   describe('setBadge()', () => {
     it('sets dock badge with count when count > 0', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -234,7 +236,7 @@ describe('PlatformUtils', () => {
     });
 
     it('sets badge to 99+ when count > 99', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -245,7 +247,7 @@ describe('PlatformUtils', () => {
     });
 
     it('clears badge when count is 0', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -256,7 +258,7 @@ describe('PlatformUtils', () => {
     });
 
     it('handles large but under-99 numbers correctly', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -267,7 +269,7 @@ describe('PlatformUtils', () => {
     });
 
     it('handles count of 1 correctly', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -284,7 +286,7 @@ describe('PlatformUtils', () => {
 
   describe('clearBadge()', () => {
     it('clears dock badge with empty string', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -301,7 +303,7 @@ describe('PlatformUtils', () => {
 
   describe('getShortcuts()', () => {
     it('returns macOS-specific keyboard shortcuts', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const shortcuts = pu.getShortcuts();
@@ -312,7 +314,7 @@ describe('PlatformUtils', () => {
     });
 
     it('uses Cmd modifier for all shortcuts (macOS)', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const shortcuts = pu.getShortcuts();
@@ -324,7 +326,7 @@ describe('PlatformUtils', () => {
     });
 
     it('includes all expected shortcut keys', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const shortcuts = pu.getShortcuts();
@@ -347,7 +349,7 @@ describe('PlatformUtils', () => {
     });
 
     it('has correct zoom shortcuts', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const shortcuts = pu.getShortcuts();
@@ -364,7 +366,7 @@ describe('PlatformUtils', () => {
 
   describe('applyWindowOptions()', () => {
     it('sets hiddenInset title bar style', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const options = {} as Electron.BrowserWindowConstructorOptions;
 
@@ -374,7 +376,7 @@ describe('PlatformUtils', () => {
     });
 
     it('sets traffic light position to 16,16', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const options = {} as Electron.BrowserWindowConstructorOptions;
 
@@ -384,7 +386,7 @@ describe('PlatformUtils', () => {
     });
 
     it('does not override existing options', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const options = { title: 'Test' } as Electron.BrowserWindowConstructorOptions;
 
@@ -401,7 +403,7 @@ describe('PlatformUtils', () => {
 
   describe('isFeatureSupported()', () => {
     it('returns true for supported features', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       expect(pu.isFeatureSupported('supportsDockBadge')).toBe(true);
@@ -411,7 +413,7 @@ describe('PlatformUtils', () => {
     });
 
     it('returns false for unsupported features', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       expect(pu.isFeatureSupported('supportsOverlayIcon')).toBe(false);
@@ -425,7 +427,7 @@ describe('PlatformUtils', () => {
 
   describe('getPlatformInfo()', () => {
     it('returns platform information object', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const info = pu.getPlatformInfo();
@@ -437,7 +439,7 @@ describe('PlatformUtils', () => {
     });
 
     it('includes MACOS_CONFIG properties', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const info = pu.getPlatformInfo();
@@ -450,7 +452,7 @@ describe('PlatformUtils', () => {
     });
 
     it('includes version information', async () => {
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
 
       const info = pu.getPlatformInfo();
@@ -468,17 +470,17 @@ describe('PlatformUtils', () => {
 
   describe('platform export', () => {
     it('isMac is true for macOS', async () => {
-      const { platform } = await import('./platform');
+      const { platform } = await import('./platformDetection');
       expect(platform.isMac).toBe(true);
     });
 
     it('name is darwin', async () => {
-      const { platform } = await import('./platform');
+      const { platform } = await import('./platformDetection');
       expect(platform.name).toBe('darwin');
     });
 
     it('config contains MACOS_CONFIG', async () => {
-      const { platform } = await import('./platform');
+      const { platform } = await import('./platformDetection');
       expect(platform.config.supportsDockBadge).toBe(true);
       expect(platform.config.supportsTrayIcon).toBe(true);
       expect(platform.config.defaultIconFormat).toBe('icns');
@@ -491,32 +493,32 @@ describe('PlatformUtils', () => {
 
   describe('supports export', () => {
     it('dockBadge returns true', async () => {
-      const { supports } = await import('./platform');
+      const { supports } = await import('./platformDetection');
       expect(supports.dockBadge()).toBe(true);
     });
 
     it('trayIcon returns true', async () => {
-      const { supports } = await import('./platform');
+      const { supports } = await import('./platformDetection');
       expect(supports.trayIcon()).toBe(true);
     });
 
     it('autoLaunch returns true', async () => {
-      const { supports } = await import('./platform');
+      const { supports } = await import('./platformDetection');
       expect(supports.autoLaunch()).toBe(true);
     });
 
     it('spellChecker returns true', async () => {
-      const { supports } = await import('./platform');
+      const { supports } = await import('./platformDetection');
       expect(supports.spellChecker()).toBe(true);
     });
 
     it('overlayIcon returns false', async () => {
-      const { supports } = await import('./platform');
+      const { supports } = await import('./platformDetection');
       expect(supports.overlayIcon()).toBe(false);
     });
 
     it('taskbarBadge returns false', async () => {
-      const { supports } = await import('./platform');
+      const { supports } = await import('./platformDetection');
       expect(supports.taskbarBadge()).toBe(false);
     });
   });
@@ -527,7 +529,7 @@ describe('PlatformUtils', () => {
 
   describe('getAppPath()', () => {
     it('returns app.getAppPath() result', async () => {
-      const { getAppPath } = await import('./platform');
+      const { getAppPath } = await import('./platformHelpers');
       const result = getAppPath();
       expect(result).toBe('/Applications/GogChat.app/Contents/MacOS');
     });
@@ -539,7 +541,7 @@ describe('PlatformUtils', () => {
 
   describe('isPackaged()', () => {
     it('returns app.isPackaged value', async () => {
-      const { isPackaged } = await import('./platform');
+      const { isPackaged } = await import('./platformHelpers');
       expect(isPackaged()).toBe(false);
     });
   });
@@ -550,14 +552,14 @@ describe('PlatformUtils', () => {
 
   describe('isDevelopment()', () => {
     it('returns true when not packaged', async () => {
-      const { isDevelopment } = await import('./platform');
+      const { isDevelopment } = await import('./platformHelpers');
       expect(isDevelopment()).toBe(true);
     });
 
     it('returns false when packaged', async () => {
       const { app } = await import('electron');
       Object.defineProperty(app, 'isPackaged', { value: true, configurable: true });
-      const { isDevelopment } = await import('./platform');
+      const { isDevelopment } = await import('./platformHelpers');
       expect(isDevelopment()).toBe(false);
       Object.defineProperty(app, 'isPackaged', { value: false, configurable: true });
     });
@@ -569,7 +571,7 @@ describe('PlatformUtils', () => {
 
   describe('debugInfo()', () => {
     it('returns string containing app info', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       expect(info).toContain('GogChat');
@@ -577,7 +579,7 @@ describe('PlatformUtils', () => {
     });
 
     it('returns string containing Electron/Chrome/Node versions', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       expect(info).toContain('Electron:');
@@ -587,7 +589,7 @@ describe('PlatformUtils', () => {
     });
 
     it('returns string containing memory info', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       expect(info).toContain('Memory:');
@@ -596,7 +598,7 @@ describe('PlatformUtils', () => {
     });
 
     it('returns string containing platform info', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       expect(info).toContain('Platform:');
@@ -604,7 +606,7 @@ describe('PlatformUtils', () => {
     });
 
     it('returns string containing locale', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       expect(info).toContain('Locale:');
@@ -619,7 +621,7 @@ describe('PlatformUtils', () => {
     it('returns early when not packaged', async () => {
       const { app } = await import('electron');
       Object.defineProperty(app, 'isPackaged', { value: false, configurable: true });
-      const { enforceMacOSAppLocation } = await import('./platform');
+      const { enforceMacOSAppLocation } = await import('./platformHelpers');
 
       enforceMacOSAppLocation();
 
@@ -632,7 +634,7 @@ describe('PlatformUtils', () => {
       (app.getAppPath as ReturnType<typeof vi.fn>).mockReturnValue(
         '/Applications/GogChat.app/Contents/MacOS'
       );
-      const { enforceMacOSAppLocation } = await import('./platform');
+      const { enforceMacOSAppLocation } = await import('./platformHelpers');
 
       enforceMacOSAppLocation();
 
@@ -645,7 +647,7 @@ describe('PlatformUtils', () => {
       (app.getAppPath as ReturnType<typeof vi.fn>).mockReturnValue(
         '/Users/kenny/Development/GogChat'
       );
-      const { enforceMacOSAppLocation } = await import('./platform');
+      const { enforceMacOSAppLocation } = await import('./platformHelpers');
 
       enforceMacOSAppLocation();
 
@@ -660,7 +662,7 @@ describe('PlatformUtils', () => {
 
   describe('openNewGitHubIssue()', () => {
     it('opens external URL with issue params', async () => {
-      const { openNewGitHubIssue } = await import('./platform');
+      const { openNewGitHubIssue } = await import('./platformHelpers');
 
       openNewGitHubIssue({
         repoUrl: 'https://github.com/OCWorkforces/GogChat',
@@ -674,7 +676,7 @@ describe('PlatformUtils', () => {
     });
 
     it('handles missing optional params', async () => {
-      const { openNewGitHubIssue } = await import('./platform');
+      const { openNewGitHubIssue } = await import('./platformHelpers');
 
       openNewGitHubIssue({
         repoUrl: 'https://github.com/OCWorkforces/GogChat',
@@ -691,13 +693,11 @@ describe('PlatformUtils', () => {
 
   describe('isFirstAppLaunch()', () => {
     it('returns true when store key is not set', async () => {
-      const { isFirstAppLaunch } = await import('./platform');
+      const { isFirstAppLaunch } = await import('./platformHelpers');
       const mockStore = {
         get: vi.fn().mockReturnValue(undefined),
         set: vi.fn(),
-      } as unknown as import('electron-store').default<
-        import('../../../src/shared/types.js').StoreType
-      >;
+      } as unknown as Store<StoreType>;
 
       const result = isFirstAppLaunch(mockStore);
 
@@ -706,13 +706,11 @@ describe('PlatformUtils', () => {
     });
 
     it('returns false when store key is already set', async () => {
-      const { isFirstAppLaunch } = await import('./platform');
+      const { isFirstAppLaunch } = await import('./platformHelpers');
       const mockStore = {
         get: vi.fn().mockReturnValue(true),
         set: vi.fn(),
-      } as unknown as import('electron-store').default<
-        import('../../../src/shared/types.js').StoreType
-      >;
+      } as unknown as Store<StoreType>;
 
       const result = isFirstAppLaunch(mockStore);
 
@@ -732,7 +730,7 @@ describe('PlatformUtils', () => {
         throw new Error('Dock unavailable');
       });
 
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -755,7 +753,7 @@ describe('PlatformUtils', () => {
         throw new Error('Dock unavailable');
       });
 
-      const { getPlatformUtils } = await import('./platform');
+      const { getPlatformUtils } = await import('./platformUtils');
       const pu = getPlatformUtils();
       const mockWindow = { id: 1 } as unknown as Electron.BrowserWindow;
 
@@ -778,7 +776,7 @@ describe('PlatformUtils', () => {
         throw new Error('Invalid URL');
       });
 
-      const { openNewGitHubIssue } = await import('./platform');
+      const { openNewGitHubIssue } = await import('./platformHelpers');
       const { shell } = await import('electron');
 
       // Should not throw — error is caught internally
@@ -802,7 +800,7 @@ describe('PlatformUtils', () => {
 
   describe('openNewGitHubIssue() URL construction', () => {
     it('constructs URL with all parameters', async () => {
-      const { openNewGitHubIssue } = await import('./platform');
+      const { openNewGitHubIssue } = await import('./platformHelpers');
       const { shell } = await import('electron');
       const { validateExternalURL } = await import('../../shared/validators.js');
       (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
@@ -824,7 +822,7 @@ describe('PlatformUtils', () => {
     });
 
     it('constructs URL with no optional parameters', async () => {
-      const { openNewGitHubIssue } = await import('./platform');
+      const { openNewGitHubIssue } = await import('./platformHelpers');
       const { validateExternalURL } = await import('../../shared/validators.js');
       (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
 
@@ -842,7 +840,7 @@ describe('PlatformUtils', () => {
     });
 
     it('constructs URL with empty labels array', async () => {
-      const { openNewGitHubIssue } = await import('./platform');
+      const { openNewGitHubIssue } = await import('./platformHelpers');
       const { validateExternalURL } = await import('../../shared/validators.js');
       (validateExternalURL as ReturnType<typeof vi.fn>).mockImplementation((url: string) => url);
 
@@ -863,7 +861,7 @@ describe('PlatformUtils', () => {
 
   describe('debugInfo() detailed', () => {
     it('returns all expected info lines', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
       const lines = info.split('\n');
 
@@ -872,14 +870,14 @@ describe('PlatformUtils', () => {
     });
 
     it('includes correct app name and version', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       expect(info).toContain('App: GogChat 1.0.0');
     });
 
     it('includes memory info with correct format', async () => {
-      const { debugInfo } = await import('./platform');
+      const { debugInfo } = await import('./platformHelpers');
       const info = debugInfo();
 
       // 8GB free / 16GB total based on mock

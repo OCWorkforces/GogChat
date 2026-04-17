@@ -1,4 +1,5 @@
-import { BrowserWindow, dialog, HandlerDetails, shell } from 'electron';
+import type { BrowserWindow, HandlerDetails } from 'electron';
+import { dialog, shell } from 'electron';
 import log from 'electron-log';
 import { URL_PATTERNS, TIMING } from '../../shared/constants.js';
 import {
@@ -6,7 +7,7 @@ import {
   isWhitelistedHost,
   isGoogleAuthUrl,
 } from '../../shared/validators.js';
-import { createTrackedInterval } from '../utils/trackedResources.js';
+import { createTrackedInterval } from '../utils/resourceCleanup.js';
 import { watchBootstrapAccount } from '../utils/bootstrapWatcher.js';
 import {
   createAccountWindow,
@@ -14,7 +15,7 @@ import {
   getWindowForAccount,
   getAccountWindowManager,
 } from '../utils/accountWindowManager.js';
-import { registerMenuAction } from '../utils/menuActionRegistry.js';
+import { registerMenuAction } from './menuActionRegistry.js';
 
 let guardAgainstExternalLinks = true;
 const RE_GUARD_IN_MINUTES = TIMING.EXTERNAL_LINKS_REGUARD / (60 * 1000);

@@ -36,7 +36,8 @@ vi.mock('electron-log', () => ({
 }));
 
 import createTrayIcon, { cleanupTrayIcon } from './trayIcon';
-import { Tray, Menu, BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { Tray, Menu } from 'electron';
 
 /**
  * Minimal window interface required by createTrayIcon

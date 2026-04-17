@@ -22,7 +22,6 @@
 | `rateLimiter.ts`          | 199   | IPC DoS prevention                       | `getRateLimiter()`          |
 | `configCache.ts`          | 179   | In-memory layer for electron-store       | `addCacheLayer()`           |
 | `configSchema.ts`         | 159   | electron-store schema definition         | exported const              |
-| `trackedResources.ts`     | 146   | Tracked timeout/interval/listener        | exported functions          |
 | `featureTypes.ts`         | 143   | Feature config types + factory fns       | exported functions          |
 | `encryptionKey.ts`        | 128   | SafeStorage encryption key management    | exported functions          |
 | `mediaAccess.ts`          | 123   | macOS camera/mic TCC permissions         | exported functions          |
@@ -34,7 +33,6 @@
 | `packageInfo.ts`          | 78    | package.json singleton                   | `getPackageInfo()`          |
 | `cspHeaderHandler.ts`     | 78    | Strip COEP/COOP headers for benign hosts | exported functions          |
 | `bootstrapTracker.ts`     | 74    | Tracks bootstrap window state            | exported functions          |
-| `menuActionRegistry.ts`   | 52    | Decouples features from appMenu          | exported functions          |
 | `accountRouter.ts`         | 65    | Window creation and routing logic        | exported functions          |
 | `errorUtils.ts`           | 49    | Zero-dependency error helpers            | exported functions          |
 | `ipcCommonValidators.ts`  | 48    | Common IPC validation helpers            | exported const              |
@@ -49,9 +47,8 @@
 
 `resourceCleanup.ts` uses lazy `require()` via `registerBuiltInGlobalCleanups()` — no static imports from other utils. Called once in `index.ts` after `app.whenReady()`.
 `ipcHelper` → `rateLimiter`, `logger`, `errorHandler`. `ipcDeduplicator` → `logger`, `errorHandler`.
-`menuActionRegistry.ts` — zero imports from other utils. Pure in-memory `Map<string, MenuAction>`.
-`cleanupTypes.ts` — extracted from `resourceCleanup.ts` + `trackedResources.ts` to break circular dependency. Exports `EventHandler`, `EventTarget`, `CleanupConfig` types.
-`errorUtils.ts` — zero imports from other utils. Extracted to break circular dependency between `ipcHelper`, `ipcDeduplicator`, `resourceCleanup`, and `trackedResources`.
+`cleanupTypes.ts` — extracted from `resourceCleanup.ts` to break circular dependency. Exports `EventHandler`, `EventTarget`, `CleanupConfig` types.
+`errorUtils.ts` — zero imports from other utils. Extracted to break circular dependency between `ipcHelper`, `ipcDeduplicator`, and `resourceCleanup`.
 `permissionHandler.ts` → used by `windowWrapper.ts`. Chromium permission request/check handlers.
 `cspHeaderHandler.ts` → used by `windowWrapper.ts`. Also imported by `benignLogFilter.ts`.
 `benignLogFilter.ts` → used by `windowWrapper.ts`. Filters benign console messages.

@@ -10,7 +10,7 @@
  * @module accountWindowManager
  */
 
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import store from '../config.js';
 import type { AccountWindowState, WindowFactory } from '../../shared/types.js';

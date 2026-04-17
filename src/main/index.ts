@@ -1,9 +1,10 @@
-import { app, BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { app } from 'electron';
 import { perfMonitor } from './utils/performanceMonitor.js';
 
 import { enforceSingleInstance } from './features/singleInstance.js';
 import { setupDeepLinkListener } from './features/deepLinkHandler.js';
-import { registerCleanupTask } from './utils/trackedResources.js';
+import { registerCleanupTask } from './utils/resourceCleanup.js';
 
 import { getFeatureManager } from './utils/featureManager.js';
 import { getMostRecentWindow } from './utils/accountWindowManager.js';

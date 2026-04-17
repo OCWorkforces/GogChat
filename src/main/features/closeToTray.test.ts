@@ -78,7 +78,7 @@ vi.mock('electron-log', () => ({
 const mockPlatform = {
   isMac: true,
 };
-vi.mock('../utils/platform.js', () => ({
+vi.mock('../utils/platformDetection.js', () => ({
   platform: mockPlatform,
 }));
 

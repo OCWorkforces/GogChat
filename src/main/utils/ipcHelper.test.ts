@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
+import type { IpcMainEvent, IpcMainInvokeEvent, BrowserWindow } from 'electron';
 
 // Mock electron first - must come before any imports that use electron
 const mockGetAllWindows = vi.fn();
@@ -766,11 +766,7 @@ describe('ipcHelper', () => {
         isDestroyed: vi.fn().mockReturnValue(false),
       };
 
-      const result = sendToWindow(
-        mockWindow as unknown as import('electron').BrowserWindow,
-        'channel',
-        'data'
-      );
+      const result = sendToWindow(mockWindow as unknown as BrowserWindow, 'channel', 'data');
 
       expect(result).toBe(true);
       expect(mockSend).toHaveBeenCalledWith('channel', 'data');
@@ -795,11 +791,7 @@ describe('ipcHelper', () => {
         isDestroyed: vi.fn().mockReturnValue(true),
       };
 
-      const result = sendToWindow(
-        mockWindow as unknown as import('electron').BrowserWindow,
-        'channel',
-        'data'
-      );
+      const result = sendToWindow(mockWindow as unknown as BrowserWindow, 'channel', 'data');
 
       expect(result).toBe(false);
       expect(logger.ipc.warn).toHaveBeenCalled();
@@ -819,12 +811,7 @@ describe('ipcHelper', () => {
         return data;
       });
 
-      sendToWindow(
-        mockWindow as unknown as import('electron').BrowserWindow,
-        'channel',
-        'data',
-        validator
-      );
+      sendToWindow(mockWindow as unknown as BrowserWindow, 'channel', 'data', validator);
 
       expect(validator).toHaveBeenCalledWith('data');
       expect(mockSend).toHaveBeenCalledWith('channel', 'data');
@@ -843,11 +830,7 @@ describe('ipcHelper', () => {
         isDestroyed: vi.fn().mockReturnValue(false),
       };
 
-      const result = sendToWindow(
-        mockWindow as unknown as import('electron').BrowserWindow,
-        'channel',
-        'data'
-      );
+      const result = sendToWindow(mockWindow as unknown as BrowserWindow, 'channel', 'data');
 
       expect(result).toBe(false);
       expect(logger.ipc.error).toHaveBeenCalled();

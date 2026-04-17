@@ -3,7 +3,8 @@
  * Detects when passkey authentication fails and provides guidance to users on macOS
  */
 
-import { BrowserWindow, dialog, shell } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { dialog, shell } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import {

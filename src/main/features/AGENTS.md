@@ -45,7 +45,7 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 
 ## MENU ACTION REGISTRY
 
-Features that expose actions consumed by `appMenu.ts` must self-register via `registerMenuAction(id, { label, handler })` from `../utils/menuActionRegistry.ts`. **Never** import from other features directly — use the registry.
+Features that expose actions consumed by `appMenu.ts` must self-register via `registerMenuAction(id, { label, handler })` from `./menuActionRegistry.ts`. **Never** import from other features directly — use the registry.
 
 Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts), `toggleExternalLinksGuard` (externalLinks.ts).
 

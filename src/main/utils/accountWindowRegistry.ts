@@ -10,7 +10,7 @@
  * @module accountWindowRegistry
  */
 
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { clearBootstrap as _clearBootstrap, clearAllBootstrap } from './bootstrapTracker.js';
 

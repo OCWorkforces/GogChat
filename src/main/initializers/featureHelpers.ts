@@ -4,7 +4,7 @@
  * Reduces boilerplate for common deferred feature registration patterns.
  */
 
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import { createLazyFeature } from '../utils/featureTypes.js';
 import type { FeatureConfig } from '../utils/featureTypes.js';
 

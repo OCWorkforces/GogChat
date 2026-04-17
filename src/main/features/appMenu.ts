@@ -1,13 +1,14 @@
-import { Menu, app, shell, clipboard, BrowserWindow, dialog } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { Menu, app, shell, clipboard, dialog } from 'electron';
 import { checkForUpdates } from 'electron-update-notifier';
 import path from 'path';
 import log from 'electron-log';
 import store from '../config.js';
 import environment from '../../environment.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
-import { openNewGitHubIssue, debugInfo } from '../utils/platform.js';
+import { openNewGitHubIssue, debugInfo } from '../utils/platformHelpers.js';
 import { getPackageInfo } from '../utils/packageInfo.js';
-import { getMenuAction } from '../utils/menuActionRegistry.js';
+import { getMenuAction } from './menuActionRegistry.js';
 
 export default (window: BrowserWindow) => {
   const pkg = getPackageInfo();

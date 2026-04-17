@@ -7,8 +7,8 @@ import {
   getMostRecentWindow,
   getWindowForAccount,
 } from '../utils/accountWindowManager.js';
-import { addTrackedListener } from '../utils/trackedResources.js';
-import { registerMenuAction } from '../utils/menuActionRegistry.js';
+import { addTrackedListener } from '../utils/resourceCleanup.js';
+import { registerMenuAction } from './menuActionRegistry.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;

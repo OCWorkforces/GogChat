@@ -1,6 +1,6 @@
 import log from 'electron-log';
 import unhandled from 'electron-unhandled';
-import { openNewGitHubIssue, debugInfo } from '../utils/platform.js';
+import { openNewGitHubIssue, debugInfo } from '../utils/platformHelpers.js';
 import { getPackageInfo } from '../utils/packageInfo.js';
 
 export default () => {

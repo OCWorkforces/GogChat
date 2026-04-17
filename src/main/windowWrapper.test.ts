@@ -69,15 +69,17 @@ vi.mock('./utils/mediaAccess', () => ({
   checkAndRequestMediaAccess: vi.fn().mockResolvedValue(true),
   showDeniedPermissionDialog: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('./utils/windowEventLogger', () => ({
+vi.mock('./utils/windowUtils', () => ({
+  getWindowDefaults: vi.fn().mockReturnValue({
+    hideMenuBar: false,
+    startHidden: false,
+    disableSpellChecker: false,
+  }),
   attachEventLogging: vi.fn((win: { on: (...args: unknown[]) => void }) => {
     for (const event of ['show', 'hide', 'focus', 'blur', 'minimize', 'restore']) {
       win.on(event, () => {});
     }
   }),
-}));
-
-vi.mock('./utils/windowHealthMonitor', () => ({
   attachHealthMonitoring: vi.fn((win: { webContents: { on: (...args: unknown[]) => void } }) => {
     for (const event of [
       'console-message',

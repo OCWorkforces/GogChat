@@ -19,7 +19,7 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-import { extractDeepLinkFromArgv } from '../../../src/main/utils/deepLinkUtils';
+import { extractDeepLinkFromArgv } from '../../../src/main/features/deepLinkUtils';
 import { cleanupDeepLinkHandler } from '../../../src/main/features/deepLinkHandler';
 
 describe('extractDeepLinkFromArgv', () => {

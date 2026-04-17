@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { ErrorContext } from './errorHandler.js';
+import type { BrowserWindow } from 'electron';
 
 // Mock electron first - must come before any imports that use electron
 vi.mock('electron', () => ({
@@ -212,7 +213,7 @@ describe('FeatureManager', () => {
       const { getFeatureManager } = await import('./featureManager');
       const mgr = getFeatureManager();
       const mockWindow = { id: 1, webContents: { send: vi.fn() } };
-      mgr.updateContext({ mainWindow: mockWindow as unknown as import('electron').BrowserWindow });
+      mgr.updateContext({ mainWindow: mockWindow as unknown as BrowserWindow });
 
       // The context is internal, but we can verify it doesn't throw
       expect(() => mgr.updateContext({ mainWindow: null })).not.toThrow();
