@@ -12,9 +12,9 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
 }));
 
-// Mock trackedResources
+// Mock resourceCleanup
 const mockCreateTrackedTimeout = vi.fn();
-vi.mock('../utils/trackedResources.js', () => ({
+vi.mock('../utils/resourceCleanup.js', () => ({
   createTrackedTimeout: (...args: unknown[]) => mockCreateTrackedTimeout(...args),
 }));
 

@@ -1,5 +1,6 @@
 import { toErrorMessage } from '../utils/errorUtils.js';
-import { app, BrowserWindow, Tray } from 'electron';
+import type { BrowserWindow, Tray } from 'electron';
+import { app } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, FAVICON_PATTERNS, ICON_TYPES } from '../../shared/constants.js';
 import { validateFaviconURL, validateUnreadCount } from '../../shared/validators.js';

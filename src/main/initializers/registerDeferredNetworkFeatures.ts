@@ -3,10 +3,10 @@
  *
  * Network-related features: connectivity monitoring, etc.
  */
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import { createLazyFeature } from '../utils/featureTypes.js';
 import type { FeatureManager } from '../utils/featureManager.js';
-import { createTrackedTimeout } from '../utils/trackedResources.js';
+import { createTrackedTimeout } from '../utils/resourceCleanup.js';
 
 export function registerDeferredNetworkFeatures(
   featureManager: FeatureManager,

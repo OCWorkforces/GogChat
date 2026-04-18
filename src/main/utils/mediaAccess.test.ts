@@ -34,7 +34,8 @@ vi.mock('../../shared/validators.js', () => ({
   validateAppleSystemPreferencesURL: vi.fn((url: string) => url),
 }));
 
-import { systemPreferences, dialog, shell, BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { systemPreferences, dialog, shell } from 'electron';
 import { validateAppleSystemPreferencesURL } from '../../shared/validators.js';
 import { checkAndRequestMediaAccess, showDeniedPermissionDialog } from './mediaAccess';
 

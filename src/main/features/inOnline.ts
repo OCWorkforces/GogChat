@@ -1,4 +1,5 @@
-import { BrowserWindow, Notification, app } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { Notification, app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import log from 'electron-log';

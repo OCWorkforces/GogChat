@@ -1,8 +1,9 @@
 import AutoLaunch from 'auto-launch';
-import { app, BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { app } from 'electron';
 import store from '../config.js';
 import environment from '../../environment.js';
-import { registerMenuAction } from '../utils/menuActionRegistry.js';
+import { registerMenuAction } from './menuActionRegistry.js';
 let autoLaunchInstance: AutoLaunch;
 
 const autoLaunch = (): AutoLaunch => {

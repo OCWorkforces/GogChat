@@ -40,7 +40,7 @@ vi.mock('../utils/accountWindowManager', () => ({
   getMostRecentWindow: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock('../utils/trackedResources', () => ({
+vi.mock('../utils/resourceCleanup', () => ({
   addTrackedListener: vi.fn(),
 }));
 
@@ -50,7 +50,7 @@ import initDeepLinkHandler, {
   cleanupDeepLinkHandler,
   registerDeepLinkProtocol,
 } from './deepLinkHandler';
-import { extractDeepLinkFromArgv } from '../utils/deepLinkUtils';
+import { extractDeepLinkFromArgv } from './deepLinkUtils';
 import { app } from 'electron';
 import {
   createAccountWindow,
@@ -58,7 +58,7 @@ import {
   getMostRecentWindow,
 } from '../utils/accountWindowManager';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/validators';
-import { addTrackedListener } from '../utils/trackedResources';
+import { addTrackedListener } from '../utils/resourceCleanup';
 import log from 'electron-log';
 
 /**

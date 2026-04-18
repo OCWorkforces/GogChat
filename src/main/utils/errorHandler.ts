@@ -243,35 +243,3 @@ export function initializeErrorHandler(
   handler.initialize(store);
 }
 
-/**
- * Helper to wrap feature initialization with error handling
- *
- * @param featureName - Name of the feature
- * @param init - Feature initialization function
- * @param phase - Initialization phase
- */
-export async function initializeFeature(
-  featureName: string,
-  init: () => Promise<void> | void,
-  phase?: 'security' | 'critical' | 'ui' | 'deferred'
-): Promise<void> {
-  const handler = getErrorHandler();
-
-  try {
-    await handler.wrapAsync(
-      {
-        feature: featureName,
-        phase,
-        operation: 'initialization',
-      },
-      async () => {
-        await init();
-      }
-    );
-
-    log.debug(`[ErrorHandler] Feature '${featureName}' initialized successfully`);
-  } catch (error: unknown) {
-    log.error(`[ErrorHandler] Feature '${featureName}' initialization failed:`, error);
-    // Don't rethrow - allow app to continue with other features
-  }
-}

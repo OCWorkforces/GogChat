@@ -11,7 +11,7 @@ vi.mock('electron-unhandled', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('../utils/platform', () => ({
+vi.mock('../utils/platformHelpers', () => ({
   openNewGitHubIssue: vi.fn(),
   debugInfo: vi.fn().mockReturnValue('platform: darwin'),
 }));
@@ -27,7 +27,7 @@ vi.mock('../utils/packageInfo', () => ({
 
 import reportExceptions from './reportExceptions';
 import log from 'electron-log';
-import { openNewGitHubIssue } from '../utils/platform';
+import { openNewGitHubIssue } from '../utils/platformHelpers';
 import { getPackageInfo } from '../utils/packageInfo';
 import unhandled from 'electron-unhandled';
 

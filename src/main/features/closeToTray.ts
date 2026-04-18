@@ -1,6 +1,7 @@
-import { BrowserWindow, app } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { app } from 'electron';
 import log from 'electron-log';
-import { platform } from '../utils/platform.js';
+import { platform } from '../utils/platformDetection.js';
 
 let willQuit = false;
 let beforeQuitHandler: (() => void) | null = null;

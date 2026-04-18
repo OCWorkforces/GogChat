@@ -44,7 +44,7 @@ vi.mock('../features/firstLaunch.js', () => ({
 }));
 
 const mockEnforceMacOSAppLocation = vi.fn();
-vi.mock('../utils/platform.js', () => ({
+vi.mock('../utils/platformHelpers.js', () => ({
   enforceMacOSAppLocation: mockEnforceMacOSAppLocation,
 }));
 

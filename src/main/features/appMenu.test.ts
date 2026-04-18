@@ -46,7 +46,7 @@ const { mockAboutHandler, mockAutoLaunchInstance, mockToggleGuardHandler } = vi.
   mockToggleGuardHandler: vi.fn(),
 }));
 
-vi.mock('../utils/menuActionRegistry', () => ({
+vi.mock('./menuActionRegistry', () => ({
   getMenuAction: vi.fn((id: string) => {
     if (id === 'aboutPanel') return { label: 'Show About Panel', handler: mockAboutHandler };
     if (id === 'autoLaunch')
@@ -86,7 +86,7 @@ vi.mock('../../shared/constants', () => ({
   IPC_CHANNELS: { SEARCH_SHORTCUT: 'searchShortcut' },
 }));
 
-vi.mock('../utils/platform', () => ({
+vi.mock('../utils/platformHelpers', () => ({
   openNewGitHubIssue: vi.fn(),
   debugInfo: vi.fn().mockReturnValue('platform: darwin'),
 }));
@@ -101,11 +101,11 @@ vi.mock('../utils/packageInfo', () => ({
 }));
 
 import appMenu from './appMenu';
-import { _getMenuAction } from '../utils/menuActionRegistry';
+import { _getMenuAction } from './menuActionRegistry';
 import { Menu, app, _dialog, clipboard } from 'electron';
 import store from '../config';
 import { IPC_CHANNELS } from '../../shared/constants';
-import { openNewGitHubIssue } from '../utils/platform';
+import { openNewGitHubIssue } from '../utils/platformHelpers';
 
 interface FakeWindow {
   hide: ReturnType<typeof vi.fn>;

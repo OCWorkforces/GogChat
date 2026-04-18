@@ -1,12 +1,64 @@
 /**
- * Window health monitoring
- * Attaches error/crash/navigation logging to a BrowserWindow's webContents.
+ * Window utilities — merged module for windowWrapper.ts consumers.
+ *
+ * Combines three tightly-coupled window helpers:
+ *   - Window defaults (store-backed boolean config)
+ *   - Window event logging (visibility/focus lifecycle)
+ *   - Window health monitoring (renderer/navigation/crash logging)
  */
 import type { BrowserWindow, Event, WebContentsConsoleMessageEventParams } from 'electron';
+import store from '../config.js';
 import { logger } from './logger.js';
 import { isBenignRendererConsoleMessage, isBenignSubframeLoadFailure } from './benignLogFilter.js';
 
 const windowLogger = logger.window;
+
+// ---------------------------------------------------------------------------
+// Window defaults
+// ---------------------------------------------------------------------------
+
+export interface WindowDefaults {
+  hideMenuBar: boolean;
+  startHidden: boolean;
+  disableSpellChecker: boolean;
+}
+
+/**
+ * Read window-related defaults from the store.
+ * Leaf utility — keeps windowWrapper.ts decoupled from the full config chain.
+ */
+export function getWindowDefaults(): WindowDefaults {
+  return {
+    hideMenuBar: store.get('app.hideMenuBar') as boolean,
+    startHidden: store.get('app.startHidden') as boolean,
+    disableSpellChecker: store.get('app.disableSpellChecker') as boolean,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Window event logging
+// ---------------------------------------------------------------------------
+
+function logState(event: string, window: BrowserWindow): void {
+  windowLogger.debug(`${event} visible=${window.isVisible()} focused=${window.isFocused()}`);
+}
+
+/**
+ * Attach debug-level logging for standard window lifecycle events.
+ * Each handler logs event name plus current visible/focused state.
+ */
+export function attachEventLogging(window: BrowserWindow): void {
+  window.on('show', () => logState('show', window));
+  window.on('hide', () => logState('hide', window));
+  window.on('focus', () => logState('focus', window));
+  window.on('blur', () => logState('blur', window));
+  window.on('minimize', () => logState('minimize', window));
+  window.on('restore', () => logState('restore', window));
+}
+
+// ---------------------------------------------------------------------------
+// Window health monitoring
+// ---------------------------------------------------------------------------
 
 /**
  * Attach health-monitoring handlers to a BrowserWindow's webContents:

@@ -5,7 +5,8 @@
  * ⚡ OPTIMIZATION: Now includes LRU (Least Recently Used) eviction policy
  */
 
-import { app, nativeImage, NativeImage } from 'electron';
+import type { NativeImage } from 'electron';
+import { app, nativeImage } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 

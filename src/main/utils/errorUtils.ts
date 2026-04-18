@@ -2,7 +2,7 @@
  * Pure error utility functions — zero project dependencies
  *
  * Extracted from errorHandler.ts to break the circular dependency chain where
- * trackedResources.ts → errorHandler.ts ← resourceCleanup.ts.
+ * resourceCleanup.ts → errorHandler.ts ← resourceCleanup.ts.
  *
  * @module errorUtils
  */

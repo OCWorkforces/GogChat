@@ -6,8 +6,8 @@
 max_cycles = 0          # Zero circular dependencies (currently perfect)
 max_cc = 30             # Max cyclomatic complexity per function
 no_god_files = true     # Flag files with excessive fan-out
-max_depth = 11          # Prevent depth regression (current: 11)
-min_modularity = 0.15   # Modularity floor (current: 0.177, headroom allowed)
+max_depth = 7           # Prevent depth regression (current longest: 5, ceiling 7)
+min_modularity = 0.30   # Modularity floor (improved from 0.4512 after Wave 1-4)
 
 # Layer definitions — defines the architectural hierarchy.
 # Convention: importing layers must have LOWER order numbers than the layers they import from.

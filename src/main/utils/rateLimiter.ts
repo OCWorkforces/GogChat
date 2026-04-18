@@ -3,7 +3,7 @@
  * Tracks message frequency per channel and blocks excessive requests
  */
 
-import { createTrackedInterval } from './trackedResources.js';
+import { createTrackedInterval } from './resourceCleanup.js';
 import log from 'electron-log';
 import { RATE_LIMITS } from '../../shared/constants.js';
 import type { RateLimitEntry } from '../../shared/types.js';

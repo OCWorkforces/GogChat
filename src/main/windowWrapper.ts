@@ -1,13 +1,11 @@
 import path from 'path';
 import { app, BrowserWindow, Notification } from 'electron';
-import { getWindowDefaults } from './utils/windowDefaults.js';
+import { getWindowDefaults, attachEventLogging, attachHealthMonitoring } from './utils/windowUtils.js';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache.js';
 import { installPermissionHandlers } from './utils/permissionHandler.js';
 import { installHeaderFix } from './utils/cspHeaderHandler.js';
 import { installBenignWarningFilter } from './utils/benignLogFilter.js';
-import { attachEventLogging } from './utils/windowEventLogger.js';
-import { attachHealthMonitoring } from './utils/windowHealthMonitor.js';
 
 installBenignWarningFilter();
 

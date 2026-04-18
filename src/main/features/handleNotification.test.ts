@@ -152,7 +152,7 @@ vi.mock('../utils/rateLimiter.js', () => ({
 }));
 
 const createTrackedTimeoutMock = vi.fn();
-vi.mock('../utils/trackedResources.js', () => ({
+vi.mock('../utils/resourceCleanup.js', () => ({
   createTrackedTimeout: createTrackedTimeoutMock,
 }));
 

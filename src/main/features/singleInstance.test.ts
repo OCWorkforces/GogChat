@@ -76,12 +76,12 @@ vi.mock('../utils/accountWindowManager.js', () => ({
 }));
 
 const extractDeepLinkFromArgvMock = vi.fn();
-vi.mock('../utils/deepLinkUtils.js', () => ({
+vi.mock('./deepLinkUtils.js', () => ({
   extractDeepLinkFromArgv: extractDeepLinkFromArgvMock,
 }));
 
 const processDeepLinkHandlerMock = vi.fn();
-vi.mock('../utils/menuActionRegistry.js', () => ({
+vi.mock('./menuActionRegistry.js', () => ({
   getMenuAction: vi.fn(() => ({
     label: 'Process deep link',
     handler: processDeepLinkHandlerMock,
@@ -290,7 +290,7 @@ describe('singleInstance feature', () => {
       const deepLinkUrl = 'gogchat://room/unregistered';
       extractDeepLinkFromArgvMock.mockReturnValue(deepLinkUrl);
 
-      const { getMenuAction } = await import('../utils/menuActionRegistry.js');
+      const { getMenuAction } = await import('./menuActionRegistry.js');
       vi.mocked(getMenuAction).mockReturnValueOnce(undefined);
 
       const { restoreFirstInstance } = await import('./singleInstance.js');

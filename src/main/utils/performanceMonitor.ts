@@ -7,14 +7,13 @@
  * - Timing markers for key lifecycle events
  * - Memory usage tracking
  * - <3s startup target validation
- * - JSON export for CI/CD integration
+ * - JSON export for CI/CD integration (see ./performanceExport.ts)
  * - Module loading time tracking
  */
 
 import log from 'electron-log';
-import { app } from 'electron';
-import fs from 'fs';
-import path from 'path';
+
+import { exportPerformanceMetrics, logPerformanceSummary } from './performanceExport.js';
 
 /**
  * Performance target thresholds
@@ -199,95 +198,43 @@ class PerformanceMonitor {
   }
 
   /**
+   * Internal accessor for the warnings list. Used by `performanceExport` helpers.
+   * @internal
+   */
+  getWarningsList(): string[] {
+    return this.warnings;
+  }
+
+  /**
+   * Internal accessor for the memory-snapshot list. Used by `performanceExport` helpers.
+   * @internal
+   */
+  getMemorySnapshotList(): MemorySnapshot[] {
+    return this.memorySnapshots;
+  }
+
+  /**
+   * Internal accessor for the enabled flag. Used by `performanceExport` helpers.
+   * @internal
+   */
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /**
    * Export metrics to JSON format
    * @param outputPath - Optional file path to write JSON (defaults to userData/performance-metrics.json)
    * @returns Performance metrics object
    */
   exportToJSON(outputPath?: string): PerformanceMetrics {
-    const totalTime = this.getTotalElapsed();
-    const metrics: PerformanceMetrics = {
-      startupTime: totalTime,
-      markers: Object.fromEntries(this.markers),
-      memorySnapshots: this.memorySnapshots,
-      targetMet: this.isTargetMet(),
-      warnings: this.warnings,
-      timestamp: new Date().toISOString(),
-      appVersion: app.getVersion(),
-    };
-
-    if (outputPath) {
-      try {
-        const dir = path.dirname(outputPath);
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        fs.writeFileSync(outputPath, JSON.stringify(metrics, null, 2));
-        log.info(`[Performance] Metrics exported to: ${outputPath}`);
-      } catch (error: unknown) {
-        log.error('[Performance] Failed to export metrics:', error);
-      }
-    }
-
-    return metrics;
+    return exportPerformanceMetrics(this, outputPath);
   }
 
   /**
    * Log summary of all metrics
    */
   logSummary(): void {
-    if (!this.enabled) return;
-
-    const totalTime = this.getTotalElapsed();
-    const targetMet = this.isTargetMet();
-    const memStats = this.getMemoryStats();
-
-    log.info('[Performance] ========== Performance Summary ==========');
-    log.info(`[Performance] Total startup time: ${totalTime}ms`);
-
-    // Target validation
-    if (targetMet) {
-      log.info(
-        `[Performance] ✅ Target met: ${totalTime}ms < ${PERFORMANCE_TARGETS.STARTUP_TIME_MS}ms`
-      );
-    } else {
-      log.error(
-        `[Performance] ❌ Target MISSED: ${totalTime}ms >= ${PERFORMANCE_TARGETS.STARTUP_TIME_MS}ms`
-      );
-    }
-
-    // Markers timeline
-    log.info('[Performance] --- Timing Markers ---');
-    const sortedMarkers = Array.from(this.markers.entries()).sort((a, b) => a[1] - b[1]);
-    sortedMarkers.forEach(([name, time]) => {
-      log.info(`[Performance]   ${name}: ${time}ms`);
-    });
-
-    // Memory statistics
-    if (memStats) {
-      log.info('[Performance] --- Memory Statistics ---');
-      log.info(
-        `[Performance]   Initial: ${memStats.initial.heapUsed}MB heap, ${memStats.initial.rss}MB RSS`
-      );
-      log.info(
-        `[Performance]   Current: ${memStats.current.heapUsed}MB heap, ${memStats.current.rss}MB RSS`
-      );
-      log.info(
-        `[Performance]   Peak: ${memStats.peak.heapUsed}MB heap, ${memStats.peak.rss}MB RSS`
-      );
-      log.info(
-        `[Performance]   Growth: ${(memStats.current.heapUsed - memStats.initial.heapUsed).toFixed(2)}MB`
-      );
-    }
-
-    // Warnings
-    if (this.warnings.length > 0) {
-      log.info('[Performance] --- Warnings ---');
-      this.warnings.forEach((warning) => {
-        log.warn(`[Performance]   ${warning}`);
-      });
-    }
-
-    log.info('[Performance] =======================================');
+    logPerformanceSummary(this);
   }
 
   /**
@@ -314,7 +261,7 @@ class PerformanceMonitor {
 
 // Export types
 export type { PerformanceMetrics, MemorySnapshot };
-export { PERFORMANCE_TARGETS };
+export { PERFORMANCE_TARGETS, PerformanceMonitor };
 
 // Create singleton instance
 let instance: PerformanceMonitor | null = null;

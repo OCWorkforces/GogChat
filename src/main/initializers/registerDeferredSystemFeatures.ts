@@ -3,7 +3,7 @@
  *
  * System-level features: tray, badges, window state, auto-launch, updates, etc.
  */
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import { createLazyFeature } from '../utils/featureTypes.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 
@@ -100,7 +100,7 @@ export function registerDeferredSystemFeatures(
       'enforceMacOSAppLocation',
       'deferred',
       async () => {
-        const module = await import('../utils/platform.js');
+        const module = await import('../utils/platformHelpers.js');
         return {
           default: () => module.enforceMacOSAppLocation(),
         };

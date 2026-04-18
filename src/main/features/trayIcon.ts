@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, Tray, NativeImage } from 'electron';
+import type { BrowserWindow, NativeImage } from 'electron';
+import { app, Menu, Tray } from 'electron';
 import log from 'electron-log';
 import { getIconCache } from '../utils/iconCache.js';
 

@@ -79,6 +79,7 @@ vi.mock('../utils/errorHandler.js', () => ({
 
 vi.mock('../utils/resourceCleanup.js', () => ({
   getCleanupManager: mockGetCleanupManager,
+  createTrackedTimeout: mockCreateTrackedTimeout,
 }));
 
 vi.mock('../config.js', () => ({
@@ -95,9 +96,6 @@ vi.mock('../utils/accountWindowManager.js', () => ({
   getWindowForAccount: mockGetWindowForAccount,
 }));
 
-vi.mock('../utils/trackedResources.js', () => ({
-  createTrackedTimeout: mockCreateTrackedTimeout,
-}));
 
 vi.mock('../utils/configProfiler.js', () => ({
   compareStorePerformance: mockCompareStorePerformance,

@@ -1,10 +1,11 @@
-import { BrowserWindow, Notification } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { Notification } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING, RATE_LIMITS } from '../../shared/constants.js';
 import { validateNotificationData } from '../../shared/validators.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
-import { createTrackedTimeout } from '../utils/trackedResources.js';
+import { createTrackedTimeout } from '../utils/resourceCleanup.js';
 
 let notificationShowCleanup: (() => void) | null = null;
 let notificationClickedCleanup: (() => void) | null = null;
