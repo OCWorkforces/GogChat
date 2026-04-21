@@ -12,17 +12,112 @@
  * @module featureManager
  */
 
+import { topologicalSort } from './featureSorter.js';
+import { groupFeaturesByDependencyLevel } from './featureSorter.js';
 import type {
   FeaturePriority,
   FeatureContext,
   FeatureConfig,
   FeatureState,
-} from './featureTypes.js';
-import { topologicalSort } from './featureSorter.js';
-import { groupFeaturesByDependencyLevel } from './featureSorter.js';
+} from './featureConfigTypes.js';
 
 import log from 'electron-log';
 import { getErrorHandler } from './errorHandler.js';
+
+// Re-export shared feature types for backward compatibility.
+// The canonical definitions live in `featureConfigTypes.ts` to avoid the
+// circular dependency that existed between this module and `featureSorter.ts`.
+export type { FeaturePriority, FeatureContext, FeatureConfig, FeatureState };
+
+/**
+ * Helper: Create a feature config for a static feature
+ * @param name - Feature name
+ * @param priority - Initialization priority
+ * @param init - Initialization function
+ * @param options - Additional options
+ */
+export function createFeature(
+  name: string,
+  priority: FeaturePriority,
+  init: (context: FeatureContext) => Promise<void> | void,
+  options?: {
+    dependencies?: string[];
+    cleanup?: (context: FeatureContext) => Promise<void> | void;
+    description?: string;
+    required?: boolean;
+  }
+): FeatureConfig {
+  return {
+    name,
+    priority,
+    init,
+    ...options,
+  };
+}
+
+/**
+ * Helper: Create a feature config with dynamic import (lazy loading)
+ * @param name - Feature name
+ * @param priority - Initialization priority
+ * @param importFn - Dynamic import function that returns the feature module
+ * @param options - Additional options
+ */
+export function createLazyFeature(
+  name: string,
+  priority: FeaturePriority,
+  importFn: () => Promise<{
+    default: (context: FeatureContext) => Promise<void> | void;
+  }>,
+  options?: {
+    dependencies?: string[];
+    description?: string;
+    required?: boolean;
+  }
+): FeatureConfig {
+  return {
+    name,
+    priority,
+    lazy: true,
+    init: async (context: FeatureContext) => {
+      const module = await importFn();
+      await module.default(context);
+    },
+    ...options,
+  };
+}
+
+/**
+ * Helper to wrap feature initialization with error handling
+ *
+ * @param featureName - Name of the feature
+ * @param init - Feature initialization function
+ * @param phase - Initialization phase
+ */
+export async function initializeFeature(
+  featureName: string,
+  init: () => Promise<void> | void,
+  phase?: 'security' | 'critical' | 'ui' | 'deferred'
+): Promise<void> {
+  const handler = getErrorHandler();
+
+  try {
+    await handler.wrapAsync(
+      {
+        feature: featureName,
+        phase,
+        operation: 'initialization',
+      },
+      async () => {
+        await init();
+      }
+    );
+
+    log.debug(`[ErrorHandler] Feature '${featureName}' initialized successfully`);
+  } catch (error: unknown) {
+    log.error(`[ErrorHandler] Feature '${featureName}' initialization failed:`, error);
+    // Don't rethrow - allow app to continue with other features
+  }
+}
 
 /**
  * Feature Manager - Centralized feature orchestration

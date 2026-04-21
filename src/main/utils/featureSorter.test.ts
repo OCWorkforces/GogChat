@@ -8,7 +8,7 @@ vi.mock('electron-log', () => ({
 }));
 
 import { topologicalSort, groupFeaturesByDependencyLevel } from './featureSorter';
-import type { FeatureConfig } from './featureTypes';
+import type { FeatureConfig } from './featureConfigTypes.js';
 import log from 'electron-log';
 
 function makeFeature(
