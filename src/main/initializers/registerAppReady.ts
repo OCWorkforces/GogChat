@@ -10,22 +10,24 @@
 
 import { app, type BrowserWindow } from 'electron';
 import log from 'electron-log';
-import path from 'path';
 import { perfMonitor } from '../utils/performanceMonitor.js';
 import { initializeErrorHandler } from '../utils/errorHandler.js';
-import { getCleanupManager } from '../utils/resourceCleanup.js';
-import { initializeStore } from '../config.js';
-import { getIconCache } from '../utils/iconCache.js';
+
 import {
   getAccountWindowManager,
   createAccountWindow,
   getWindowForAccount,
+  getMostRecentWindow,
 } from '../utils/accountWindowManager.js';
-import { createTrackedTimeout } from '../utils/resourceCleanup.js';
-import { compareStorePerformance } from '../utils/configProfiler.js';
+// Re-exported so the thin index.ts orchestrator pulls window lookup from the
+// same initializer module surface used for app-ready wiring.
+export { getMostRecentWindow };
+import { registerGlobalCleanups } from './registerGlobalCleanups.js';
+import { initializeStore } from '../config.js';
+  import { warmInitialIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
 import environment from '../../environment.js';
 import type { FeatureManager } from '../utils/featureManager.js';
-import type { WindowFactory } from '../../shared/types.js';
+import type { WindowFactory } from '../../shared/types/window.js';
 
 /**
  * Options for registerAppReady
@@ -66,23 +68,7 @@ export function registerAppReady(options: AppReadyOptions): void {
       }
 
       // Register built-in global cleanup callbacks
-      {
-        const manager = getCleanupManager();
-        const { destroyRateLimiter } = await import('../utils/rateLimiter.js');
-        manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter, 'Rate limiter');
-        const { destroyDeduplicator } = await import('../utils/ipcDeduplicator.js');
-        manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator, 'Deduplicator');
-        const { cleanupGlobalHandlers } = await import('../utils/ipcHelper.js');
-        manager.registerGlobalCleanupCallback('ipcHandlers', cleanupGlobalHandlers, 'IPC handlers');
-        const { getIconCache: getIconCacheLazy } = await import('../utils/iconCache.js');
-        manager.registerGlobalCleanupCallback(
-          'iconCache',
-          () => getIconCacheLazy().clear(),
-          'Icon cache'
-        );
-        const { clearConfigCache } = await import('../utils/configCache.js');
-        manager.registerGlobalCleanupCallback('configCache', clearConfigCache, 'Config cache');
-      }
+      await registerGlobalCleanups();
 
       // ===== SECURITY PHASE =====
       await featureManager.initializePhase('security');
@@ -119,8 +105,7 @@ export function registerAppReady(options: AppReadyOptions): void {
       perfMonitor.mark('account-0-ready', 'Account-0 window ready');
 
       // ===== POST-WINDOW ICON WARMUP =====
-      getIconCache().warmCache();
-      perfMonitor.mark('icons-cached', 'Icons pre-loaded');
+      warmInitialIcons();
 
       // ===== UI PHASE =====
       await featureManager.initializePhase('ui');
@@ -132,92 +117,15 @@ export function registerAppReady(options: AppReadyOptions): void {
       // Defer non-critical features using setImmediate
       // These run after the main event loop tick, improving startup time
       setImmediate(() => {
-        void (async () => {
-          const currentMainWindow = getMainWindow();
-          if (!currentMainWindow) {
-            log.error('[Main] Main window not available for deferred features');
-            return;
-          }
-
-          log.debug('[Main] Loading non-critical features with dynamic imports');
-          perfMonitor.mark('deferred-features-start', 'Starting deferred feature loading');
-
-          // Initialize deferred features (parallel with dynamic imports)
-          await featureManager.initializePhase('deferred');
-
-          perfMonitor.mark('all-features-loaded', 'All features initialized', true);
-          log.info('[Main] All features initialized');
-
-          // Log performance summary
-          perfMonitor.logSummary();
-
-          // Export metrics in development
-          if (environment.isDev) {
-            if (process.env.ENABLE_CONFIG_PROFILING === 'true') {
-              log.info('[Main] Running config store performance analysis...');
-              compareStorePerformance();
-            }
-
-            // Export performance metrics to JSON
-            perfMonitor.exportToJSON(
-              path.join(app.getPath('userData'), 'performance-metrics.json')
-            );
-          }
-
-          // ⚡ OPTIMIZATION: Warm caches on idle (after all features loaded)
-          createTrackedTimeout(
-            () => {
-              warmCachesOnIdle();
-            },
-            5000,
-            'idle-cache-warming'
-          );
-        })();
+        void runDeferredPhase({
+          featureManager,
+          getMainWindow,
+          isDev: environment.isDev,
+        });
       });
     })
     .catch((error: unknown) => {
       log.error('[Main] Failed to initialize application:', error);
       app.quit();
     });
-}
-
-/**
- * Warm various caches during idle time
- * ⚡ OPTIMIZATION: Preloads commonly accessed data to improve responsiveness
- */
-function warmCachesOnIdle(): void {
-  try {
-    log.debug('[Main] Starting idle cache warming...');
-
-    // Warm icon cache (additional icons not loaded at startup)
-    const iconCache = getIconCache();
-    const additionalIcons = [
-      'resources/icons/normal/32.png',
-      'resources/icons/normal/64.png',
-      'resources/icons/normal/256.png',
-      'resources/icons/offline/32.png',
-      'resources/icons/offline/64.png',
-      'resources/icons/badge/32.png',
-    ];
-
-    let warmed = 0;
-    additionalIcons.forEach((iconPath) => {
-      const icon = iconCache.getIcon(iconPath);
-      if (!icon.isEmpty()) {
-        warmed++;
-      }
-    });
-
-    log.info(
-      `[Main] Cache warming complete - ${warmed}/${additionalIcons.length} additional icons loaded`
-    );
-
-    // Log final cache statistics
-    const stats = iconCache.getStats();
-    log.debug(
-      `[Main] Icon cache stats - Size: ${stats.size}/${stats.maxSize}, Total accesses: ${stats.totalAccesses}, Most accessed: ${stats.mostAccessed}`
-    );
-  } catch (error: unknown) {
-    log.error('[Main] Failed to warm caches:', error);
-  }
 }

@@ -30,7 +30,7 @@ vi.mock('../utils/performanceMonitor.js', () => ({
 
 vi.mock('electron-unhandled', () => ({ default: vi.fn() }));
 vi.mock('electron-log', () => ({ default: { error: vi.fn() } }));
-vi.mock('../utils/featureTypes.js', () => ({
+vi.mock('../utils/featureManager.js', () => ({
   createFeature: vi.fn(
     (
       name: string,
@@ -61,7 +61,7 @@ vi.mock('../utils/featureTypes.js', () => ({
 }));
 
 import { registerSecurityFeatures } from './registerSecurityFeatures';
-import { createFeature, createLazyFeature } from '../utils/featureTypes.js';
+import { createFeature, createLazyFeature } from '../utils/featureManager.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 
 describe('registerSecurityFeatures', () => {

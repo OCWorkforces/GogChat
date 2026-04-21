@@ -1,7 +1,7 @@
 import { app, shell } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
-import { validateDeepLinkURL, validateExternalURL } from '../../shared/validators.js';
+import { validateDeepLinkURL, validateExternalURL } from '../../shared/urlValidators.js';
 import {
   createAccountWindow,
   getMostRecentWindow,
