@@ -5,8 +5,8 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import { createLazyFeature } from '../utils/featureTypes.js';
-import type { FeatureConfig } from '../utils/featureTypes.js';
+import { createLazyFeature } from '../utils/featureManager.js';
+import type { FeatureConfig } from '../utils/featureManager.js';
 
 /**
  * Creates a deferred feature that imports a module and calls its default export

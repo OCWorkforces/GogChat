@@ -1,6 +1,6 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-04-18
+**Generated:** 2026-04-21 · **Commit:** b12967f
 
 Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is split into specialized sub-modules by concern. Shutdown handled separately.
 
@@ -8,15 +8,19 @@ Extracted from `index.ts` to keep the app entry point a thin orchestrator. Featu
 
 | File                                  | Lines | Purpose                                                    |
 | ------------------------------------- | ----- | ---------------------------------------------------------- |
-| `registerFeatures.ts`                 | 36    | Entry point — delegates to sub-initializers                 |
-| `registerSecurityFeatures.ts`         | 43    | Security phase features (before app.ready)                |
-| `registerUIFeatures.ts`              | 68    | UI phase features (inside app.whenReady blocking)         |
-| `registerDeferredFeatures.ts`         | 28    | Deferred dispatcher — delegates to 3 specialized modules   |
-| `registerDeferredSystemFeatures.ts`   | 113   | System features: tray, badges, window state, auto-launch   |
-| `registerDeferredWindowFeatures.ts`   | 70    | Window features: menus, notifications, links, context menu |
-| `registerDeferredNetworkFeatures.ts`  | 45    | Network features: connectivity monitoring                   |
-| `featureHelpers.ts`                   | 47    | `createMainWindowFeature()` — reduces boilerplate           |
-| `registerShutdown.ts`                 | 178   | before-quit handler — cleanup, window teardown, cache stats |
+| `registerFeatures.ts`                 | 36    | Entry point, delegates to sub-initializers                 |
+| `registerSecurityFeatures.ts`         | 43    | Security phase features (before app.ready)                 |
+| `registerUIFeatures.ts`               | 68    | UI phase features (inside app.whenReady blocking)          |
+| `registerDeferredFeatures.ts`         | 28    | Deferred dispatcher, delegates to 3 specialized modules    |
+| `registerDeferredSystemFeatures.ts`   | 113   | System: tray, badges, window state, auto-launch            |
+| `registerDeferredWindowFeatures.ts`   | 70    | Window: menus, notifications, links, context menu          |
+| `registerDeferredNetworkFeatures.ts`  | 45    | Network: connectivity monitoring                           |
+| `featureHelpers.ts`                   | 47    | `createMainWindowFeature()` helper                         |
+| `registerAppReady.ts`                 | 128   | app.whenReady orchestration (was 223)                      |
+| `registerGlobalCleanups.ts`           | 39    | Lazy-required cleanup callback registration                |
+| `registerShutdown.ts`                 | 70    | before-quit handler, delegates diagnostics + destroyers    |
+| `shutdownDiagnostics.ts`              | 115   | Cache statistics logging                                   |
+| `singletonDestroyers.ts`              | 29    | Aggregated singleton destroy calls                         |
 
 ## registerFeatures.ts
 
@@ -55,10 +59,11 @@ openAtLogin, externalLinks → appMenu
 
 1. `featureManager.cleanup()` — reverse init order
 2. `destroyAccountWindowManager()` — after features
-3. `logComprehensiveCacheStatistics()` — icon/config/dedup/rate-limit/feature stats
-4. `app.exit()` — allow quit
+3. `runShutdownDiagnostics()` — delegates to `shutdownDiagnostics.ts`
+4. `destroyAllSingletons()` — perfMonitor → deduplicator → rateLimiter → iconCache (via `singletonDestroyers.ts`)
+5. `app.exit()` — allow quit
 
-**Cache statistics logged**: icon cache (size/accesses/hit-rate), config cache (hits/misses/writes), IPC deduplicator (cache hits/misses/dedup rate), rate limiter (channels/blocked/total), feature manager (total/initialized/failed/time).
+**Cache statistics** (logged from `shutdownDiagnostics.ts`): icon cache, config cache, IPC deduplicator, rate limiter, feature manager.
 
 ## ANTI-PATTERNS
 

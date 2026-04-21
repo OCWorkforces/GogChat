@@ -1,25 +1,25 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-04-18
+**Generated:** 2026-04-21 | **Commit:** b12967f
 
-Bridge between Electron main process and GogChat renderer. 7 scripts compiled as **CJS** (required — `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
+Bridge between Electron main process and GogChat renderer. 8 scripts compiled as **CJS** (required, `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
 
 ## SCRIPTS
 
 | File                       | Purpose                                                    | Direction     |
 | -------------------------- | ---------------------------------------------------------- | ------------- |
-| `index.ts`                 | `contextBridge` → `window.GogChat` API                     | —             |
-| `faviconChanged.ts`        | MutationObserver on `<head>` → favicon changes             | renderer→main |
-| `unreadCount.ts`           | MutationObserver on `document.body` → DOM badge            | renderer→main |
-| `offline.ts`               | Online/offline bridge; redirect on reconnect               | bidirectional |
-| `passkeyMonitor.ts`        | Wraps `navigator.credentials.*`; reports WebAuthn failures | renderer→main |
-| `searchShortcut.ts`        | Focuses `input[name="q"]` on IPC trigger                   | main→renderer |
-| `overrideNotifications.ts` | Intercepts `window.Notification`; adds click handler       | renderer→main |
+| `index.ts`                 | `contextBridge` → `window.gogchat` API                     | —             |
 | `disableWebAuthn.ts`       | Disables `navigator.credentials` via property override     | —             |
+| `faviconChanged.ts`        | MutationObserver on `link[rel*=icon]` → favicon changes    | renderer→main |
+| `unreadCount.ts`           | MutationObserver + debounce on unread count element        | renderer→main |
+| `passkeyMonitor.ts`        | Wraps `navigator.credentials.*`; reports WebAuthn failures | renderer→main |
+| `searchShortcut.ts`        | Cmd+K focus handler on search input                        | main→renderer |
+| `offline.ts`               | Online/offline bridge; redirect on reconnect               | bidirectional |
+| `overrideNotifications.ts` | Separate preload (`contextIsolation:false`); click handler | renderer→main |
 
-## WINDOW.GogChat API (`GogChatBridgeAPI`)
+## WINDOW.gogchat API (`GogChatBridgeAPI`)
 
-Defined in `../shared/types.ts`. Renderer→main: `sendUnreadCount`, `sendFaviconChanged`, `sendNotificationClicked`, `checkIfOnline`, `reportPasskeyFailure`. Main→renderer: `onSearchShortcut`, `onOnlineStatus` (both return cleanup fn). All methods validate via `../shared/validators.ts`.
+Defined in `../shared/types/bridge.ts`. Renderer→main (5): `sendUnreadCount`, `sendFaviconChanged`, `sendNotificationClicked`, `checkIfOnline`, `reportPasskeyFailure`. Main→renderer (2): `onSearchShortcut`, `onOnlineStatus` (both return unsubscribe fn). All outgoing data validated via `../shared/dataValidators.ts` and `../shared/urlValidators.ts`. No re-exports, all imports direct to source modules.
 
 ## CRITICAL: `overrideNotifications.ts`
 
@@ -38,7 +38,7 @@ All DOM monitoring uses `MutationObserver` — no polling. `faviconChanged`: obs
 1. Create `newFeature.ts` — use `ipcRenderer` (not `contextBridge`)
 2. Add `import './newFeature.js'` to `index.ts` (`.js` extension — built CJS)
 3. Add IPC channel to `../shared/constants.ts`
-4. If exposing to renderer, extend `GogChatBridgeAPI` in `../shared/types.ts`
+4. If exposing to renderer, extend `GogChatBridgeAPI` in `../shared/types/bridge.ts`
 
 ## ANTI-PATTERNS
 

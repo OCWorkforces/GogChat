@@ -6,7 +6,7 @@ import {
   validateExternalURL,
   isWhitelistedHost,
   isGoogleAuthUrl,
-} from '../../shared/validators.js';
+} from '../../shared/urlValidators.js';
 import { createTrackedInterval } from '../utils/resourceCleanup.js';
 import { watchBootstrapAccount } from '../utils/bootstrapWatcher.js';
 import {

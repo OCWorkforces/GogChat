@@ -11,7 +11,7 @@ vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
 }));
 
-vi.mock('../utils/featureTypes.js', () => ({
+vi.mock('../utils/featureManager.js', () => ({
   createLazyFeature: vi.fn(
     (
       name: string,
@@ -29,7 +29,7 @@ vi.mock('../utils/featureTypes.js', () => ({
 }));
 
 import { createMainWindowFeature } from './featureHelpers';
-import { createLazyFeature } from '../utils/featureTypes.js';
+import { createLazyFeature } from '../utils/featureManager.js';
 
 describe('featureHelpers', () => {
   beforeEach(() => {

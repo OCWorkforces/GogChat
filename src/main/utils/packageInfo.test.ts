@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import path from 'path';
+import { readFileSync } from 'fs';
 
 // Mock Electron before importing packageInfo
 vi.mock('electron', () => ({
@@ -13,6 +14,15 @@ vi.mock('electron', () => ({
     getPath: (name: string) => `/fake/path/${name}`,
   },
 }));
+
+// Mock fs to simulate readFileSync failures
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    readFileSync: vi.fn(actual.readFileSync),
+  };
+});
 
 // Mock electron-log
 vi.mock('electron-log', () => ({
@@ -120,6 +130,38 @@ describe('PackageInfo', () => {
 
       clearPackageInfoCache();
       expect(isPackageInfoLoaded()).toBe(false);
+    });
+  });
+
+  describe('Fallback on load failure', () => {
+    it('should return fallback package info when readFileSync throws', () => {
+      const mockReadFileSync = vi.mocked(readFileSync);
+      mockReadFileSync.mockImplementationOnce(() => {
+        throw new Error('ENOENT: simulated read failure');
+      });
+      clearPackageInfoCache();
+
+      const pkg = getPackageInfo();
+
+      expect(pkg.name).toBe('gogchat');
+      expect(pkg.productName).toBe('GogChat');
+      expect(pkg.version).toBe('1.0.0');
+      expect(pkg.description).toBe('GogChat');
+      expect(pkg.repository).toBe('https://github.com/OCWorkforces/GogChat');
+      expect(pkg.homepage).toBe('https://github.com/OCWorkforces/GogChat');
+      expect(pkg.author).toBe('OCWorkforces Engineers');
+    });
+
+    it('should return fallback when JSON.parse fails on malformed package.json', () => {
+      const mockReadFileSync = vi.mocked(readFileSync);
+      mockReadFileSync.mockImplementationOnce(() => 'not-valid-json{{{' as unknown as Buffer);
+      clearPackageInfoCache();
+
+      const pkg = getPackageInfo();
+
+      // Falls back to defaults
+      expect(pkg.name).toBe('gogchat');
+      expect(pkg.version).toBe('1.0.0');
     });
   });
 });

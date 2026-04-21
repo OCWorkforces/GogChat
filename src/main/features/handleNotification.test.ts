@@ -133,7 +133,7 @@ vi.mock('../../shared/constants.js', () => ({
   },
 }));
 
-vi.mock('../../shared/validators.js', () => ({
+vi.mock('../../shared/dataValidators.js', () => ({
   validateNotificationData: vi.fn(
     (data) => data as { title: string; body?: string; icon?: string; tag?: string }
   ),

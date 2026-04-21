@@ -10,7 +10,7 @@
 
 import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
-import { isAuthenticatedChatUrl } from '../../shared/validators.js';
+import { isAuthenticatedChatUrl } from '../../shared/urlValidators.js';
 import { getAccountWindowManager } from './accountWindowManager.js';
 
 // ─── module-level cleanup refs ────────────────────────────────────────────────

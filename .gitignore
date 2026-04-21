@@ -56,3 +56,4 @@ package-lock.json
 tsconfig.tsbuildinfo
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+test-results/

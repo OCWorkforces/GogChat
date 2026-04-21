@@ -72,7 +72,7 @@ vi.mock('electron-log', () => ({
 }));
 
 // Mock validators
-vi.mock('../../shared/validators.js', () => ({
+vi.mock('../../shared/urlValidators.js', () => ({
   validateExternalURL: vi.fn((url: string) => url),
   isWhitelistedHost: vi.fn().mockReturnValue(true),
   isGoogleAuthUrl: vi.fn().mockReturnValue(false),

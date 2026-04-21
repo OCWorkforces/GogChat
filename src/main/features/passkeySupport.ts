@@ -7,12 +7,12 @@ import type { BrowserWindow } from 'electron';
 import { dialog, shell } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS } from '../../shared/constants.js';
+import { createSecureIPCHandler } from '../utils/ipcHelper.js';
 import {
   isSafeObject,
-  validateAppleSystemPreferencesURL,
   validatePasskeyFailureData,
-} from '../../shared/validators.js';
-import { createSecureIPCHandler } from '../utils/ipcHelper.js';
+} from '../../shared/dataValidators.js';
+import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
 import store from '../config.js';
 
 let passkeySupportCleanup: (() => void) | null = null;

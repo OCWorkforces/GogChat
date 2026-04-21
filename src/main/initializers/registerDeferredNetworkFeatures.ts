@@ -4,7 +4,7 @@
  * Network-related features: connectivity monitoring, etc.
  */
 import type { BrowserWindow } from 'electron';
-import { createLazyFeature } from '../utils/featureTypes.js';
+import { createLazyFeature } from '../utils/featureManager.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import { createTrackedTimeout } from '../utils/resourceCleanup.js';
 

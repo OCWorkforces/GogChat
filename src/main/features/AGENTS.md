@@ -1,8 +1,8 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-18
+**Generated:** 2026-04-21 (commit b12967f)
 
-23 self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports — deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion.
+25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
 ## FEATURE CONTRACT
 
@@ -29,8 +29,10 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context      |
 | `bootstrapPromotion.ts` | `ui`       | none (webContents events)                              |
 | `trayIcon.ts`           | `deferred` | none                                                   |
-| `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`   |
-| `badgeIcon.ts`          | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens)            |
+| `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`, `helpMenuBuilder` |
+| `helpMenuBuilder.ts`    | `deferred` | none; builds Help submenu (relaunch/reset); used by appMenu |
+| `badgeIcon.ts`          | `deferred` | none; delegates to `badgeHandlers`                     |
+| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens); decideIcon + updateBadgeIcon |
 | `windowState.ts`        | `deferred` | none; uses `accountWindowManager`                      |
 | `passkeySupport.ts`     | `deferred` | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                 |
 | `handleNotification.ts` | `deferred` | `NOTIFICATION_SHOW` (listens)                          |
@@ -88,14 +90,16 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 
 | File | Lines | Notes |
 | --- | --- | --- |
-| `appMenu.ts` | 304 | Uses `getMenuAction()` for 3 actions |
+| `appMenu.ts` | 190 | Slim orchestrator; delegates Help to `helpMenuBuilder` |
+| `badgeHandlers.ts` | 143 | Favicon/unread IPC + decideIcon + updateBadgeIcon |
+| `helpMenuBuilder.ts` | 136 | Help submenu, relaunchApp, resetAppAndRestart |
 | `externalLinks.ts` | 298 | URL validation, account routing |
 | `certificatePinning.ts` | 187 | Cert validation before app.ready |
 | `deepLinkHandler.ts` | 172 | Protocol registration, deep linking |
 | `windowState.ts` | 175 | 3 declared deps (most coupled) |
 | `handleNotification.ts` | 154 | Notification show/hide logic |
 | `inOnline.ts` | 154 | Online status monitoring |
-| `badgeIcon.ts` | 141 | Unread count badge updates |
+| `badgeIcon.ts` | 43 | Thin init; wires `badgeHandlers` |
 | `passkeySupport.ts` | 122 | Passkey auth event handling |
 | `trayIcon.ts` | 90 | System tray icon + menu |
 | `appUpdates.ts` | 78 | Auto-update check |

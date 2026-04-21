@@ -35,7 +35,7 @@ vi.mock('electron-log', () => ({
   default: mockLog,
 }));
 
-vi.mock('../../shared/validators.js', () => ({
+vi.mock('../../shared/urlValidators.js', () => ({
   isAuthenticatedChatUrl: mockIsAuthenticatedChatUrl,
 }));
 

@@ -1,4 +1,4 @@
-import type { StoreType } from '../../shared/types.js';
+import type { StoreType } from '../../shared/types/config.js';
 import type { Schema } from 'electron-store';
 
 // ⚡ OPTIMIZATION: Cache version for invalidation on app updates

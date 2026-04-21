@@ -2,7 +2,7 @@
 
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import { ipcMain, BrowserWindow } from 'electron';
-import type { IPCResponse } from '../../shared/types.js';
+import type { IPCResponse } from '../../shared/types/ipc.js';
 import { getRateLimiter } from './rateLimiter.js';
 import { logger } from './logger.js';
 import { toError, toErrorMessage } from './errorUtils.js';

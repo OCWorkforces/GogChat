@@ -5,13 +5,13 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { GogChatBridgeAPI } from '../shared/types.js';
 import { IPC_CHANNELS } from '../shared/constants.js';
 import {
   validateUnreadCount,
-  validateFaviconURL,
   validatePasskeyFailureData,
-} from '../shared/validators.js';
+  } from '../shared/dataValidators.js';
+  import { validateFaviconURL } from '../shared/urlValidators.js';
+import type { GogChatBridgeAPI } from '../shared/types/bridge.js';
 
 /**
  * Expose secure API to renderer process via window.gogchat

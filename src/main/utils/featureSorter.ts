@@ -8,7 +8,7 @@
  */
 
 import log from 'electron-log';
-import type { FeatureConfig } from './featureTypes.js';
+import type { FeatureConfig } from './featureConfigTypes.js';
 
 /**
  * Topological sort features by dependencies

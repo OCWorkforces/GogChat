@@ -6,8 +6,7 @@
  */
 
 import { perfMonitor } from '../utils/performanceMonitor.js';
-import { createFeature, createLazyFeature } from '../utils/featureTypes.js';
-import type { FeatureManager } from '../utils/featureManager.js';
+import { createFeature, createLazyFeature, type FeatureManager } from '../utils/featureManager.js';
 import setupCertificatePinning, {
   cleanupCertificatePinning,
 } from '../features/certificatePinning.js';

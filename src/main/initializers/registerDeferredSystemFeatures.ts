@@ -4,7 +4,7 @@
  * System-level features: tray, badges, window state, auto-launch, updates, etc.
  */
 import type { BrowserWindow } from 'electron';
-import { createLazyFeature } from '../utils/featureTypes.js';
+import { createLazyFeature } from '../utils/featureManager.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 
 export function registerDeferredSystemFeatures(

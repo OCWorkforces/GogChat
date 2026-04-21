@@ -5,7 +5,7 @@
 
 import log from 'electron-log';
 import store from '../config.js';
-import type { StoreType } from '../../shared/types.js';
+import type { StoreType } from '../../shared/types/config.js';
 
 /**
  * Profile config store read performance

@@ -27,7 +27,7 @@ vi.mock('../features/inOnline.js', () => ({
 }));
 
 import { registerDeferredNetworkFeatures } from './registerDeferredNetworkFeatures';
-import type { FeatureConfig } from '../utils/featureTypes';
+import type { FeatureConfig } from '../utils/featureManager';
 
 describe('registerDeferredNetworkFeatures', () => {
   let capturedFeatures: FeatureConfig[];

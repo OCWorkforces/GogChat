@@ -11,7 +11,8 @@ let ElectronApplication: any;
 let Page: any;
 
 try {
-  const playwright = require('@playwright/test');
+  // Dynamic import for ESM compatibility (Playwright test runner uses ESM)
+  const playwright = await import('@playwright/test');
   base = playwright.test;
   expect = playwright.expect;
   electron = playwright._electron;
@@ -26,6 +27,9 @@ try {
   expect = () => ({ toBe: () => {}, toContain: () => {} });
   electron = { launch: async () => ({}) };
 }
+
+// ESM-compatible __dirname (Node 22+ provides import.meta.dirname)
+const __dirname = import.meta.dirname;
 
 import { join } from 'path';
 

@@ -6,20 +6,22 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   validateUnreadCount,
-  validateFaviconURL,
-  validateExternalURL,
-  validateAppleSystemPreferencesURL,
   validateBoolean,
   validateString,
   sanitizeHTML,
-  isWhitelistedHost,
   isSafeObject,
+  validatePasskeyFailureData,
+  validateNotificationData,
+} from './dataValidators';
+import {
+  validateFaviconURL,
+  validateExternalURL,
+  validateAppleSystemPreferencesURL,
+  isWhitelistedHost,
   validateDeepLinkURL,
   isAuthenticatedChatUrl,
   isGoogleAuthUrl,
-  validatePasskeyFailureData,
-  validateNotificationData,
-} from './validators';
+} from './urlValidators';
 describe('validateUnreadCount', () => {
   it('should accept valid counts within range', () => {
     expect(validateUnreadCount(0)).toBe(0);

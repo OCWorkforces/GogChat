@@ -1,7 +1,7 @@
 // https://github.com/jiahaog/nativefier/blob/cf11a71a7c6efd366266fcf39ac6fc49783dd8c7/app/src/preload.ts#L23
 import { ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants.js';
-import { validateNotificationData } from '../shared/validators.js';
+import { validateNotificationData } from '../shared/dataValidators.js';
 
 // This feature requires contextIsolation to be disabled on BrowserWindow
 // When contextIsolation is enabled, we can not override any global (window.X) API

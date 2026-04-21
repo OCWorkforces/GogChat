@@ -6,7 +6,7 @@
 import { createTrackedInterval } from './resourceCleanup.js';
 import log from 'electron-log';
 import { RATE_LIMITS } from '../../shared/constants.js';
-import type { RateLimitEntry } from '../../shared/types.js';
+import type { RateLimitEntry } from '../../shared/types/ipc.js';
 
 /**
  * Rate limiter for IPC channels

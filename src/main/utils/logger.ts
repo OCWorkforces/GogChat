@@ -4,7 +4,7 @@
  */
 
 import log from 'electron-log';
-import type { ErrorLogEntry } from '../../shared/types.js';
+import type { ErrorLogEntry } from '../../shared/types/domain.js';
 
 /**
  * Log levels

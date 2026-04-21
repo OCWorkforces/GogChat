@@ -12,11 +12,10 @@ import fs from 'fs';
 import path from 'path';
 
 import type {
-  MemorySnapshot,
   PerformanceMetrics,
-  PerformanceMonitor,
-} from './performanceMonitor.js';
-import { PERFORMANCE_TARGETS } from './performanceMonitor.js';
+  PerformanceMonitorReader,
+} from './performanceTypes.js';
+import { PERFORMANCE_TARGETS } from './performanceTypes.js';
 
 /**
  * Export monitor metrics to JSON, optionally writing to disk.
@@ -31,7 +30,7 @@ import { PERFORMANCE_TARGETS } from './performanceMonitor.js';
  * @returns Performance metrics object
  */
 export function exportPerformanceMetrics(
-  monitor: PerformanceMonitor,
+  monitor: PerformanceMonitorReader,
   outputPath?: string
 ): PerformanceMetrics {
   const metrics: PerformanceMetrics = {
@@ -68,7 +67,7 @@ export function exportPerformanceMetrics(
  *
  * @param monitor - PerformanceMonitor instance to summarize
  */
-export function logPerformanceSummary(monitor: PerformanceMonitor): void {
+export function logPerformanceSummary(monitor: PerformanceMonitorReader): void {
   if (!monitor.isEnabled()) return;
 
   const totalTime = monitor.getTotalElapsed();
@@ -124,5 +123,3 @@ export function logPerformanceSummary(monitor: PerformanceMonitor): void {
   log.info('[Performance] =======================================');
 }
 
-// Re-export the MemorySnapshot type for convenience for callers of these helpers.
-export type { MemorySnapshot, PerformanceMetrics };

@@ -32,33 +32,56 @@ console.log(`[Build] Watch: ${isWatch ? 'enabled' : 'disabled'}`);
 process.env.NODE_ENV = isDev ? 'development' : 'production';
 
 /**
- * Scan src/ directory and collect all TypeScript entry points
- * Excludes test files (*.test.ts, *.spec.ts)
+ * Collect entry points for the dual-build pipeline.
+ *
+ * Main process: ONLY src/main/index.ts is emitted as an entry. The bundler
+ * statically inlines every transitive import into lib/main/index.js, and
+ * dynamic imports become async chunks under lib/chunks/. Emitting every
+ * .ts file as a separate entry caused massive duplication — each entry
+ * re-bundled the same shared modules, producing ~620 KB of dead .js files
+ * in lib/main/** that were never loaded at runtime (package.json `main`
+ * points only at lib/main/index.js).
+ *
+ * Preload scripts: every .ts file under src/preload/ remains an entry.
+ * Preload runs in a sandboxed CJS context where each script is loaded
+ * independently by Electron (additionalPreloadScripts, etc.), so each
+ * needs its own emitted file.
+ *
+ * Excludes test files (*.test.ts, *.spec.ts).
  */
 function getEntryPoints() {
   const allEntries = {};
   const preloadEntries = {};
   const mainEntries = {};
   const srcDir = path.join(__dirname, '../src');
-  function scanDirectory(dir, relativePath = '') {
+  const mainEntryPath = path.join(srcDir, 'main', 'index.ts');
+
+  // Main process: single entry — bundler resolves the rest
+  if (fs.existsSync(mainEntryPath)) {
+    const mainKey = path.join('main', 'index');
+    mainEntries[mainKey] = mainEntryPath;
+    allEntries[mainKey] = mainEntryPath;
+  }
+
+  // Preload: scan src/preload/ for every .ts entry (sandboxed CJS, each is independent)
+  const preloadDir = path.join(srcDir, 'preload');
+  function scanPreloadDir(dir, relativePath = 'preload') {
+    if (!fs.existsSync(dir)) return;
     const files = fs.readdirSync(dir);
     for (const file of files) {
       const fullPath = path.join(dir, file);
       const stat = fs.statSync(fullPath);
       if (stat.isDirectory()) {
-        scanDirectory(fullPath, path.join(relativePath, file));
+        scanPreloadDir(fullPath, path.join(relativePath, file));
       } else if (file.endsWith('.ts') && !file.endsWith('.test.ts') && !file.endsWith('.spec.ts')) {
         const entryName = path.join(relativePath, file.replace(/\.ts$/, ''));
+        preloadEntries[entryName] = fullPath;
         allEntries[entryName] = fullPath;
-        if (relativePath === 'preload' || relativePath.startsWith('preload' + path.sep)) {
-          preloadEntries[entryName] = fullPath;
-        } else {
-          mainEntries[entryName] = fullPath;
-        }
       }
     }
   }
-  scanDirectory(srcDir);
+  scanPreloadDir(preloadDir);
+
   return { allEntries, preloadEntries, mainEntries };
 }
 

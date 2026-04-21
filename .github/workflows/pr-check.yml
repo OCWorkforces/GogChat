@@ -35,4 +35,7 @@ jobs:
         run: bun run test
 
       - name: Test with coverage
-        run: bun run test:coverage
+        run: bun run test:coverage 2>&1 | tee coverage-output.txt
+
+      - name: 'Architecture: Circular deps'
+        run: bunx madge --circular --extensions ts src/

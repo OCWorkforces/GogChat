@@ -30,13 +30,13 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-vi.mock('../../shared/validators.js', () => ({
+vi.mock('../../shared/urlValidators.js', () => ({
   validateAppleSystemPreferencesURL: vi.fn((url: string) => url),
 }));
 
 import type { BrowserWindow } from 'electron';
 import { systemPreferences, dialog, shell } from 'electron';
-import { validateAppleSystemPreferencesURL } from '../../shared/validators.js';
+import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
 import { checkAndRequestMediaAccess, showDeniedPermissionDialog } from './mediaAccess';
 
 const mockGetMediaAccessStatus = systemPreferences.getMediaAccessStatus as Mock;

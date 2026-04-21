@@ -23,7 +23,7 @@ vi.mock('../features/singleInstance.js', () => ({
   restoreFirstInstance: mockRestoreFirstInstance,
 }));
 
-vi.mock('../utils/featureTypes.js', () => ({
+vi.mock('../utils/featureManager.js', () => ({
   createFeature: vi.fn(
     (
       name: string,
@@ -40,7 +40,7 @@ vi.mock('../utils/featureTypes.js', () => ({
 }));
 
 import { registerUIFeatures } from './registerUIFeatures';
-import { createFeature } from '../utils/featureTypes.js';
+import { createFeature } from '../utils/featureManager.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 
 describe('registerUIFeatures', () => {

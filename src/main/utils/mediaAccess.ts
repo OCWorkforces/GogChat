@@ -6,7 +6,7 @@
 
 import { type BrowserWindow, dialog, shell, systemPreferences } from 'electron';
 import log from 'electron-log';
-import { validateAppleSystemPreferencesURL } from '../../shared/validators.js';
+import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
 
 type MediaType = 'camera' | 'microphone';
 

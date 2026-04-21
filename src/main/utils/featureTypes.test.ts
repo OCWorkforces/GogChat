@@ -7,8 +7,8 @@ import type {
   FeatureContext,
   FeaturePriority,
   FeatureState,
-} from './featureTypes.js';
-import { createFeature, createLazyFeature, initializeFeature } from './featureTypes.js';
+} from './featureConfigTypes.js';
+import { createFeature, createLazyFeature, initializeFeature } from './featureManager.js';
 
 vi.mock('electron-log', () => ({
   default: { debug: vi.fn(), error: vi.fn() },

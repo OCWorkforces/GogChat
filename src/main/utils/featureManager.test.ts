@@ -92,7 +92,7 @@ describe('FeatureManager', () => {
 
   describe('createFeature', () => {
     it('creates a feature config with correct name and priority', async () => {
-      const { createFeature } = await import('./featureTypes');
+      const { createFeature } = await import('./featureManager');
       const initFn = vi.fn();
       const feature = createFeature('myFeature', 'critical', initFn);
 
@@ -102,7 +102,7 @@ describe('FeatureManager', () => {
     });
 
     it('creates a feature config with options', async () => {
-      const { createFeature } = await import('./featureTypes');
+      const { createFeature } = await import('./featureManager');
       const cleanupFn = vi.fn();
       const feature = createFeature('feature', 'ui', vi.fn(), {
         dependencies: ['dep1'],
@@ -120,7 +120,7 @@ describe('FeatureManager', () => {
 
   describe('createLazyFeature', () => {
     it('creates a lazy feature with dynamic import', async () => {
-      const { createLazyFeature } = await import('./featureTypes');
+      const { createLazyFeature } = await import('./featureManager');
       const importFn = vi.fn().mockResolvedValue({ default: vi.fn() });
       const feature = createLazyFeature('lazyFeature', 'deferred', importFn);
 
@@ -130,7 +130,7 @@ describe('FeatureManager', () => {
     });
 
     it('lazy feature calls importFn and then default export', async () => {
-      const { createLazyFeature } = await import('./featureTypes');
+      const { createLazyFeature } = await import('./featureManager');
       const mockDefault = vi.fn();
       const importFn = vi.fn().mockResolvedValue({ default: mockDefault });
       const feature = createLazyFeature('lazyFeature', 'deferred', importFn);

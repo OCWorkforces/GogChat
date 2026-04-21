@@ -126,7 +126,7 @@ vi.mock('../utils/configCache.js', () => ({
 import { registerAppReady } from './registerAppReady';
 import type { FeatureManager } from '../utils/featureManager.js';
 import type { BrowserWindow } from 'electron';
-import type { WindowFactory } from '../../shared/types.js';
+import type { WindowFactory } from '../../shared/types/window.js';
 
 // ──── Helpers ──────────────────────────────────────────────────────────────
 
@@ -226,6 +226,7 @@ function setupWhenReadyAsPromise(): { fireReady: () => Promise<void> } {
 }
 
 function setupDefaults(): void {
+  mockAppGetPath.mockReturnValue('/tmp/user-data');
   const mockCleanupManager = {
     registerGlobalCleanupCallback: vi.fn(),
   };
@@ -1028,5 +1029,142 @@ describe('registerAppReady', () => {
       'warmCache',
       'phase:ui',
     ]);
+  });
+
+  // ─── Cleanup callback invocation (line 80) ───────────────────────────────
+
+  it('should invoke the iconCache cleanup callback to clear the cache', async () => {
+    const { fireReady } = setupWhenReadyAsPromise();
+    const iconCacheClear = vi.fn();
+    const mockIconCacheInstance = {
+      warmCache: vi.fn(),
+      clear: iconCacheClear,
+      getIcon: vi.fn().mockReturnValue({ isEmpty: vi.fn().mockReturnValue(false) }),
+      getStats: vi.fn().mockReturnValue({
+        size: 0,
+        maxSize: 50,
+        totalAccesses: 0,
+        mostAccessed: null,
+      }),
+    };
+    mockGetIconCache.mockReturnValue(mockIconCacheInstance);
+
+    const registeredCallbacks = new Map<string, () => void>();
+    mockGetCleanupManager.mockReturnValue({
+      registerGlobalCleanupCallback: vi.fn((id: string, cb: () => void) => {
+        registeredCallbacks.set(id, cb);
+      }),
+    });
+
+    const fm = createMockFeatureManager();
+    registerAppReady({
+      featureManager: fm,
+      windowFactory: createMockWindowFactory(),
+      setMainWindow: vi.fn(),
+      getMainWindow: vi.fn(),
+    });
+
+    await fireReady();
+
+    const iconCacheCleanup = registeredCallbacks.get('iconCache');
+    expect(iconCacheCleanup).toBeDefined();
+
+    // Invoke the cleanup callback (covers inline arrow at line 80)
+    iconCacheCleanup!();
+    expect(iconCacheClear).toHaveBeenCalledTimes(1);
+  });
+
+  // ─── Dev-only deferred branches (lines 156-162) ─────────────────────
+
+  describe('dev-only deferred branches', () => {
+    let originalProfileEnv: string | undefined;
+
+    beforeEach(() => {
+      originalProfileEnv = process.env.ENABLE_CONFIG_PROFILING;
+    });
+
+    const restoreEnv = (): void => {
+      if (originalProfileEnv === undefined) {
+        delete process.env.ENABLE_CONFIG_PROFILING;
+      } else {
+        process.env.ENABLE_CONFIG_PROFILING = originalProfileEnv;
+      }
+    };
+
+    it('should call compareStorePerformance and exportToJSON when isDev=true and profiling enabled', async () => {
+      process.env.ENABLE_CONFIG_PROFILING = 'true';
+
+      // Re-mock environment to dev mode
+      vi.doMock('../../environment.js', () => ({
+        default: {
+          appUrl: 'https://mail.google.com/chat/u/0',
+          isDev: true,
+        },
+      }));
+
+      // Re-import module so the new environment mock applies
+      vi.resetModules();
+      const { registerAppReady: regAppReady } = await import('./registerAppReady');
+
+      const { fireReady } = setupWhenReadyAsPromise();
+      const fm = createMockFeatureManager();
+      const mockMainWindow = createMockMainWindow();
+
+      regAppReady({
+        featureManager: fm,
+        windowFactory: createMockWindowFactory(),
+        setMainWindow: vi.fn(),
+        getMainWindow: vi.fn().mockReturnValue(mockMainWindow),
+      });
+
+      await fireReady();
+
+      await vi.waitFor(() => {
+        expect(mockCompareStorePerformance).toHaveBeenCalled();
+      });
+      expect(mockPerfMonitor.exportToJSON).toHaveBeenCalledWith(
+        expect.stringContaining('performance-metrics.json')
+      );
+
+      restoreEnv();
+      vi.doUnmock('../../environment.js');
+    });
+
+    it('should call exportToJSON but skip compareStorePerformance when isDev=true and profiling disabled', async () => {
+      delete process.env.ENABLE_CONFIG_PROFILING;
+
+      vi.doMock('../../environment.js', () => ({
+        default: {
+          appUrl: 'https://mail.google.com/chat/u/0',
+          isDev: true,
+        },
+      }));
+      vi.resetModules();
+      const { registerAppReady: regAppReady } = await import('./registerAppReady');
+
+      const { fireReady } = setupWhenReadyAsPromise();
+      const fm = createMockFeatureManager();
+      const mockMainWindow = createMockMainWindow();
+
+      mockCompareStorePerformance.mockClear();
+      mockPerfMonitor.exportToJSON.mockClear();
+
+      regAppReady({
+        featureManager: fm,
+        windowFactory: createMockWindowFactory(),
+        setMainWindow: vi.fn(),
+        getMainWindow: vi.fn().mockReturnValue(mockMainWindow),
+      });
+
+      await fireReady();
+
+      await vi.waitFor(() => {
+        expect(mockPerfMonitor.exportToJSON).toHaveBeenCalled();
+      });
+      expect(mockCompareStorePerformance).not.toHaveBeenCalled();
+
+      restoreEnv();
+      vi.doUnmock('../../environment.js');
+    });
   });
 });

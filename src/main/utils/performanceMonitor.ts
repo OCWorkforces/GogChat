@@ -14,39 +14,8 @@
 import log from 'electron-log';
 
 import { exportPerformanceMetrics, logPerformanceSummary } from './performanceExport.js';
-
-/**
- * Performance target thresholds
- */
-const PERFORMANCE_TARGETS = {
-  STARTUP_TIME_MS: 3000, // <3s target
-  WARNING_THRESHOLD_MS: 2500,
-  CRITICAL_THRESHOLD_MS: 3500,
-} as const;
-
-/**
- * Memory snapshot interface
- */
-interface MemorySnapshot {
-  timestamp: number;
-  heapUsed: number;
-  heapTotal: number;
-  external: number;
-  rss: number;
-}
-
-/**
- * Performance metrics export interface
- */
-interface PerformanceMetrics {
-  startupTime: number;
-  markers: Record<string, number>;
-  memorySnapshots: MemorySnapshot[];
-  targetMet: boolean;
-  warnings: string[];
-  timestamp: string;
-  appVersion: string;
-}
+import { PERFORMANCE_TARGETS } from './performanceTypes.js';
+import type { MemorySnapshot, PerformanceMetrics } from './performanceTypes.js';
 
 /**
  * Performance metrics tracker
@@ -259,9 +228,7 @@ class PerformanceMonitor {
   }
 }
 
-// Export types
-export type { PerformanceMetrics, MemorySnapshot };
-export { PERFORMANCE_TARGETS, PerformanceMonitor };
+export { PerformanceMonitor };
 
 // Create singleton instance
 let instance: PerformanceMonitor | null = null;

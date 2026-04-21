@@ -8,11 +8,11 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import { isGoogleAuthUrl } from '../../shared/validators.js';
+import { isGoogleAuthUrl } from '../../shared/urlValidators.js';
+import type { WindowFactory } from '../../shared/types/window.js';
 import log from 'electron-log';
 import { isBootstrap as _isBootstrap } from './bootstrapTracker.js';
 import type { AccountWindowRegistry } from './accountWindowRegistry.js';
-import type { WindowFactory } from '../../shared/types.js';
 
 /**
  * Route a createAccountWindow request: reuse existing, skip if mid-auth, or create new.
