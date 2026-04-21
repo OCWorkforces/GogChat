@@ -11,9 +11,9 @@ import type { FeatureManager } from '../utils/featureManager.js';
 import { getIconCache } from '../utils/iconCache.js';
 import { getStore } from '../config.js';
 import type { CachedStore } from '../utils/configCache.js';
-import { getDeduplicator } from '../utils/ipcDeduplicator.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
-import type { StoreType } from '../../shared/types.js';
+import { getDeduplicator } from '../utils/ipcDeduplicator.js';
+import type { StoreType } from '../../shared/types/config.js';
 
 /**
  * Type guard to check if a store has cache enabled

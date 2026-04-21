@@ -13,14 +13,19 @@
 import { app } from 'electron';
 import type { BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
-import { FAVICON_PATTERNS, ICON_TYPES, IPC_CHANNELS } from '../../shared/constants.js';
-import type { IconType } from '../../shared/types.js';
-import { validateFaviconURL, validateUnreadCount } from '../../shared/validators.js';
+import {
+  FAVICON_PATTERNS,
+  ICON_TYPES,
+  IPC_CHANNELS,
+  } from '../../shared/constants.js';
+import type { IconType } from '../../shared/types/domain.js';
 import { toErrorMessage } from '../utils/errorUtils.js';
-import { getDeduplicator } from '../utils/ipcDeduplicator.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import { getIconCache } from '../utils/iconCache.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
+import { getDeduplicator } from '../utils/ipcDeduplicator.js';
+import { validateFaviconURL } from '../../shared/urlValidators.js';
+import { validateUnreadCount } from '../../shared/dataValidators.js';
+import { getIconCache } from '../utils/iconCache.js';
 
 /**
  * Decide app icon based on favicon URL.

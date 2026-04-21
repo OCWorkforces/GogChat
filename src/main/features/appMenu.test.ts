@@ -89,6 +89,12 @@ vi.mock('../../shared/constants', () => ({
 vi.mock('../utils/platformHelpers', () => ({
   openNewGitHubIssue: vi.fn(),
   debugInfo: vi.fn().mockReturnValue('platform: darwin'),
+  getPackageInfo: vi.fn().mockReturnValue({
+    productName: 'GogChat',
+    version: '1.0.0',
+    author: 'Test Author',
+    repository: 'https://github.com/test/repo',
+  }),
 }));
 
 vi.mock('../utils/packageInfo', () => ({

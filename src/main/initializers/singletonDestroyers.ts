@@ -7,8 +7,8 @@
  */
 
 import { destroyIconCache } from '../utils/iconCache.js';
-import { destroyDeduplicator } from '../utils/ipcDeduplicator.js';
 import { destroyRateLimiter } from '../utils/rateLimiter.js';
+import { destroyDeduplicator } from '../utils/ipcDeduplicator.js';
 import { destroyPerformanceMonitor } from '../utils/performanceMonitor.js';
 
 /**

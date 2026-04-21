@@ -1,37 +1,12 @@
 import type { BrowserWindow } from 'electron';
-import { Menu, app, shell, clipboard, dialog } from 'electron';
-import { checkForUpdates } from 'electron-update-notifier';
-import path from 'path';
-import log from 'electron-log';
+import { Menu, app, clipboard } from 'electron';
 import store from '../config.js';
 import environment from '../../environment.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
-import { openNewGitHubIssue, debugInfo } from '../utils/platformHelpers.js';
-import { getPackageInfo } from '../utils/packageInfo.js';
 import { getMenuAction } from './menuActionRegistry.js';
+import { buildHelpSubMenu, relaunchApp } from './helpMenuBuilder.js';
 
 export default (window: BrowserWindow) => {
-  const pkg = getPackageInfo();
-
-  const relaunchApp = () => {
-    app.relaunch({
-      // auto-launch adds the --hidden flag to the command during OS start
-      // This will launch the app without hidden flag
-      args: process.argv.filter((flag) => flag !== '--hidden'),
-    });
-    app.exit();
-  };
-
-  const resetAppAndRestart = async () => {
-    log.log('clearing app data');
-    store.clear();
-    const { session } = window.webContents;
-    await session.clearStorageData();
-    await session.clearCache();
-    log.log('cleared app data');
-    relaunchApp();
-  };
-
   const menuItems = Menu.buildFromTemplate([
     {
       label: 'File',
@@ -207,98 +182,7 @@ export default (window: BrowserWindow) => {
         },
       ],
     },
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'Check For Updates',
-          enabled: true,
-          click: () => {
-            void checkForUpdates({
-              silent: false,
-            });
-          },
-        },
-        {
-          label: 'Troubleshooting',
-          submenu: [
-            {
-              label: 'Report issue...',
-              click: () => {
-                openNewGitHubIssue({
-                  repoUrl: pkg.repository,
-                  body: `### Platform\n\n${debugInfo()}`,
-                });
-              },
-            },
-            {
-              label: 'Toggle External Links Guard',
-              click: () => {
-                const toggleGuard = getMenuAction('toggleExternalLinksGuard');
-                if (toggleGuard) {
-                  toggleGuard.handler(window);
-                }
-              },
-            },
-            {
-              label: 'Demo Badge Count',
-              click: () => {
-                app.setBadgeCount(Math.floor(Math.random() * 99));
-              },
-            },
-            {
-              type: 'separator',
-            },
-            {
-              label: 'Show Logs in File Manager',
-              click: () => {
-                if (process.platform === 'darwin') {
-                  shell.showItemInFolder(app.getPath('logs'));
-                } else {
-                  shell.showItemInFolder(path.join(app.getPath('userData'), 'logs'));
-                }
-              },
-            },
-            {
-              label: 'Reset and Relaunch App',
-              click: () => {
-                void dialog
-                  .showMessageBox(window, {
-                    type: 'warning',
-                    title: 'Confirm',
-                    message: 'Reset app data?',
-                    detail: `You will be logged out from application.\nAll settings will reset to default.\nPress 'Yes' to proceed.`,
-                    buttons: ['Yes', 'No'],
-                    cancelId: 1,
-                    defaultId: 1,
-                  })
-                  .then(({ response }) => {
-                    if (response === 0) {
-                      void resetAppAndRestart();
-                    }
-                  });
-              },
-            },
-          ],
-        },
-        {
-          label: 'About',
-          click: () => {
-            const showAbout = getMenuAction('aboutPanel');
-            if (showAbout) {
-              showAbout.handler(window);
-            }
-          },
-        },
-        {
-          type: 'separator',
-        },
-        {
-          label: `Version ${app.getVersion()}${environment.isDev ? '-(dev)' : ''}`,
-          enabled: false,
-        },
-      ],
-    },
+    buildHelpSubMenu(window),
   ]);
 
   Menu.setApplicationMenu(menuItems);

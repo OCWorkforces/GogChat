@@ -7,12 +7,11 @@ import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import { registerCleanupTask } from './utils/resourceCleanup.js';
 
 import { getFeatureManager } from './utils/featureManager.js';
-import { getMostRecentWindow } from './utils/accountWindowManager.js';
 import windowWrapper from './windowWrapper.js';
 
 import { registerAllFeatures } from './initializers/registerFeatures.js';
 import { registerShutdownHandler } from './initializers/registerShutdown.js';
-import { registerAppReady } from './initializers/registerAppReady.js';
+import { registerAppReady, getMostRecentWindow } from './initializers/registerAppReady.js';
 
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');

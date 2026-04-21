@@ -18,11 +18,6 @@ import { createTrackedTimeout } from './resourceCleanup.js';
 import { compareStorePerformance } from './configProfiler.js';
 import type { FeatureManager } from './featureManager.js';
 
-// Re-exports so the app-ready orchestrator can pull all related types from
-// a single module, keeping its import surface minimal.
-export type { FeatureManager } from './featureManager.js';
-export type { WindowFactory } from '../../shared/types.js';
-export { default as environment } from '../../environment.js';
 
 /** Delay (ms) before idle cache warming fires after deferred features load. */
 const IDLE_WARM_DELAY_MS = 5000;

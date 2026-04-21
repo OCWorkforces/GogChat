@@ -52,7 +52,7 @@ vi.mock('../utils/ipcHelper.js', () => ({
   createSecureIPCHandler: (cfg: unknown) => mockCreateSecureIPCHandler(cfg),
 }));
 
-vi.mock('../../shared/validators.js', () => ({
+vi.mock('../../shared/dataValidators.js', () => ({
   validateFaviconURL: vi.fn((url: string) => url),
   validateUnreadCount: vi.fn((count: number) => count),
 }));
