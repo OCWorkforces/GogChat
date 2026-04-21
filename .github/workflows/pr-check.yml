@@ -35,4 +35,46 @@ jobs:
         run: bun run test
 
       - name: Test with coverage
-        run: bun run test:coverage
+        run: bun run test:coverage 2>&1 | tee coverage-output.txt
+
+      - name: 'Architecture: Circular deps'
+        run: bunx madge --circular --extensions ts src/
+
+      - name: 'Architecture: Coverage threshold'
+        run: |
+          cat coverage-output.txt | node -e "
+          const rl = require('readline');
+          const lines = [];
+          process.stdin.on('line', l => lines.push(l));
+          process.stdin.on('close', () => {
+            const low = [];
+            for (const line of lines) {
+              const m = line.match(/^\s*(\S+\.ts)\s*\|\s*([\d.]+)/);
+              if (m && parseFloat(m[2]) < 90) low.push(m[1] + ' (' + m[2] + '%)');
+            }
+            if (low.length) {
+              console.warn('::warning::Files below 90% statement coverage:');
+              low.forEach(f => console.warn('  - ' + f));
+            } else {
+              console.log('All files meet 90% statement coverage threshold.');
+            }
+          });
+          "
+        continue-on-error: true
+
+      - name: 'Architecture: Import count'
+        run: |
+          THRESHOLD=8
+          FAIL=0
+          for f in src/main/initializers/registerAppReady.ts src/main/initializers/registerShutdown.ts src/main/features/appMenu.ts src/main/features/badgeIcon.ts src/main/windowWrapper.ts; do
+            if [ -f "$f" ]; then
+              COUNT=$(grep -cE "^import " "$f" || true)
+              if [ "$COUNT" -gt "$THRESHOLD" ]; then
+                echo "::error file=$f::God file: $COUNT imports (threshold: $THRESHOLD)"
+                FAIL=1
+              else
+                echo "OK $f: $COUNT imports"
+              fi
+            fi
+          done
+          exit $FAIL
