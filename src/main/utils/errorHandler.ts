@@ -13,7 +13,7 @@
 import { app } from 'electron';
 import log from 'electron-log';
 import type Store from 'electron-store';
-import type { StoreType } from '../../shared/types.js';
+import type { StoreType } from '../../shared/types/config.js';
 
 /**
  * Error context provides additional information about where/when an error occurred

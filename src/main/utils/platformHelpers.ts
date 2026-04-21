@@ -7,9 +7,10 @@
 import { app, shell } from 'electron';
 import os from 'os';
 import type Store from 'electron-store';
-import type { StoreType } from '../../shared/types.js';
-import { validateExternalURL } from '../../shared/validators.js';
+import { validateExternalURL } from '../../shared/urlValidators.js';
+import type { StoreType } from '../../shared/types/config.js';
 import { logger } from './logger.js';
+
 
 /**
  * Enforce macOS app location

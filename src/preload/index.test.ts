@@ -14,10 +14,13 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('../shared/validators.js', () => ({
+vi.mock('../shared/dataValidators.js', () => ({
   validateUnreadCount: vi.fn((v: number) => v),
-  validateFaviconURL: vi.fn((v: string) => v),
   validatePasskeyFailureData: vi.fn((v: string) => ({ errorType: v, timestamp: 12345 })),
+}));
+
+vi.mock('../shared/urlValidators.js', () => ({
+  validateFaviconURL: vi.fn((v: string) => v),
 }));
 
 vi.mock('../shared/constants.js', () => ({
@@ -43,10 +46,10 @@ vi.mock('./unreadCount.js', () => ({}));
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   validateUnreadCount,
-  validateFaviconURL,
   validatePasskeyFailureData,
-} from '../shared/validators.js';
-import type { GogChatBridgeAPI } from '../shared/types.js';
+  } from '../shared/dataValidators.js';
+import { validateFaviconURL } from '../shared/urlValidators.js';
+import type { GogChatBridgeAPI } from '../shared/types/bridge.js';
 
 type ExposeMock = ReturnType<typeof vi.fn> & {
   mock: { calls: Array<[string, GogChatBridgeAPI]> };

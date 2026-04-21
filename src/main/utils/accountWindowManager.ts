@@ -13,7 +13,7 @@
 import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import store from '../config.js';
-import type { AccountWindowState, WindowFactory } from '../../shared/types.js';
+import type { AccountWindowState, WindowFactory, IAccountWindowManager } from '../../shared/types/window.js';
 import {
   markAsBootstrap as _markAsBootstrap,
   isBootstrap as _isBootstrap,
@@ -32,7 +32,7 @@ import { routeAccountWindow } from './accountRouter.js';
  * - {@link AccountWindowRegistry} for window registration/lookup/lifecycle
  * - {@link routeAccountWindow} for window creation routing
  */
-export class AccountWindowManager {
+export class AccountWindowManager implements IAccountWindowManager {
   private readonly registry: AccountWindowRegistry;
 
   constructor(private readonly windowFactory?: WindowFactory) {
@@ -160,7 +160,7 @@ let accountWindowManager: AccountWindowManager | null = null;
 /**
  * Get the global account window manager instance
  */
-export function getAccountWindowManager(factory?: WindowFactory): AccountWindowManager {
+export function getAccountWindowManager(factory?: WindowFactory): IAccountWindowManager {
   if (!accountWindowManager) {
     accountWindowManager = new AccountWindowManager(factory);
   }

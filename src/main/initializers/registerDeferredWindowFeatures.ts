@@ -3,7 +3,7 @@
  *
  * Window-bound features: menus, notifications, links, tray behavior, etc.
  */
-import { createLazyFeature } from '../utils/featureTypes.js';
+import { createLazyFeature } from '../utils/featureManager.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import { createMainWindowFeature } from './featureHelpers.js';
 

@@ -2,7 +2,7 @@ import { throttle, debounce } from 'throttle-debounce';
 import log from 'electron-log';
 import store from '../config.js';
 import { TIMING } from '../../shared/constants.js';
-import type { WindowState } from '../../shared/types.js';
+import type { WindowState } from '../../shared/types/window.js';
 import { getWindowForAccount } from '../utils/accountWindowManager.js';
 
 // Store handlers for cleanup

@@ -1,4 +1,4 @@
-import type { StoreType } from '../shared/types.js';
+import type { StoreType } from '../shared/types/config.js';
 import Store from 'electron-store';
 import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';

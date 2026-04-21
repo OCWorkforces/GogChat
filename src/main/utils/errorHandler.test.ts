@@ -519,7 +519,7 @@ describe('ErrorHandler', () => {
 
   describe('initializeFeature()', () => {
     it('wraps feature initialization successfully', async () => {
-      const { initializeFeature } = await import('./featureTypes');
+      const { initializeFeature } = await import('./featureManager');
       const log = await import('electron-log');
       const initFn = vi.fn().mockResolvedValue(undefined);
 
@@ -531,7 +531,7 @@ describe('ErrorHandler', () => {
     });
 
     it('catches and logs errors without re-throwing', async () => {
-      const { initializeFeature } = await import('./featureTypes');
+      const { initializeFeature } = await import('./featureManager');
       const log = await import('electron-log');
       const initFn = vi.fn().mockRejectedValue(new Error('init failed'));
 
@@ -543,7 +543,7 @@ describe('ErrorHandler', () => {
     });
 
     it('allows app to continue after feature failure', async () => {
-      const { initializeFeature } = await import('./featureTypes');
+      const { initializeFeature } = await import('./featureManager');
       const initFn = vi.fn().mockRejectedValue(new Error('failed'));
 
       // Should not throw - app continues
@@ -551,7 +551,7 @@ describe('ErrorHandler', () => {
     });
 
     it('works without phase', async () => {
-      const { initializeFeature } = await import('./featureTypes');
+      const { initializeFeature } = await import('./featureManager');
       const initFn = vi.fn().mockResolvedValue(undefined);
 
       await initializeFeature('noPhase', initFn);
@@ -560,7 +560,7 @@ describe('ErrorHandler', () => {
     });
 
     it('works with sync init function', async () => {
-      const { initializeFeature } = await import('./featureTypes');
+      const { initializeFeature } = await import('./featureManager');
       const initFn = vi.fn();
 
       await initializeFeature('syncInit', initFn, 'ui');
@@ -569,7 +569,7 @@ describe('ErrorHandler', () => {
     });
 
     it('uses wrapAsync internally for async operations', async () => {
-      const { initializeFeature } = await import('./featureTypes');
+      const { initializeFeature } = await import('./featureManager');
       const log = await import('electron-log');
 
       await initializeFeature(

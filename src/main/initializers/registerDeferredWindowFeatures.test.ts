@@ -44,7 +44,7 @@ vi.mock('../features/contextMenu.js', () => ({
 }));
 
 import { registerDeferredWindowFeatures } from './registerDeferredWindowFeatures';
-import type { FeatureConfig } from '../utils/featureTypes';
+import type { FeatureConfig } from '../utils/featureManager';
 
 describe('registerDeferredWindowFeatures', () => {
   let capturedFeatures: FeatureConfig[];

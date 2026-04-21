@@ -49,7 +49,7 @@ vi.mock('../utils/platformHelpers.js', () => ({
 }));
 
 import { registerDeferredSystemFeatures } from './registerDeferredSystemFeatures';
-import type { FeatureConfig } from '../utils/featureTypes';
+import type { FeatureConfig } from '../utils/featureManager';
 
 describe('registerDeferredSystemFeatures', () => {
   let capturedFeatures: FeatureConfig[];

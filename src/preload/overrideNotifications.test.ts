@@ -21,7 +21,7 @@ vi.mock('electron', () => ({
 }));
 
 // Mock validators
-vi.mock('../shared/validators.js', () => ({
+vi.mock('../shared/dataValidators.js', () => ({
   validateNotificationData: vi.fn((data: unknown) => data),
 }));
 
@@ -167,7 +167,7 @@ describe('overrideNotifications', () => {
   });
 
   it('does not send IPC when validation fails', async () => {
-    const { validateNotificationData } = await import('../shared/validators.js');
+    const { validateNotificationData } = await import('../shared/dataValidators.js');
     vi.mocked(validateNotificationData).mockImplementation(() => {
       throw new Error('Invalid data');
     });
