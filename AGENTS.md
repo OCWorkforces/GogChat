@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-18
+**Generated:** 2026-04-21
 
-**Commit:** cf15b13
+**Commit:** b12967f
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -14,11 +14,12 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 ```
 src/
 ├── main/          # Electron main process (features, initializers, utils)
-│   ├── features/  # 23 self-contained feature modules, phased lifecycle
-│   ├── initializers/ # Feature registration + shutdown handler
-│   └── utils/     # 32 utility modules (singletons, helpers, types)
-├── preload/       # 7 bridge scripts (CJS, sandbox-compatible)
-├── shared/        # Cross-process contracts (constants, validators, types/ subdirectory)
+│   ├── features/  # 25+ self-contained feature modules, phased lifecycle
+│   ├── initializers/ # Feature registration + shutdown + diagnostics
+│   └── utils/     # 39 utility modules (singletons, helpers, types)
+├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
+├── shared/        # Cross-process contracts (constants, validators, types/)
+│   └── types/     # 6 type files (branded, window, domain, config, ipc, bridge)
 └── offline/       # Standalone fallback page (no IPC access)
 scripts/           # Dual-build system, lint, icon generation, notarization
 tests/             # 4 tiers: unit (colocated), integration, e2e, performance
@@ -32,15 +33,18 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | -------------------- | ------------------------------------------------ | ------------------------------------------- |
 | App init order       | `src/main/index.ts`                              | Thin orchestrator; logic in `initializers/` |
 | Feature registration | `src/main/initializers/registerFeatures.ts`      | 22 features with phases + deps              |
-| Shutdown handler     | `src/main/initializers/registerShutdown.ts`      | Graceful cleanup + cache stats              |
+| Shutdown handler     | `src/main/initializers/registerShutdown.ts`      | Graceful cleanup via `singletonDestroyers`  |
+| Shutdown diagnostics | `src/main/initializers/shutdownDiagnostics.ts`   | Cache statistics logging                     |
 | Multi-account mgr    | `src/main/utils/accountWindowManager.ts`         | Per-account windows + bootstrap             |
+| Account mgr interface| `src/shared/types/window.ts`                     | `IAccountWindowManager` (19 methods)        |
 | Add new feature      | `src/main/features/`                             | See `features/AGENTS.md`                    |
 | IPC channel names    | `src/shared/constants.ts`                        | `IPC_CHANNELS` const                        |
-| Input validation     | `src/shared/validators.ts`                       | All IPC must go through here                |
-| Config schema        | `src/shared/types.ts` + `src/main/config.ts`     | Update both                                 |
+| Input validators     | `src/shared/dataValidators.ts`                    | Data validation (counts, booleans, objects) |
+| URL validators       | `src/shared/urlValidators.ts`                    | URL whitelist + Google auth detection       |
+| Config schema        | `src/shared/types/config.ts` + `src/main/config.ts` | Update both                             |
 | Encryption keys      | `src/main/utils/encryptionKey.ts`                | SafeStorage + legacy migration              |
 | Menu action registry | `src/main/features/menuActionRegistry.ts`        | Decouples features from appMenu             |
-| window.gogchat API   | `src/preload/index.ts` + `src/shared/types.ts`   | `GogChatBridgeAPI`                          |
+| window.gogchat API   | `src/preload/index.ts` + `src/shared/types/bridge.ts` | `GogChatBridgeAPI`                    |
 | Build system         | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                                   |
 | CI/CD                | `.github/workflows/`                             | pr-check + release                          |
 | DMG packaging        | `mac/`                                           | See `mac/AGENTS.md`                         |
@@ -52,7 +56,7 @@ resources/         # Icon variants (tray, normal, badge, offline)
 
 Two separate Rsbuild passes in `scripts/build-rsbuild.js`:
 
-1. **Main build** — ESM, `electron-main` target, all `src/**/*.ts` except preload
+1. **Main build** — ESM, `electron-main` target, **single entry** `src/main/index.ts`
 2. **Preload build** — CJS, `electron-renderer` target, `cleanDistPath: false`
 
 **`cleanDistPath: false` on preload is mandatory** — without it, pass 2 wipes pass 1's output.
@@ -93,7 +97,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **TypeScript**: 6.0+ with strict mode (`noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`)
 - **ESLint**: `@typescript-eslint/consistent-type-imports: error` enforces `import type` for type-only imports
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
-- **New settings**: Update `StoreType` in `shared/types.ts` → add schema in `config.ts`
+- **New settings**: Update `StoreType` in `shared/types/config.ts` → add schema in `config.ts`
 - **IPC handler pattern**: rate limit → validate → handle → catch (see `src/main/AGENTS.md`)
 - **Feature priority**: SECURITY→CRITICAL→UI→DEFERRED phases via featureManager
 - **Feature dependencies**: Declared in feature config; featureManager resolves via topological sort
@@ -104,6 +108,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **Encryption**: SafeStorage (macOS Keychain) with legacy deterministic key fallback + migration
 - **Menu actions**: Features register actions via `menuActionRegistry.ts`; appMenu consumes them (no feature→feature imports)
 - **Global cleanup**: `registerBuiltInGlobalCleanups()` uses lazy `require()` to avoid coupling
+- **No re-exports**: All imports go directly to source modules (no barrel files)
 
 ## ANTI-PATTERNS
 
@@ -121,12 +126,13 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **Never** destroy a window without unregistering from `accountWindowManager`
 - **Never** import from other features directly — use `menuActionRegistry`
 - **Never** mix runtime imports with type-only imports — use `import type` syntax consistently (ESLint enforced)
+- **Never** create barrel/re-export files — import directly from source modules
 
 ## SECURITY LAYERS (defense-in-depth)
 
 - `contextIsolation: true` + `sandbox: true` + `nodeIntegration: false` in BrowserWindow
 - Per-account `persist:account-N` session partitions for cookie isolation
-- All IPC: `rateLimiter.isAllowed()` + `validators.ts` + try-catch
+- All IPC: `rateLimiter.isAllowed()` + validators + try-catch
 - Certificate pinning for all Google domains (kill switch via `app.disableCertPinning` config)
 - SafeStorage-backed encryption keys (macOS Keychain) with legacy key migration
 - AES-256-GCM encrypted `electron-store` for config
@@ -138,8 +144,8 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 
 ```bash
 bun install
-bun run build:dev      # dev build (~0.25s)
-bun run build:prod     # prod build (~0.31s)
+bun run build:dev      # dev build (~0.12s)
+bun run build:prod     # prod build (~0.12s)
 bun run build:watch    # watch mode
 bun run build:analyze  # bundle analysis (ANALYZE=true)
 bun run typecheck      # tsc -b
@@ -158,35 +164,30 @@ bun run hooks:install  # Install git pre-push hook
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 41 / Node.js 22+ / Chromium-based
 - Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
+- Bundle: single main entry → 110KB (was 696KB before optimization)
 - `overrideNotifications.ts` preload: `contextIsolation: false` (intentional exception)
 - DOM selectors in `shared/constants.ts` `SELECTORS` — may break on Google HTML changes
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 - CI: GitHub Actions — `pr-check.yml` + `release.yml`
-- Coverage thresholds: 94% statements, 92% branches, 94% functions/lines
+- CI gates: madge circular deps (enforcing), import count (enforcing), coverage (informational)
+- Coverage: 99.25% statements (1837 tests, 84 test files)
 - Build history tracked in `.build-history.json` (last 20 builds)
 
-## COMPLEXITY CENTERS (300+ lines)
+## COMPLEXITY CENTERS (200+ lines)
 
 | File                                        | Lines | Purpose                                             |
 | ------------------------------------------- | ----- | --------------------------------------------------- |
-| `src/main/utils/accountWindowManager.ts`    | 437   | Multi-account BrowserWindow management              |
-| `src/main/utils/featureManager.ts`          | 363   | Feature lifecycle, dependency resolution            |
-| `scripts/build-rsbuild.js`                  | 363   | Dual-build orchestrator                             |
-| `src/main/utils/ipcHelper.ts`               | 351   | Secure IPC handler factories                        |
-| `src/main/windowWrapper.ts`                 | 344   | Per-account BrowserWindow factory                   |
-| `src/main/utils/performanceMonitor.ts`      | 292   | Startup timing markers, memory snapshots            |
-| `src/main/config.ts`                        | 328   | Encrypted electron-store with AES-256-GCM           |
-| `src/main/utils/ipcDeduplicator.ts`         | 263   | IPC request deduplication (100ms window)            |
-| `src/main/utils/errorHandler.ts`            | 245   | Structured error wrapping, feature init guard       |
-| `src/shared/urlValidators.ts`               | 303   | URL whitelist validation, Google auth URL detection |
-| `src/main/features/appMenu.ts`              | 301   | Application menu, About dialog                      |
-| `src/main/features/externalLinks.ts`        | 295   | External link handling with re-guard timer          |
+| `src/main/utils/featureManager.ts`          | 458   | Feature lifecycle, dependency resolution            |
 | `src/main/utils/resourceCleanup.ts`         | 372   | Tracked intervals/timeouts/listeners + lazy cleanup |
-| `src/main/utils/platformHelpers.ts`         | 141   | macOS platform helpers (enforceLocation, etc.)      |
-| `src/main/utils/platformUtils.ts`           | 159   | Platform utilities singleton (getLogPath, etc.)     |
-| `src/main/utils/performanceExport.ts`       | 128   | Performance export/log helpers                       |
-| `src/main/utils/windowUtils.ts`             | 121   | Merged window utilities (events, health, defaults)  |
-| `src/main/utils/featureTypes.ts`            | 178   | Feature config types + initializeFeature            |
-| `src/main/utils/ipcDeduplicationPatterns.ts`| 70    | Dedup patterns (createDeduplicatedHandler, etc.)    |
-| `src/main/index.ts`                         | 238   | Thin app entry, delegates to initializers           |
-| `src/main/initializers/registerShutdown.ts` | 178   | Graceful shutdown + cache diagnostics               |
+| `scripts/build-rsbuild.js`                  | 386   | Dual-build orchestrator                             |
+| `src/main/utils/accountWindowManager.ts`    | 437   | Multi-account BrowserWindow management              |
+| `src/shared/urlValidators.ts`               | 305   | URL whitelist validation, Google auth URL detection |
+| `src/main/utils/ipcHelper.ts`               | 265   | Secure IPC handler factories                        |
+| `src/main/utils/ipcDeduplicator.ts`         | 263   | IPC request deduplication (100ms window)            |
+| `src/main/features/externalLinks.ts`        | 297   | External link handling with re-guard timer          |
+| `src/main/utils/performanceMonitor.ts`      | 259   | Startup timing markers, memory snapshots            |
+| `src/main/utils/accountWindowRegistry.ts`   | 255   | Window registry implementation                      |
+| `src/main/utils/errorHandler.ts`            | 245   | Structured error wrapping, feature init guard       |
+| `src/main/config.ts`                        | 328   | Encrypted electron-store with AES-256-GCM           |
+| `src/main/utils/iconCache.ts`               | 219   | Icon caching + warmup                               |
+| `src/main/utils/certificatePinning.ts`      | 188   | Certificate pinning for Google domains              |
