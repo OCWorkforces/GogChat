@@ -61,6 +61,14 @@ files:
 compression: maximum
 asar: true
 
+# Runtime resources (icons, tray images) — placed outside asar in Contents/Resources/
+# Accessible via process.resourcesPath in packaged app
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - "**/*"
+
 # Locale optimization - keep only English (backup to after-pack.cjs)
 electronLanguages:
   - en-US

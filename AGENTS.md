@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-21
+**Generated:** 2026-04-24
 
-**Commit:** b12967f
+**Commit:** 2275f2a
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -180,7 +180,7 @@ bun run hooks:install  # Install git pre-push hook
 | `src/main/utils/featureManager.ts`          | 458   | Feature lifecycle, dependency resolution            |
 | `src/main/utils/resourceCleanup.ts`         | 372   | Tracked intervals/timeouts/listeners + lazy cleanup |
 | `scripts/build-rsbuild.js`                  | 386   | Dual-build orchestrator                             |
-| `src/main/utils/accountWindowManager.ts`    | 437   | Multi-account BrowserWindow management              |
+| `src/main/utils/accountWindowManager.ts`    | 211   | Multi-account BrowserWindow management              |
 | `src/shared/urlValidators.ts`               | 305   | URL whitelist validation, Google auth URL detection |
 | `src/main/utils/ipcHelper.ts`               | 265   | Secure IPC handler factories                        |
 | `src/main/utils/ipcDeduplicator.ts`         | 263   | IPC request deduplication (100ms window)            |
@@ -188,6 +188,6 @@ bun run hooks:install  # Install git pre-push hook
 | `src/main/utils/performanceMonitor.ts`      | 259   | Startup timing markers, memory snapshots            |
 | `src/main/utils/accountWindowRegistry.ts`   | 255   | Window registry implementation                      |
 | `src/main/utils/errorHandler.ts`            | 245   | Structured error wrapping, feature init guard       |
-| `src/main/config.ts`                        | 328   | Encrypted electron-store with AES-256-GCM           |
-| `src/main/utils/iconCache.ts`               | 219   | Icon caching + warmup                               |
+| `src/main/config.ts`                        | 173   | Encrypted electron-store with AES-256-GCM           |
+| `src/main/utils/iconCache.ts`               | 223   | Icon caching + warmup                               |
 | `src/main/utils/certificatePinning.ts`      | 188   | Certificate pinning for Google domains              |

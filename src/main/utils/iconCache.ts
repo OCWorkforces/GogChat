@@ -45,7 +45,11 @@ class IconCacheManager {
     }
 
     // Load from disk
-    const fullPath = path.join(app.getAppPath(), relativePath);
+    // In packaged DMG: resources/ is bundled via extraResources outside asar
+    // process.resourcesPath → Contents/Resources/ where extraResources are placed
+    // In dev: app.getAppPath() → project root where resources/ directory exists
+    const basePath = app.isPackaged ? process.resourcesPath : app.getAppPath();
+    const fullPath = path.join(basePath, relativePath);
     const icon = nativeImage.createFromPath(fullPath);
 
     if (icon.isEmpty()) {
