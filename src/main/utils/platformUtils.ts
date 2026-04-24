@@ -6,14 +6,15 @@
 
 import type { BrowserWindow } from 'electron';
 import { app, nativeImage, Tray } from 'electron';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { logger } from './logger.js';
 import { MACOS_CONFIG, type PlatformConfig } from './platformDetection.js';
 
-// ESM __dirname replacement
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Resolve resource paths based on packaged vs dev mode
+// In packaged DMG: extraResources places resources/ at process.resourcesPath/resources/
+// In dev: resources/ is at the project root via app.getAppPath()
+const resourceBase = app.isPackaged ? process.resourcesPath : app.getAppPath();
+const resolveResourcePath = (...segments: string[]) => join(resourceBase, ...segments);
 
 /**
  * macOS Platform utilities class
@@ -25,7 +26,7 @@ export class PlatformUtils {
    * Get the macOS app icon path
    */
   getAppIconPath(): string {
-    return join(__dirname, '../../../resources/icons/normal/mac.icns');
+    return resolveResourcePath('resources/icons/normal/mac.icns');
   }
 
   /**
@@ -33,7 +34,7 @@ export class PlatformUtils {
    * Uses Template for automatic dark/light mode adaptation
    */
   getTrayIconPath(): string {
-    return join(__dirname, '../../../resources/icons/tray/iconTemplate.png');
+    return resolveResourcePath('resources/icons/tray/iconTemplate.png');
   }
 
   /**
