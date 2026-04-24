@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-21 · **Commit:** b12967f
+**Generated:** 2026-04-24 · **Commit:** 2275f2a
 
 39 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -9,7 +9,7 @@
 | File | Lines | Purpose | Singleton |
 | --- | --- | --- | --- |
 | `featureManager.ts` | 458 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature` | `getFeatureManager()` |
-| `accountWindowManager.ts` | 437 | Multi-account BrowserWindow mgmt; implements `IAccountWindowManager` | `getAccountWindowManager()` |
+| `accountWindowManager.ts` | 211 | Multi-account BrowserWindow mgmt; implements `IAccountWindowManager` | `getAccountWindowManager()` |
 | `resourceCleanup.ts` | 372 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
 | `config.ts` (parent) | — | See `../config.ts` | — |
 | `performanceMonitor.ts` | 259 | Startup timing + memory snapshots | `getPerformanceMonitor()` |
@@ -17,15 +17,15 @@
 | `ipcDeduplicator.ts` | 263 | Dedup rapid same-key requests | `getDeduplicator()` |
 | `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
-| `iconCache.ts` | 219 | NativeImage preload cache | `getIconCache()` |
+| `iconCache.ts` | 223 | NativeImage preload cache | `getIconCache()` |
 | `bootstrapWatcher.ts` | 205 | Bootstrap window navigation watching | exported fns |
 | `rateLimiter.ts` | 199 | IPC DoS prevention | `getRateLimiter()` |
 | `configCache.ts` | 179 | In-memory layer for electron-store | `addCacheLayer()` |
 | `configSchema.ts` | 159 | electron-store schema | exported const |
-| `platformUtils.ts` | 159 | Platform utilities singleton | `getPlatformUtils()` |
-| `cacheWarmer.ts` | 157 | Icon cache warm + deferred phase + dev profiling | exported fns |
-| `platformHelpers.ts` | 141 | macOS platform helpers (enforceLocation) | exported fns |
-| `performanceExport.ts` | 128 | Performance export/log helpers | exported fns |
+| `platformUtils.ts` | 160 | Platform utilities singleton | `getPlatformUtils()` |
+| `cacheWarmer.ts` | 151 | Icon cache warm + deferred phase + dev profiling | exported fns |
+| `platformHelpers.ts` | 142 | macOS platform helpers (enforceLocation) | exported fns |
+| `performanceExport.ts` | 125 | Performance export/log helpers | exported fns |
 | `encryptionKey.ts` | 128 | SafeStorage encryption key mgmt | exported fns |
 | `mediaAccess.ts` | 123 | macOS camera/mic TCC permissions | exported fns |
 | `windowUtils.ts` | 121 | Window events/health/defaults (merged) | exported fns |
