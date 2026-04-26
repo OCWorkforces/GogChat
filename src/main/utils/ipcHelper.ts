@@ -3,15 +3,16 @@
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import { ipcMain, BrowserWindow } from 'electron';
 import type { IPCResponse } from '../../shared/types/ipc.js';
+import type { IPCChannelName } from '../../shared/constants.js';
 import { getRateLimiter } from './rateLimiter.js';
 import { logger } from './logger.js';
 import { toError, toErrorMessage } from './errorUtils.js';
 
 /** Configuration for creating a secure IPC handler */
 export interface IPCHandlerConfig<T> {
-  channel: string;
+  channel: IPCChannelName;
   validator: (data: unknown) => T;
-  handler: (data: T, event: IpcMainEvent | IpcMainInvokeEvent) => void | Promise<void>;
+  handler: (data: NoInfer<T>, event: IpcMainEvent | IpcMainInvokeEvent) => void | Promise<void>;
   rateLimit?: number;
   onError?: (error: Error, event: IpcMainEvent | IpcMainInvokeEvent) => void;
   silent?: boolean;
@@ -20,13 +21,13 @@ export interface IPCHandlerConfig<T> {
 
 /** Configuration for creating a reply-based IPC handler */
 export interface IPCReplyHandlerConfig<T, R> extends Omit<IPCHandlerConfig<T>, 'handler'> {
-  handler: (data: T, event: IpcMainEvent) => R | Promise<R>;
+  handler: (data: NoInfer<T>, event: IpcMainEvent) => R | Promise<R>;
   replyChannel?: string;
 }
 
 /** Configuration for creating an invoke handler (request/response) */
 export interface IPCInvokeHandlerConfig<T, R> extends Omit<IPCHandlerConfig<T>, 'handler'> {
-  handler: (data: T, event: IpcMainInvokeEvent) => R | Promise<R>;
+  handler: (data: NoInfer<T>, event: IpcMainInvokeEvent) => R | Promise<R>;
 }
 
 /** Common config fields shared by all secure handler types */
@@ -181,7 +182,7 @@ export function createSecureInvokeHandler<T, R>(config: IPCInvokeHandlerConfig<T
 
 /** Broadcasts to all windows */
 export function createBroadcastHandler<T>(config: {
-  channel: string;
+  channel: IPCChannelName;
   validator: (data: unknown) => T;
   filter?: (window: BrowserWindow, data: T) => boolean;
 }): (data: unknown) => void {
@@ -204,7 +205,7 @@ export function createBroadcastHandler<T>(config: {
 /** Sends to a specific window */
 export function sendToWindow<T>(
   window: BrowserWindow | null,
-  channel: string,
+  channel: IPCChannelName,
   data: T,
   validator?: (data: T) => T
 ): boolean {

@@ -18,7 +18,7 @@ export const IPC_CHANNELS = {
   // From main to renderer
   SEARCH_SHORTCUT: 'searchShortcut',
   ONLINE_STATUS: 'onlineStatus',
-} as const;
+} as const satisfies Record<string, string>;
 
 /**
  * DOM selectors for GogChat elements
@@ -132,3 +132,9 @@ export const DEEP_LINK = {
   /** Allowed path prefixes for deep link navigation */
   ALLOWED_PATH_PREFIXES: ['/room/', '/dm/', '/space/'] as readonly string[],
 } as const;
+
+/**
+ * Union of all IPC channel name string literals, derived from IPC_CHANNELS.
+ * Use instead of `string` when a variable must be a known channel name.
+ */
+export type IPCChannelName = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

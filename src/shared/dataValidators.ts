@@ -5,6 +5,7 @@
 
 import { BADGE } from './constants.js';
 import { validateFaviconURL } from './urlValidators.js';
+import type { PasskeyErrorType } from './types/domain.js';
 
 /**
  * Validates and sanitizes unread count values
@@ -123,7 +124,7 @@ export function sanitizeHTML(html: string): string {
  * @throws Error if data is invalid
  */
 export function validatePasskeyFailureData(errorType: unknown): {
-  errorType: string;
+  errorType: PasskeyErrorType | (string & {});
   timestamp: number;
 } {
   // Validate error type
@@ -186,16 +187,16 @@ export function validateNotificationData(data: unknown): {
   };
 
   if (data.body !== undefined && data.body !== null && data.body !== '') {
-    result.body = validateString(data.body as unknown, 5000);
+    result.body = validateString(data.body, 5000);
   }
 
   if (data.icon !== undefined && data.icon !== null && data.icon !== '') {
     // Validate icon URL (can be data: URL for inline images)
-    result.icon = validateFaviconURL(data.icon as unknown);
+    result.icon = validateFaviconURL(data.icon);
   }
 
   if (data.tag !== undefined && data.tag !== null && data.tag !== '') {
-    result.tag = validateString(data.tag as unknown, 200);
+    result.tag = validateString(data.tag, 200);
   }
 
   return result;
