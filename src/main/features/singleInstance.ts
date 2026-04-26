@@ -2,6 +2,7 @@ import { app } from 'electron';
 import log from 'electron-log';
 import { getMenuAction } from './menuActionRegistry.js';
 import { extractDeepLinkFromArgv } from './deepLinkUtils.js';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
 import { getMostRecentWindow } from '../utils/accountWindowManager.js';
 
 const enforceSingleInstance = (): boolean => {
@@ -15,8 +16,8 @@ const enforceSingleInstance = (): boolean => {
   return gotTheLock;
 };
 
-const restoreFirstInstance = (_context: { accountWindowManager?: unknown }) => {
-  app.on('second-instance', (_event, argv) => {
+const restoreFirstInstance = (_context: { accountWindowManager?: IAccountWindowManager }): void => {
+  app.on('second-instance', (_event, argv: string[]) => {
     // Someone tried to run a second instance, we should focus our window.
     // Use getMostRecentWindow() to get the current window dynamically
     const window = getMostRecentWindow();

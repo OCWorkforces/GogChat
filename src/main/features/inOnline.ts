@@ -106,7 +106,7 @@ export default (_window: BrowserWindow) => {
     validator: () => undefined,
     rateLimit: 1,
     description: 'Connectivity check',
-    handler: (_data, event) => {
+    handler: (_data: undefined, event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => {
       if (!('reply' in event)) {
         return;
       }

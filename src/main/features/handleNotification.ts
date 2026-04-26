@@ -15,7 +15,7 @@ const activeNotifications = new Map<
   string,
   {
     notification: Notification;
-    timeout: NodeJS.Timeout;
+    timeout: ReturnType<typeof setTimeout>;
   }
 >();
 

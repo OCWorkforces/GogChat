@@ -10,14 +10,26 @@
  */
 
 /**
+ * Typed map of all known menu action IDs to their handler signatures.
+ * Add an entry here whenever a new menu action is registered.
+ */
+export interface MenuActionMap {
+  aboutPanel: (window: Electron.BrowserWindow) => void;
+  autoLaunch: () => { enable: () => Promise<void>; disable: () => Promise<void> };
+  toggleExternalLinksGuard: (window: Electron.BrowserWindow) => void;
+  processDeepLink: (url: string) => void;
+}
+
+export type MenuActionId = keyof MenuActionMap;
+
+/**
  * Menu action descriptor
  */
-export interface MenuAction {
+export interface MenuAction<K extends MenuActionId = MenuActionId> {
   /** Human-readable label for logging */
   label: string;
   /** The action handler */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (...args: any[]) => any;
+  handler: MenuActionMap[K];
 }
 
 /**
@@ -25,13 +37,13 @@ export interface MenuAction {
  * Actions are registered by features during their init phase and
  * consumed by appMenu when building the menu template.
  */
-const actions = new Map<string, MenuAction>();
+const actions = new Map<MenuActionId, MenuAction>();
 
 /**
  * Register a menu action.
  * Called by features during their initialization phase.
  */
-export function registerMenuAction(id: string, action: MenuAction): void {
+export function registerMenuAction<K extends MenuActionId>(id: K, action: MenuAction<K>): void {
   actions.set(id, action);
 }
 
@@ -40,8 +52,8 @@ export function registerMenuAction(id: string, action: MenuAction): void {
  * Called by appMenu when building the menu template.
  * Returns undefined if no action registered (defensive — feature may not have loaded).
  */
-export function getMenuAction(id: string): MenuAction | undefined {
-  return actions.get(id);
+export function getMenuAction<K extends MenuActionId>(id: K): MenuAction<K> | undefined {
+  return actions.get(id) as MenuAction<K> | undefined;
 }
 
 /**

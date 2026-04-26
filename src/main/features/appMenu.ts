@@ -1,6 +1,6 @@
 import type { BrowserWindow } from 'electron';
 import { Menu, app, clipboard } from 'electron';
-import store from '../config.js';
+import store, { configGet } from '../config.js';
 import environment from '../../environment.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import { getMenuAction } from './menuActionRegistry.js';
@@ -125,23 +125,20 @@ export default (window: BrowserWindow) => {
           label: 'Auto check for Updates',
           type: 'checkbox',
           enabled: true,
-          checked: store.get('app.autoCheckForUpdates') as boolean,
-          click: (menuItem) => {
+          checked: configGet('app.autoCheckForUpdates') ?? false,
+          click: (menuItem: Electron.MenuItem) => {
             store.set('app.autoCheckForUpdates', menuItem.checked);
           },
         },
         {
           label: 'Auto Launch at Login',
           type: 'checkbox',
-          checked: store.get('app.autoLaunchAtLogin') as boolean,
-          click: (menuItem) => {
+          checked: configGet('app.autoLaunchAtLogin') ?? false,
+          click: (menuItem: Electron.MenuItem) => {
             void (async () => {
               const autoLaunchAction = getMenuAction('autoLaunch');
               if (!autoLaunchAction) return;
-              const instance = autoLaunchAction.handler() as {
-                enable: () => Promise<void>;
-                disable: () => Promise<void>;
-              };
+              const instance = autoLaunchAction.handler();
               if (menuItem.checked) {
                 await instance.enable();
               } else {
@@ -155,8 +152,8 @@ export default (window: BrowserWindow) => {
         {
           label: 'Start Hidden',
           type: 'checkbox',
-          checked: store.get('app.startHidden') as boolean,
-          click: (menuItem) => {
+          checked: configGet('app.startHidden') ?? false,
+          click: (menuItem: Electron.MenuItem) => {
             store.set('app.startHidden', menuItem.checked);
           },
         },
@@ -164,8 +161,8 @@ export default (window: BrowserWindow) => {
           label: 'Hide Menu Bar',
           type: 'checkbox',
           enabled: process.platform !== 'darwin',
-          checked: store.get('app.hideMenuBar') as boolean,
-          click: (menuItem) => {
+          checked: configGet('app.hideMenuBar') ?? false,
+          click: (menuItem: Electron.MenuItem) => {
             window.setMenuBarVisibility(!menuItem.checked);
             window.setAutoHideMenuBar(menuItem.checked);
             store.set('app.hideMenuBar', menuItem.checked);
@@ -174,8 +171,8 @@ export default (window: BrowserWindow) => {
         {
           label: 'Disable Spell Checker',
           type: 'checkbox',
-          checked: store.get('app.disableSpellChecker') as boolean,
-          click: (menuItem) => {
+          checked: configGet('app.disableSpellChecker') ?? false,
+          click: (menuItem: Electron.MenuItem) => {
             window.webContents.session.setSpellCheckerEnabled(!menuItem.checked);
             store.set('app.disableSpellChecker', menuItem.checked);
           },

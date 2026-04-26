@@ -2,6 +2,7 @@ import { app, shell } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/urlValidators.js';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
 import {
   createAccountWindow,
   getMostRecentWindow,
@@ -23,7 +24,7 @@ function getAccountIndexFromUrl(url: string): number {
   }
 }
 
-function getTargetWindow(url: string) {
+function getTargetWindow(url: string): Electron.BrowserWindow {
   const accountIndex = getAccountIndexFromUrl(url);
   return getWindowForAccount(accountIndex) ?? createAccountWindow(url, accountIndex);
 }
@@ -150,7 +151,9 @@ export function registerDeepLinkProtocol(): void {
   registerProtocolClient(DEEP_LINK.PROTOCOL);
 }
 
-export default function initDeepLinkHandler(_context: { accountWindowManager?: unknown }): void {
+export default function initDeepLinkHandler(_context: {
+  accountWindowManager?: IAccountWindowManager;
+}): void {
   try {
     // No longer storing window reference - use dynamic lookup via account window manager
     registerDeepLinkProtocol();

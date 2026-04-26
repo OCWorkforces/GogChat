@@ -8,10 +8,7 @@ import { dialog, shell } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import {
-  isSafeObject,
-  validatePasskeyFailureData,
-} from '../../shared/dataValidators.js';
+import { isSafeObject, validatePasskeyFailureData } from '../../shared/dataValidators.js';
 import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
 import store from '../config.js';
 
@@ -45,7 +42,7 @@ export default (window: BrowserWindow) => {
     validator: parsePasskeyFailureData,
     rateLimit: 1 / 30,
     description: 'Passkey auth failed',
-    onError: (error) => {
+    onError: (error: Error) => {
       log.warn('[Passkey Support] Invalid passkey failure payload:', error);
     },
     handler: async (validatedData) => {

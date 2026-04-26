@@ -1,8 +1,8 @@
 import { throttle, debounce } from 'throttle-debounce';
 import log from 'electron-log';
-import store from '../config.js';
+import store, { configGet } from '../config.js';
 import { TIMING } from '../../shared/constants.js';
-import type { WindowState } from '../../shared/types/window.js';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
 import { getWindowForAccount } from '../utils/accountWindowManager.js';
 
 // Store handlers for cleanup
@@ -14,7 +14,7 @@ let maximizeHandler: (() => void) | null = null;
 let unmaximizeHandler: (() => void) | null = null;
 
 interface WindowStateContext {
-  accountWindowManager?: unknown;
+  accountWindowManager?: IAccountWindowManager;
 }
 
 export default (_context: WindowStateContext) => {
@@ -28,7 +28,7 @@ export default (_context: WindowStateContext) => {
 
     // Restore previous window state
     if (store.has('window')) {
-      const windowState = store.get('window') as WindowState | undefined;
+      const windowState = configGet('window');
       if (!windowState) return;
       const bounds = windowState.bounds;
       // Validate bounds have all required properties as numbers
@@ -57,7 +57,7 @@ export default (_context: WindowStateContext) => {
 
     // Restore maximized state
     readyToShowHandler = () => {
-      if (store.get('window.isMaximized')) {
+      if (configGet('window.isMaximized')) {
         window.maximize();
         log.debug('[WindowState] Window maximized from saved state');
       }
