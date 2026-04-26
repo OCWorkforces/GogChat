@@ -12,6 +12,7 @@ vi.mock('../config', () => ({
   default: {
     get: vi.fn().mockReturnValue(true),
   },
+  configGet: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock('../utils/resourceCleanup', () => ({
@@ -20,7 +21,7 @@ vi.mock('../utils/resourceCleanup', () => ({
 }));
 
 import appUpdates from './appUpdates';
-import store from '../config';
+import { configGet } from '../config';
 import { setUpdateNotification, checkForUpdates } from 'electron-update-notifier';
 import { createTrackedTimeout, createTrackedInterval } from '../utils/resourceCleanup';
 
@@ -48,7 +49,7 @@ describe('appUpdates', () => {
   });
 
   it('does not call update functions when auto-check is disabled', () => {
-    vi.mocked(store.get).mockReturnValue(false);
+    vi.mocked(configGet).mockReturnValue(false as never);
     vi.mocked(createTrackedTimeout).mockImplementation((fn: () => void) => fn());
     vi.mocked(createTrackedInterval).mockImplementation((fn: () => void) => fn());
 
@@ -59,7 +60,7 @@ describe('appUpdates', () => {
   });
 
   it('calls setUpdateNotification and checkForUpdates when auto-check is enabled', () => {
-    vi.mocked(store.get).mockReturnValue(true);
+    vi.mocked(configGet).mockReturnValue(true as never);
     vi.mocked(createTrackedTimeout).mockImplementation((fn: () => void) => fn());
     vi.mocked(createTrackedInterval).mockImplementation((fn: () => void) => fn());
 
@@ -70,7 +71,7 @@ describe('appUpdates', () => {
   });
 
   it('clears previous interval on re-init', () => {
-    vi.mocked(store.get).mockReturnValue(true);
+    vi.mocked(configGet).mockReturnValue(true as never);
     appUpdates();
     appUpdates();
     expect(createTrackedInterval).toHaveBeenCalledTimes(2);

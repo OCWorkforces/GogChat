@@ -72,6 +72,16 @@ vi.mock('../config', () => ({
     set: vi.fn(),
     clear: vi.fn(),
   },
+  configGet: vi.fn((key: string) => {
+    const defaults: Record<string, unknown> = {
+      'app.autoCheckForUpdates': true,
+      'app.autoLaunchAtLogin': false,
+      'app.startHidden': false,
+      'app.hideMenuBar': false,
+      'app.disableSpellChecker': false,
+    };
+    return defaults[key];
+  }),
 }));
 
 vi.mock('../../environment', () => ({
