@@ -117,4 +117,4 @@ publish:
   repo: GogChat
 
 # Additional metadata
-artifactName: '${productName}-v${version}-macOS-${arch}-${env.BUILD_ENV}.${ext}'
+artifactName: '${productName}-${version}-${arch}.${ext}'
