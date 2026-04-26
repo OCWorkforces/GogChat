@@ -121,6 +121,8 @@ vi.mock('electron-log', () => ({
 
 vi.mock('../config.js', () => ({
   default: storeMock,
+  configGet: vi.fn((key: string) => storeMock.get(key)),
+  configSet: vi.fn((key: string, value: unknown) => storeMock.set(key, value)),
 }));
 
 vi.mock('../utils/accountWindowManager.js', () => ({

@@ -6,6 +6,7 @@
 import type { BrowserWindow } from 'electron';
 import { createLazyFeature } from '../utils/featureManager.js';
 import type { FeatureManager } from '../utils/featureManager.js';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
 
 export function registerDeferredSystemFeatures(
   featureManager: FeatureManager,
@@ -69,7 +70,7 @@ export function registerDeferredSystemFeatures(
       async () => {
         const module = await import('../features/windowState.js');
         return {
-          default: ({ accountWindowManager }: { accountWindowManager?: unknown }) => {
+          default: ({ accountWindowManager }: { accountWindowManager?: IAccountWindowManager }) => {
             module.default({ accountWindowManager });
           },
         };

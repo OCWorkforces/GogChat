@@ -8,85 +8,110 @@
 export type IconType = 'offline' | 'normal' | 'badge';
 
 /**
+ * Discriminated union for icon state — badge variant carries a count,
+ * offline/normal variants carry no additional data.
+ * Prefer this over `IconType` string union in new code.
+ */
+export type IconState =
+  | { readonly type: 'offline' }
+  | { readonly type: 'normal' }
+  | { readonly type: 'badge'; readonly count: number };
+
+/**
  * Unread count data passed via IPC
  */
 export interface UnreadCountData {
-  count: number;
-  timestamp: number;
+  readonly count: number;
+  readonly timestamp: number;
 }
 
 /**
  * Favicon change data
  */
 export interface FaviconData {
-  href: string;
-  type: IconType;
-  timestamp: number;
+  readonly href: string;
+  readonly type: IconType;
+  readonly timestamp: number;
 }
 
 /**
  * Online status data
  */
 export interface OnlineStatusData {
-  online: boolean;
-  timestamp: number;
+  readonly online: boolean;
+  readonly timestamp: number;
 }
 
 /**
  * Passkey authentication failure data
  */
+/**
+ * Known WebAuthn/FIDO error type names for passkey authentication failures.
+ * The `string & {}` intersection allows forward-compatible unknown error types
+ * while preserving autocomplete on known values.
+ */
+export type PasskeyErrorType =
+  | 'NotAllowedError'
+  | 'NotSupportedError'
+  | 'SecurityError'
+  | 'AbortError'
+  | 'ConstraintError'
+  | 'InvalidStateError'
+  | 'UnknownError'
+  | 'TimeoutError';
+
 export interface PasskeyFailureData {
-  errorType: string;
-  timestamp: number;
+  readonly errorType: PasskeyErrorType | (string & {});
+  readonly timestamp: number;
 }
 
 /**
  * Notification data passed via IPC
  */
 export interface NotificationData {
-  title: string;
-  body?: string;
-  icon?: string;
-  tag?: string;
-  timestamp: number;
+  readonly title: string;
+  readonly body?: string;
+  readonly icon?: string;
+  readonly tag?: string;
+  readonly timestamp: number;
 }
 
 /**
  * Badge icon cache entry
  */
 export interface BadgeIconCacheEntry {
-  icon: Electron.NativeImage;
-  count: number;
-  timestamp: number;
+  readonly icon: Electron.NativeImage;
+  readonly count: number;
+  readonly timestamp: number;
 }
 
 /**
  * External link validation result
  */
 export interface LinkValidationResult {
-  valid: boolean;
-  sanitizedURL?: string;
-  reason?: string;
+  readonly valid: boolean;
+  readonly sanitizedURL?: string;
+  readonly reason?: string;
 }
 
 /**
  * Error log entry
  */
 export interface ErrorLogEntry {
-  timestamp: number;
-  level: 'error' | 'warn' | 'info' | 'debug';
-  scope: string;
-  message: string;
-  stack?: string;
-  meta?: Record<string, unknown>;
+  readonly timestamp: number;
+  readonly level: 'error' | 'warn' | 'info' | 'debug';
+  readonly scope: string;
+  readonly message: string;
+  readonly stack?: string;
+  readonly meta?: Record<string, unknown>;
 }
 
 /**
  * Performance metrics
  */
 export interface PerformanceMetrics {
-  startupTime?: number;
-  ipcMessageCount: number;
-  memoryUsage?: NodeJS.MemoryUsage;
-  domObserverCount: number;
+  readonly startupTime?: number;
+  readonly ipcMessageCount: number;
+  readonly memoryUsage?: NodeJS.MemoryUsage;
+  readonly domObserverCount: number;
 }

@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-24 (commit 2275f2a)
+**Generated:** 2026-04-26 (commit 5fbc125)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -49,19 +49,19 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 
 ## MENU ACTION REGISTRY
 
-Features that expose actions consumed by `appMenu.ts` must self-register via `registerMenuAction(id, { label, handler })` from `./menuActionRegistry.ts`. **Never** import from other features directly — use the registry.
+Features that expose actions consumed by `appMenu.ts` must self-register via `registerMenuAction<K>(id, { label, handler })` from `./menuActionRegistry.ts`. The registry is fully typed — `MenuActionMap` maps each `MenuActionId` to its exact handler signature. **Never** import from other features directly — use the registry.
 
-Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts), `toggleExternalLinksGuard` (externalLinks.ts).
+Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts), `toggleExternalLinksGuard` (externalLinks.ts), `processDeepLink` (deepLinkHandler.ts).
 
 ## ADDING A NEW FEATURE
 
 1. Create `myFeature.ts` — export `init(ctx: FeatureContext): void` with try-catch
 2. Add IPC channel to `../../shared/constants.ts` (if needed)
-3. Add validator to `../../shared/validators.ts` (if IPC data)
+3. Add validator to `../../shared/dataValidators.ts` or `../../shared/urlValidators.ts` (if IPC data)
 4. Add to `../../preload/index.ts` (if renderer-side sender needed)
 5. Register in `../initializers/registerFeatures.ts` via `createLazyFeature('myFeature', 'deferred', () => import('../features/myFeature.js'))`
 6. If consumed by appMenu: `registerMenuAction('myAction', { label, handler })` in your feature file
-7. If config needed: `StoreType` in `../../shared/types.ts` + schema in `../config.ts`
+7. If config needed: `StoreType` in `../../shared/types/config.ts` + schema in `../config.ts`; access via `configGet`/`configSet`
 
 ## KEY DEPENDENCIES
 
@@ -113,5 +113,5 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 | `firstLaunch.ts` | 44 | First-launch onboarding |
 | `mediaPermissions.ts` | 36 | Camera/mic TCC permission check |
 | `contextMenu.ts` | 36 | Right-click context menu |
-| `menuActionRegistry.ts` | 52 | Registry decoupling features from appMenu (moved from utils/) |
+|| `menuActionRegistry.ts` | 64 | Typed `MenuActionMap` registry + `registerMenuAction<K>`/`getMenuAction<K>` generics (moved from utils/) |
 | `deepLinkUtils.ts` | 27 | Deep link URL extraction from argv (moved from utils/) |

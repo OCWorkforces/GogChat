@@ -1,6 +1,6 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-04-24 | **Commit:** 2275f2a
+**Generated:** 2026-04-26 | **Commit:** 5fbc125
 
 Cross-process contracts: constants, validators (split by domain), types (split into `types/`). Single source of truth for IPC, config, and bridge APIs. **Edit this before touching IPC handlers or preload scripts.** No barrel files, all imports go directly to source modules.
 
@@ -8,19 +8,19 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 
 | File | Role |
 | --- | --- |
-| `constants.ts` | `IPC_CHANNELS` (8), `SELECTORS`, `TIMING`, `ICON_TYPES`, `FAVICON_PATTERNS`, `RATE_LIMITS`, `BADGE`, `WHITELISTED_HOSTS`, `URL_PATTERNS`, `DEEP_LINK` |
+| `constants.ts` | `IPC_CHANNELS` (8, `as const satisfies Record<string, string>`), `IPCChannelName` type, `SELECTORS`, `TIMING`, `ICON_TYPES`, `FAVICON_PATTERNS`, `RATE_LIMITS`, `BADGE`, `WHITELISTED_HOSTS`, `URL_PATTERNS`, `DEEP_LINK` |
 | `dataValidators.ts` | `validateUnreadCount`, `validateBoolean`, `validateString`, `isSafeObject`, `sanitizeHTML`, `validatePasskeyFailureData`, `validateNotificationData` |
 | `urlValidators.ts` | `validateFaviconURL`, `validateExternalURL`, `validateAppleSystemPreferencesURL`, `isWhitelistedHost`, `validateDeepLinkURL`, `isAuthenticatedChatUrl`, `isGoogleAuthUrl` |
-| `types/branded.ts` | `Branded<T,Brand>`, `ValidatedURL` nominal types |
+| `types/branded.ts` | `Branded<T,Brand>`, `ValidatedURL` nominal types, `asValidatedURL()` helper |
 | `types/window.ts` | `IAccountWindowManager` (19 methods), `WindowFactory`, `WindowBounds`, `WindowState`, `AccountWindowBounds`, `AccountWindowState`, `AccountWindowsMap` |
-| `types/domain.ts` | `IconType`, `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData`, `NotificationData`, `BadgeIconCacheEntry`, `LinkValidationResult`, `ErrorLogEntry`, `PerformanceMetrics` |
+| `types/domain.ts` | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union (8 WebAuthn values), `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData`, `NotificationData`, `BadgeIconCacheEntry`, `LinkValidationResult`, `ErrorLogEntry`, `PerformanceMetrics` (all readonly) |
 | `types/config.ts` | `AppConfig`, `StoreMetadata`, `StoreType`, `StoreKeyPaths` |
-| `types/ipc.ts` | `IPCHandler<T>`, `ValidatedIPCMessage<T>`, `RateLimitEntry`, `IPCResponse<T>`, `IPCChannelPayloadMap` |
+| `types/ipc.ts` | `IPCHandler<T>`, `ValidatedIPCMessage<T,C>` (channel typed as `IPCChannelName`), `RateLimitEntry`, `IPCResponse<T>`, `IPCChannelPayloadMap` (computed keys `[IPC_CHANNELS.X]`) |
 | `types/bridge.ts` | `GogChatBridgeAPI` + `declare global { Window.gogchat }` |
 
 ## KEY EXPORTS
 
-**constants.ts**: `IPC_CHANNELS` (renderer→main + main→renderer), `SELECTORS` (FRAGILE DOM selectors), `WHITELISTED_HOSTS`, `RATE_LIMITS`, `TIMING`, `BADGE`, `FAVICON_PATTERNS`, `DEEP_LINK`, `URL_PATTERNS`, `ICON_TYPES`.
+**constants.ts**: `IPC_CHANNELS` (renderer→main + main→renderer, `as const satisfies Record<string, string>`), `IPCChannelName` derived type, `SELECTORS` (FRAGILE DOM selectors), `WHITELISTED_HOSTS`, `RATE_LIMITS`, `TIMING`, `BADGE`, `FAVICON_PATTERNS`, `DEEP_LINK`, `URL_PATTERNS`, `ICON_TYPES`.
 
 **dataValidators.ts**: data sanitization for IPC payloads. Use `isSafeObject` first, then field validators.
 
@@ -30,9 +30,9 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 
 ## WORKFLOW: ADDING IPC CHANNEL
 
-1. `constants.ts` — add to `IPC_CHANNELS`
+1. `constants.ts` — add to `IPC_CHANNELS`; `IPCChannelName` updates automatically
 2. `types/domain.ts` (or fitting `types/*.ts`) — add data interface
-3. `dataValidators.ts` or `urlValidators.ts` — add validator using `isSafeObject` + existing validators
+3. `dataValidators.ts` or `urlValidators.ts` — add validator using `isSafeObject` + existing validators; pair `PasskeyErrorType`-style union if the field has a bounded set of values
 4. Preload: `ipcRenderer.send()` + expose on `GogChatBridgeAPI`
 5. Main: `ipcMain.on()` → validate → handle → catch
 

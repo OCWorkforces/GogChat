@@ -153,8 +153,8 @@ class ErrorHandler {
   /**
    * Get the current error context (top of stack)
    */
-  private getCurrentContext(): ErrorContext {
-    return this.errorContextStack[this.errorContextStack.length - 1] || {};
+  private getCurrentContext(): ErrorContext | undefined {
+    return this.errorContextStack[this.errorContextStack.length - 1];
   }
 
   /**
@@ -242,4 +242,3 @@ export function initializeErrorHandler(
   const handler = getErrorHandler(config);
   handler.initialize(store);
 }
-

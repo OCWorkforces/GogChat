@@ -1,4 +1,4 @@
-import type { StoreType } from '../shared/types/config.js';
+import type { StoreType, StoreKeyPaths } from '../shared/types/config.js';
 import Store from 'electron-store';
 import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';
@@ -169,5 +169,43 @@ const storeProxy = new Proxy({} as Store<StoreType> | CachedStore<StoreType>, {
     return Reflect.getOwnPropertyDescriptor(getStore(), prop);
   },
 });
+
+/**
+ * Path-typed value extractor for nested StoreType keys.
+ * Resolves dot-notation paths (e.g. 'app.autoCheckForUpdates') to their value type.
+ */
+type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
+  ? K extends keyof T
+    ? PathValue<NonNullable<T[K]>, Rest>
+    : never
+  : P extends keyof T
+    ? T[P]
+    : never;
+
+/**
+ * Type-safe config getter. Returns the value at the given dot-notation path,
+ * or undefined if not set.
+ *
+ * @example
+ *   const val = configGet('app.autoCheckForUpdates'); // boolean | undefined
+ */
+export function configGet<K extends StoreKeyPaths<StoreType>>(
+  key: K
+): PathValue<StoreType, K> | undefined {
+  return getStore().get(key as never) as PathValue<StoreType, K> | undefined;
+}
+
+/**
+ * Type-safe config setter. Sets the value at the given dot-notation path.
+ *
+ * @example
+ *   configSet('app.startHidden', true);
+ */
+export function configSet<K extends StoreKeyPaths<StoreType>>(
+  key: K,
+  value: PathValue<StoreType, K>
+): void {
+  getStore().set(key as never, value as never);
+}
 
 export default storeProxy;

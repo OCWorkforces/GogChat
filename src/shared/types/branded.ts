@@ -20,3 +20,13 @@ export type Branded<T, Brand extends string> = T & { readonly __brand: Brand };
  * Use this type to distinguish raw strings from validated URLs in function signatures.
  */
 export type ValidatedURL = Branded<string, 'ValidatedURL'>;
+
+/**
+ * Cast a validated string to the `ValidatedURL` branded type.
+ * Only call this after the string has been through validateExternalURL(),
+ * validateFaviconURL(), or validateDeepLinkURL().
+ * This is a type-level marker — it does not perform any validation itself.
+ */
+export function asValidatedURL(s: string): ValidatedURL {
+  return s as ValidatedURL;
+}
