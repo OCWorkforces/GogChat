@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-24 · **Commit:** 2275f2a
+**Generated:** 2026-04-26 · **Commit:** 5fbc125
 
 39 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -13,7 +13,7 @@
 | `resourceCleanup.ts` | 372 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
 | `config.ts` (parent) | — | See `../config.ts` | — |
 | `performanceMonitor.ts` | 259 | Startup timing + memory snapshots | `getPerformanceMonitor()` |
-| `ipcHelper.ts` | 265 | Secure IPC handler factories | `getIPCManager()` |
+| `ipcHelper.ts` | 265 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param in all 3 handler configs | `getIPCManager()` |
 | `ipcDeduplicator.ts` | 263 | Dedup rapid same-key requests | `getDeduplicator()` |
 | `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
@@ -65,7 +65,7 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 **Rate limiter**: `rateLimiter.isAllowed(IPC_CHANNELS.X, limit?)` — defaults from `RATE_LIMITS`.
 
-**IPC helper factories**: `createSecureIPCHandler()`, `createSecureReplyHandler()`, `createSecureInvokeHandler()` — all return cleanup fn. Prefer over raw `ipcMain.on()`.
+**IPC helper factories**: `createSecureIPCHandler()`, `createSecureReplyHandler()`, `createSecureInvokeHandler()` — all return cleanup fn. Channel param typed as `IPCChannelName`; `data` uses `NoInfer<T>` to prevent handler signature from widening the inferred type. Prefer over raw `ipcMain.on()`.
 
 **Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `setupWindowCleanup()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up.
 

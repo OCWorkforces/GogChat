@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-24 · **Commit:** 2275f2a
+**Generated:** 2026-04-26 · **Commit:** 5fbc125
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -21,7 +21,7 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Window event logging | `utils/windowEventLogger.ts` | Centralized navigation/load logs |
 | Window health | `utils/windowHealthMonitor.ts` | Renderer crash + unresponsive tracking |
 | Window defaults | `utils/windowDefaults.ts` | Shared BrowserWindow options |
-| Encrypted config | `config.ts` | AES-256-GCM; schema paired with `../shared/types/config.ts` |
+| Encrypted config | `config.ts` | AES-256-GCM; schema paired with `../shared/types/config.ts`; use `configGet`/`configSet` — never `store.get(...) as T` |
 | Feature modules | `features/` (25+) | See `features/AGENTS.md` |
 | Utility modules | `utils/` (39) | See `utils/AGENTS.md` |
 | Initializer modules | `initializers/` (13) | See `initializers/AGENTS.md` |
@@ -86,14 +86,13 @@ All 5 pieces required: channel constant, rate limit, validator, handler, catch.
 
 ## CONFIG ACCESS
 
-Config uses SafeStorage-backed encryption keys with legacy deterministic key fallback.
-Migration from legacy → SafeStorage happens automatically on first run.
+Config uses `configGet<K>()` / `configSet<K,V>()` typed helpers from `config.ts` — do not call `store.get(...) as T` directly.
 Kill switch: `app.disableCertPinning` config option.
 
 ```typescript
-import store from './config';
-const val = store.get('app.autoCheckForUpdates');
-store.set('app.startHidden', true);
+import { configGet, configSet } from './config';
+const val = configGet('app.autoCheckForUpdates'); // boolean | undefined
+configSet('app.startHidden', true);
 ```
 
 To add setting: (1) `StoreType` in `../shared/types/config.ts` → (2) schema entry in `config.ts`.

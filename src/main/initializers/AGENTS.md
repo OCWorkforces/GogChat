@@ -1,6 +1,6 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-04-24 · **Commit:** 2275f2a
+**Generated:** 2026-04-26 · **Commit:** 5fbc125
 
 Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is split into specialized sub-modules by concern. Shutdown handled separately.
 
