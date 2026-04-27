@@ -154,7 +154,7 @@ For detailed security information, see [SECURITY.md](SECURITY.md).
 
 ## Contact
 
-If you have any questions or encounter issues, feel free to reach out to [kennydizi@ocworkforcess.com](mailto:kennydizi@ocworkforcess.com)
+If you have any questions or encounter issues, feel free to reach out to [kennydizi@ocworkforces.com](mailto:kennydizi@ocworkforces.com)
 
 ## License
 
