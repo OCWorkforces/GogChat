@@ -1,6 +1,6 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-04-26 · **Commit:** 5fbc125
+**Generated:** 2026-04-27 · **Commit:** 6311e3b
 
 Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is split into specialized sub-modules by concern. Shutdown handled separately.
 
@@ -31,7 +31,7 @@ Extracted from `index.ts` to keep the app entry point a thin orchestrator. Featu
 - `setTrayIcon(icon)` — stores tray reference in `index.ts` module scope
 - `registerCleanupTask(name, cleanup)` — delegates to `resourceCleanup`
 
-**Feature list**: 22 features across 4 phases. Security (3) → Critical (1) → UI (3) → Deferred (15). See `../features/AGENTS.md` for full inventory.
+**Feature list**: 21 features across 4 phases. Security (3) → Critical (1) → UI (3) → Deferred (14). See `../features/AGENTS.md` for full inventory.
 
 **Deferred registration split into 3 specialized modules:**
 - `registerDeferredSystemFeatures.ts` — tray, badges, window state, auto-launch, updates, firstLaunch, enforceMacOSAppLocation
