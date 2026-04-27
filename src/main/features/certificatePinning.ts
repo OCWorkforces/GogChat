@@ -5,9 +5,8 @@
 
 import type { Certificate } from 'electron';
 import { app } from 'electron';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import log from 'electron-log';
+import { getDisableCertPinning } from '../utils/secureFlags.js';
 
 /**
  * Google root certificate issuers we trust
@@ -100,22 +99,12 @@ let certificateErrorHandler:
   | null = null;
 
 /**
- * Check if certificate pinning is disabled via config file
- * Uses direct file read since store may not be initialized yet (runs before app.ready)
+ * Check if certificate pinning is disabled via the secure flags store.
+ * Backed by `safeStorage` (authenticated encryption) — see `utils/secureFlags.ts`.
+ * Safe to call before `app.ready`; defaults to `false` on any failure.
  */
 function isCertPinningDisabled(): boolean {
-  try {
-    const configPath = path.join(app.getPath('userData'), 'config.json');
-    if (fs.existsSync(configPath)) {
-      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
-      if ((raw?.app as Record<string, unknown>)?.disableCertPinning === true) {
-        return true;
-      }
-    }
-  } catch {
-    // Can't read config, continue with pinning
-  }
-  return false;
+  return getDisableCertPinning();
 }
 
 /**

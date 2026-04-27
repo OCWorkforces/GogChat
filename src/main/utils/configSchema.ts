@@ -74,10 +74,6 @@ export const schema: Schema<StoreType> = {
         type: 'boolean',
         default: false,
       },
-      disableCertPinning: {
-        type: 'boolean',
-        default: false,
-      },
     },
     default: {
       autoCheckForUpdates: true,
@@ -86,7 +82,6 @@ export const schema: Schema<StoreType> = {
       hideMenuBar: false,
       disableSpellChecker: false,
       suppressPasskeyDialog: false,
-      disableCertPinning: false,
     },
   },
   _meta: {
