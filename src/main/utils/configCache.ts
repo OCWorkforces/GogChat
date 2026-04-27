@@ -72,6 +72,9 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
       } else {
         stats.hits++;
         log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
+        // LRU: move to end (most recently used) by re-inserting
+        cache.delete(key as string);
+        cache.set(key as string, entry);
         return entry.value;
       }
     }
@@ -91,13 +94,12 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
     stats.writes++;
     invalidateCacheForKey(key as string, cache);
     if (cache.size >= CACHE_MAX_SIZE) {
-      const entriesToEvict = [...cache.entries()]
-        .sort((a, b) => a[1].timestamp - b[1].timestamp)
-        .slice(0, cache.size - CACHE_MAX_SIZE + 1);
-      for (const [evictKey] of entriesToEvict) {
-        cache.delete(evictKey);
+      // LRU eviction: Map preserves insertion order, so first key is oldest
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        cache.delete(oldestKey);
+        log.debug(`[ConfigCache] Evicted oldest entry: ${oldestKey}`);
       }
-      log.debug(`[ConfigCache] Evicted ${entriesToEvict.length} oldest entries`);
     }
     return originalSet(key as never, value as never);
   };

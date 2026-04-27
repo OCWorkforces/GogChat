@@ -12,8 +12,8 @@
 
 import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
-import store from '../config.js';
-import type { AccountWindowState, WindowFactory, IAccountWindowManager } from '../../shared/types/window.js';
+import { configGet, configSet } from '../config.js';
+import type { AccountWindowState, WindowFactory, IAccountWindowManager, AccountWindowsMap } from '../../shared/types/window.js';
 import {
   markAsBootstrap as _markAsBootstrap,
   isBootstrap as _isBootstrap,
@@ -24,6 +24,37 @@ import {
 } from './bootstrapTracker.js';
 import { AccountWindowRegistry } from './accountWindowRegistry.js';
 import { routeAccountWindow } from './accountRouter.js';
+
+/**
+ * Serialized write queue for the `accountWindows` config key.
+ *
+ * Multiple account windows may concurrently call `saveAccountWindowState`
+ * (resize, app quit, etc.). Without serialization, the read-modify-write
+ * pattern can lose updates: two reads observe the same baseline, then the
+ * second write overwrites the first.
+ *
+ * All mutations to `accountWindows` MUST go through `updateAccountWindows`
+ * so they execute sequentially on this microtask chain.
+ */
+let accountWindowsWriteQueue: Promise<void> = Promise.resolve();
+
+function updateAccountWindows(
+  updater: (current: AccountWindowsMap) => AccountWindowsMap
+): Promise<void> {
+  accountWindowsWriteQueue = accountWindowsWriteQueue.then(() => {
+    const current = configGet('accountWindows') ?? {};
+    configSet('accountWindows', updater(current));
+  });
+  return accountWindowsWriteQueue;
+}
+
+/**
+ * Await all pending `accountWindows` writes. Intended for tests and
+ * shutdown paths that must observe a fully-flushed state.
+ */
+export function flushAccountWindowsWrites(): Promise<void> {
+  return accountWindowsWriteQueue;
+}
 
 /**
  * Account Window Manager - Manages per-account BrowserWindow instances
@@ -132,23 +163,23 @@ export class AccountWindowManager implements IAccountWindowManager {
     const bounds = window.getBounds();
     const isMaximized = window.isMaximized();
 
-    const accountWindows = store.get('accountWindows') ?? {};
-    accountWindows[accountIndex] = {
-      bounds: {
-        x: bounds.x,
-        y: bounds.y,
-        width: bounds.width,
-        height: bounds.height,
+    updateAccountWindows((current) => ({
+      ...current,
+      [accountIndex]: {
+        bounds: {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        },
+        isMaximized,
       },
-      isMaximized,
-    };
-
-    store.set('accountWindows', accountWindows);
+    }));
     log.debug(`[AccountWindowManager] Saved state for account ${accountIndex}`);
   }
 
   getAccountWindowState(accountIndex: number): AccountWindowState | null {
-    const accountWindows = store.get('accountWindows');
+    const accountWindows = configGet('accountWindows');
     return accountWindows?.[accountIndex] ?? null;
   }
 }

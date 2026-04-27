@@ -56,6 +56,14 @@ vi.mock('./logger.js', () => ({
   },
 }));
 
+// Mock ipcDeduplicator
+const mockDeduplicate = vi.fn(<T,>(_key: string, fn: () => Promise<T>) => fn());
+vi.mock('./ipcDeduplicator.js', () => ({
+  getDeduplicator: () => ({
+    deduplicate: mockDeduplicate,
+  }),
+}));
+
 // Mock errorHandler
 vi.mock('./errorHandler.js', () => ({
   toError: (error: unknown) => {
@@ -669,8 +677,8 @@ describe('ipcHelper', () => {
       const { createBroadcastHandler } = await import('./ipcHelper');
       const mockSend = vi.fn();
 
-      const mockWindow1 = { id: 1, webContents: { send: mockSend } };
-      const mockWindow2 = { id: 2, webContents: { send: mockSend } };
+      const mockWindow1 = { id: 1, webContents: { send: mockSend }, isDestroyed: () => false };
+      const mockWindow2 = { id: 2, webContents: { send: mockSend }, isDestroyed: () => false };
 
       mockGetAllWindows.mockReturnValue([mockWindow1, mockWindow2]);
 
@@ -711,8 +719,8 @@ describe('ipcHelper', () => {
       const { createBroadcastHandler } = await import('./ipcHelper');
       const mockSend = vi.fn();
 
-      const mockWindow1 = { id: 1, webContents: { send: mockSend } };
-      const mockWindow2 = { id: 2, webContents: { send: mockSend } };
+      const mockWindow1 = { id: 1, webContents: { send: mockSend }, isDestroyed: () => false };
+      const mockWindow2 = { id: 2, webContents: { send: mockSend }, isDestroyed: () => false };
 
       mockGetAllWindows.mockReturnValue([mockWindow1, mockWindow2]);
 
@@ -1448,6 +1456,108 @@ describe('ipcHelper', () => {
       });
       // Should NOT log debug when silent
       expect(logger.ipc.debug).not.toHaveBeenCalled();
+      cleanup();
+    });
+  });
+
+  // ========================================================================
+  // Deduplication option
+  // ========================================================================
+  describe('createSecureIPCHandler with deduplicate', () => {
+    it('does not call deduplicator when deduplicate is omitted', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'no-dedup-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'data');
+      await new Promise((r) => setImmediate(r));
+
+      expect(mockDeduplicate).not.toHaveBeenCalled();
+      expect(handler).toHaveBeenCalledWith('data', expect.anything());
+      cleanup();
+    });
+
+    it('routes through deduplicator when deduplicate is true', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'dedup-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        deduplicate: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'payload');
+      await new Promise((r) => setImmediate(r));
+
+      expect(mockDeduplicate).toHaveBeenCalledWith('dedup-channel', expect.any(Function));
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
+
+    it('shares execution across rapid duplicate invocations', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      // Simulate real dedup behavior: only first call's fn runs; second call returns cached result
+      let cachedResult: Promise<unknown> | null = null;
+      mockDeduplicate.mockImplementation((_key: string, fn: () => Promise<unknown>) => {
+        if (cachedResult) return cachedResult as Promise<never>;
+        cachedResult = fn();
+        return cachedResult as Promise<never>;
+      });
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+      const cleanup = createSecureIPCHandler({
+        channel: 'dedup-share-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        deduplicate: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'data');
+      registeredHandler({} as IpcMainEvent, 'data');
+      await new Promise((r) => setImmediate(r));
+
+      expect(mockDeduplicate).toHaveBeenCalledTimes(2);
+      // Handler runs only once thanks to dedup
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
+
+    it('still applies rate limiting before deduplication', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      mockIsAllowed.mockReturnValue(false);
+
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'dedup-rate-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        rateLimit: 5,
+        deduplicate: true,
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'data');
+      await new Promise((r) => setImmediate(r));
+
+      expect(mockDeduplicate).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+      mockIsAllowed.mockReturnValue(true);
       cleanup();
     });
   });

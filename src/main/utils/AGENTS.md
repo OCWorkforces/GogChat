@@ -1,8 +1,8 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-26 · **Commit:** 5fbc125
+**Generated:** 2026-04-26 · **Commit:** 2c99229
 
-39 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
+40 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
 ## MODULE INVENTORY
 
@@ -27,6 +27,7 @@
 | `platformHelpers.ts` | 142 | macOS platform helpers (enforceLocation) | exported fns |
 | `performanceExport.ts` | 125 | Performance export/log helpers | exported fns |
 | `encryptionKey.ts` | 128 | SafeStorage encryption key mgmt | exported fns |
+| `secureFlags.ts` | ~120 | safeStorage-backed security flags (`getDisableCertPinning`/`setDisableCertPinning`); persists to `secure-flags.enc`; macOS Keychain | `getDisableCertPinning()` / `setDisableCertPinning()` |
 | `mediaAccess.ts` | 123 | macOS camera/mic TCC permissions | exported fns |
 | `windowUtils.ts` | 121 | Window events/health/defaults (merged) | exported fns |
 | `logger.ts` | 112 | Scoped structured logging | `logger.*` |
@@ -90,3 +91,24 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 - **Never** read electron-store in hot paths — cache via `configCache.ts`
 - **Never** add static util imports to `resourceCleanup.ts` — use lazy `require()` via global cleanup callback
 - **Never** recreate `featureTypes.ts` or `ipc.ts` barrel — types live in `featureConfigTypes.ts` / `performanceTypes.ts`; import directly
+
+## RESOURCE SCOPE TAXONOMY
+
+Every tracked resource has exactly one scope. Cleanup must match the scope, not the trigger.
+
+**Process-scoped** (lifetime = app process)
+- Examples: `ipcMain` handlers, certificate pinning, app menu, autoupdater, global cleanup callbacks.
+- Cleanup: only on app quit, via `singletonDestroyers` / `featureManager.cleanup()`.
+- NEVER teardown on window close, even the last window.
+
+**Window-scoped** (lifetime = single BrowserWindow)
+- Examples: `webContents` listeners, per-session `webRequest` handlers, navigation guards, window-tracked timeouts.
+- Cleanup: when that specific window emits `closed`, via `setupWindowCleanup()` / `addTrackedListener(window, ...)`.
+- Use the window as the cleanup key, not the account or process.
+
+**Account-scoped** (lifetime = account)
+- Examples: `persist:account-N` session partitions, persisted window bounds, bootstrap state in `bootstrapTracker`.
+- Cleanup: when the account is removed, via `accountWindowManager` removal flow.
+- Survives window close (re-login reuses the partition).
+
+**Anti-pattern**: window-close cleanup must NEVER touch process-scoped resources. Calling `ipcMain.removeAllListeners()` (or any `ipcMain.remove*`) inside a window `closed` handler kills handlers other windows still need. This was the root cause of the H1 bug surfaced during the performance audit.

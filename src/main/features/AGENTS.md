@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-26 (commit 5fbc125)
+**Generated:** 2026-04-27 (commit 2c99229)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -36,7 +36,7 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `windowState.ts`        | `deferred` | none; uses `accountWindowManager`                      |
 | `passkeySupport.ts`     | `deferred` | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                 |
 | `handleNotification.ts` | `deferred` | `NOTIFICATION_SHOW` (listens)                          |
-| `inOnline.ts`           | `deferred` | `CHECK_IF_ONLINE`, `ONLINE_STATUS`                     |
+| `inOnline.ts`           | `deferred` | `CHECK_IF_ONLINE` (deduplicate: true), `ONLINE_STATUS`     |
 | `externalLinks.ts`      | `deferred` | none (will-navigate); self-registers toggle guard in `menuActionRegistry` |
 | `closeToTray.ts`        | `deferred` | none                                                   |
 | `openAtLogin.ts`        | `deferred` | none; self-registers `autoLaunch` in `menuActionRegistry` |

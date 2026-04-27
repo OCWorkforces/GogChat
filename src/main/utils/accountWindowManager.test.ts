@@ -15,12 +15,21 @@ vi.mock('electron-log', () => ({
     error: vi.fn(),
   },
 }));
-vi.mock('../config.js', () => ({
-  default: {
-    get: vi.fn(),
-    set: vi.fn(),
-  },
-}));
+vi.mock('../config.js', () => {
+  const mockStore: Record<string, unknown> = {};
+  return {
+    default: {
+      get: vi.fn((key: string) => mockStore[key]),
+      set: vi.fn((key: string, value: unknown) => {
+        mockStore[key] = value;
+      }),
+    },
+    configGet: vi.fn((key: string) => mockStore[key]),
+    configSet: vi.fn((key: string, value: unknown) => {
+      mockStore[key] = value;
+    }),
+  };
+});
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
@@ -32,10 +41,11 @@ import {
   getAccountIndex as getAccountIndexFn,
   createAccountWindow as createAccountWindowFn,
   getAccountForWebContents,
+  flushAccountWindowsWrites,
 } from './accountWindowManager';
 import { MockBrowserWindow } from '../../../tests/mocks/electron';
 import type { BrowserWindow } from 'electron';
-import store from '../config.js';
+import { configGet, configSet } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -771,7 +781,7 @@ describe('AccountWindowManager — unregisterAccount', () => {
 
 describe('AccountWindowManager — window state persistence', () => {
   let manager: AccountWindowManager;
-  const mockStore = vi.mocked(store);
+  const mockStore = { get: vi.mocked(configGet), set: vi.mocked(configSet) };
 
   beforeEach(() => {
     nextWebContentsId = 5000;
@@ -780,7 +790,7 @@ describe('AccountWindowManager — window state persistence', () => {
     mockStore.set.mockReset();
   });
 
-  it('saveAccountWindowState saves bounds and maximized state', () => {
+  it('saveAccountWindowState saves bounds and maximized state', async () => {
     const win = makeTypedWindow();
     (win as unknown as MockBrowserWindow).setBounds({ x: 100, y: 200, width: 1024, height: 768 });
     manager.registerWindow(win, 0);
@@ -788,6 +798,7 @@ describe('AccountWindowManager — window state persistence', () => {
     mockStore.get.mockReturnValue({});
 
     manager.saveAccountWindowState(0);
+    await flushAccountWindowsWrites();
 
     expect(mockStore.set).toHaveBeenCalledWith('accountWindows', {
       0: {
@@ -797,7 +808,7 @@ describe('AccountWindowManager — window state persistence', () => {
     });
   });
 
-  it('saveAccountWindowState saves maximized state as true', () => {
+  it('saveAccountWindowState saves maximized state as true', async () => {
     const win = makeTypedWindow();
     (win as unknown as MockBrowserWindow).maximize();
     manager.registerWindow(win, 0);
@@ -805,6 +816,7 @@ describe('AccountWindowManager — window state persistence', () => {
     mockStore.get.mockReturnValue({});
 
     manager.saveAccountWindowState(0);
+    await flushAccountWindowsWrites();
 
     expect(mockStore.set).toHaveBeenCalledWith(
       'accountWindows',
@@ -814,7 +826,7 @@ describe('AccountWindowManager — window state persistence', () => {
     );
   });
 
-  it('saveAccountWindowState merges with existing account state', () => {
+  it('saveAccountWindowState merges with existing account state', async () => {
     const win = makeTypedWindow();
     manager.registerWindow(win, 1);
 
@@ -824,6 +836,7 @@ describe('AccountWindowManager — window state persistence', () => {
     });
 
     manager.saveAccountWindowState(1);
+    await flushAccountWindowsWrites();
 
     expect(mockStore.set).toHaveBeenCalledWith(
       'accountWindows',
@@ -834,12 +847,13 @@ describe('AccountWindowManager — window state persistence', () => {
     );
   });
 
-  it('saveAccountWindowState returns early for unregistered account', () => {
+  it('saveAccountWindowState returns early for unregistered account', async () => {
     manager.saveAccountWindowState(99);
+    await flushAccountWindowsWrites();
     expect(mockStore.set).not.toHaveBeenCalled();
   });
 
-  it('saveAccountWindowState returns early for destroyed window', () => {
+  it('saveAccountWindowState returns early for destroyed window', async () => {
     const win = makeTypedWindow();
     manager.registerWindow(win, 0);
     (win as unknown as MockBrowserWindow).destroy();
@@ -849,16 +863,18 @@ describe('AccountWindowManager — window state persistence', () => {
     // Re-register to put it back in the map (even though it's destroyed)
     // This tests the isDestroyed() guard directly
     manager.saveAccountWindowState(0);
+    await flushAccountWindowsWrites();
     expect(mockStore.set).not.toHaveBeenCalled();
   });
 
-  it('saveAccountWindowState handles null from store.get(accountWindows)', () => {
+  it('saveAccountWindowState handles null from store.get(accountWindows)', async () => {
     const win = makeTypedWindow();
     manager.registerWindow(win, 0);
 
     mockStore.get.mockReturnValue(undefined);
 
     manager.saveAccountWindowState(0);
+    await flushAccountWindowsWrites();
 
     expect(mockStore.set).toHaveBeenCalledWith(
       'accountWindows',

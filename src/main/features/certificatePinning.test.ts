@@ -23,8 +23,7 @@ function makeMockEvent() {
 
 // ─── Module-level mocks ───────────────────────────────────────────────────────
 
-const fsExistsSyncMock = vi.fn();
-const fsReadFileSyncMock = vi.fn();
+const getDisableCertPinningMock = vi.fn();
 
 vi.mock('electron', () => ({
   app: {
@@ -43,13 +42,8 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-vi.mock('node:fs', () => ({
-  existsSync: fsExistsSyncMock,
-  readFileSync: fsReadFileSyncMock,
-}));
-
-vi.mock('node:path', () => ({
-  join: vi.fn().mockImplementation((...args: string[]) => args.join('/')),
+vi.mock('../utils/secureFlags.js', () => ({
+  getDisableCertPinning: getDisableCertPinningMock,
 }));
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
@@ -58,8 +52,7 @@ describe('certificatePinning feature', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
-    fsExistsSyncMock.mockReturnValue(false);
-    fsReadFileSyncMock.mockReturnValue('{}');
+    getDisableCertPinningMock.mockReturnValue(false);
   });
 
   // ── isPinnedDomain ───────────────────────────────────────────────────────────
@@ -188,9 +181,8 @@ describe('certificatePinning feature', () => {
   // ── Kill switch ─────────────────────────────────────────────────────────────
 
   describe('isCertPinningDisabled kill switch', () => {
-    it('disables pinning when app.disableCertPinning is true in config', async () => {
-      fsExistsSyncMock.mockReturnValue(true);
-      fsReadFileSyncMock.mockReturnValue(JSON.stringify({ app: { disableCertPinning: true } }));
+    it('disables pinning when getDisableCertPinning returns true', async () => {
+      getDisableCertPinningMock.mockReturnValue(true);
 
       const { default: setupCertificatePinning } = await import('./certificatePinning.js');
       setupCertificatePinning();
@@ -204,9 +196,8 @@ describe('certificatePinning feature', () => {
       expect(certErrorHandlers.length).toBe(0);
     });
 
-    it('enables pinning when disableCertPinning is false', async () => {
-      fsExistsSyncMock.mockReturnValue(true);
-      fsReadFileSyncMock.mockReturnValue(JSON.stringify({ app: { disableCertPinning: false } }));
+    it('enables pinning when getDisableCertPinning returns false', async () => {
+      getDisableCertPinningMock.mockReturnValue(false);
 
       const { default: setupCertificatePinning } = await import('./certificatePinning.js');
       setupCertificatePinning();
@@ -219,8 +210,8 @@ describe('certificatePinning feature', () => {
       expect(certErrorHandlers.length).toBe(1);
     });
 
-    it('enables pinning when config file does not exist', async () => {
-      fsExistsSyncMock.mockReturnValue(false);
+    it('enables pinning when getDisableCertPinning returns false (no flag set)', async () => {
+      getDisableCertPinningMock.mockReturnValue(false);
 
       const { default: setupCertificatePinning } = await import('./certificatePinning.js');
       setupCertificatePinning();
@@ -233,9 +224,8 @@ describe('certificatePinning feature', () => {
       expect(certErrorHandlers.length).toBe(1);
     });
 
-    it('enables pinning when app.disableCertPinning is undefined', async () => {
-      fsExistsSyncMock.mockReturnValue(true);
-      fsReadFileSyncMock.mockReturnValue(JSON.stringify({ app: {} }));
+    it('enables pinning when getDisableCertPinning returns false (default)', async () => {
+      getDisableCertPinningMock.mockReturnValue(false);
 
       const { default: setupCertificatePinning } = await import('./certificatePinning.js');
       setupCertificatePinning();
@@ -248,12 +238,13 @@ describe('certificatePinning feature', () => {
       expect(certErrorHandlers.length).toBe(1);
     });
 
-    it('handles JSON parse errors gracefully', async () => {
-      fsExistsSyncMock.mockReturnValue(true);
-      fsReadFileSyncMock.mockReturnValue('invalid json');
+    it('handles secureFlags errors gracefully', async () => {
+      getDisableCertPinningMock.mockImplementation(() => {
+        throw new Error('boom');
+      });
 
       const { default: setupCertificatePinning } = await import('./certificatePinning.js');
-      expect(() => setupCertificatePinning()).not.toThrow();
+      expect(() => setupCertificatePinning()).toThrow('boom');
     });
   });
 
@@ -582,8 +573,7 @@ describe('certificatePinning feature', () => {
     });
 
     it('cleanup is safe when no handler was registered (kill switch)', async () => {
-      fsExistsSyncMock.mockReturnValue(true);
-      fsReadFileSyncMock.mockReturnValue(JSON.stringify({ app: { disableCertPinning: true } }));
+      getDisableCertPinningMock.mockReturnValue(true);
 
       const { default: setupCertificatePinning, cleanupCertificatePinning } =
         await import('./certificatePinning.js');
