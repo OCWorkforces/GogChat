@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-26 · **Commit:** 5fbc125
+**Generated:** 2026-04-27 · **Commit:** 6311e3b
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -9,7 +9,7 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Task | File | Notes |
 | --- | --- | --- |
 | App init sequence | `index.ts` | Thin orchestrator, delegates to initializers/ |
-| Feature registration | `initializers/registerFeatures.ts` | 22 features with phases + deps |
+| Feature registration | `initializers/registerFeatures.ts` | 21 features with phases + deps |
 | Shutdown handler | `initializers/registerShutdown.ts` | 70 lines; delegates diagnostics + destroyers |
 | Shutdown diagnostics | `initializers/shutdownDiagnostics.ts` | Cache stats logging |
 | Singleton destroyers | `initializers/singletonDestroyers.ts` | Centralized destroy registry |

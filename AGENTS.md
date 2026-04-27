@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-26
+**Generated:** 2026-04-27
 
-**Commit:** 5fbc125
+**Commit:** 6311e3b
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -32,7 +32,7 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Task                 | Location                                         | Notes                                       |
 | -------------------- | ------------------------------------------------ | ------------------------------------------- |
 | App init order       | `src/main/index.ts`                              | Thin orchestrator; logic in `initializers/` |
-| Feature registration | `src/main/initializers/registerFeatures.ts`      | 22 features with phases + deps              |
+| Feature registration | `src/main/initializers/registerFeatures.ts`      | 21 features with phases + deps              |
 | Shutdown handler     | `src/main/initializers/registerShutdown.ts`      | Graceful cleanup via `singletonDestroyers`  |
 | Shutdown diagnostics | `src/main/initializers/shutdownDiagnostics.ts`   | Cache statistics logging                     |
 | Multi-account mgr    | `src/main/utils/accountWindowManager.ts`         | Per-account windows + bootstrap             |
