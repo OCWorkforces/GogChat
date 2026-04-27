@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-27
 
-**Commit:** 6311e3b
+**Commit:** 2c99229
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -51,6 +51,7 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Test helpers         | `tests/helpers/electron-test.ts`                 | Playwright fixtures                         |
 | Electron mocks       | `tests/mocks/electron.ts`                        | For unit tests                              |
 | Log files            | `~/Library/Logs/GogChat/main.log`                | macOS path                                  |
+| Secure flags (cert pinning kill switch) | `src/main/utils/secureFlags.ts` | `getDisableCertPinning()`/`setDisableCertPinning()`; macOS Keychain via safeStorage |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -97,7 +98,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **TypeScript**: 6.0+ with strict mode (`noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`)
 - **ESLint**: `@typescript-eslint/consistent-type-imports: error` enforces `import type` for type-only imports
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
-- **New settings**: Update `StoreType` in `shared/types/config.ts` → add schema in `config.ts`; access via `configGet()`/`configSet()`
+- **New settings**: Update `StoreType` in `shared/types/config.ts` → add schema in `config.ts`; access via `configGet()`/`configSet()`. Security-sensitive flags (e.g., cert pinning kill switch) go in `secureFlags.ts` (safeStorage/Keychain), NOT `StoreType`
 - **IPC handler pattern**: rate limit → validate → handle → catch (see `src/main/AGENTS.md`)
 - **Feature priority**: SECURITY→CRITICAL→UI→DEFERRED phases via featureManager
 - **Feature dependencies**: Declared in feature config; featureManager resolves via topological sort
@@ -133,7 +134,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - `contextIsolation: true` + `sandbox: true` + `nodeIntegration: false` in BrowserWindow
 - Per-account `persist:account-N` session partitions for cookie isolation
 - All IPC: `rateLimiter.isAllowed()` + validators + try-catch
-- Certificate pinning for all Google domains (kill switch via `app.disableCertPinning` config)
+- Certificate pinning for all Google domains (kill switch via `secureFlags.ts` safeStorage, NOT electron-store)
 - SafeStorage-backed encryption keys (macOS Keychain) with legacy key migration
 - AES-256-GCM encrypted `electron-store` for config
 - URL whitelist enforcement for navigation + `shell.openExternal()`
@@ -170,7 +171,7 @@ bun run hooks:install  # Install git pre-push hook
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 - CI: GitHub Actions — `pr-check.yml` + `release.yml`
 - CI gates: madge circular deps (enforcing), import count (enforcing), coverage (informational)
-- Coverage: 99.25% statements (1837 tests, 84 test files)
+- Coverage: 99.25% statements (1851 tests, 84 test files)
 - Build history tracked in `.build-history.json` (last 20 builds)
 
 ## COMPLEXITY CENTERS (200+ lines)
@@ -191,3 +192,4 @@ bun run hooks:install  # Install git pre-push hook
 | `src/main/config.ts`                        | 211   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers |
 | `src/main/utils/iconCache.ts`               | 223   | Icon caching + warmup                               |
 | `src/main/utils/certificatePinning.ts`      | 188   | Certificate pinning for Google domains              |
+| `src/main/utils/secureFlags.ts`            | ~120  | safeStorage-backed cert pinning kill switch (macOS Keychain) |

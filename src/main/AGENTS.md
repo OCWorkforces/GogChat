@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-27 · **Commit:** 6311e3b
+**Generated:** 2026-04-27 · **Commit:** 2c99229
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -22,6 +22,7 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Window health | `utils/windowHealthMonitor.ts` | Renderer crash + unresponsive tracking |
 | Window defaults | `utils/windowDefaults.ts` | Shared BrowserWindow options |
 | Encrypted config | `config.ts` | AES-256-GCM; schema paired with `../shared/types/config.ts`; use `configGet`/`configSet` — never `store.get(...) as T` |
+| Secure flags | `utils/secureFlags.ts` | `getDisableCertPinning()`/`setDisableCertPinning()`; safeStorage (macOS Keychain); NOT in electron-store |
 | Feature modules | `features/` (25+) | See `features/AGENTS.md` |
 | Utility modules | `utils/` (39) | See `utils/AGENTS.md` |
 | Initializer modules | `initializers/` (13) | See `initializers/AGENTS.md` |
@@ -87,7 +88,7 @@ All 5 pieces required: channel constant, rate limit, validator, handler, catch.
 ## CONFIG ACCESS
 
 Config uses `configGet<K>()` / `configSet<K,V>()` typed helpers from `config.ts` — do not call `store.get(...) as T` directly.
-Kill switch: `app.disableCertPinning` config option.
+Kill switch: `getDisableCertPinning()` from `utils/secureFlags.ts` — stored in safeStorage (macOS Keychain), NOT in electron-store.
 
 ```typescript
 import { configGet, configSet } from './config';
