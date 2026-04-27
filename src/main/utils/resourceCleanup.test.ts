@@ -670,7 +670,7 @@ describe('ResourceCleanup', () => {
       // Let the async cleanup run
       await new Promise((r) => setTimeout(r, 10));
 
-      expect(ipcMain.removeAllListeners).toHaveBeenCalled();
+      expect(ipcMain.removeAllListeners).not.toHaveBeenCalled();
     });
 
     it('resets manager on window closed', async () => {

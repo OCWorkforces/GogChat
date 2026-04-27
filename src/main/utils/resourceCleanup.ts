@@ -5,7 +5,6 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import { ipcMain } from 'electron';
 import { logger } from './logger.js';
 import { toErrorMessage } from './errorUtils.js';
 import type { EventHandler, EventTarget, CleanupConfig } from './cleanupTypes.js';
@@ -247,12 +246,6 @@ export function setupWindowCleanup(window: BrowserWindow): void {
 
   // Register window-specific cleanup tasks
   manager.registerTasks([
-    {
-      name: 'Remove all IPC listeners',
-      cleanup: () => {
-        ipcMain.removeAllListeners();
-      },
-    },
     {
       name: 'Clear web contents session cache',
       cleanup: async () => {

@@ -5,7 +5,6 @@ import path from 'path';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING } from '../../shared/constants.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import { getRateLimiter } from '../utils/rateLimiter.js';
 import { getIconCache } from '../utils/iconCache.js';
 
 let checkIfOnlineCleanup: (() => void) | null = null;
@@ -98,21 +97,16 @@ const checkForInternet = async (window: BrowserWindow) => {
  * Setup IPC handlers for connectivity checks
  */
 export default (_window: BrowserWindow) => {
-  const rateLimiter = getRateLimiter();
 
   // Add rate limiting to prevent connectivity check spam
   checkIfOnlineCleanup = createSecureIPCHandler({
     channel: IPC_CHANNELS.CHECK_IF_ONLINE,
     validator: () => undefined,
     rateLimit: 1,
+    deduplicate: true,
     description: 'Connectivity check',
     handler: (_data: undefined, event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => {
       if (!('reply' in event)) {
-        return;
-      }
-      // Rate limit check (allow 1 check per second max)
-      if (!rateLimiter.isAllowed(IPC_CHANNELS.CHECK_IF_ONLINE, 1)) {
-        log.warn('[Connectivity] Check if online rate limited');
         return;
       }
 
