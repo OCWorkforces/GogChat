@@ -5,6 +5,7 @@ import { ipcMain, BrowserWindow } from 'electron';
 import type { IPCResponse } from '../../shared/types/ipc.js';
 import type { IPCChannelName } from '../../shared/constants.js';
 import { getRateLimiter } from './rateLimiter.js';
+import { getDeduplicator } from './ipcDeduplicator.js';
 import { logger } from './logger.js';
 import { toError, toErrorMessage } from './errorUtils.js';
 
@@ -17,6 +18,12 @@ export interface IPCHandlerConfig<T> {
   onError?: (error: Error, event: IpcMainEvent | IpcMainInvokeEvent) => void;
   silent?: boolean;
   description?: string;
+  /**
+   * When true, the handler body is wrapped with the IPC deduplicator so that
+   * rapid successive invocations on the same channel within the dedup window
+   * (default 100ms) share a single execution. Defaults to false.
+   */
+  deduplicate?: boolean;
 }
 
 /** Configuration for creating a reply-based IPC handler */
@@ -33,7 +40,7 @@ export interface IPCInvokeHandlerConfig<T, R> extends Omit<IPCHandlerConfig<T>, 
 /** Common config fields shared by all secure handler types */
 type BaseSecureConfig = Pick<
   IPCHandlerConfig<unknown>,
-  'channel' | 'validator' | 'rateLimit' | 'onError' | 'silent' | 'description'
+  'channel' | 'validator' | 'rateLimit' | 'onError' | 'silent' | 'description' | 'deduplicate'
 >;
 
 /** Internal base handler: rate-limit → validate → log → execute → catch */
@@ -50,7 +57,15 @@ async function executeSecureHandler<T, R>(
     afterOnError?: (err: Error) => void;
   }
 ): Promise<R | undefined> {
-  const { channel, validator, rateLimit, onError, silent = false, description } = config;
+  const {
+    channel,
+    validator,
+    rateLimit,
+    onError,
+    silent = false,
+    description,
+    deduplicate = false,
+  } = config;
   const rateLimiter = getRateLimiter();
   const log = logger.ipc;
 
@@ -69,6 +84,9 @@ async function executeSecureHandler<T, R>(
       log.debug(`${options.debugLabel}${channel}${description ? ` (${description})` : ''}`);
     }
 
+    if (deduplicate) {
+      return await getDeduplicator().deduplicate(channel, () => Promise.resolve(execute(validated)));
+    }
     return await execute(validated);
   } catch (error: unknown) {
     const err = toError(error);
@@ -189,7 +207,7 @@ export function createBroadcastHandler<T>(config: {
   return (data: unknown) => {
     try {
       const validated = config.validator(data);
-      const windows = BrowserWindow.getAllWindows();
+      const windows = BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed());
 
       windows.forEach((window) => {
         if (!config.filter || config.filter(window, validated)) {

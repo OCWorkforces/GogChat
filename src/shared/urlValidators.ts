@@ -6,6 +6,18 @@
 import { WHITELISTED_HOSTS, DEEP_LINK } from './constants.js';
 
 /**
+ * Safely parse a URL string into a URL object.
+ * Returns null on invalid input instead of throwing.
+ */
+function tryParseURL(input: string): URL | null {
+  try {
+    return new URL(input);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Validates and sanitizes favicon URL
  * @param href - Favicon URL from renderer
  * @returns Sanitized URL string
@@ -27,22 +39,23 @@ export function validateFaviconURL(href: unknown): string {
     throw new Error('Favicon URL cannot be empty');
   }
 
-  // Parse URL
+  // Parse URL once
+  let url: URL;
   try {
-    const url = new URL(href);
-
-    // Protocol check
-    if (!['http:', 'https:', 'data:'].includes(url.protocol)) {
-      throw new Error('Favicon URL must use http, https, or data protocol');
-    }
-
-    return href;
+    url = new URL(href);
   } catch (error: unknown) {
     if (error instanceof TypeError) {
       throw new Error('Invalid favicon URL format', { cause: error });
     }
     throw error;
   }
+
+  // Protocol check
+  if (!['http:', 'https:', 'data:'].includes(url.protocol)) {
+    throw new Error('Favicon URL must use http, https, or data protocol');
+  }
+
+  return href;
 }
 
 /**
@@ -62,7 +75,7 @@ export function validateExternalURL(url: unknown): string {
     throw new Error('URL too long');
   }
 
-  // Parse URL
+  // Parse URL once
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -112,26 +125,32 @@ export function validateAppleSystemPreferencesURL(url: unknown): string {
 }
 
 /**
+ * Internal: check if a parsed URL's hostname matches the current host or whitelist.
+ */
+function isWhitelistedHostInternal(parsed: URL, currentHost: string): boolean {
+  const hostname = parsed.hostname;
+
+  // Check if it's the same as current host
+  if (hostname === currentHost) {
+    return true;
+  }
+
+  // Check against whitelist
+  return (WHITELISTED_HOSTS as readonly string[]).includes(hostname);
+}
+
+/**
  * Validates if a URL belongs to a whitelisted host
  * @param url - URL to check
  * @param currentHost - Current window host for comparison
  * @returns true if URL is whitelisted
  */
 export function isWhitelistedHost(url: string, currentHost: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname;
-
-    // Check if it's the same as current host
-    if (hostname === currentHost) {
-      return true;
-    }
-
-    // Check against whitelist
-    return (WHITELISTED_HOSTS as readonly string[]).includes(hostname);
-  } catch {
+  const parsed = tryParseURL(url);
+  if (parsed === null) {
     return false;
   }
+  return isWhitelistedHostInternal(parsed, currentHost);
 }
 
 /**
@@ -173,7 +192,7 @@ export function validateDeepLinkURL(url: unknown): string {
     throw new Error(`Unsupported deep link scheme: ${url.split(':')[0] ?? 'unknown'}`);
   }
 
-  // Parse and validate
+  // Parse and validate once
   let parsed: URL;
   try {
     parsed = new URL(httpsUrl);
@@ -209,34 +228,9 @@ export function validateDeepLinkURL(url: unknown): string {
 }
 
 /**
- * Detects whether a URL represents an authenticated Google Chat session.
- *
- * Returns true only when the URL contains an account-index path segment (`/u/N`)
- * on either `chat.google.com` or `mail.google.com` (the latter hosting Chat at
- * `/chat`).  Bare landing pages, `accounts.google.com` login URLs, non-Chat paths,
- * and anything that cannot be parsed as a valid URL all return false.
- *
- * @param url - URL to inspect (string or unknown; non-strings return false)
- * @returns true if the URL looks like an authenticated Chat session
- *
- * @example
- * isAuthenticatedChatUrl('https://chat.google.com/u/0/')          // true
- * isAuthenticatedChatUrl('https://mail.google.com/chat/u/1/r/abc') // true
- * isAuthenticatedChatUrl('https://chat.google.com/')               // false (no /u/N)
- * isAuthenticatedChatUrl('https://accounts.google.com/signin')     // false (login page)
+ * Internal: check if an already-parsed URL represents an authenticated Chat session.
  */
-export function isAuthenticatedChatUrl(url: unknown): boolean {
-  if (typeof url !== 'string') {
-    return false;
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-
+function isAuthenticatedChatUrlInternal(parsed: URL): boolean {
   // Must be HTTPS
   if (parsed.protocol !== 'https:') {
     return false;
@@ -259,6 +253,49 @@ export function isAuthenticatedChatUrl(url: unknown): boolean {
   }
 
   return false;
+}
+
+/**
+ * Detects whether a URL represents an authenticated Google Chat session.
+ *
+ * Returns true only when the URL contains an account-index path segment (`/u/N`)
+ * on either `chat.google.com` or `mail.google.com` (the latter hosting Chat at
+ * `/chat`).  Bare landing pages, `accounts.google.com` login URLs, non-Chat paths,
+ * and anything that cannot be parsed as a valid URL all return false.
+ *
+ * @param url - URL to inspect (string or unknown; non-strings return false)
+ * @returns true if the URL looks like an authenticated Chat session
+ *
+ * @example
+ * isAuthenticatedChatUrl('https://chat.google.com/u/0/')          // true
+ * isAuthenticatedChatUrl('https://mail.google.com/chat/u/1/r/abc') // true
+ * isAuthenticatedChatUrl('https://chat.google.com/')               // false (no /u/N)
+ * isAuthenticatedChatUrl('https://accounts.google.com/signin')     // false (login page)
+ */
+export function isAuthenticatedChatUrl(url: unknown): boolean {
+  if (typeof url !== 'string') {
+    return false;
+  }
+
+  const parsed = tryParseURL(url);
+  if (parsed === null) {
+    return false;
+  }
+
+  return isAuthenticatedChatUrlInternal(parsed);
+}
+
+/**
+ * Internal: check if an already-parsed URL is a Google Accounts auth page.
+ */
+function isGoogleAuthUrlInternal(parsed: URL): boolean {
+  // Must be HTTPS
+  if (parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  // Exact hostname — subdomains are not accepted
+  return parsed.hostname === 'accounts.google.com';
 }
 
 /**
@@ -288,18 +325,10 @@ export function isGoogleAuthUrl(url: unknown): boolean {
     return false;
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
+  const parsed = tryParseURL(url);
+  if (parsed === null) {
     return false;
   }
 
-  // Must be HTTPS
-  if (parsed.protocol !== 'https:') {
-    return false;
-  }
-
-  // Exact hostname — subdomains are not accepted
-  return parsed.hostname === 'accounts.google.com';
+  return isGoogleAuthUrlInternal(parsed);
 }
