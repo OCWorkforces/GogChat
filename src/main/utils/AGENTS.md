@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-26 · **Commit:** 2c99229
+**Generated:** 2026-04-26 · **Commit:** 95610f8
 
 40 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -9,18 +9,18 @@
 | File | Lines | Purpose | Singleton |
 | --- | --- | --- | --- |
 | `featureManager.ts` | 458 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature` | `getFeatureManager()` |
-| `accountWindowManager.ts` | 211 | Multi-account BrowserWindow mgmt; implements `IAccountWindowManager` | `getAccountWindowManager()` |
+| `accountWindowManager.ts` | 242 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager` | `getAccountWindowManager()` |
 | `resourceCleanup.ts` | 372 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
 | `config.ts` (parent) | — | See `../config.ts` | — |
 | `performanceMonitor.ts` | 259 | Startup timing + memory snapshots | `getPerformanceMonitor()` |
-| `ipcHelper.ts` | 265 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param in all 3 handler configs | `getIPCManager()` |
-| `ipcDeduplicator.ts` | 263 | Dedup rapid same-key requests | `getDeduplicator()` |
+| `ipcHelper.ts` | 284 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param; optional deduplication via `withDeduplication` | `getIPCManager()` |
+| `ipcDeduplicator.ts` | 263 | Dedup rapid same-key requests; **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler` | `getDeduplicator()` |
 | `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
 | `iconCache.ts` | 223 | NativeImage preload cache | `getIconCache()` |
 | `bootstrapWatcher.ts` | 205 | Bootstrap window navigation watching | exported fns |
 | `rateLimiter.ts` | 199 | IPC DoS prevention | `getRateLimiter()` |
-| `configCache.ts` | 179 | In-memory layer for electron-store | `addCacheLayer()` |
+| `configCache.ts` | 181 | In-memory layer for electron-store with O(1) LRU eviction | `addCacheLayer()` |
 | `configSchema.ts` | 159 | electron-store schema | exported const |
 | `platformUtils.ts` | 160 | Platform utilities singleton | `getPlatformUtils()` |
 | `cacheWarmer.ts` | 151 | Icon cache warm + deferred phase + dev profiling | exported fns |
