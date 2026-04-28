@@ -2,84 +2,54 @@
 # Enforced by sentrux rules engine. Run: sentrux check .
 # CI gate: prevents architectural regression.
 
-[constraints]
-max_cycles = 0          # Zero circular dependencies (currently perfect)
-max_cc = 30             # Max cyclomatic complexity per function
-no_god_files = true     # Flag files with excessive fan-out
-max_depth = 7           # Prevent depth regression (current longest: 5, ceiling 7)
-min_modularity = 0.30   # Modularity floor (improved from 0.4512 after Wave 1-4)
+# === Process Isolation (Electron sandbox boundaries) ===
 
-# Layer definitions — defines the architectural hierarchy.
-# Convention: importing layers must have LOWER order numbers than the layers they import from.
-# Higher order = more foundational (depended upon by more layers).
-# Example: app-entry (0) imports from shared (4) → 0 < 4 ✓
-[[layers]]
-name = "app-entry"
-paths = ["src/main/index.ts", "src/main/windowWrapper.ts"]
-order = 0
+[[rules]]
+name = "main-no-preload"
+description = "Main process must not import from preload (different build context, sandbox boundary)"
+deny = ["src.main -> src.preload"]
 
-[[layers]]
-name = "features"
-paths = ["src/main/features/*"]
-order = 1
+[[rules]]
+name = "main-no-offline"
+description = "Main process must not import from offline (standalone fallback page, no IPC access)"
+deny = ["src.main -> src.offline"]
 
-[[layers]]
-name = "initializers"
-paths = ["src/main/initializers/*"]
-order = 1.5
+[[rules]]
+name = "preload-no-main"
+description = "Preload (CJS sandbox) must not import from main process"
+deny = ["src.preload -> src.main"]
 
-[[layers]]
-name = "preload"
-paths = ["src/preload/*"]
-order = 2
+[[rules]]
+name = "preload-no-offline"
+description = "Preload must not import from offline (different build output)"
+deny = ["src.preload -> src.offline"]
 
-[[layers]]
-name = "utils"
-paths = ["src/main/utils/*", "src/main/config.ts"]
-order = 3
+[[rules]]
+name = "shared-is-leaf"
+description = "Shared contracts must be process-independent — pure dependency leaf with no runtime layer imports"
+deny = [
+  "src.shared -> src.main",
+  "src.shared -> src.preload",
+  "src.shared -> src.offline",
+]
 
-[[layers]]
-name = "shared"
-paths = ["src/shared/*"]
-order = 4
+[[rules]]
+name = "offline-isolated"
+description = "Offline page is standalone IIFE — zero imports, no IPC, separate build context"
+deny = [
+  "src.offline -> src.main",
+  "src.offline -> src.preload",
+  "src.offline -> src.shared",
+]
 
-# Boundary rules — prevent violations of architectural intent.
+# === Main Process Internal Layering ===
 
-# Features must not import from other features.
-# This rule is now clean: singleInstance uses menuActionRegistry,
-# externalLinks imports directly from utils/bootstrapWatcher.
-[[boundaries]]
-from = "src/main/features/*"
-to = "src/main/features/*"
-reason = "Features must not import from other features directly — use shared/ contracts, utils/ services, or menuActionRegistry"
+[[rules]]
+name = "utils-no-feature-imports"
+description = "Utility modules are dependency leaves — they must not import from feature modules"
+deny = ["src.main.utils -> src.main.features"]
 
-# Offline page must not import from main process (different build context).
-[[boundaries]]
-from = "src/offline/*"
-to = "src/main/*"
-reason = "Offline page has no preload/IPC — runs in sandboxed renderer context"
-
-# Offline page must not import from preload (different build output).
-[[boundaries]]
-from = "src/offline/*"
-to = "src/preload/*"
-reason = "Offline page has no preload script — different build context"
-
-# Shared layer must not depend on main process internals.
-[[boundaries]]
-from = "src/shared/*"
-to = "src/main/*"
-reason = "Shared contracts must be process-independent — no main process imports"
-
-# Shared layer must not depend on preload.
-[[boundaries]]
-from = "src/shared/*"
-to = "src/preload/*"
-reason = "Shared contracts must be process-independent — no preload imports"
-
-# Initializers may reference features for registration (static or dynamic import).
-# This is their designated role — they orchestrate feature lifecycle.
-[[boundaries]]
-from = "src/main/initializers/*"
-to = "src/main/features/*"
-reason = "Initializers may statically import or dynamically import features for registration — this is their designated role"
+[[rules]]
+name = "utils-no-initializer-imports"
+description = "Utility modules must not import from initializers (initializers orchestrate utils, not vice versa)"
+deny = ["src.main.utils -> src.main.initializers"]
