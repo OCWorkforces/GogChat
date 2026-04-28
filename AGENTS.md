@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-27
 
-**Commit:** 2c99229
+**Commit:** 95610f8
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -181,9 +181,9 @@ bun run hooks:install  # Install git pre-push hook
 | `src/main/utils/featureManager.ts`          | 458   | Feature lifecycle, dependency resolution            |
 | `src/main/utils/resourceCleanup.ts`         | 372   | Tracked intervals/timeouts/listeners + lazy cleanup |
 | `scripts/build-rsbuild.js`                  | 386   | Dual-build orchestrator                             |
-| `src/main/utils/accountWindowManager.ts`    | 211   | Multi-account BrowserWindow management              |
-| `src/shared/urlValidators.ts`               | 305   | URL whitelist validation, Google auth URL detection |
-| `src/main/utils/ipcHelper.ts`               | 265   | Secure IPC handler factories                        |
+| `src/main/utils/accountWindowManager.ts`    | 242   | Multi-account BrowserWindow management              |
+| `src/shared/urlValidators.ts`               | 334   | URL whitelist validation, Google auth URL detection |
+| `src/main/utils/ipcHelper.ts`               | 284   | Secure IPC handler factories                        |
 | `src/main/utils/ipcDeduplicator.ts`         | 263   | IPC request deduplication (100ms window)            |
 | `src/main/features/externalLinks.ts`        | 297   | External link handling with re-guard timer          |
 | `src/main/utils/performanceMonitor.ts`      | 259   | Startup timing markers, memory snapshots            |

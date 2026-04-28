@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-27 (commit 2c99229)
+**Generated:** 2026-04-27 (commit 95610f8)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -94,11 +94,11 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 | `badgeHandlers.ts` | 143 | Favicon/unread IPC + decideIcon + updateBadgeIcon |
 | `helpMenuBuilder.ts` | 136 | Help submenu, relaunchApp, resetAppAndRestart |
 | `externalLinks.ts` | 298 | URL validation, account routing |
-| `certificatePinning.ts` | 187 | Cert validation before app.ready |
+| `certificatePinning.ts` | 177 | Cert validation before app.ready |
 | `deepLinkHandler.ts` | 172 | Protocol registration, deep linking |
 | `windowState.ts` | 175 | 3 declared deps (most coupled) |
 | `handleNotification.ts` | 154 | Notification show/hide logic |
-| `inOnline.ts` | 154 | Online status monitoring |
+| `inOnline.ts`           | 149 | Online status monitoring |
 | `badgeIcon.ts` | 43 | Thin init; wires `badgeHandlers` |
 | `passkeySupport.ts` | 122 | Passkey auth event handling |
 | `trayIcon.ts` | 90 | System tray icon + menu |

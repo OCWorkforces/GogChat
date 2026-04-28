@@ -1,6 +1,6 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-04-26 | **Commit:** 5fbc125
+**Generated:** 2026-04-26 | **Commit:** 95610f8
 
 Cross-process contracts: constants, validators (split by domain), types (split into `types/`). Single source of truth for IPC, config, and bridge APIs. **Edit this before touching IPC handlers or preload scripts.** No barrel files, all imports go directly to source modules.
 
@@ -10,7 +10,7 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 | --- | --- |
 | `constants.ts` | `IPC_CHANNELS` (8, `as const satisfies Record<string, string>`), `IPCChannelName` type, `SELECTORS`, `TIMING`, `ICON_TYPES`, `FAVICON_PATTERNS`, `RATE_LIMITS`, `BADGE`, `WHITELISTED_HOSTS`, `URL_PATTERNS`, `DEEP_LINK` |
 | `dataValidators.ts` | `validateUnreadCount`, `validateBoolean`, `validateString`, `isSafeObject`, `sanitizeHTML`, `validatePasskeyFailureData`, `validateNotificationData` |
-| `urlValidators.ts` | `validateFaviconURL`, `validateExternalURL`, `validateAppleSystemPreferencesURL`, `isWhitelistedHost`, `validateDeepLinkURL`, `isAuthenticatedChatUrl`, `isGoogleAuthUrl` |
+| `urlValidators.ts` | `validateFaviconURL`, `validateExternalURL`, `validateAppleSystemPreferencesURL`, `isWhitelistedHost`, `validateDeepLinkURL`, `isAuthenticatedChatUrl`, `isGoogleAuthUrl`. Parse-once pattern: URLs parsed once per call, result reused. Internal helpers: `tryParseURL()`, `isWhitelistedHostInternal()` |
 | `types/branded.ts` | `Branded<T,Brand>`, `ValidatedURL` nominal types, `asValidatedURL()` helper |
 | `types/window.ts` | `IAccountWindowManager` (19 methods), `WindowFactory`, `WindowBounds`, `WindowState`, `AccountWindowBounds`, `AccountWindowState`, `AccountWindowsMap` |
 | `types/domain.ts` | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union (8 WebAuthn values), `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData`, `NotificationData`, `BadgeIconCacheEntry`, `LinkValidationResult`, `ErrorLogEntry`, `PerformanceMetrics` (all readonly) |
@@ -24,7 +24,7 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 
 **dataValidators.ts**: data sanitization for IPC payloads. Use `isSafeObject` first, then field validators.
 
-**urlValidators.ts**: URL whitelist enforcement, Google auth detection, deep link validation. All `shell.openExternal()` calls must pass through `validateExternalURL`.
+**urlValidators.ts**: URL whitelist enforcement, Google auth detection, deep link validation. All `shell.openExternal()` calls must pass through `validateExternalURL`. Uses parse-once pattern — each validator parses the URL once and reuses the result, with shared internal helpers `tryParseURL()` and `isWhitelistedHostInternal()`.
 
 **types/**: import directly from the specific file (e.g. `import type { StoreType } from '../shared/types/config.js'`). No barrel re-exports.
 
