@@ -1,6 +1,6 @@
 # scripts/ — Build & Development Tools
 
-**Generated:** 2026-04-29 | **Commit:** 5fffeb1
+**Generated:** 2026-04-29 | **Commit:** 3093c79
 
 Build system, linting, and development tooling. Dual-build architecture is the most critical component — main outputs ESM, preload outputs CJS (required by `sandbox: true`).
 

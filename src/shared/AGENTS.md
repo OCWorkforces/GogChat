@@ -1,6 +1,6 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-04-29 | **Commit:** 5fffeb1
+**Generated:** 2026-04-29 | **Commit:** 3093c79
 
 Cross-process contracts: constants, validators (split by domain), types (split into `types/`). Single source of truth for IPC, config, and bridge APIs. **Edit this before touching IPC handlers or preload scripts.** No barrel files, all imports go directly to source modules.
 

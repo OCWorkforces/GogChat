@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-29 · **Commit:** 5fffeb1
+**Generated:** 2026-04-29 · **Commit:** 3093c79
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -46,12 +46,12 @@ app.whenReady() — critical + ui phases (blocking):
   createAccountWindow(url, 0) → markAsBootstrap(0)
   featureManager.updateContext({ mainWindow, accountWindowManager })
   featureManager.initializePhase('ui'):
-    singleInstance → deepLinkHandler → bootstrapPromotion
+    singleInstance → deepLinkHandler
 
 setImmediate() — deferred (non-blocking):
   warmInitialIcons()  ← moved here; 256.png loaded on-demand in windowWrapper
   featureManager.initializePhase('deferred'):
-  trayIcon, appMenu, badgeIcons, windowState, passkeySupport,
+  trayIcon, appMenu, badgeIcons, bootstrapPromotion, windowState, passkeySupport,
   handleNotification, inOnline, externalLinks, closeToTray,
   openAtLogin, appUpdates, contextMenu, firstLaunch,
   enforceMacOSAppLocation
