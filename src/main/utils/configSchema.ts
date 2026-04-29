@@ -74,6 +74,10 @@ export const schema: Schema<StoreType> = {
         type: 'boolean',
         default: false,
       },
+      notificationPermissionRequested: {
+        type: 'boolean',
+        default: false,
+      },
     },
     default: {
       autoCheckForUpdates: true,
@@ -82,6 +86,7 @@ export const schema: Schema<StoreType> = {
       hideMenuBar: false,
       disableSpellChecker: false,
       suppressPasskeyDialog: false,
+      notificationPermissionRequested: false,
     },
   },
   _meta: {

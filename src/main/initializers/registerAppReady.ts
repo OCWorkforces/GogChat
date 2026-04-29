@@ -8,7 +8,7 @@
  * The initialization order is security-critical — do not reorder phases.
  */
 
-import { app, type BrowserWindow } from 'electron';
+import { app, session, type BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { perfMonitor } from '../utils/performanceMonitor.js';
 import { initializeErrorHandler } from '../utils/errorHandler.js';
@@ -24,7 +24,7 @@ import {
 export { getMostRecentWindow };
 import { registerGlobalCleanups } from './registerGlobalCleanups.js';
 import { initializeStore } from '../config.js';
-  import { warmInitialIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
+import { warmInitialIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
 import environment from '../../environment.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import type { WindowFactory } from '../../shared/types/window.js';
@@ -67,28 +67,29 @@ export function registerAppReady(options: AppReadyOptions): void {
         log.error('[Main] Failed to initialize error handler:', error);
       }
 
-      // Register built-in global cleanup callbacks
-      await registerGlobalCleanups();
+      // Register global cleanups + security phase in parallel:
+      // - registerGlobalCleanups: pure registration (no app.on, no network, no SafeStorage)
+      // - security phase (cert pinning + permissions): independent of the cleanup registry
+      await Promise.all([registerGlobalCleanups(), featureManager.initializePhase('security')]);
 
-      // ===== SECURITY PHASE =====
-      await featureManager.initializePhase('security');
-
-      // ===== CRITICAL PHASE =====
-      await featureManager.initializePhase('critical');
-
-      // ===== STORE INITIALIZATION =====
-      // Ensure store is initialized after app.ready (safeStorage requires it on macOS)
+      // ===== CRITICAL PHASE + STORE INIT (parallel) =====
+      // initializeStore requires app.ready + SafeStorage but NOT cert pinning or userAgent.
+      // The critical phase (userAgent override) is sync and independent of store init.
       try {
-        await initializeStore();
+        await Promise.all([featureManager.initializePhase('critical'), initializeStore()]);
         log.info('[Main] Config store initialized');
       } catch (error: unknown) {
-        log.error('[Main] Failed to initialize store after app.ready:', error);
+        log.error('[Main] Failed to initialize critical phase or store:', error);
         throw error;
       }
 
       // ===== ACCOUNT WINDOW MANAGER INITIALIZATION =====
       const accountWindowManager = getAccountWindowManager(windowFactory);
       perfMonitor.mark('account-manager-init', 'Account window manager initialized');
+
+      // Preconnect on the network thread before BrowserWindow construction so
+      // DNS + TCP + TLS handshake starts in parallel with renderer startup (~50-200 ms on cold).
+      session.fromPartition('persist:account-0').preconnect({ url: 'https://mail.google.com', numSockets: 2 });
 
       // Create account-0 window (primary window)
       createAccountWindow(environment.appUrl, 0);
@@ -104,9 +105,6 @@ export function registerAppReady(options: AppReadyOptions): void {
       featureManager.updateContext({ mainWindow, accountWindowManager });
       perfMonitor.mark('account-0-ready', 'Account-0 window ready');
 
-      // ===== POST-WINDOW ICON WARMUP =====
-      warmInitialIcons();
-
       // ===== UI PHASE =====
       await featureManager.initializePhase('ui');
 
@@ -114,9 +112,12 @@ export function registerAppReady(options: AppReadyOptions): void {
       log.info('[Main] Critical features initialized');
 
       // ===== DEFERRED PHASE =====
-      // Defer non-critical features using setImmediate
-      // These run after the main event loop tick, improving startup time
+      // Defer non-critical features using setImmediate.
+      // warmInitialIcons is moved here (off the critical path) — the window icon (256.png)
+      // is already loaded on-demand in windowWrapper via getIconCache().getIcon().
+      // All other warmed icons are consumed by deferred-only features (tray, badges, inOnline).
       setImmediate(() => {
+        warmInitialIcons();
         void runDeferredPhase({
           featureManager,
           getMainWindow,
