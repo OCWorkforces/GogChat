@@ -2,7 +2,7 @@
  * Global Cleanup Registration
  *
  * Registers built-in global cleanup callbacks with the cleanup manager.
- * Uses lazy dynamic imports to avoid coupling at module load time.
+ * Uses lazy dynamic imports (in parallel via Promise.all) to avoid coupling at module load time.
  *
  * Cleanup callbacks registered:
  * - rateLimiter: Destroys the IPC rate limiter
@@ -21,18 +21,26 @@ import { getCleanupManager } from '../utils/resourceCleanup.js';
  */
 export async function registerGlobalCleanups(): Promise<void> {
   const manager = getCleanupManager();
-  const { destroyRateLimiter } = await import('../utils/rateLimiter.js');
+  const [
+    { destroyRateLimiter },
+    { destroyDeduplicator },
+    { cleanupGlobalHandlers },
+    { getIconCache: getIconCacheLazy },
+    { clearConfigCache },
+  ] = await Promise.all([
+    import('../utils/rateLimiter.js'),
+    import('../utils/ipcDeduplicator.js'),
+    import('../utils/ipcHelper.js'),
+    import('../utils/iconCache.js'),
+    import('../utils/configCache.js'),
+  ]);
   manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter, 'Rate limiter');
-  const { destroyDeduplicator } = await import('../utils/ipcDeduplicator.js');
   manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator, 'Deduplicator');
-  const { cleanupGlobalHandlers } = await import('../utils/ipcHelper.js');
   manager.registerGlobalCleanupCallback('ipcHandlers', cleanupGlobalHandlers, 'IPC handlers');
-  const { getIconCache: getIconCacheLazy } = await import('../utils/iconCache.js');
   manager.registerGlobalCleanupCallback(
     'iconCache',
     () => getIconCacheLazy().clear(),
     'Icon cache'
   );
-  const { clearConfigCache } = await import('../utils/configCache.js');
   manager.registerGlobalCleanupCallback('configCache', clearConfigCache, 'Config cache');
 }

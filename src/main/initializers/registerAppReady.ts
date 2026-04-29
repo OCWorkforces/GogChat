@@ -89,7 +89,14 @@ export function registerAppReady(options: AppReadyOptions): void {
 
       // Preconnect on the network thread before BrowserWindow construction so
       // DNS + TCP + TLS handshake starts in parallel with renderer startup (~50-200 ms on cold).
-      session.fromPartition('persist:account-0').preconnect({ url: 'https://mail.google.com', numSockets: 2 });
+      // Expanded set covers: chat app shell (mail.google.com), auth flow (accounts.google.com),
+      // and static asset/font CDNs (ssl.gstatic.com for icons/scripts, fonts.gstatic.com for font binaries).
+      // All preconnects are session-scoped and must use the same partition as the account-0 window.
+      const account0Session = session.fromPartition('persist:account-0');
+      account0Session.preconnect({ url: 'https://mail.google.com', numSockets: 2 });
+      account0Session.preconnect({ url: 'https://accounts.google.com', numSockets: 2 });
+      account0Session.preconnect({ url: 'https://ssl.gstatic.com', numSockets: 1 });
+      account0Session.preconnect({ url: 'https://fonts.gstatic.com', numSockets: 1 });
 
       // Create account-0 window (primary window)
       createAccountWindow(environment.appUrl, 0);

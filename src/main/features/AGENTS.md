@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-29 (commit 5fffeb1)
+**Generated:** 2026-04-29 (commit 3093c79)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -27,7 +27,7 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `userAgent.ts`          | `critical` | none                                                   |
 | `singleInstance.ts`     | `ui`       | none; receives `{ accountWindowManager }` context      |
 | `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context      |
-| `bootstrapPromotion.ts` | `ui`       | none (webContents events)                              |
+| `bootstrapPromotion.ts` | `deferred` | none (webContents events); moved from ui phase |
 | `trayIcon.ts`           | `deferred` | none                                                   |
 | `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`, `helpMenuBuilder` |
 | `helpMenuBuilder.ts`    | `deferred` | none; builds Help submenu (relaunch/reset); used by appMenu |

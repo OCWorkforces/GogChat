@@ -2,8 +2,8 @@
  * Unit tests for registerUIFeatures — critical + UI phase feature registration
  *
  * Covers: registerUIFeatures() registers userAgent (critical), singleInstance (ui),
- * deepLinkHandler (ui, with cleanup), and bootstrapPromotion (ui, with cleanup)
- * via featureManager.registerAll().
+ * deepLinkHandler (ui, with cleanup) via featureManager.registerAll().
+ * bootstrapPromotion was moved to deferred phase (registerDeferredSystemFeatures).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -53,12 +53,12 @@ describe('registerUIFeatures', () => {
     vi.clearAllMocks();
   });
 
-  it('should call featureManager.registerAll with an array of 4 features', () => {
+  it('should call featureManager.registerAll with an array of 3 features', () => {
     registerUIFeatures(mockFeatureManager);
 
     expect(mockFeatureManager.registerAll).toHaveBeenCalledTimes(1);
     const features = vi.mocked(mockFeatureManager.registerAll).mock.calls[0]![0];
-    expect(features).toHaveLength(4);
+    expect(features).toHaveLength(3);
   });
 
   describe('userAgent feature (critical phase)', () => {
@@ -183,61 +183,8 @@ describe('registerUIFeatures', () => {
     });
   });
 
-  describe('bootstrapPromotion feature (ui phase)', () => {
-    it('should register with createFeature, ui phase, cleanup, and correct description', () => {
-      registerUIFeatures(mockFeatureManager);
 
-      expect(createFeature).toHaveBeenCalledWith(
-        'bootstrapPromotion',
-        'ui',
-        expect.any(Function),
-        expect.objectContaining({
-          cleanup: expect.any(Function),
-          description: 'Bootstrap window promotion after first login',
-        })
-      );
-    });
-
-    it('should dynamically import bootstrapPromotion and call default on init', async () => {
-      const mockBootstrapDefault = vi.fn();
-      vi.doMock('../features/bootstrapPromotion.js', () => ({
-        default: mockBootstrapDefault,
-        cleanupBootstrapPromotion: vi.fn(),
-      }));
-
-      registerUIFeatures(mockFeatureManager);
-
-      const calls = vi.mocked(createFeature).mock.calls;
-      const bootstrapCall = calls.find((c) => c[0] === 'bootstrapPromotion');
-      const initFn = bootstrapCall![2];
-      await initFn({});
-
-      expect(mockBootstrapDefault).toHaveBeenCalledTimes(1);
-
-      vi.doUnmock('../features/bootstrapPromotion.js');
-    });
-
-    it('should dynamically import bootstrapPromotion and call cleanupBootstrapPromotion on cleanup', async () => {
-      const mockCleanupBootstrap = vi.fn();
-      vi.doMock('../features/bootstrapPromotion.js', () => ({
-        default: vi.fn(),
-        cleanupBootstrapPromotion: mockCleanupBootstrap,
-      }));
-
-      registerUIFeatures(mockFeatureManager);
-
-      const calls = vi.mocked(createFeature).mock.calls;
-      const bootstrapCall = calls.find((c) => c[0] === 'bootstrapPromotion');
-      const options = bootstrapCall![3] as { cleanup: () => Promise<void> };
-      await options.cleanup();
-
-      expect(mockCleanupBootstrap).toHaveBeenCalledTimes(1);
-
-      vi.doUnmock('../features/bootstrapPromotion.js');
-    });
-  });
-
-  it('should register features in correct order: userAgent, singleInstance, deepLinkHandler, bootstrapPromotion', () => {
+  it('should register features in correct order: userAgent, singleInstance, deepLinkHandler', () => {
     registerUIFeatures(mockFeatureManager);
 
     const features = vi.mocked(mockFeatureManager.registerAll).mock.calls[0]![0] as Array<{
@@ -247,7 +194,6 @@ describe('registerUIFeatures', () => {
       'userAgent',
       'singleInstance',
       'deepLinkHandler',
-      'bootstrapPromotion',
     ]);
   });
 
@@ -266,9 +212,6 @@ describe('registerUIFeatures', () => {
     );
     expect(features[2]).toEqual(
       expect.objectContaining({ name: 'deepLinkHandler', priority: 'ui' })
-    );
-    expect(features[3]).toEqual(
-      expect.objectContaining({ name: 'bootstrapPromotion', priority: 'ui' })
     );
   });
 });

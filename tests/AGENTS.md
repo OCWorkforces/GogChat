@@ -1,6 +1,6 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-04-29 | **Commit:** 5fffeb1
+**Generated:** 2026-04-29 | **Commit:** 3093c79
 
 4 test tiers: **unit** (Vitest, colocated with source), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`.
 
@@ -74,9 +74,3 @@ Coverage thresholds (vitest.config.ts): statements 94%, branches 92%, functions 
 - `getWindowState()` accesses `(window as any).electronWindow` — Electron exposes this bridge
 - `isFeatureEnabled()` calls `require('electron-store')` directly (bypasses `configGet`/`configSet` intentionally — test-only read path)
 - `checkSecuritySettings()` reads `webContents.getWebPreferences()` directly via `electronApp.evaluate()`
-- **NEVER** hardcode timeouts — use `waitForIPC()` / `waitForSelector()`
-- **NEVER** skip `electronMock.reset()` + `vi.clearAllMocks()` in `beforeEach`
-- **NEVER** launch Electron manually — use fixtures from `electron-test.ts`
-- **NEVER** run multiple Electron workers — use `workers: 1`
-- **NEVER** import from `@playwright/test` directly in integration/e2e — use `electron-test.ts`
-- **NEVER** add `polyfill-crypto.cjs` changes without verifying Node 24+ compat

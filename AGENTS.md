@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-29
 
-**Commit:** 5fffeb1
+**Commit:** 3093c79
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -77,17 +77,18 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
    Promise.all([registerGlobalCleanups(), security phase])  ← PARALLEL
    Promise.all([critical phase (userAgent), initializeStore()])  ← PARALLEL
    accountWindowManager → session.preconnect('persist:account-0')  ← DNS/TCP/TLS warmup
+   session.preconnect: accounts.google.com, ssl.gstatic.com, fonts.gstatic.com
    createAccountWindow(url, 0) → markAsBootstrap(0)
    featureManager.updateContext({ mainWindow, accountWindowManager })
    featureManager.initializePhase('ui'):
-     singleInstance → deepLinkHandler → bootstrapPromotion
+    singleInstance → deepLinkHandler
 7. setImmediate() — deferred (non-blocking):
    warmInitialIcons()  ← moved off critical path
-   trayIcon → appMenu → badgeIcons → windowState → passkeySupport
+   trayIcon → appMenu → badgeIcons → bootstrapPromotion → windowState → passkeySupport
    → handleNotification → inOnline → externalLinks → closeToTray
    → openAtLogin → appUpdates → contextMenu → firstLaunch
    → enforceMacOSAppLocation
-   → cache warming → perf metrics
+   → cache warming (8s idle) → perf metrics
 
 Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() → async cleanup → app.exit()
 ```
@@ -166,13 +167,13 @@ bun run hooks:install  # Install git pre-push hook
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 41 / Node.js 22+ / Chromium-based
 - Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
-- Bundle: single main entry → 110KB (was 696KB before optimization)
+- Bundle: single main entry → 67.8KB (was 696KB before optimization, 110KB before startup tuning)
 - `overrideNotifications.ts` preload: `contextIsolation: false` (intentional exception)
 - DOM selectors in `shared/constants.ts` `SELECTORS` — may break on Google HTML changes
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 - CI: GitHub Actions — `pr-check.yml` + `release.yml`
 - CI gates: madge circular deps (enforcing), import count (enforcing), coverage (informational)
-- Coverage: 99.25% statements (1851 tests, 84 test files)
+- Coverage: 99.25% statements (1850 tests, 85 test files)
 - Build history tracked in `.build-history.json` (last 20 builds)
 
 ## COMPLEXITY CENTERS (200+ lines)
