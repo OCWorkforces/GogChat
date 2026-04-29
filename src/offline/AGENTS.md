@@ -1,6 +1,6 @@
 # src/offline/ — Standalone Offline Fallback Page
 
-**Generated:** 2026-04-18 | **Commit:** 95610f8
+**Generated:** 2026-04-29 | **Commit:** 5fffeb1
 **Parent docs:** `../../AGENTS.md` (project)
 
 ## OVERVIEW
@@ -48,6 +48,10 @@ Compiled by Rsbuild **main pass** (Pass 1, ESM target) alongside `src/main/`. Ou
 ## ANTI-PATTERNS
 
 - **NEVER** add `ipcRenderer` calls here — no preload script is loaded, it will throw
+- **NEVER** import from `../main/` or `../preload/` — different build context, will break
+- **NEVER** use bare `setInterval` here — tracked cleanup is main-process only; this page is intentionally simple
+- **NEVER** skip the `attemptCount > MAX_AUTO_ATTEMPT_COUNT` guard — prevents infinite retries (MAX = 100)
+- **NEVER** use `NodeJS.Timeout` as a type marker for intent — `setInterval` here is intentionally untracked (no main-process cleanup available)
 - **NEVER** import from `../main/` or `../preload/` — different build context, will break
 - **NEVER** use bare `setInterval` here — tracked cleanup is main-process only; this page is intentionally simple
 - **NEVER** skip the `attemptCount > MAX_AUTO_ATTEMPT_COUNT` guard — prevents infinite retries if user leaves page open

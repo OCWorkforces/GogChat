@@ -1,6 +1,6 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-04-27 · **Commit:** 95610f8
+**Generated:** 2026-04-29 · **Commit:** 5fffeb1
 
 Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is split into specialized sub-modules by concern. Shutdown handled separately.
 
@@ -16,7 +16,7 @@ Extracted from `index.ts` to keep the app entry point a thin orchestrator. Featu
 | `registerDeferredWindowFeatures.ts`   | 70    | Window: menus, notifications, links, context menu          |
 | `registerDeferredNetworkFeatures.ts`  | 45    | Network: connectivity monitoring                           |
 | `featureHelpers.ts`                   | 47    | `createMainWindowFeature()` helper                         |
-| `registerAppReady.ts`                 | 128   | app.whenReady orchestration (was 223)                      |
+| `registerAppReady.ts`                 | 132   | app.whenReady orchestration; parallel phase init                   |
 | `registerGlobalCleanups.ts`           | 39    | Lazy-required cleanup callback registration                |
 | `registerShutdown.ts`                 | 70    | before-quit handler, delegates diagnostics + destroyers    |
 | `shutdownDiagnostics.ts`              | 115   | Cache statistics logging                                   |

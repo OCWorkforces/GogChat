@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-27 (commit 95610f8)
+**Generated:** 2026-04-29 (commit 5fffeb1)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -51,7 +51,11 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 
 Features that expose actions consumed by `appMenu.ts` must self-register via `registerMenuAction<K>(id, { label, handler })` from `./menuActionRegistry.ts`. The registry is fully typed — `MenuActionMap` maps each `MenuActionId` to its exact handler signature. **Never** import from other features directly — use the registry.
 
-Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts), `toggleExternalLinksGuard` (externalLinks.ts), `processDeepLink` (deepLinkHandler.ts).
+- Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts), `toggleExternalLinksGuard` (externalLinks.ts), `processDeepLink` (deepLinkHandler.ts).
+
+**Self-registration timing**: `registerMenuAction()` is called at module load time (import-time side effect), NOT inside the feature's `init()` function. `singleInstance.ts` calls `getMenuAction('processDeepLink')` at runtime inside the `second-instance` event handler.
+
+**bootstrapPromotion re-exports pattern**: `bootstrapPromotion.ts` re-exports `watchBootstrapAccount` and `cleanupBootstrapPromotion` from `../utils/bootstrapWatcher.ts` to preserve the existing public API — do not refactor this into direct imports downstream.
 
 ## ADDING A NEW FEATURE
 
@@ -76,7 +80,8 @@ Registered actions: `aboutPanel` (aboutPanel.ts), `autoLaunch` (openAtLogin.ts),
 - **Never** register features in `index.ts` — use `initializers/registerFeatures.ts`
 - **Never** initialize features outside their designated phase
 - **Never** skip error handling — feature failure must not crash the app
-- **Never** store mutable state in module scope without cleanup registration
+- **Never** store mutable state in module scope without cleanup registration (exception: `closeToTray`, `trayIcon`, `externalLinks`, `openAtLogin` use module-level state with explicit cleanup — intentional where singleton-per-feature is required)
+- **Never** perform menu action self-registration inside the `init()` function — `registerMenuAction()` calls happen at module load time (import-time side effect)
 - **Never** access `ctx.mainWindow` without null/destroyed check in async callbacks
 - **Never** route to an account window mid-auth-flow without checking `isGoogleAuthUrl()`
 - **Never** skip dependency declarations in `registerAllFeatures()`
