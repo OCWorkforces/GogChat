@@ -4,8 +4,10 @@
  * Creates all required icon variants:
  *
  * Tray icons (menu bar — macOS Template, monochrome):
- *   resources/icons/tray/iconTemplate.png      (22×22, 1x)
- *   resources/icons/tray/iconTemplate@2x.png   (44×44, 2x Retina)
+ *   resources/icons/tray/iconTemplate.png          (22×22, 1x) — default/idle
+ *   resources/icons/tray/iconTemplate@2x.png       (44×44, 2x Retina) — default/idle
+ *   resources/icons/tray/iconUnreadTemplate.png    (22×22, 1x) — unread messages
+ *   resources/icons/tray/iconUnreadTemplate@2x.png (44×44, 2x Retina) — unread messages
  *
  * App icons — normal state (full-color speech bubble):
  *   resources/icons/normal/16.png
@@ -366,6 +368,38 @@ function trayIconSvg(s) {
   <path d="${innerPath}" fill="${COLORS.white}"/>
 </svg>`;
 }
+/**
+ * Monochrome tray icon with unread dot — macOS Template image.
+ * Same speech bubble as trayIconSvg() plus a small filled circle in the
+ * upper-right corner to signal unread messages.
+ * The dot is a solid black circle (no white ring) — the Template system
+ * handles coloring automatically for light/dark menu bars.
+ *
+ * @param {number} s - Canvas size in pixels (22 for 1×, 44 for 2×)
+ */
+function trayUnreadIconSvg(s) {
+  const scale = (v) => ((v * s) / 100).toFixed(3);
+  const outerPath = buildOuterBubble(scale, TRAY_GEOMETRY.cornerRadius, TRAY_GEOMETRY);
+  const innerPath = buildInnerCutout(scale, TRAY_GEOMETRY.innerRadius, TRAY_GEOMETRY);
+
+  // Unread dot: solid filled circle at upper-right of the bubble.
+  // Coordinates in the 0–100 space matching TRAY_GEOMETRY.
+  // Placed at the clipped corner area (around x=88, y=12) so it's
+  // clearly visible without overlapping the inner cutout.
+  const dotCx = Number(scale(88));
+  const dotCy = Number(scale(12));
+  const dotR  = Number(scale(s >= 36 ? 11 : 10)); // slightly larger on 2×
+  const fmt = (n) => Number(n).toFixed(3);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+  <!-- Black silhouette for macOS Template image — system tints for light/dark -->
+  <path d="${outerPath}" fill="${COLORS.black}"/>
+  <path d="${innerPath}" fill="${COLORS.white}"/>
+  <!-- Unread dot — solid black, rendered as white in dark menu bar by Template system -->
+  <circle cx="${fmt(dotCx)}" cy="${fmt(dotCy)}" r="${fmt(dotR)}" fill="${COLORS.black}"/>
+</svg>`;
+}
+
 
 /**
  * Scalable SVG for resources/icons/normal/scalable.svg.
@@ -444,6 +478,10 @@ const ICON_SPECS = [
   // Tray icons — macOS Template (monochrome, system-tinted)
   { path: 'tray/iconTemplate.png', generator: () => trayIconSvg(22), size: 22 },
   { path: 'tray/iconTemplate@2x.png', generator: () => trayIconSvg(44), size: 44 },
+
+  // Tray icon — unread state (macOS Template with filled dot at upper-right)
+  { path: 'tray/iconUnreadTemplate.png', generator: () => trayUnreadIconSvg(22), size: 22 },
+  { path: 'tray/iconUnreadTemplate@2x.png', generator: () => trayUnreadIconSvg(44), size: 44 },
 
   // Normal state — full-color Google Chat bubble
   ...APP_SIZES.map((size) => ({

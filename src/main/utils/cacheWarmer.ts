@@ -30,6 +30,9 @@ const ADDITIONAL_ICON_PATHS = [
   'resources/icons/offline/32.png',
   'resources/icons/offline/64.png',
   'resources/icons/badge/32.png',
+  // Unread tray icon variants — swapped at runtime when messages arrive
+  'resources/icons/tray/iconUnreadTemplate.png',
+  'resources/icons/tray/iconUnreadTemplate@2x.png',
 ] as const;
 
 /**
