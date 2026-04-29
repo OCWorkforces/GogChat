@@ -93,9 +93,10 @@ describe('app section', () => {
     hideMenuBar: false,
     disableSpellChecker: false,
     suppressPasskeyDialog: false,
+    notificationPermissionRequested: false,
   };
 
-  it('has exactly 6 boolean properties', () => {
+  it('has exactly 7 boolean properties', () => {
     expect(Object.keys(app.properties).sort()).toEqual(Object.keys(expectedDefaults).sort());
   });
 
