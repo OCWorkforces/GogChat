@@ -137,6 +137,9 @@ export function setupBadgeHandlers(
             // Update badge icon (platform-specific)
             updateBadgeIcon(window, validatedCount);
 
+            // Update tray icon to reflect unread state
+            setTrayUnread(validatedCount > 0);
+
             log.debug(`[BadgeIcon] Unread count updated: ${validatedCount}`);
           } catch (error: unknown) {
             log.error('[BadgeIcon] Failed to update unread count:', toErrorMessage(error));
