@@ -67,11 +67,12 @@ describe('Encryption Key Module', () => {
     it('should return legacy key when safeStorage is unavailable', async () => {
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = await getOrCreateEncryptionKey();
+      const result = await getOrCreateEncryptionKey();
 
       // Should compute the legacy key: SHA256('gogchat-/fake/path/userData')
-      expect(key).toBeDefined();
-      expect(key).toHaveLength(64); // SHA256 hex is 64 chars
+      expect(result.key).toBeDefined();
+      expect(result.key).toHaveLength(64); // SHA256 hex is 64 chars
+      expect(result.migrationPending).toBe(false);
     });
 
     it('should return SafeStorage key when available and key file exists', async () => {
@@ -86,10 +87,11 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = await getOrCreateEncryptionKey();
+      const result = await getOrCreateEncryptionKey();
 
       // Should decrypt the stored key
-      expect(key).toBe('supersecretkey123456789012345678901234567890');
+      expect(result.key).toBe('supersecretkey123456789012345678901234567890');
+      expect(result.migrationPending).toBe(false);
     });
 
     it('should generate new key on fresh install when SafeStorage available', async () => {
@@ -99,12 +101,13 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = await getOrCreateEncryptionKey();
+      const result = await getOrCreateEncryptionKey();
 
       // Should generate a new 64-char hex key (256-bit)
-      expect(key).toBeDefined();
-      expect(key).toHaveLength(64);
-      expect(safeStorage.encryptString).toHaveBeenCalledWith(key);
+      expect(result.key).toBeDefined();
+      expect(result.key).toHaveLength(64);
+      expect(safeStorage.encryptString).toHaveBeenCalledWith(result.key);
+      expect(result.migrationPending).toBe(false);
     });
 
     it('should return legacy key when config exists but no key file (migration scenario)', async () => {
@@ -118,11 +121,12 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = await getOrCreateEncryptionKey();
+      const result = await getOrCreateEncryptionKey();
 
-      // Should return legacy key for migration
-      expect(key).toBeDefined();
-      expect(key).toHaveLength(64);
+      // Should return legacy key for migration, with migrationPending = true
+      expect(result.key).toBeDefined();
+      expect(result.key).toHaveLength(64);
+      expect(result.migrationPending).toBe(true);
       // Should NOT have generated a new key yet
       expect(safeStorage.encryptString).not.toHaveBeenCalled();
     });
@@ -219,11 +223,14 @@ describe('Encryption Key Module', () => {
 
       const { getOrCreateEncryptionKey } = await import('./encryptionKey');
 
-      const key = await getOrCreateEncryptionKey();
+      const result = await getOrCreateEncryptionKey();
 
-      // Should fall back to legacy key
-      expect(key).toBeDefined();
-      expect(key).toHaveLength(64);
+      // Should fall back to legacy key, migration must NOT be pending
+      // (SafeStorage failed — triggering migration here would corrupt data)
+      expect(result.key).toBeDefined();
+      expect(result.key).toHaveLength(64);
+      expect(result.migrationPending).toBe(false);
+
     });
   });
 });

@@ -5,7 +5,6 @@ import log from 'electron-log';
 import { getPackageInfo } from './utils/packageInfo.js';
 import {
   getOrCreateEncryptionKey,
-  needsMigration,
   completeMigration,
 } from './utils/encryptionKey.js';
 
@@ -33,7 +32,7 @@ export async function initializeStore(): Promise<Store<StoreType> | CachedStore<
   }
 
   // Get or create encryption key (SafeStorage-backed or legacy)
-  const encryptionKey = await getOrCreateEncryptionKey();
+  const { key: encryptionKey, migrationPending } = await getOrCreateEncryptionKey();
 
   // Create store with encryption
   let store: Store<StoreType> | CachedStore<StoreType> = new Store<StoreType>({
@@ -42,8 +41,11 @@ export async function initializeStore(): Promise<Store<StoreType> | CachedStore<
     clearInvalidConfig: true,
   });
 
-  // Migration: if SafeStorage is available but we opened with legacy key
-  if (await needsMigration()) {
+  // Migration: only when getOrCreateEncryptionKey() explicitly signaled it.
+  // Do NOT re-check independently — SafeStorage failures during key retrieval
+  // must NOT trigger migration (the store was opened with the legacy key in that
+  // case and a new random key would corrupt the data).
+  if (migrationPending) {
     try {
       log.info('[Config] Starting migration from legacy to SafeStorage encryption');
       const newKey = await completeMigration();

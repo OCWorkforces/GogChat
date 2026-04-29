@@ -26,7 +26,7 @@
 | `cacheWarmer.ts` | 151 | Icon cache warm + deferred phase; `warmInitialIcons()` now called in `setImmediate` (off critical path) | exported fns |
 | `platformHelpers.ts` | 142 | macOS platform helpers (enforceLocation) | exported fns |
 | `performanceExport.ts` | 125 | Performance export/log helpers | exported fns |
-| `encryptionKey.ts` | 128 | SafeStorage encryption key mgmt | exported fns |
+| `encryptionKey.ts` | 166 | SafeStorage encryption key mgmt; `getOrCreateEncryptionKey()` returns `EncryptionKeyResult { key, migrationPending }`; `needsMigration()` deprecated | exported fns + `EncryptionKeyResult` type |
 | `secureFlags.ts` | ~120 | safeStorage-backed security flags (`getDisableCertPinning`/`setDisableCertPinning`); persists to `secure-flags.enc`; macOS Keychain | `getDisableCertPinning()` / `setDisableCertPinning()` |
 | `mediaAccess.ts` | 123 | macOS camera/mic TCC permissions | exported fns |
 | `windowUtils.ts` | 121 | Window events/health/defaults (merged) | exported fns |

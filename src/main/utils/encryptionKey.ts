@@ -37,7 +37,28 @@ function getLegacyEncryptionKey(): string {
  *
  * MUST be called AFTER app.whenReady() on macOS for correct Keychain entry naming.
  */
-export async function getOrCreateEncryptionKey(): Promise<string> {
+export interface EncryptionKeyResult {
+  key: string;
+  /**
+   * True when the store was opened with the legacy deterministic key AND
+   * SafeStorage is available — meaning the caller should migrate the data
+   * to a new SafeStorage-backed key via completeMigration().
+   * False in all other cases (fresh install, already migrated, SafeStorage unavailable).
+   */
+  migrationPending: boolean;
+}
+
+/**
+ * Get or create an encryption key using safeStorage (macOS Keychain).
+ *
+ * - If SafeStorage is available and key file exists → decrypt and return stored key
+ * - If SafeStorage is available, key file missing, but config exists → migration needed, return legacy key
+ * - If SafeStorage is available, fresh install → generate random 256-bit key, encrypt with SafeStorage, store
+ * - If SafeStorage is unavailable → return deterministic legacy key
+ *
+ * MUST be called AFTER app.whenReady() on macOS for correct Keychain entry naming.
+ */
+export async function getOrCreateEncryptionKey(): Promise<EncryptionKeyResult> {
   // Try SafeStorage first (must be called after app.whenReady on macOS)
   if (safeStorage.isEncryptionAvailable()) {
     try {
@@ -49,33 +70,43 @@ export async function getOrCreateEncryptionKey(): Promise<string> {
     log.warn('[EncryptionKey] SafeStorage not available, using deterministic key');
   }
 
-  // Fallback to deterministic key
-  return getLegacyEncryptionKey();
+  // Fallback to deterministic key — migration must NOT be attempted here
+  // because SafeStorage either failed or is unavailable. Triggering migration
+  // would generate a brand-new key unrelated to the data already on disk.
+  return { key: getLegacyEncryptionKey(), migrationPending: false };
 }
 
 /**
  * Handle SafeStorage key retrieval/generation
  * Assumes SafeStorage.isEncryptionAvailable() returned true
  */
-async function handleSafeStorageKey(): Promise<string> {
+async function handleSafeStorageKey(): Promise<EncryptionKeyResult> {
   const keyFilePath = path.join(app.getPath('userData'), ENCRYPTION_KEY_FILE);
 
   // Check if encrypted key file exists
   if (await fileExists(keyFilePath)) {
-    // Retrieve existing key
     const encrypted = await fs.readFile(keyFilePath);
-    const hexKey = safeStorage.decryptString(encrypted);
-    log.info('[EncryptionKey] Retrieved encryption key from Keychain');
-    return hexKey;
+    try {
+      const hexKey = safeStorage.decryptString(encrypted);
+      log.info('[EncryptionKey] Retrieved encryption key from Keychain');
+      return { key: hexKey, migrationPending: false };
+    } catch {
+      // Key file is stale (e.g., app identity changed). Remove it so
+      // subsequent launches skip the decryption attempt entirely.
+      await fs.unlink(keyFilePath).catch(() => {});
+      log.info('[EncryptionKey] Removed stale key file');
+      throw new Error('SafeStorage decryption failed');
+    }
   }
 
   // No key file exists — check if we need to migrate from deterministic key
   // (config file exists but no encryption-key.enc means migration needed)
   const configPath = path.join(app.getPath('userData'), 'config.json');
   if (await fileExists(configPath)) {
-    // Migration scenario: return legacy key, migration will be handled by completeMigration
+    // Migration scenario: return legacy key so the store opens successfully,
+    // and signal that migration should follow.
     log.info('[EncryptionKey] Existing config detected, migration will be scheduled');
-    return getLegacyEncryptionKey();
+    return { key: getLegacyEncryptionKey(), migrationPending: true };
   }
 
   // Fresh install — generate new random key
@@ -83,7 +114,7 @@ async function handleSafeStorageKey(): Promise<string> {
   const encrypted = safeStorage.encryptString(newKey);
   await fs.writeFile(keyFilePath, encrypted);
   log.info('[EncryptionKey] Generated new encryption key, stored in Keychain');
-  return newKey;
+  return { key: newKey, migrationPending: false };
 }
 
 /**
@@ -92,6 +123,13 @@ async function handleSafeStorageKey(): Promise<string> {
  * - SafeStorage is available
  * - No key file exists
  * - Config file exists (indicating existing user data)
+ */
+/**
+ * @deprecated Use the `migrationPending` field from `getOrCreateEncryptionKey()` instead.
+ * This standalone function cannot know whether the caller already fell back to the legacy
+ * key due to a SafeStorage failure, which would make migration unsafe.
+ *
+ * Kept for any external callers; config.ts no longer uses it.
  */
 export async function needsMigration(): Promise<boolean> {
   if (!safeStorage.isEncryptionAvailable()) {
