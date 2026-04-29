@@ -52,6 +52,11 @@ vi.mock('../utils/ipcHelper.js', () => ({
   createSecureIPCHandler: (cfg: unknown) => mockCreateSecureIPCHandler(cfg),
 }));
 
+const mockSetTrayUnread = vi.fn();
+vi.mock('./trayIcon.js', () => ({
+  setTrayUnread: mockSetTrayUnread,
+}));
+
 vi.mock('../../shared/dataValidators.js', () => ({
   validateFaviconURL: vi.fn((url: string) => url),
   validateUnreadCount: vi.fn((count: number) => count),
@@ -204,6 +209,32 @@ describe('badgeHandlers', () => {
 
       await new Promise((r) => setImmediate(r));
       expect(mockSetBadgeCount).not.toHaveBeenCalled();
+    });
+
+    it('calls setTrayUnread(true) when unread count > 0', async () => {
+      const { setupBadgeHandlers } = await import('./badgeHandlers.js');
+      setupBadgeHandlers(fakeWindow(), fakeTray());
+
+      const unreadCfg = mockCreateSecureIPCHandler.mock.calls.find(
+        ([cfg]) => (cfg as { channel: string }).channel === 'unreadCount'
+      )?.[0] as { handler: (v: number) => void };
+      unreadCfg.handler(5);
+
+      await new Promise((r) => setImmediate(r));
+      expect(mockSetTrayUnread).toHaveBeenCalledWith(true);
+    });
+
+    it('calls setTrayUnread(false) when unread count is 0', async () => {
+      const { setupBadgeHandlers } = await import('./badgeHandlers.js');
+      setupBadgeHandlers(fakeWindow(), fakeTray());
+
+      const unreadCfg = mockCreateSecureIPCHandler.mock.calls.find(
+        ([cfg]) => (cfg as { channel: string }).channel === 'unreadCount'
+      )?.[0] as { handler: (v: number) => void };
+      unreadCfg.handler(0);
+
+      await new Promise((r) => setImmediate(r));
+      expect(mockSetTrayUnread).toHaveBeenCalledWith(false);
     });
   });
 });
