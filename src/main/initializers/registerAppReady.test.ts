@@ -28,7 +28,8 @@ const {
   mockGetWindowForAccount,
   mockCreateTrackedTimeout,
   mockCompareStorePerformance,
-} = vi.hoisted(() => ({
+  mockSessionFromPartition,
+}  = vi.hoisted(() => ({
   mockAppWhenReady: vi.fn(),
   mockAppQuit: vi.fn(),
   mockAppGetPath: vi.fn().mockReturnValue('/tmp/user-data'),
@@ -53,6 +54,7 @@ const {
   mockGetWindowForAccount: vi.fn(),
   mockCreateTrackedTimeout: vi.fn(),
   mockCompareStorePerformance: vi.fn(),
+  mockSessionFromPartition: vi.fn(),
 }));
 
 // ──── Module mocks ─────────────────────────────────────────────────────────
@@ -62,6 +64,9 @@ vi.mock('electron', () => ({
     quit: mockAppQuit,
     getPath: mockAppGetPath,
     isPackaged: mockAppIsPackaged,
+  },
+  session: {
+    fromPartition: mockSessionFromPartition,
   },
 }));
 
@@ -94,6 +99,7 @@ vi.mock('../utils/accountWindowManager.js', () => ({
   getAccountWindowManager: mockGetAccountWindowManager,
   createAccountWindow: mockCreateAccountWindow,
   getWindowForAccount: mockGetWindowForAccount,
+  getMostRecentWindow: vi.fn(),
 }));
 
 
@@ -227,6 +233,7 @@ function setupWhenReadyAsPromise(): { fireReady: () => Promise<void> } {
 
 function setupDefaults(): void {
   mockAppGetPath.mockReturnValue('/tmp/user-data');
+  mockSessionFromPartition.mockReturnValue({ preconnect: vi.fn() });
   const mockCleanupManager = {
     registerGlobalCleanupCallback: vi.fn(),
   };
@@ -421,7 +428,7 @@ describe('registerAppReady', () => {
 
   // ─── Icon cache warming ───────────────────────────────────────────────
 
-  it('should call iconCache.warmCache() before UI phase', async () => {
+  it('should call iconCache.warmCache() during setImmediate (after UI phase)', async () => {
     const { fireReady } = setupWhenReadyAsPromise();
     const warmCacheOrder: string[] = [];
 
@@ -445,20 +452,26 @@ describe('registerAppReady', () => {
       }),
     });
 
+    const mockMainWindow = createMockMainWindow();
     registerAppReady({
       featureManager: fm,
       windowFactory: createMockWindowFactory(),
       setMainWindow: vi.fn(),
-      getMainWindow: vi.fn(),
+      getMainWindow: vi.fn().mockReturnValue(mockMainWindow),
     });
 
     await fireReady();
+
+    // warmInitialIcons() runs in setImmediate, AFTER phase:ui
+    await vi.waitFor(() => {
+      expect(warmCacheOrder.includes('warmCache')).toBe(true);
+    });
 
     const warmIdx = warmCacheOrder.indexOf('warmCache');
     const uiIdx = warmCacheOrder.indexOf('initializePhase:ui');
     expect(warmIdx).toBeGreaterThanOrEqual(0);
     expect(uiIdx).toBeGreaterThanOrEqual(0);
-    expect(warmIdx).toBeLessThan(uiIdx);
+    expect(warmIdx).toBeGreaterThan(uiIdx);
   });
 
   // ─── UI phase last (in blocking sequence) ─────────────────────────────
@@ -609,7 +622,7 @@ describe('registerAppReady', () => {
 
     expect(capturedCatchFn).toBeDefined();
     expect(mockLog.error).toHaveBeenCalledWith(
-      '[Main] Failed to initialize store after app.ready:',
+      '[Main] Failed to initialize critical phase or store:',
       storeError
     );
   });
@@ -654,16 +667,18 @@ describe('registerAppReady', () => {
   it('should set performance marks during initialization', async () => {
     const { fireReady } = setupWhenReadyAsPromise();
     const fm = createMockFeatureManager();
+    const mockMainWindow = createMockMainWindow();
 
     registerAppReady({
       featureManager: fm,
       windowFactory: createMockWindowFactory(),
       setMainWindow: vi.fn(),
-      getMainWindow: vi.fn(),
+      getMainWindow: vi.fn().mockReturnValue(mockMainWindow),
     });
 
     await fireReady();
 
+    // Marks set during the blocking init path
     expect(mockPerfMonitor.mark).toHaveBeenCalledWith('app-ready', 'Electron app ready');
     expect(mockPerfMonitor.mark).toHaveBeenCalledWith(
       'account-manager-init',
@@ -671,11 +686,15 @@ describe('registerAppReady', () => {
     );
     expect(mockPerfMonitor.mark).toHaveBeenCalledWith('window-created', 'Main window created');
     expect(mockPerfMonitor.mark).toHaveBeenCalledWith('account-0-ready', 'Account-0 window ready');
-    expect(mockPerfMonitor.mark).toHaveBeenCalledWith('icons-cached', 'Icons pre-loaded');
     expect(mockPerfMonitor.mark).toHaveBeenCalledWith(
       'features-loaded',
       'Critical features initialized'
     );
+
+    // 'icons-cached' is set inside setImmediate (warmInitialIcons), so wait for it
+    await vi.waitFor(() => {
+      expect(mockPerfMonitor.mark).toHaveBeenCalledWith('icons-cached', 'Icons pre-loaded');
+    });
   });
 
   // ─── Deferred phase ───────────────────────────────────────────────────
@@ -1016,17 +1035,18 @@ describe('registerAppReady', () => {
 
     await fireReady();
 
-    // Verify order of blocking init
-    expect(sequence).toEqual([
-      'errorHandler',
-      'globalCleanups',
-      'phase:security',
-      'phase:critical',
-      'initializeStore',
+    // Verify order of blocking init.
+    // Note: 'globalCleanups'+'phase:security' and 'phase:critical'+'initializeStore' each run in Promise.all.
+    // Their internal order is non-deterministic; assert them as sets.
+    // Note: 'warmCache' runs in setImmediate after phase:ui and is NOT awaited by fireReady(),
+    // so it does not appear in the blocking sequence.
+    expect(sequence[0]).toBe('errorHandler');
+    expect(sequence.slice(1, 3).sort()).toEqual(['globalCleanups', 'phase:security'].sort());
+    expect(sequence.slice(3, 5).sort()).toEqual(['initializeStore', 'phase:critical'].sort());
+    expect(sequence.slice(5)).toEqual([
       'getAccountWindowManager',
       'createAccountWindow',
       'updateContext',
-      'warmCache',
       'phase:ui',
     ]);
   });
