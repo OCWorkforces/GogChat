@@ -48,21 +48,5 @@ export function registerUIFeatures(featureManager: FeatureManager): void {
         description: 'Custom protocol (gogchat://) handler',
       }
     ),
-
-    createFeature(
-      'bootstrapPromotion',
-      'ui',
-      async () => {
-        const module = await import('../features/bootstrapPromotion.js');
-        module.default();
-      },
-      {
-        cleanup: async () => {
-          const module = await import('../features/bootstrapPromotion.js');
-          module.cleanupBootstrapPromotion();
-        },
-        description: 'Bootstrap window promotion after first login',
-      }
-    ),
   ]);
 }

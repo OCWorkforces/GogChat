@@ -48,6 +48,11 @@ vi.mock('../utils/platformHelpers.js', () => ({
   enforceMacOSAppLocation: mockEnforceMacOSAppLocation,
 }));
 
+const mockBootstrapPromotionDefault = vi.fn();
+vi.mock('../features/bootstrapPromotion.js', () => ({
+  default: mockBootstrapPromotionDefault,
+}));
+
 import { registerDeferredSystemFeatures } from './registerDeferredSystemFeatures';
 import type { FeatureConfig } from '../utils/featureManager';
 
@@ -94,9 +99,9 @@ describe('registerDeferredSystemFeatures', () => {
     expect(mockFeatureManager.registerAll).toHaveBeenCalledWith(expect.any(Array));
   });
 
-  it('registers all 7 system features', () => {
+  it('registers all 8 system features', () => {
     register();
-    expect(capturedFeatures).toHaveLength(7);
+    expect(capturedFeatures).toHaveLength(8);
   });
 
   it('registers features in correct order', () => {
@@ -105,6 +110,7 @@ describe('registerDeferredSystemFeatures', () => {
     expect(names).toEqual([
       'trayIcon',
       'badgeIcons',
+      'bootstrapPromotion',
       'windowState',
       'openAtLogin',
       'appUpdates',

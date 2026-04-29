@@ -20,7 +20,7 @@ import type { FeatureManager } from './featureManager.js';
 
 
 /** Delay (ms) before idle cache warming fires after deferred features load. */
-const IDLE_WARM_DELAY_MS = 5000;
+const IDLE_WARM_DELAY_MS = 8000;
 
 /** Additional icons preloaded during idle to reduce later UI latency. */
 const ADDITIONAL_ICON_PATHS = [

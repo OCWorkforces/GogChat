@@ -13,6 +13,8 @@
 
 import log from 'electron-log';
 
+import environment from '../../environment.js';
+
 import { exportPerformanceMetrics, logPerformanceSummary } from './performanceExport.js';
 import { PERFORMANCE_TARGETS } from './performanceTypes.js';
 import type { MemorySnapshot, PerformanceMetrics } from './performanceTypes.js';
@@ -28,11 +30,13 @@ class PerformanceMonitor {
   private readonly MAX_SNAPSHOTS = 100;
   private readonly MAX_WARNINGS = 50;
   private enabled: boolean = true;
+  private readonly isDev: boolean;
 
   constructor() {
+    this.isDev = environment.isDev;
     this.startTime = Date.now();
     this.captureMemorySnapshot('startup');
-    log.debug('[Performance] Performance monitoring started');
+    if (this.isDev) log.debug('[Performance] Performance monitoring started');
   }
 
   /**
@@ -55,9 +59,11 @@ class PerformanceMonitor {
       this.memorySnapshots.shift();
     }
     this.memorySnapshots.push(snapshot);
-    log.debug(
-      `[Performance] Memory snapshot [${label}]: ${snapshot.heapUsed}MB heap, ${snapshot.rss}MB RSS`
-    );
+    if (this.isDev) {
+      log.debug(
+        `[Performance] Memory snapshot [${label}]: ${snapshot.heapUsed}MB heap, ${snapshot.rss}MB RSS`
+      );
+    }
   }
 
   /**
@@ -73,7 +79,7 @@ class PerformanceMonitor {
     this.markers.set(name, elapsed);
 
     const message = logMessage || name;
-    log.info(`[Performance] ${message}: ${elapsed}ms`);
+    if (this.isDev) log.info(`[Performance] ${message}: ${elapsed}ms`);
 
     // Capture memory snapshot if requested
     if (captureMemory) {
@@ -117,7 +123,7 @@ class PerformanceMonitor {
     }
 
     const duration = endTime - startTime;
-    log.info(`[Performance] ${startMarker} → ${endMarker}: ${duration}ms`);
+    if (this.isDev) log.info(`[Performance] ${startMarker} → ${endMarker}: ${duration}ms`);
     return duration;
   }
 
@@ -212,7 +218,7 @@ class PerformanceMonitor {
    */
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
-    log.debug(`[Performance] Monitoring ${enabled ? 'enabled' : 'disabled'}`);
+    if (this.isDev) log.debug(`[Performance] Monitoring ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -224,7 +230,7 @@ class PerformanceMonitor {
     this.warnings = [];
     this.startTime = Date.now();
     this.captureMemorySnapshot('reset');
-    log.debug('[Performance] Monitor reset');
+    if (this.isDev) log.debug('[Performance] Monitor reset');
   }
 }
 
@@ -251,7 +257,7 @@ export function destroyPerformanceMonitor(): void {
   if (instance) {
     instance.reset();
     instance = null;
-    log.debug('[Performance] Destroyed performance monitor');
+    if (environment.isDev) log.debug('[Performance] Destroyed performance monitor');
   }
 }
 

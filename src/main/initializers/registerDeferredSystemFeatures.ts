@@ -63,6 +63,17 @@ export function registerDeferredSystemFeatures(
       }
     ),
 
+    // Bootstrap window promotion - moved from UI phase (safe to defer: only attaches
+    // did-navigate watchers; auth events won't fire for 100s of ms after window creation)
+    createLazyFeature(
+      'bootstrapPromotion',
+      'deferred',
+      () => import('../features/bootstrapPromotion.js'),
+      {
+        description: 'Bootstrap window promotion after first login',
+      }
+    ),
+
     // Window state persistence
     createLazyFeature(
       'windowState',

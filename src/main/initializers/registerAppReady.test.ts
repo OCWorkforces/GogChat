@@ -767,7 +767,7 @@ describe('registerAppReady', () => {
       await vi.waitFor(() => {
         expect(mockCreateTrackedTimeout).toHaveBeenCalledWith(
           expect.any(Function),
-          5000,
+          8000,
           'idle-cache-warming'
         );
       });
