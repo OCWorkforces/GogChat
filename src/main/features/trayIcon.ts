@@ -17,6 +17,11 @@ function getTrayIconImage(): NativeImage {
   return getIconCache().getIcon('resources/icons/tray/iconTemplate.png');
 }
 
+function getTrayUnreadImage(): NativeImage {
+  // Monochrome Template image with a filled dot — macOS auto-tints for light/dark
+  return getIconCache().getIcon('resources/icons/tray/iconUnreadTemplate.png');
+}
+
 export default (window: BrowserWindow) => {
   const trayIcon = getTrayIconImage();
   trayIconInstance = new Tray(trayIcon);
@@ -88,4 +93,21 @@ export function cleanupTrayIcon(): void {
   } catch (error: unknown) {
     log.error('[TrayIcon] Failed to cleanup tray icon:', error);
   }
+}
+
+/**
+ * Update the tray icon to reflect unread message state.
+ * Swaps between the default Template icon and the unread-dot Template icon.
+ * No-ops if state is unchanged to prevent redundant redraws.
+ */
+let currentTrayUnread: boolean | null = null;
+
+export function setTrayUnread(hasUnread: boolean): void {
+  if (!trayIconInstance || trayIconInstance.isDestroyed()) return;
+  if (currentTrayUnread === hasUnread) return;
+
+  currentTrayUnread = hasUnread;
+  const image = hasUnread ? getTrayUnreadImage() : getTrayIconImage();
+  trayIconInstance.setImage(image);
+  log.debug(`[TrayIcon] Tray icon updated — unread: ${String(hasUnread)}`);
 }

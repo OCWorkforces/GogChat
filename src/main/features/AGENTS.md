@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-29 (commit 3093c79)
+**Generated:** 2026-04-29 (commit 8a8bf54)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -28,11 +28,11 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `singleInstance.ts`     | `ui`       | none; receives `{ accountWindowManager }` context      |
 | `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context      |
 | `bootstrapPromotion.ts` | `deferred` | none (webContents events); moved from ui phase |
-| `trayIcon.ts`           | `deferred` | none                                                   |
+| `trayIcon.ts`           | `deferred` | none; exports `setTrayUnread()` for badgeHandlers to toggle tray unread dot |
 | `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`, `helpMenuBuilder` |
 | `helpMenuBuilder.ts`    | `deferred` | none; builds Help submenu (relaunch/reset); used by appMenu |
 | `badgeIcon.ts`          | `deferred` | none; delegates to `badgeHandlers`                     |
-| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens); decideIcon + updateBadgeIcon |
+| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens); decideIcon + updateBadgeIcon + calls `setTrayUnread` |
 | `windowState.ts`        | `deferred` | none; uses `accountWindowManager`                      |
 | `passkeySupport.ts`     | `deferred` | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                 |
 | `handleNotification.ts` | `deferred` | `NOTIFICATION_SHOW` (listens)                          |
@@ -96,7 +96,7 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 | File | Lines | Notes |
 | --- | --- | --- |
 | `appMenu.ts` | 190 | Slim orchestrator; delegates Help to `helpMenuBuilder` |
-| `badgeHandlers.ts` | 143 | Favicon/unread IPC + decideIcon + updateBadgeIcon |
+| `badgeHandlers.ts` | 153 | Favicon/unread IPC + decideIcon + updateBadgeIcon + tray unread |
 | `helpMenuBuilder.ts` | 136 | Help submenu, relaunchApp, resetAppAndRestart |
 | `externalLinks.ts` | 298 | URL validation, account routing |
 | `certificatePinning.ts` | 177 | Cert validation before app.ready |
@@ -106,7 +106,7 @@ Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<
 | `inOnline.ts`           | 149 | Online status monitoring |
 | `badgeIcon.ts` | 43 | Thin init; wires `badgeHandlers` |
 | `passkeySupport.ts` | 122 | Passkey auth event handling |
-| `trayIcon.ts` | 90 | System tray icon + menu |
+| `trayIcon.ts` | 113 | System tray icon + menu + `setTrayUnread()` toggle |
 | `appUpdates.ts` | 78 | Auto-update check |
 | `openAtLogin.ts` | 74 | Auto-launch self-registers in menuActionRegistry |
 | `userAgent.ts` | 71 | Custom user-agent override |

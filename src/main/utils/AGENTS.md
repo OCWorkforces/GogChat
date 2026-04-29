@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-29 · **Commit:** 3093c79
+**Generated:** 2026-04-29 · **Commit:** 8a8bf54
 
 40 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -23,7 +23,7 @@
 | `configCache.ts` | 181 | In-memory layer for electron-store with O(1) LRU eviction | `addCacheLayer()` |
 | `configSchema.ts` | 159 | electron-store schema | exported const |
 | `platformUtils.ts` | 160 | Platform utilities singleton | `getPlatformUtils()` |
-| `cacheWarmer.ts` | 151 | Icon cache warm + deferred phase; `IDLE_WARM_DELAY_MS` = 8000ms; called in `setImmediate` (off critical path) | exported fns |
+| `cacheWarmer.ts` | 154 | Icon cache warm + deferred phase; `IDLE_WARM_DELAY_MS` = 8000ms; called in `setImmediate` (off critical path); includes tray unread icons | exported fns |
 | `platformHelpers.ts` | 142 | macOS platform helpers (enforceLocation) | exported fns |
 | `performanceExport.ts` | 125 | Performance export/log helpers | exported fns |
 | `encryptionKey.ts` | 166 | SafeStorage encryption key mgmt; `getOrCreateEncryptionKey()` returns `EncryptionKeyResult { key, migrationPending }`; `needsMigration()` deprecated | exported fns + `EncryptionKeyResult` type |

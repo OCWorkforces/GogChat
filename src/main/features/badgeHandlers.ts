@@ -26,6 +26,7 @@ import { getDeduplicator } from '../utils/ipcDeduplicator.js';
 import { validateFaviconURL } from '../../shared/urlValidators.js';
 import { validateUnreadCount } from '../../shared/dataValidators.js';
 import { getIconCache } from '../utils/iconCache.js';
+import { setTrayUnread } from './trayIcon.js';
 
 /**
  * Decide app icon based on favicon URL.
@@ -90,15 +91,19 @@ export function setupBadgeHandlers(
             // Determine icon type
             const type = decideIcon(validatedHref);
 
-            // macOS: Keep the Template tray icon permanently (dock badge handles unread state)
-            // Only switch tray icon on non-macOS platforms
-            if (process.platform !== 'darwin' && type !== currentTrayIconType) {
-              currentTrayIconType = type;
-              const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
-              trayIcon.setImage(icon);
-              log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
-            } else if (process.platform !== 'darwin') {
-              log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
+            // macOS: Update tray icon to reflect unread state in addition to dock badge
+            setTrayUnread(type === ICON_TYPES.BADGE);
+
+            // Non-darwin: also swap tray image to the icon-type variant
+            if (process.platform !== 'darwin') {
+              if (type !== currentTrayIconType) {
+                currentTrayIconType = type;
+                const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
+                trayIcon.setImage(icon);
+                log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
+              } else {
+                log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
+              }
             }
           } catch (error: unknown) {
             log.error('[BadgeIcon] Failed to process favicon change:', toErrorMessage(error));

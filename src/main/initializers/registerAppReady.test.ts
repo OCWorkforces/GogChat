@@ -837,9 +837,11 @@ describe('registerAppReady', () => {
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/offline/32.png');
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/offline/64.png');
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/badge/32.png');
+      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/tray/iconUnreadTemplate.png');
+      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/tray/iconUnreadTemplate@2x.png');
 
       expect(mockLog.info).toHaveBeenCalledWith(
-        '[Main] Cache warming complete - 6/6 additional icons loaded'
+        '[Main] Cache warming complete - 8/8 additional icons loaded'
       );
       expect(mockIconCacheInstance.getStats).toHaveBeenCalled();
     });
@@ -938,9 +940,9 @@ describe('registerAppReady', () => {
       const timeoutCallback = mockCreateTrackedTimeout.mock.calls[0]![0] as () => void;
       timeoutCallback();
 
-      // 3 out of 6 icons should be non-empty (odd call numbers)
+      // 4 out of 8 icons should be non-empty (even call numbers)
       expect(mockLog.info).toHaveBeenCalledWith(
-        '[Main] Cache warming complete - 3/6 additional icons loaded'
+        '[Main] Cache warming complete - 4/8 additional icons loaded'
       );
     });
   });

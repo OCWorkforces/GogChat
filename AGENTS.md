@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-29
 
-**Commit:** 3093c79
+**Commit:** 8a8bf54
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -167,7 +167,7 @@ bun run hooks:install  # Install git pre-push hook
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 41 / Node.js 22+ / Chromium-based
 - Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
-- Bundle: single main entry → 67.8KB (was 696KB before optimization, 110KB before startup tuning)
+- Bundle: single main entry → 80.8KB (was 696KB before optimization, 110KB before startup tuning)
 - `overrideNotifications.ts` preload: `contextIsolation: false` (intentional exception)
 - DOM selectors in `shared/constants.ts` `SELECTORS` — may break on Google HTML changes
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`

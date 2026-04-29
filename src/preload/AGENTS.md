@@ -1,6 +1,6 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-04-29 | **Commit:** 3093c79
+**Generated:** 2026-04-29 | **Commit:** 8a8bf54
 
 Bridge between Electron main process and GogChat renderer. 8 scripts compiled as **CJS** (required, `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
 
