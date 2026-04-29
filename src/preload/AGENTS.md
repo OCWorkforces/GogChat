@@ -1,6 +1,6 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-04-24 | **Commit:** 95610f8
+**Generated:** 2026-04-29 | **Commit:** 5fffeb1
 
 Bridge between Electron main process and GogChat renderer. 8 scripts compiled as **CJS** (required, `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
 
@@ -46,4 +46,12 @@ All DOM monitoring uses `MutationObserver` — no polling. `faviconChanged`: obs
 - **NEVER** poll with `setInterval` — use MutationObserver
 - **NEVER** skip cleanup on `beforeunload` — memory leak
 - **NEVER** bypass validators before `ipcRenderer.send`
+- **NEVER** import `overrideNotifications.ts` from `index.ts` — wrong context
+- **NEVER** poll with `setInterval` — use MutationObserver
+- **NEVER** skip cleanup on `beforeunload` — use the standard cleanup pattern: `window.addEventListener('beforeunload', () => { observer?.disconnect(); clearTimeout(debounceTimer); unsubscribe?.(); })`
+- **NEVER** bypass validators before `ipcRenderer.send` — defense-in-depth (preload-side validation catches bad data even before main-side `createSecureIPCHandler` runs; especially critical in `overrideNotifications.ts` which runs with `contextIsolation: false`)
 - **NEVER** change preload build to ESM — `sandbox: true` requires CJS
+- **NEVER** call `configGet`/`configSet` from preload — no Node.js access; use `ipcRenderer.invoke`
+- **NEVER** convert the `newNotify` function in `overrideNotifications.ts` to an ES6 arrow function — must remain ES5 `function` keyword for correct `this` binding and `new` semantics
+- **NEVER** change the import order in `index.ts` — `disableWebAuthn.ts` MUST run first (before any Google auth scripts); `overrideNotifications.ts` is NOT imported here (loaded separately with different context)
+- **NEVER** call `configGet`/`configSet` from preload — no Node.js access; use `ipcRenderer.invoke`

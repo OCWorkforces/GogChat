@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-27
+**Generated:** 2026-04-29
 
-**Commit:** 95610f8
+**Commit:** 5fffeb1
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -73,15 +73,16 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 4. registerAllFeatures(fm, cb)    ← delegate to initializers/registerFeatures.ts
 5. setupDeepLinkListener()        ← before app.ready (open-url event)
 6. app.whenReady():
-   registerBuiltInGlobalCleanups() ← lazy cleanup callback registration
-   featureManager.initializePhase('security') → 'critical'
-   initializeStore()              ← re-init for SafeStorage (requires app.ready)
-   accountWindowManager → createAccountWindow(url, 0) → markAsBootstrap(0)
+   initializeErrorHandler()
+   Promise.all([registerGlobalCleanups(), security phase])  ← PARALLEL
+   Promise.all([critical phase (userAgent), initializeStore()])  ← PARALLEL
+   accountWindowManager → session.preconnect('persist:account-0')  ← DNS/TCP/TLS warmup
+   createAccountWindow(url, 0) → markAsBootstrap(0)
    featureManager.updateContext({ mainWindow, accountWindowManager })
-   iconCache.warmCache()
    featureManager.initializePhase('ui'):
      singleInstance → deepLinkHandler → bootstrapPromotion
 7. setImmediate() — deferred (non-blocking):
+   warmInitialIcons()  ← moved off critical path
    trayIcon → appMenu → badgeIcons → windowState → passkeySupport
    → handleNotification → inOnline → externalLinks → closeToTray
    → openAtLogin → appUpdates → contextMenu → firstLaunch

@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-26 · **Commit:** 95610f8
+**Generated:** 2026-04-29 · **Commit:** 5fffeb1
 
 40 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -23,10 +23,10 @@
 | `configCache.ts` | 181 | In-memory layer for electron-store with O(1) LRU eviction | `addCacheLayer()` |
 | `configSchema.ts` | 159 | electron-store schema | exported const |
 | `platformUtils.ts` | 160 | Platform utilities singleton | `getPlatformUtils()` |
-| `cacheWarmer.ts` | 151 | Icon cache warm + deferred phase + dev profiling | exported fns |
+| `cacheWarmer.ts` | 151 | Icon cache warm + deferred phase; `warmInitialIcons()` now called in `setImmediate` (off critical path) | exported fns |
 | `platformHelpers.ts` | 142 | macOS platform helpers (enforceLocation) | exported fns |
 | `performanceExport.ts` | 125 | Performance export/log helpers | exported fns |
-| `encryptionKey.ts` | 128 | SafeStorage encryption key mgmt | exported fns |
+| `encryptionKey.ts` | 166 | SafeStorage encryption key mgmt; `getOrCreateEncryptionKey()` returns `EncryptionKeyResult { key, migrationPending }`; `needsMigration()` deprecated | exported fns + `EncryptionKeyResult` type |
 | `secureFlags.ts` | ~120 | safeStorage-backed security flags (`getDisableCertPinning`/`setDisableCertPinning`); persists to `secure-flags.enc`; macOS Keychain | `getDisableCertPinning()` / `setDisableCertPinning()` |
 | `mediaAccess.ts` | 123 | macOS camera/mic TCC permissions | exported fns |
 | `windowUtils.ts` | 121 | Window events/health/defaults (merged) | exported fns |
@@ -82,7 +82,7 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 ## ANTI-PATTERNS
 
-- **Never** call `setInterval`/`setTimeout` without tracked wrappers
+- **Never** call `setInterval`/`setTimeout` without tracked wrappers (sole exception: `errorHandler.ts` uncaughtException handler — circular dep with `resourceCleanup.ts` makes tracking impossible; acceptable since cleanup is moot during shutdown)
 - **Never** create IPC handlers without cleanup return value
 - **Never** use `electron-log` directly — use `logger.*` scopes
 - **Never** read `package.json` with `fs.readFileSync` — use `packageInfo.ts`

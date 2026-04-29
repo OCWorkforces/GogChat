@@ -1,6 +1,6 @@
 # src/shared/types/ — Cross-Process Type Contracts
 
-**Generated:** 2026-04-26 · **Commit:** 95610f8
+**Generated:** 2026-04-29 · **Commit:** 5fffeb1
 
 Canonical TypeScript types shared between main, preload, and renderer processes. All types are `export`-only — no runtime logic, no side effects. Import directly from each file (no barrel re-exports).
 
@@ -10,7 +10,7 @@ Canonical TypeScript types shared between main, preload, and renderer processes.
 | --- | --- | --- | --- |
 | `branded.ts` | 22 | `Branded<T, Brand>`, `ValidatedURL`, `asValidatedURL(s)` helper | `urlValidators.ts`, `ipcHelper.ts` |
 | `bridge.ts` | 28 | `GogChatBridgeAPI`, `declare global { Window.gogchat }` | `src/preload/index.ts`, renderer |
-| `config.ts` | 58 | `AppConfig`, `StoreMetadata`, `StoreType` (security flags NOT stored here — see `secureFlags.ts`), `StoreKeyPaths` | `src/main/config.ts`, `configCache.ts`, `configSchema.ts` |
+| `config.ts` | 59 | `AppConfig` (incl. `notificationPermissionRequested: boolean`), `StoreMetadata`, `StoreType` (security flags NOT stored here — see `secureFlags.ts`), `StoreKeyPaths` | `src/main/config.ts`, `configCache.ts`, `configSchema.ts` |
 | `domain.ts` | 92 | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union, `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData` (all readonly) | features, utils, preload |
 | `ipc.ts` | 64 | `IPCHandler<T>`, `ValidatedIPCMessage<T,C>`, `RateLimitEntry`, `IPCResponse<T>`, `IPCChannelPayloadMap` (computed keys) | `ipcHelper.ts`, `ipcDeduplicator.ts` |
 | `window.ts` | 79 | `IAccountWindowManager` (19 methods), `WindowFactory`, `WindowBounds`, `AccountWindowsMap` | `accountWindowManager.ts`, features |

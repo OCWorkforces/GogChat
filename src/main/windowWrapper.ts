@@ -6,6 +6,7 @@ import { getIconCache } from './utils/iconCache.js';
 import { installPermissionHandlers } from './utils/permissionHandler.js';
 import { installHeaderFix } from './utils/cspHeaderHandler.js';
 import { installBenignWarningFilter } from './utils/benignLogFilter.js';
+import { configGet, configSet } from './config.js';
 
 installBenignWarningFilter();
 
@@ -37,21 +38,25 @@ export default (url: string, partition?: string): BrowserWindow => {
   // Chromium-level permission handlers (media TCC + non-media allowlist)
   installPermissionHandlers(window);
 
-  // Proactively trigger macOS notification permission dialog at startup.
-  // Electron's Notification internally calls UNUserNotificationCenter.requestAuthorization
-  // on first .show(). If permission was already granted/denied, the notification
-  // flashes briefly and is closed — minimal disruption.
-  if (Notification.isSupported()) {
-    const permNotification = new Notification({
-      title: 'GogChat',
-      body: 'Notifications enabled',
-      silent: true,
+  // Proactively trigger macOS notification permission dialog at first launch only.
+  // Electron's Notification calls UNUserNotificationCenter.requestAuthorization on
+  // first .show(). Gate behind a persisted flag so the TCC prompt and XPC round-trip
+  // only happen once — subsequent launches and additional account windows skip entirely.
+  // Wrapped in setImmediate so it never blocks loadURL on the critical path.
+  if (Notification.isSupported() && !configGet('app.notificationPermissionRequested')) {
+    setImmediate(() => {
+      const permNotification = new Notification({
+        title: 'GogChat',
+        body: 'Notifications enabled',
+        silent: true,
+      });
+      permNotification.on('show', () => {
+        permNotification.close();
+      });
+      permNotification.show();
+      configSet('app.notificationPermissionRequested', true);
+      log.info('[Notification] Triggered macOS notification permission request at startup');
     });
-    permNotification.on('show', () => {
-      permNotification.close();
-    });
-    permNotification.show();
-    log.info('[Notification] Triggered macOS notification permission request at startup');
   }
 
   window.once('ready-to-show', () => {

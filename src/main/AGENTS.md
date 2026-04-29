@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-27 · **Commit:** 95610f8
+**Generated:** 2026-04-29 · **Commit:** 5fffeb1
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -40,18 +40,16 @@ BEFORE app.ready:
 
 app.whenReady() — critical + ui phases (blocking):
   initializeErrorHandler()
-  registerBuiltInGlobalCleanups()  ← lazy require() for cleanup callbacks
-  userAgent override
-  windowWrapper() → mainWindow
-  featureManager.initializePhase('security') → 'critical'
-  initializeStore()              ← re-init for SafeStorage (requires app.ready)
-  accountWindowManager → createAccountWindow(url, 0) → markAsBootstrap(0)
+  Promise.all([registerGlobalCleanups(), security phase])   ← PARALLEL
+  Promise.all([critical phase (userAgent), initializeStore()])  ← PARALLEL
+  accountWindowManager → session.preconnect('persist:account-0')  ← DNS/TCP/TLS warmup
+  createAccountWindow(url, 0) → markAsBootstrap(0)
   featureManager.updateContext({ mainWindow, accountWindowManager })
-  iconCache.warmCache()
   featureManager.initializePhase('ui'):
     singleInstance → deepLinkHandler → bootstrapPromotion
 
 setImmediate() — deferred (non-blocking):
+  warmInitialIcons()  ← moved here; 256.png loaded on-demand in windowWrapper
   featureManager.initializePhase('deferred'):
   trayIcon, appMenu, badgeIcons, windowState, passkeySupport,
   handleNotification, inOnline, externalLinks, closeToTray,
