@@ -34,8 +34,8 @@ vi.mock('./logger.js', () => ({
 
 // Mock resourceCleanup to avoid pulling in real cleanup manager
 vi.mock('./resourceCleanup.js', () => ({
-  createTrackedInterval: (callback: () => void, delay: number, _name?: string) =>
-    setInterval(callback, delay),
+  createTrackedTimeout: (callback: () => void, delay: number, _name?: string) =>
+    setTimeout(callback, delay),
 }));
 
 describe('IPCDeduplicator', () => {
@@ -422,19 +422,16 @@ describe('IPCDeduplicator', () => {
   });
 
   describe('Automatic cleanup', () => {
-    it('should clean old entries periodically', async () => {
+    it('should clean old entries when their expiry timer fires', async () => {
       const fn = vi.fn().mockResolvedValue('result');
 
       await deduplicator.deduplicate('key1', fn);
       expect(deduplicator.getCacheSize()).toBe(1);
 
-      // Advance time past expiration (windowMs * 2)
+      // Advance past expiration window (windowMs * 2 = 200ms)
       vi.advanceTimersByTime(250);
 
-      // Wait for cleanup interval (1000ms)
-      vi.advanceTimersByTime(1000);
-
-      // Cache should be cleaned
+      // Cache should be cleaned by the on-demand timer
       expect(deduplicator.getCacheSize()).toBe(0);
     });
 
@@ -442,17 +439,123 @@ describe('IPCDeduplicator', () => {
       const fn = vi.fn().mockResolvedValue('result');
 
       await deduplicator.deduplicate('key1', fn);
-      const sizeBefore = deduplicator.getCacheSize();
-      expect(sizeBefore).toBeGreaterThan(0);
+      expect(deduplicator.getCacheSize()).toBe(1);
 
-      // Advance time but not past expiration (need > windowMs * 2 for cleanup)
+      // Advance partially — entry not yet expired
       vi.advanceTimersByTime(100);
 
-      // Run cleanup
-      vi.advanceTimersByTime(1000);
+      expect(deduplicator.getCacheSize()).toBe(1);
+    });
+  });
 
-      // Cache should still have entries (or at least some)
-      expect(deduplicator.getCacheSize()).toBeGreaterThanOrEqual(0);
+  // ========================================================================
+  // On-demand cleanup scheduling (replaces always-on interval)
+  // ========================================================================
+
+  describe('On-demand cleanup scheduling', () => {
+    it('schedules zero timers when cache is empty', () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      expect(vi.getTimerCount()).toBe(0);
+      ded.destroy();
+    });
+
+    it('schedules exactly one timer when entries exist', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('k1', fn);
+      expect(vi.getTimerCount()).toBe(1);
+
+      await ded.deduplicate('k2', fn);
+      // Still exactly one timer (earlier-or-equal expiry already pending)
+      expect(vi.getTimerCount()).toBe(1);
+
+      ded.destroy();
+    });
+
+    it('fires the cleanup timer at the correct delay for the soonest entry', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('k1', fn);
+      expect(ded.getCacheSize()).toBe(1);
+
+      // Just before expiry (200ms = windowMs * 2)
+      vi.advanceTimersByTime(199);
+      expect(ded.getCacheSize()).toBe(1);
+
+      // Cross expiry threshold
+      vi.advanceTimersByTime(2);
+      expect(ded.getCacheSize()).toBe(0);
+
+      ded.destroy();
+    });
+
+    it('reschedules after partial cleanup when entries remain', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      // Insert first entry at t=0
+      await ded.deduplicate('old', fn);
+
+      // Advance 150ms, then insert second entry at t=150 (expires at t=350)
+      vi.advanceTimersByTime(150);
+      await ded.deduplicate('new', fn);
+      expect(ded.getCacheSize()).toBe(2);
+
+      // Advance to t=210 — old entry (expires at 200) should be cleaned, new survives
+      vi.advanceTimersByTime(60);
+      expect(ded.getCacheSize()).toBe(1);
+
+      // A new timer must be scheduled for the remaining entry
+      expect(vi.getTimerCount()).toBe(1);
+
+      // Advance to t=360 — new entry (expires at 350) should now be cleaned
+      vi.advanceTimersByTime(150);
+      expect(ded.getCacheSize()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+
+      ded.destroy();
+    });
+
+    it('destroy() cancels the pending timer', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('k1', fn);
+      expect(vi.getTimerCount()).toBe(1);
+
+      ded.destroy();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('clearAll() cancels the pending timer', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('k1', fn);
+      expect(vi.getTimerCount()).toBe(1);
+
+      ded.clearAll();
+      expect(vi.getTimerCount()).toBe(0);
+      ded.destroy();
+    });
+
+    it('100 rapid deduplicate calls with same key keep exactly 1 active timer', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      const promises: Promise<unknown>[] = [];
+      for (let i = 0; i < 100; i++) {
+        promises.push(ded.deduplicate('hot-key', fn));
+      }
+      await Promise.all(promises);
+
+      expect(vi.getTimerCount()).toBe(1);
+      expect(ded.getCacheSize()).toBe(1);
+      expect(fn).toHaveBeenCalledTimes(1);
+
+      ded.destroy();
     });
   });
 

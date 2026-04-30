@@ -6,7 +6,7 @@
 
 import { logger } from './logger.js';
 import { toError } from './errorUtils.js';
-import { createTrackedInterval } from './resourceCleanup.js';
+import { createTrackedTimeout } from './resourceCleanup.js';
 
 /**
  * Deduplication configuration
@@ -40,7 +40,8 @@ type CacheEntryAny = CacheEntry<unknown>;
  */
 export class IPCDeduplicator {
   private cache = new Map<string, CacheEntryAny>();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+  private cleanupTimeout: NodeJS.Timeout | null = null;
+  private nextCleanupAt: number | null = null;
   private config: Required<DeduplicationConfig>;
   private stats = {
     deduplicatedCount: 0,
@@ -55,8 +56,7 @@ export class IPCDeduplicator {
       debug: config.debug ?? false,
     };
 
-    // Start cleanup interval
-    this.startCleanup();
+    // Cleanup is scheduled on-demand when entries are added
   }
 
   /**
@@ -125,6 +125,9 @@ export class IPCDeduplicator {
       resolvers: [],
     });
 
+    // Schedule cleanup for this entry's expiration
+    this.scheduleNextCleanup();
+
     return promise;
   }
 
@@ -169,6 +172,7 @@ export class IPCDeduplicator {
     this.stats.deduplicatedCount = 0;
     this.stats.cacheHits = 0;
     this.stats.cacheMisses = 0;
+    this.cancelScheduledCleanup();
   }
 
   /**
@@ -186,15 +190,68 @@ export class IPCDeduplicator {
   }
 
   /**
-   * Start automatic cleanup of old entries
+   * Cancel any pending cleanup timer
    */
-  private startCleanup(): void {
-    // Run cleanup every second
-    this.cleanupInterval = createTrackedInterval(
+  private cancelScheduledCleanup(): void {
+    if (this.cleanupTimeout) {
+      clearTimeout(this.cleanupTimeout);
+      this.cleanupTimeout = null;
+    }
+    this.nextCleanupAt = null;
+  }
+
+  /**
+   * Schedule the next cleanup to fire at the soonest expiring entry's deadline.
+   * Cancels and reschedules if the new soonest expiry is earlier than the pending one.
+   * Does nothing when the cache is empty.
+   */
+  private scheduleNextCleanup(): void {
+    if (this.cache.size === 0) {
+      this.cancelScheduledCleanup();
+      return;
+    }
+
+    const expirationMs = this.config.windowMs * 2;
+    let earliestExpiry = Infinity;
+    for (const entry of this.cache.values()) {
+      const expiresAt = entry.timestamp + expirationMs;
+      if (expiresAt < earliestExpiry) {
+        earliestExpiry = expiresAt;
+      }
+    }
+
+    if (!Number.isFinite(earliestExpiry)) {
+      return;
+    }
+
+    // If a timer is already scheduled and fires no later than the new expiry, keep it.
+    if (
+      this.cleanupTimeout !== null &&
+      this.nextCleanupAt !== null &&
+      this.nextCleanupAt <= earliestExpiry
+    ) {
+      return;
+    }
+
+    // Cancel any existing timer; new soonest expiry is earlier.
+    if (this.cleanupTimeout) {
+      clearTimeout(this.cleanupTimeout);
+      this.cleanupTimeout = null;
+    }
+
+    const delay = Math.max(0, earliestExpiry - Date.now());
+    this.nextCleanupAt = earliestExpiry;
+    this.cleanupTimeout = createTrackedTimeout(
       () => {
+        this.cleanupTimeout = null;
+        this.nextCleanupAt = null;
         this.cleanOldEntries();
+        // Reschedule if entries remain
+        if (this.cache.size > 0) {
+          this.scheduleNextCleanup();
+        }
       },
-      1000,
+      delay,
       'ipc-deduplicator-cleanup'
     );
   }
@@ -225,10 +282,7 @@ export class IPCDeduplicator {
    * Destroy the deduplicator and clean up resources
    */
   destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
+    this.cancelScheduledCleanup();
     this.clearAll();
   }
 }
