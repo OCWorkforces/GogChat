@@ -7,6 +7,10 @@ import { SELECTORS } from '../shared/constants.js';
 
 let previousHref: string = '';
 let observer: MutationObserver | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// PERF: 75ms trailing-edge debounce batches rapid favicon swaps during Google Chat loading
+const DEBOUNCE_MS = 75;
 
 /**
  * Notify main process of favicon changes
@@ -22,6 +26,23 @@ const emitFaviconChanged = (href: string) => {
   if (window.gogchat?.sendFaviconChanged) {
     window.gogchat.sendFaviconChanged(href);
   }
+};
+
+/**
+ * Schedule a debounced emission for the current favicon href.
+ * Trailing-edge: collapses rapid mutations into a single send after DEBOUNCE_MS of quiet.
+ */
+const scheduleEmit = () => {
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer);
+  }
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    const currentHref = getCurrentFavicon();
+    if (currentHref) {
+      emitFaviconChanged(currentHref);
+    }
+  }, DEBOUNCE_MS);
 };
 
 /**
@@ -57,10 +78,7 @@ const initObserver = () => {
     // Check if any mutation affected favicon elements
     for (const mutation of mutations) {
       if (mutation.type === 'childList' || mutation.type === 'attributes') {
-        const currentHref = getCurrentFavicon();
-        if (currentHref) {
-          emitFaviconChanged(currentHref);
-        }
+        scheduleEmit();
         break; // Only need to check once per batch
       }
     }
@@ -80,6 +98,10 @@ const initObserver = () => {
 
 // ✅ SECURITY FIX: Add cleanup to prevent memory leaks
 const cleanup = () => {
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
   if (observer) {
     observer.disconnect();
     observer = null;
