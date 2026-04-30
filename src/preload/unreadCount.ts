@@ -5,12 +5,17 @@
  * NEW SELECTOR LOGIC: Google Chat now uses:
  * - RuSDjb containers with OK1FOb/zY9JEf badge children
  * - aria-label="N unread message" on the badge element
+ *
+ * PERF: Uses scoped observers on .RuSDjb containers (not document.body subtree)
+ * to avoid mutation-storm overhead from Google Chat's mutation-heavy DOM.
+ * A lightweight body-level childList watcher detects container insertion/removal.
  */
 
 import { SELECTORS } from '../shared/constants.js';
 
 let previousCount = -1;
-let observer: MutationObserver | null = null;
+let bodyObserver: MutationObserver | null = null;
+let containerObservers: Map<Element, MutationObserver> = new Map();
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 type UnreadSnapshot = {
@@ -27,7 +32,13 @@ const getMessageCount = (): UnreadSnapshot => {
   let counter = 0;
   let matchedBadges = 0;
 
-  const containers = document.querySelectorAll(SELECTORS.UNREAD_BADGE_CONTAINER);
+  let containers: NodeListOf<Element>;
+  try {
+    containers = document.querySelectorAll(SELECTORS.UNREAD_BADGE_CONTAINER);
+  } catch {
+    // Degrade gracefully if selector becomes invalid
+    return { count: 0, containers: 0, matchedBadges: 0 };
+  }
 
   containers.forEach((container) => {
     const primaryBadge = container.querySelector(SELECTORS.UNREAD_BADGE);
@@ -79,37 +90,112 @@ const emitCount = () => {
 };
 
 /**
- * Initialize MutationObserver to watch for sidebar changes
- * Replaces 1-second polling with reactive observation
- * PERF: 200ms debounce batches rapid DOM mutations (typing, UI updates)
+ * Schedule a debounced emit. PERF: 200ms debounce batches rapid DOM mutations.
+ * NOTE: Bare setTimeout is required here — preload sandbox blocks tracked-timer
+ * helpers from the main process.
+ */
+const scheduleEmit = () => {
+  if (debounceTimer !== null) {
+    return;
+  }
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    emitCount();
+  }, 200);
+};
+
+/**
+ * Attach a scoped observer to a single .RuSDjb container.
+ * Watches only the mutations needed to detect badge changes:
+ * - childList: badge element added/removed
+ * - characterData: badge text content (count) changes
+ * - attributes: aria-label changes (when count flips between unread/read)
+ */
+const attachContainerObserver = (container: Element) => {
+  if (containerObservers.has(container)) {
+    return;
+  }
+
+  let observer: MutationObserver;
+  try {
+    observer = new MutationObserver(scheduleEmit);
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['aria-label', 'aria'],
+    });
+  } catch {
+    // Degrade gracefully — don't throw if Google's HTML changes break observation
+    return;
+  }
+
+  containerObservers.set(container, observer);
+};
+
+/**
+ * Disconnect and forget any container observers whose targets have been
+ * removed from the DOM. Prevents memory leaks when Google re-renders the
+ * sidebar.
+ */
+const reconcileContainerObservers = () => {
+  // Disconnect observers for detached containers
+  for (const [container, observer] of containerObservers) {
+    if (!container.isConnected) {
+      observer.disconnect();
+      containerObservers.delete(container);
+    }
+  }
+
+  // Attach observers to any new containers
+  let containers: NodeListOf<Element>;
+  try {
+    containers = document.querySelectorAll(SELECTORS.UNREAD_BADGE_CONTAINER);
+  } catch {
+    return;
+  }
+  containers.forEach(attachContainerObserver);
+};
+
+/**
+ * Initialize observers:
+ * 1. Body-level childList watcher (no subtree on attributes/characterData)
+ *    to detect when .RuSDjb containers appear or disappear.
+ * 2. Per-container scoped observers for the actual badge mutations.
  */
 const initObserver = () => {
-  if (observer) {
+  if (bodyObserver) {
+    bodyObserver.disconnect();
+  }
+  for (const observer of containerObservers.values()) {
     observer.disconnect();
   }
+  containerObservers.clear();
 
   console.info(
     `[UnreadCount] observer-init hidden=${document.hidden} visibility=${document.visibilityState}`
   );
 
   emitCount();
+  reconcileContainerObservers();
 
-  observer = new MutationObserver(() => {
-    if (debounceTimer !== null) {
-      return;
-    }
-    debounceTimer = setTimeout(() => {
-      debounceTimer = null;
-      emitCount();
-    }, 200);
+  bodyObserver = new MutationObserver(() => {
+    // Body-level: cheap, only fires for childList. Reconcile container set
+    // (attach to new ones, drop detached ones), then schedule a debounced emit.
+    reconcileContainerObservers();
+    scheduleEmit();
   });
 
   if (document.body) {
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
+    try {
+      bodyObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+    } catch {
+      // Degrade gracefully if body observation fails
+    }
   }
 };
 
@@ -123,10 +209,14 @@ const cleanup = () => {
     clearTimeout(debounceTimer);
     debounceTimer = null;
   }
-  if (observer) {
-    observer.disconnect();
-    observer = null;
+  if (bodyObserver) {
+    bodyObserver.disconnect();
+    bodyObserver = null;
   }
+  for (const observer of containerObservers.values()) {
+    observer.disconnect();
+  }
+  containerObservers.clear();
 };
 
 window.addEventListener('visibilitychange', () => {
