@@ -103,7 +103,7 @@ export async function runDeferredPhase(options: DeferredPhaseOptions): Promise<v
 export function runDevPostDeferred(isDev: boolean): void {
   if (!isDev) return;
 
-  if (process.env.ENABLE_CONFIG_PROFILING === 'true') {
+  if (process.env['ENABLE_CONFIG_PROFILING'] === 'true') {
     log.info('[Main] Running config store performance analysis...');
     compareStorePerformance();
   }

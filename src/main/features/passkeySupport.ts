@@ -19,13 +19,13 @@ function parsePasskeyFailureData(data: unknown): { errorType: string; timestamp:
     throw new Error('Passkey failure data must be a plain object');
   }
 
-  const validated = validatePasskeyFailureData(data.errorType);
+  const validated = validatePasskeyFailureData(data['errorType']);
 
   return {
     errorType: validated.errorType,
     timestamp:
-      typeof data.timestamp === 'number' && Number.isFinite(data.timestamp)
-        ? data.timestamp
+      typeof data['timestamp'] === 'number' && Number.isFinite(data['timestamp'])
+        ? data['timestamp']
         : validated.timestamp,
   };
 }
