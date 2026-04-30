@@ -2,7 +2,7 @@
  * Unit tests for ResourceCleanup — memory leak prevention module
  *
  * Covers: singleton, createTrackedInterval, createTrackedTimeout,
- * addTrackedListener, registerCleanupTask, cleanup, setupWindowCleanup,
+ * addTrackedListener, registerCleanupTask, cleanup,
  * edge cases (double cleanup, partial tracking, empty cleanup).
  */
 
@@ -609,111 +609,6 @@ describe('ResourceCleanup', () => {
   });
 
   // ========================================================================
-  // setupWindowCleanup
-  // ========================================================================
-
-  describe('setupWindowCleanup', () => {
-    it('registers window cleanup tasks and handlers', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
-      const { ipcMain: _ipcMain } = await import('electron');
-
-      // Create a manual mock window since vi.resetModules clears the BrowserWindow mock
-      const mockWindow = {
-        id: 999,
-        on: vi.fn().mockReturnThis(),
-        webContents: {
-          send: vi.fn(),
-          session: {
-            clearCache: vi.fn().mockResolvedValue(undefined),
-            clearStorageData: vi.fn().mockResolvedValue(undefined),
-          },
-        },
-        isDestroyed: vi.fn().mockReturnValue(false),
-        removeAllListeners: vi.fn(),
-      };
-
-      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
-
-      // Verify window.on was called for 'close' and 'closed' events
-      expect(mockWindow.on).toHaveBeenCalledWith('close', expect.any(Function));
-      expect(mockWindow.on).toHaveBeenCalledWith('closed', expect.any(Function));
-    });
-
-    it('cleans up IPC listeners on window close', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
-      const { ipcMain } = await import('electron');
-
-      const mockWindow = {
-        id: 999,
-        on: vi.fn().mockReturnThis(),
-        webContents: {
-          send: vi.fn(),
-          session: {
-            clearCache: vi.fn().mockResolvedValue(undefined),
-            clearStorageData: vi.fn().mockResolvedValue(undefined),
-          },
-        },
-        isDestroyed: vi.fn().mockReturnValue(false),
-        removeAllListeners: vi.fn(),
-      };
-
-      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
-
-      // Trigger the close handler
-      const closeHandler = mockWindow.on.mock.calls.find(
-        (call: unknown[]) => call[0] === 'close'
-      )?.[1];
-      if (closeHandler) {
-        closeHandler({} as Electron.Event);
-      }
-
-      // Let the async cleanup run
-      await new Promise((r) => setTimeout(r, 10));
-
-      expect(ipcMain.removeAllListeners).not.toHaveBeenCalled();
-    });
-
-    it('resets manager on window closed', async () => {
-      const { getCleanupManager } = await import('./resourceCleanup');
-      const { setupWindowCleanup } = await import('./resourceCleanup');
-      const { BrowserWindow: _BrowserWindow } = await import('electron');
-
-      const mockWindow = {
-        id: 999,
-        on: vi.fn().mockReturnThis(),
-        webContents: {
-          send: vi.fn(),
-          session: {
-            clearCache: vi.fn().mockResolvedValue(undefined),
-            clearStorageData: vi.fn().mockResolvedValue(undefined),
-          },
-        },
-        isDestroyed: vi.fn().mockReturnValue(false),
-        removeAllListeners: vi.fn(),
-      };
-
-      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
-
-      // Trigger the closed handler
-      const closedHandler = mockWindow.on.mock.calls.find(
-        (call: unknown[]) => call[0] === 'closed'
-      )?.[1];
-      if (closedHandler) {
-        closedHandler({} as Electron.Event);
-      }
-
-      // Manager should be reset (no tracked resources)
-      const manager = getCleanupManager();
-      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
-      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
-
-      await manager.cleanup();
-
-      expect(clearIntervalSpy).not.toHaveBeenCalled();
-      expect(clearTimeoutSpy).not.toHaveBeenCalled();
-    });
-  });
-  // ========================================================================
   // Edge cases
   // ========================================================================
 
@@ -1079,85 +974,6 @@ describe('ResourceCleanup', () => {
 
       expect(target.on).toHaveBeenCalledWith('data', handler);
       expect(target.addEventListener).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('setupWindowCleanup: session cleanup tasks', () => {
-    it('cache task clears session cache when window is not destroyed', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
-      const clearCache = vi.fn().mockResolvedValue(undefined);
-      const mockWindow = {
-        id: 42,
-        on: vi.fn().mockReturnThis(),
-        webContents: {
-          send: vi.fn(),
-          session: {
-            clearCache,
-            clearStorageData: vi.fn().mockResolvedValue(undefined),
-          },
-        },
-        isDestroyed: vi.fn().mockReturnValue(false),
-        removeAllListeners: vi.fn(),
-      };
-
-      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
-
-      const { getCleanupManager } = await import('./resourceCleanup');
-      await getCleanupManager().cleanup();
-
-      expect(clearCache).toHaveBeenCalled();
-    });
-
-    it('cache task skips clearing when window is destroyed', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
-      const clearCache = vi.fn().mockResolvedValue(undefined);
-      const mockWindow = {
-        id: 42,
-        on: vi.fn().mockReturnThis(),
-        webContents: {
-          send: vi.fn(),
-          session: {
-            clearCache,
-            clearStorageData: vi.fn().mockResolvedValue(undefined),
-          },
-        },
-        isDestroyed: vi.fn().mockReturnValue(true),
-        removeAllListeners: vi.fn(),
-      };
-
-      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
-
-      const { getCleanupManager } = await import('./resourceCleanup');
-      await getCleanupManager().cleanup();
-
-      expect(clearCache).not.toHaveBeenCalled();
-    });
-
-    it('storage task clears storage data with cookies and localstorage', async () => {
-      const { setupWindowCleanup } = await import('./resourceCleanup');
-      const clearStorageData = vi.fn().mockResolvedValue(undefined);
-      const mockWindow = {
-        id: 42,
-        on: vi.fn().mockReturnThis(),
-        webContents: {
-          send: vi.fn(),
-          session: {
-            clearCache: vi.fn().mockResolvedValue(undefined),
-            clearStorageData,
-          },
-        },
-        isDestroyed: vi.fn().mockReturnValue(false),
-        removeAllListeners: vi.fn(),
-      };
-
-      setupWindowCleanup(mockWindow as unknown as Electron.BrowserWindow);
-
-      const { getCleanupManager } = await import('./resourceCleanup');
-      await getCleanupManager().cleanup();
-
-      expect(clearStorageData).toHaveBeenCalledWith({
-        storages: ['cookies', 'localstorage'],
-      });
     });
   });
 });

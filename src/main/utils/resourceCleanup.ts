@@ -4,7 +4,6 @@
  * Prevents memory leaks and ensures graceful shutdown
  */
 
-import type { BrowserWindow } from 'electron';
 import { logger } from './logger.js';
 import { toErrorMessage } from './errorUtils.js';
 import type { EventHandler, EventTarget, CleanupConfig } from './cleanupTypes.js';
@@ -235,62 +234,6 @@ export function getCleanupManager(): ResourceCleanupManager {
     globalManager = new ResourceCleanupManager();
   }
   return globalManager;
-}
-
-/**
- * Setup window cleanup handlers
- */
-export function setupWindowCleanup(window: BrowserWindow): void {
-  const manager = getCleanupManager();
-  const log = logger.window;
-
-  // Register window-specific cleanup tasks
-  manager.registerTasks([
-    {
-      name: 'Clear web contents session cache',
-      cleanup: async () => {
-        if (!window.isDestroyed()) {
-          await window.webContents.session.clearCache();
-        }
-      },
-    },
-    {
-      name: 'Clear web contents storage data',
-      cleanup: async () => {
-        if (!window.isDestroyed()) {
-          await window.webContents.session.clearStorageData({
-            storages: ['cookies', 'localstorage'],
-          });
-        }
-      },
-    },
-  ]);
-
-  // Handle window close event
-  window.on('close', (_event) => {
-    // Don't prevent close, just clean up
-    log.debug('Window closing, performing cleanup...');
-
-    void (async () => {
-      try {
-        await manager.cleanup({
-          window,
-          includeGlobalResources: false,
-          logDetails: process.env.NODE_ENV === 'development',
-        });
-      } catch (error: unknown) {
-        log.error('Cleanup failed during window close:', toErrorMessage(error));
-      }
-    })();
-  });
-
-  // Handle window closed event (after close)
-  window.on('closed', () => {
-    log.debug('Window closed');
-
-    // Clear window reference
-    manager.reset();
-  });
 }
 
 /**

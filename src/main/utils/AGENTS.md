@@ -68,7 +68,7 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 **IPC helper factories**: `createSecureIPCHandler()`, `createSecureReplyHandler()`, `createSecureInvokeHandler()` — all return cleanup fn. Channel param typed as `IPCChannelName`; `data` uses `NoInfer<T>` to prevent handler signature from widening the inferred type. Prefer over raw `ipcMain.on()`.
 
-**Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `setupWindowCleanup()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up.
+**Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up.
 
 **Feature creation**: `createFeature()` / `createLazyFeature()` from `featureManager`; types from `featureConfigTypes`.
 
@@ -103,7 +103,7 @@ Every tracked resource has exactly one scope. Cleanup must match the scope, not 
 
 **Window-scoped** (lifetime = single BrowserWindow)
 - Examples: `webContents` listeners, per-session `webRequest` handlers, navigation guards, window-tracked timeouts.
-- Cleanup: when that specific window emits `closed`, via `setupWindowCleanup()` / `addTrackedListener(window, ...)`.
+- Cleanup: when that specific window emits `closed`, via `addTrackedListener(window, ...)`.
 - Use the window as the cleanup key, not the account or process.
 
 **Account-scoped** (lifetime = account)
