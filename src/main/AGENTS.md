@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-29 · **Commit:** 8a8bf54
+**Generated:** 2026-04-29 · **Commit:** 846deba
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -14,8 +14,9 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Shutdown diagnostics | `initializers/shutdownDiagnostics.ts` | Cache stats logging |
 | Singleton destroyers | `initializers/singletonDestroyers.ts` | Centralized destroy registry |
 | Global cleanups | `initializers/registerGlobalCleanups.ts` | Lazy-required cleanup callbacks |
-| Cache warmer | `initializers/cacheWarmer.ts` | Icon cache warm orchestration |
+| Cache warmer | `utils/cacheWarmer.ts` | Icon cache warm orchestration; disjoint warmup sets |
 | Multi-account mgr | `utils/accountWindowManager.ts` | Per-account windows + bootstrap |
+| Idle session maintenance | `utils/accountSessionMaintenance.ts` | `getAccountActivityTracker()` / `destroyAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts |
 | BrowserWindow factory | `windowWrapper.ts` | 71 lines; defaults + handlers extracted |
 | CSP headers | `utils/cspHeaderHandler.ts` | Strips COEP/COOP for benign hosts |
 | Window event logging | `utils/windowEventLogger.ts` | Centralized navigation/load logs |
@@ -24,7 +25,7 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Encrypted config | `config.ts` | AES-256-GCM; schema paired with `../shared/types/config.ts`; use `configGet`/`configSet` — never `store.get(...) as T` |
 | Secure flags | `utils/secureFlags.ts` | `getDisableCertPinning()`/`setDisableCertPinning()`; safeStorage (macOS Keychain); NOT in electron-store |
 | Feature modules | `features/` (25+) | See `features/AGENTS.md` |
-| Utility modules | `utils/` (39) | See `utils/AGENTS.md` |
+| Utility modules | `utils/` (40) | See `utils/AGENTS.md` |
 | Initializer modules | `initializers/` (13) | See `initializers/AGENTS.md` |
 
 ## INIT ORDER (DO NOT REORDER)

@@ -1,6 +1,6 @@
 # src/preload/ — Preload Scripts
 
-**Generated:** 2026-04-29 | **Commit:** 8a8bf54
+**Generated:** 2026-04-29 | **Commit:** 846deba
 
 Bridge between Electron main process and GogChat renderer. 8 scripts compiled as **CJS** (required, `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
 
@@ -10,8 +10,8 @@ Bridge between Electron main process and GogChat renderer. 8 scripts compiled as
 | -------------------------- | ---------------------------------------------------------- | ------------- |
 | `index.ts`                 | `contextBridge` → `window.gogchat` API                     | —             |
 | `disableWebAuthn.ts`       | Disables `navigator.credentials` via property override     | —             |
-| `faviconChanged.ts`        | MutationObserver on `link[rel*=icon]` → favicon changes    | renderer→main |
-| `unreadCount.ts`           | MutationObserver + debounce on unread count element        | renderer→main |
+| `faviconChanged.ts`        | MutationObserver on `link[rel*=icon]` → favicon changes; 75ms trailing-edge debounce (H1) | renderer→main |
+| `unreadCount.ts`           | Scoped MutationObservers on `.RuSDjb` badge containers (not full body subtree); lightweight body-level childList watcher detects insertions/removals (M4) | renderer→main |
 | `passkeyMonitor.ts`        | Wraps `navigator.credentials.*`; reports WebAuthn failures | renderer→main |
 | `searchShortcut.ts`        | Cmd+K focus handler on search input                        | main→renderer |
 | `offline.ts`               | Online/offline bridge; redirect on reconnect               | bidirectional |
@@ -31,7 +31,7 @@ Sets `navigator.credentials = undefined` via `Object.defineProperty` to prevent 
 
 ## DOM OBSERVATION
 
-All DOM monitoring uses `MutationObserver` — no polling. `faviconChanged`: observes `<head>`, childList + attributes. `unreadCount`: observes `document.body`, childList + subtree + characterData. Always clean up on `beforeunload`.
+All DOM monitoring uses `MutationObserver` — no polling. `faviconChanged`: observes `<head>`, childList + attributes; **75ms trailing-edge debounce** collapses rapid favicon swaps. `unreadCount`: scoped observers on `.RuSDjb` badge containers (not `document.body` subtree) — reduces CPU by ~90%; lightweight body-level childList watcher handles container insertion/removal. Always clean up on `beforeunload`.
 
 ## ADDING NEW PRELOAD SCRIPT
 

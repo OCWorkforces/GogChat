@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-29
 
-**Commit:** 8a8bf54
+**Commit:** 846deba
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -16,7 +16,7 @@ src/
 ├── main/          # Electron main process (features, initializers, utils)
 │   ├── features/  # 25+ self-contained feature modules, phased lifecycle
 │   ├── initializers/ # Feature registration + shutdown + diagnostics
-│   └── utils/     # 39 utility modules (singletons, helpers, types)
+│   └── utils/     # 40 utility modules (singletons, helpers, types)
 ├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
 ├── shared/        # Cross-process contracts (constants, validators, types/)
 │   └── types/     # 6 type files (branded, window, domain, config, ipc, bridge)
@@ -36,6 +36,7 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Shutdown handler                        | `src/main/initializers/registerShutdown.ts`           | Graceful cleanup via `singletonDestroyers`                                          |
 | Shutdown diagnostics                    | `src/main/initializers/shutdownDiagnostics.ts`        | Cache statistics logging                                                            |
 | Multi-account mgr                       | `src/main/utils/accountWindowManager.ts`              | Per-account windows + bootstrap                                                     |
+| Idle session maintenance | `src/main/utils/accountSessionMaintenance.ts`         | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts        |
 | Account mgr interface                   | `src/shared/types/window.ts`                          | `IAccountWindowManager` (22 methods)                                                |
 | Add new feature                         | `src/main/features/`                                  | See `features/AGENTS.md`                                                            |
 | IPC channel names                       | `src/shared/constants.ts`                             | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type                            |
