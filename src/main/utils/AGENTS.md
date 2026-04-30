@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-29 · **Commit:** 846deba
+**Generated:** 2026-04-30 · **Commit:** 315722d
 
 40 utility modules (+1 new: `accountSessionMaintenance.ts`). All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -17,6 +17,7 @@
 | `ipcDeduplicator.ts` | 317 | Dedup rapid same-key requests; on-demand cleanup scheduling (M1); **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler` | `getDeduplicator()` |
 | `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
+| `errors.ts` | 42 | Typed error subclasses: `GogChatError` base, `IPCError`, `ConfigError`; native `Error.cause` chaining for IPC, config, encryption errors | exported classes |
 | `iconCache.ts` | 220 | NativeImage preload cache; O(1) Map insertion-order LRU (T5+T8) | `getIconCache()` |
 | `bootstrapWatcher.ts` | 205 | Bootstrap window navigation watching | exported fns |
 | `rateLimiter.ts` | 199 | IPC DoS prevention | `getRateLimiter()` |
@@ -42,10 +43,10 @@
 | `bootstrapTracker.ts` | 74 | Tracks bootstrap window state | exported fns |
 | `ipcDeduplicationPatterns.ts` | 70 | `createDeduplicatedHandler`, `withDeduplication` | exported fns |
 | `accountRouter.ts` | 100 | Window creation + routing logic | exported fns |
-| `accountSessionMaintenance.ts` | 161 | Periodic `clearCodeCaches()` on idle accounts (M3a); idle threshold = `clearCodeCaches` timer; registered in `registerGlobalCleanups.ts` | `getAccountActivityTracker()` / `destroyAccountActivityTracker()` |
+| `accountSessionMaintenance.ts` | 162 | Periodic `clearCodeCaches()` on idle accounts (M3a); idle threshold = `clearCodeCaches` timer; registered in `registerGlobalCleanups.ts` | `getAccountActivityTracker()` / `destroyAccountActivityTracker()` |
 | `platformDetection.ts` | 53 | macOS detection (isMacOS, arch) | exported fns |
 | `errorUtils.ts` | 49 | Zero-dep error helpers (breaks cycles) | exported fns |
-| `ipcCommonValidators.ts` | 48 | Common IPC validation helpers | exported const |
+| `ipcCommonValidators.ts` | 50 | Common IPC validation helpers | exported const |
 | `cleanupTypes.ts` | 30 | Shared cleanup types | exported types |
 
 ## CROSS-UTILS DEPENDENCIES

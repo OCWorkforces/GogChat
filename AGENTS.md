@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-04-29
+**Generated:** 2026-04-30
 
-**Commit:** 846deba
+**Commit:** 315722d
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -19,7 +19,7 @@ src/
 │   └── utils/     # 40 utility modules (singletons, helpers, types)
 ├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
 ├── shared/        # Cross-process contracts (constants, validators, types/)
-│   └── types/     # 6 type files (branded, window, domain, config, ipc, bridge)
+│   └── types/     # 7 type files (branded, window, domain, config, ipc, bridge, errors)
 └── offline/       # Standalone fallback page (no IPC access)
 scripts/           # Dual-build system, lint, icon generation, notarization
 tests/             # 4 tiers: unit (colocated), integration, e2e, performance
@@ -36,9 +36,11 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Shutdown handler                        | `src/main/initializers/registerShutdown.ts`           | Graceful cleanup via `singletonDestroyers`                                          |
 | Shutdown diagnostics                    | `src/main/initializers/shutdownDiagnostics.ts`        | Cache statistics logging                                                            |
 | Multi-account mgr                       | `src/main/utils/accountWindowManager.ts`              | Per-account windows + bootstrap                                                     |
-| Idle session maintenance | `src/main/utils/accountSessionMaintenance.ts`         | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts        |
+| Idle session maintenance                | `src/main/utils/accountSessionMaintenance.ts`         | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts        |
 | Account mgr interface                   | `src/shared/types/window.ts`                          | `IAccountWindowManager` (22 methods)                                                |
 | Add new feature                         | `src/main/features/`                                  | See `features/AGENTS.md`                                                            |
+| Type narrowing helper        | `src/shared/typeUtils.ts`                             | `assertNever()` for exhaustive discriminated union switches                        |
+| Error class hierarchy        | `src/shared/types/errors.ts` + `src/main/utils/errors.ts` | `GogChatError`, `IPCError`, `ConfigError`; use `{ cause }` chaining               |
 | IPC channel names                       | `src/shared/constants.ts`                             | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type                            |
 | Input validators                        | `src/shared/dataValidators.ts`                        | Data validation (counts, booleans, objects)                                         |
 | URL validators                          | `src/shared/urlValidators.ts`                         | URL whitelist + Google auth detection                                               |
@@ -98,7 +100,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 
 - **Package manager**: `bun` only (no yarn/pnpm/npm)
 - **Node version**: >=22.0.0 (engineStrict enforced)
-- **TypeScript**: 6.0+ with strict mode (`noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`)
+- **TypeScript**: 6.0+ with strict mode (`noUncheckedIndexedAccess`, `noPropertyAccessFromIndexSignature`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`)
 - **ESLint**: `@typescript-eslint/consistent-type-imports: error` enforces `import type` for type-only imports
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
 - **New settings**: Update `StoreType` in `shared/types/config.ts` → add schema in `config.ts`; access via `configGet()`/`configSet()`. Security-sensitive flags (e.g., cert pinning kill switch) go in `secureFlags.ts` (safeStorage/Keychain), NOT `StoreType`
@@ -131,6 +133,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **Never** import from other features directly — use `menuActionRegistry`
 - **Never** mix runtime imports with type-only imports — use `import type` syntax consistently (ESLint enforced)
 - **Never** create barrel/re-export files — import directly from source modules
+- **Never** throw bare `Error` when a typed `GogChatError` subclass is available — use `IPCError`, `ConfigError`, or create a new subclass
 
 ## SECURITY LAYERS (defense-in-depth)
 
@@ -168,7 +171,7 @@ bun run hooks:install  # Install git pre-push hook
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 41 / Node.js 22+ / Chromium-based
 - Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
-- Bundle: single main entry → 72.0KB (was 696KB before optimization, 110KB before startup tuning, 80.8KB before performance pass)
+- Bundle: single main entry → 84.8KB (was 696KB before optimization, 110KB before startup tuning, 80.8KB before performance pass)
 - `overrideNotifications.ts` preload: `contextIsolation: false` (intentional exception)
 - DOM selectors in `shared/constants.ts` `SELECTORS` — may break on Google HTML changes
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
@@ -192,7 +195,6 @@ bun run hooks:install  # Install git pre-push hook
 | `src/main/utils/performanceMonitor.ts`    | 265   | Startup timing markers, memory snapshots                                          |
 | `src/main/utils/accountWindowRegistry.ts` | 255   | Window registry implementation                                                    |
 | `src/main/utils/errorHandler.ts`          | 244   | Structured error wrapping, feature init guard                                     |
-| `src/main/config.ts`                      | 210   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers |
-| `src/main/utils/iconCache.ts`             | 220   | Icon caching + warmup                                                             |
+| `src/main/config.ts`                      | 214   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers |
 | `src/main/features/certificatePinning.ts` | 215   | Certificate pinning for Google domains                                            |
-| `src/main/utils/secureFlags.ts`           | 111   | safeStorage-backed cert pinning kill switch (macOS Keychain)                      |
+| `src/main/utils/iconCache.ts`             | 220   | Icon caching + warmup                                                             |
