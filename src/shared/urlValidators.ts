@@ -17,6 +17,11 @@ function tryParseURL(input: string): URL | null {
   }
 }
 
+// Authenticated Chat path patterns. Hoisted to module scope so the regex
+// literals are compiled once instead of on every navigation check.
+const AUTH_PATH_RE = /^\/u\/\d+(\/|$)/;
+const MAIL_CHAT_PATH_RE = /^\/chat\/u\/\d+(\/|$)/;
+
 /**
  * Validates and sanitizes favicon URL
  * @param href - Favicon URL from renderer
@@ -241,9 +246,6 @@ function isAuthenticatedChatUrlInternal(parsed: URL): boolean {
   // Accepted host + path combinations:
   //   chat.google.com  — path starts with /u/<digits>
   //   mail.google.com  — path starts with /chat/u/<digits>
-  const AUTH_PATH_RE = /^\/u\/\d+(\/|$)/;
-  const MAIL_CHAT_PATH_RE = /^\/chat\/u\/\d+(\/|$)/;
-
   if (hostname === 'chat.google.com') {
     return AUTH_PATH_RE.test(pathname);
   }
