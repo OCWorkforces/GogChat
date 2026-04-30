@@ -534,6 +534,161 @@ describe('FeatureManager', () => {
   });
 
   // ========================================================================
+  // cleanup — phase grouping + parallelism (M2)
+  // ========================================================================
+
+  describe('cleanup phase grouping', () => {
+    it('runs intra-phase cleanups in parallel (~max delay, not sum)', async () => {
+      const { getFeatureManager } = await import('./featureManager');
+      const mgr = getFeatureManager();
+
+      mgr.registerAll([
+        {
+          name: 'slowA',
+          priority: 'deferred',
+          init: vi.fn(),
+          cleanup: vi.fn().mockImplementation(async () => {
+            await new Promise((r) => setTimeout(r, 80));
+          }),
+        },
+        {
+          name: 'slowB',
+          priority: 'deferred',
+          init: vi.fn(),
+          cleanup: vi.fn().mockImplementation(async () => {
+            await new Promise((r) => setTimeout(r, 80));
+          }),
+        },
+      ]);
+
+      await mgr.initializePhase('deferred');
+
+      const start = Date.now();
+      await mgr.cleanup();
+      const elapsed = Date.now() - start;
+
+      // Sequential would be ~160ms; parallel should be ~80ms. Allow generous margin.
+      expect(elapsed).toBeLessThan(140);
+    });
+
+    it('preserves strict inter-phase ordering (deferred fully done before ui)', async () => {
+      const { getFeatureManager } = await import('./featureManager');
+      const mgr = getFeatureManager();
+      const events: Array<{ name: string; event: 'start' | 'end'; t: number }> = [];
+      const stamp = (name: string, event: 'start' | 'end') => {
+        events.push({ name, event, t: Date.now() });
+      };
+
+      mgr.registerAll([
+        {
+          name: 'ui-feat',
+          priority: 'ui',
+          init: vi.fn(),
+          cleanup: vi.fn().mockImplementation(async () => {
+            stamp('ui-feat', 'start');
+            await new Promise((r) => setTimeout(r, 10));
+            stamp('ui-feat', 'end');
+          }),
+        },
+        {
+          name: 'def-1',
+          priority: 'deferred',
+          init: vi.fn(),
+          cleanup: vi.fn().mockImplementation(async () => {
+            stamp('def-1', 'start');
+            await new Promise((r) => setTimeout(r, 40));
+            stamp('def-1', 'end');
+          }),
+        },
+        {
+          name: 'def-2',
+          priority: 'deferred',
+          init: vi.fn(),
+          cleanup: vi.fn().mockImplementation(async () => {
+            stamp('def-2', 'start');
+            await new Promise((r) => setTimeout(r, 40));
+            stamp('def-2', 'end');
+          }),
+        },
+      ]);
+
+      await mgr.initializePhase('ui');
+      await mgr.initializePhase('deferred');
+      await mgr.cleanup();
+
+      // Every deferred 'end' must come before any ui 'start'
+      const lastDeferredEnd = Math.max(
+        ...events.filter((e) => e.name.startsWith('def') && e.event === 'end').map((e) => e.t)
+      );
+      const firstUiStart = Math.min(
+        ...events.filter((e) => e.name === 'ui-feat' && e.event === 'start').map((e) => e.t)
+      );
+      expect(lastDeferredEnd).toBeLessThanOrEqual(firstUiStart);
+    });
+
+    it('failure isolation: one rejected cleanup does not block siblings or later phases', async () => {
+      const { getFeatureManager } = await import('./featureManager');
+      const mgr = getFeatureManager();
+      const sibling = vi.fn().mockResolvedValue(undefined);
+      const laterPhase = vi.fn().mockResolvedValue(undefined);
+
+      mgr.registerAll([
+        {
+          name: 'def-bad',
+          priority: 'deferred',
+          init: vi.fn(),
+          cleanup: vi.fn().mockRejectedValue(new Error('def-bad cleanup boom')),
+        },
+        {
+          name: 'def-good',
+          priority: 'deferred',
+          init: vi.fn(),
+          cleanup: sibling,
+        },
+        {
+          name: 'sec-good',
+          priority: 'security',
+          init: vi.fn(),
+          cleanup: laterPhase,
+        },
+      ]);
+
+      await mgr.initializePhase('security');
+      await mgr.initializePhase('deferred');
+
+      await expect(mgr.cleanup()).resolves.toBeUndefined();
+
+      expect(sibling).toHaveBeenCalled();
+      expect(laterPhase).toHaveBeenCalled();
+    });
+
+    it('logs an error entry for each rejected cleanup', async () => {
+      const { getFeatureManager } = await import('./featureManager');
+      const log = (await import('electron-log')).default;
+      const mgr = getFeatureManager();
+
+      mgr.registerAll([
+        {
+          name: 'rejector',
+          priority: 'security',
+          init: vi.fn(),
+          cleanup: vi.fn().mockRejectedValue(new Error('rejector boom')),
+        },
+      ]);
+
+      await mgr.initializePhase('security');
+      await mgr.cleanup();
+
+      const errorCalls = vi.mocked(log.error).mock.calls.map((c) => String(c[0]));
+      expect(
+        errorCalls.some(
+          (msg) => msg.includes('Failed to cleanup feature') && msg.includes('rejector')
+        )
+      ).toBe(true);
+    });
+  });
+
+  // ========================================================================
   // Error handling
   // ========================================================================
 

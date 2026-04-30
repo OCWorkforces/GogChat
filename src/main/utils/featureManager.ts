@@ -331,22 +331,49 @@ export class FeatureManager {
   async cleanup(): Promise<void> {
     log.info('[FeatureManager] Starting feature cleanup');
 
-    // Cleanup in reverse order
-    const reversedOrder = [...this.initializationOrder].reverse();
+    // Reverse phase order: deferred fully done before ui starts, etc.
+    const reversedPhases: FeaturePriority[] = ['deferred', 'ui', 'critical', 'security'];
 
+    // Group initialized features by phase, preserving reverse-init order within each phase
+    const reversedOrder = [...this.initializationOrder].reverse();
+    const featuresByPhase = new Map<FeaturePriority, FeatureConfig[]>();
+    for (const phase of reversedPhases) {
+      featuresByPhase.set(phase, []);
+    }
     for (const name of reversedOrder) {
       const feature = this.features.get(name);
       if (!feature || !feature.cleanup) {
         continue;
       }
+      featuresByPhase.get(feature.priority)?.push(feature);
+    }
 
-      try {
-        log.debug(`[FeatureManager] Cleaning up feature: ${name}`);
-        await feature.cleanup(this.context);
-        log.debug(`[FeatureManager] ✓ ${name} cleaned up`);
-      } catch (error: unknown) {
-        log.error(`[FeatureManager] ✗ Failed to cleanup feature '${name}':`, error);
+    for (const phase of reversedPhases) {
+      const phaseFeatures = featuresByPhase.get(phase) ?? [];
+      if (phaseFeatures.length === 0) {
+        continue;
       }
+
+      log.debug(
+        `[FeatureManager] Cleaning up ${phaseFeatures.length} feature(s) in phase: ${phase}`
+      );
+
+      const results = await Promise.allSettled(
+        phaseFeatures.map(async (feature) => {
+          log.debug(`[FeatureManager] Cleaning up feature: ${feature.name}`);
+          // Non-null: filtered above
+          await feature.cleanup!(this.context);
+          log.debug(`[FeatureManager] ✓ ${feature.name} cleaned up`);
+          return feature.name;
+        })
+      );
+
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          const name = phaseFeatures[idx]?.name ?? '<unknown>';
+          log.error(`[FeatureManager] ✗ Failed to cleanup feature '${name}':`, result.reason);
+        }
+      });
     }
 
     log.info('[FeatureManager] Feature cleanup completed');
