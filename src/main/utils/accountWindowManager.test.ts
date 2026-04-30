@@ -5,8 +5,19 @@
  * getBootstrapAccounts, and cleanup paths (unregisterAccount, destroyAll).
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-vi.mock('electron', () => require('../../../tests/mocks/electron'));
+vi.mock('electron', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mod = require('../../../tests/mocks/electron.ts');
+  return {
+    ...mod,
+    session: {
+      ...(mod.session ?? {}),
+      fromPartition: vi.fn(() => ({
+        clearCodeCaches: vi.fn().mockResolvedValue(undefined),
+      })),
+    },
+  };
+});
 vi.mock('electron-log', () => ({
   default: {
     info: vi.fn(),
@@ -434,8 +445,12 @@ describe('AccountWindowManager — registerWindow', () => {
 
     manager.registerWindow(win, 1);
     // Should still have exactly one focus listener (the new one)
+    // AWM also wires its own focus/blur/show/hide listeners on top of the
+    // registry's. Re-registration must replace, not duplicate, both layers.
     expect(win.listenerCount('focus')).toBe(listenerCountBefore);
+    expect(win.listenerCount('blur')).toBe(1);
     expect(win.listenerCount('show')).toBe(listenerCountBefore);
+    expect(win.listenerCount('hide')).toBe(1);
     expect(win.listenerCount('closed')).toBe(listenerCountBefore);
   });
 
@@ -717,9 +732,12 @@ describe('AccountWindowManager — unregisterAccount', () => {
     manager.unregisterAccount(0);
 
     // Listeners should be removed (only the ones AWM added)
-    expect(win.listenerCount('focus')).toBe(focusListenersBefore - 1);
+    // Listeners should be fully removed: registry adds 1 focus + 1 show + 1 closed,
+    // AWM adds 1 focus + 1 blur + 1 show + 1 hide + 1 closed (once-listener).
+    expect(win.listenerCount('focus')).toBe(focusListenersBefore - 2);
+    expect(win.listenerCount('blur')).toBe(0);
     expect(win.listenerCount('show')).toBe(0);
-    expect(win.listenerCount('closed')).toBe(0);
+    expect(win.listenerCount('hide')).toBe(0);
   });
 
   it('updates mostRecentAccountIndex to next newest window', () => {

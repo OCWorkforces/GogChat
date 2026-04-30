@@ -13,7 +13,12 @@
 import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { configGet, configSet } from '../config.js';
-import type { AccountWindowState, WindowFactory, IAccountWindowManager, AccountWindowsMap } from '../../shared/types/window.js';
+import type {
+  AccountWindowState,
+  WindowFactory,
+  IAccountWindowManager,
+  AccountWindowsMap,
+} from '../../shared/types/window.js';
 import {
   markAsBootstrap as _markAsBootstrap,
   isBootstrap as _isBootstrap,
@@ -24,6 +29,11 @@ import {
 } from './bootstrapTracker.js';
 import { AccountWindowRegistry } from './accountWindowRegistry.js';
 import { routeAccountWindow } from './accountRouter.js';
+import {
+  getAccountActivityTracker,
+  startSessionMaintenance,
+  stopSessionMaintenance,
+} from './accountSessionMaintenance.js';
 
 /**
  * Serialized write queue for the `accountWindows` config key.
@@ -65,17 +75,82 @@ export function flushAccountWindowsWrites(): Promise<void> {
  */
 export class AccountWindowManager implements IAccountWindowManager {
   private readonly registry: AccountWindowRegistry;
+  private maintenanceStarted = false;
+  /**
+   * Per-window activity listener handles, kept so we can detach on
+   * re-registration (different accountIndex) and on unregister/destroy.
+   * Without this, repeated `registerWindow` calls would leak listeners.
+   */
+  private readonly activityListeners = new Map<
+    BrowserWindow,
+    { record: () => void; onClosed: () => void }
+  >();
 
   constructor(private readonly windowFactory?: WindowFactory) {
     // Reset shared bootstrap tracker so each manager instance starts clean
     clearAllBootstrap();
     this.registry = new AccountWindowRegistry();
+    this.startMaintenance();
+  }
+
+  /**
+   * Start the periodic session maintenance scheduler. Idempotent — safe to
+   * call from the constructor and again from explicit init paths.
+   */
+  private startMaintenance(): void {
+    if (this.maintenanceStarted) {
+      return;
+    }
+    startSessionMaintenance(getAccountActivityTracker(), this);
+    this.maintenanceStarted = true;
   }
 
   // ─── Registry delegates ──────────────────────────────────────────────────
 
   registerWindow(window: BrowserWindow, accountIndex: number): void {
+    this.detachActivityListeners(window);
     this.registry.registerWindow(window, accountIndex);
+    this.attachActivityListeners(window, accountIndex);
+  }
+
+  /**
+   * Wire focus/blur/show/hide BrowserWindow events to the activity tracker.
+   * The registry already tracks focus/show for most-recent-window purposes; we
+   * additionally record blur/hide so that any user interaction with the
+   * window — gaining or losing OS focus — counts as recent activity.
+   */
+  private attachActivityListeners(window: BrowserWindow, accountIndex: number): void {
+    const tracker = getAccountActivityTracker();
+    // Stamp activity immediately on registration so the window is not
+    // immediately considered idle.
+    tracker.recordActivity(accountIndex);
+    const record = (): void => {
+      tracker.recordActivity(accountIndex);
+    };
+    const onClosed = (): void => {
+      this.detachActivityListeners(window);
+    };
+    window.on('focus', record);
+    window.on('blur', record);
+    window.on('show', record);
+    window.on('hide', record);
+    window.once('closed', onClosed);
+    this.activityListeners.set(window, { record, onClosed });
+  }
+
+  private detachActivityListeners(window: BrowserWindow): void {
+    const handle = this.activityListeners.get(window);
+    if (!handle) {
+      return;
+    }
+    if (!window.isDestroyed()) {
+      window.removeListener('focus', handle.record);
+      window.removeListener('blur', handle.record);
+      window.removeListener('show', handle.record);
+      window.removeListener('hide', handle.record);
+      window.removeListener('closed', handle.onClosed);
+    }
+    this.activityListeners.delete(window);
   }
 
   getAccountIndex(window: BrowserWindow): number | null {
@@ -103,6 +178,10 @@ export class AccountWindowManager implements IAccountWindowManager {
   }
 
   unregisterAccount(accountIndex: number): void {
+    const window = this.registry.getAccountWindow(accountIndex);
+    if (window) {
+      this.detachActivityListeners(window);
+    }
     this.registry.unregisterAccount(accountIndex);
   }
 
@@ -115,6 +194,12 @@ export class AccountWindowManager implements IAccountWindowManager {
   }
 
   destroyAll(): void {
+    stopSessionMaintenance();
+    this.maintenanceStarted = false;
+    for (const window of this.activityListeners.keys()) {
+      this.detachActivityListeners(window);
+    }
+    this.activityListeners.clear();
     this.registry.destroyAll();
   }
 
@@ -163,7 +248,7 @@ export class AccountWindowManager implements IAccountWindowManager {
     const bounds = window.getBounds();
     const isMaximized = window.isMaximized();
 
-    updateAccountWindows((current) => ({
+    void updateAccountWindows((current) => ({
       ...current,
       [accountIndex]: {
         bounds: {
