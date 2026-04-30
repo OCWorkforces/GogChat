@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import path from 'path';
 import { readFileSync } from 'fs';
+import type * as Fs from 'fs';
 
 // Mock Electron before importing packageInfo
 vi.mock('electron', () => ({
@@ -17,7 +18,7 @@ vi.mock('electron', () => ({
 
 // Mock fs to simulate readFileSync failures
 vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof import('fs')>('fs');
+  const actual = await vi.importActual<typeof Fs>('fs');
   return {
     ...actual,
     readFileSync: vi.fn(actual.readFileSync),
