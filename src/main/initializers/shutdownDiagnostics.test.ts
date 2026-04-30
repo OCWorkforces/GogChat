@@ -11,24 +11,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ──── Hoisted mocks ────────────────────────────────────────────────────────
-const {
-  mockLog,
-  mockGetIconCache,
-  mockGetStore,
-  mockGetDeduplicator,
-  mockGetRateLimiter,
-} = vi.hoisted(() => ({
-  mockLog: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  },
-  mockGetIconCache: vi.fn(),
-  mockGetStore: vi.fn(),
-  mockGetDeduplicator: vi.fn(),
-  mockGetRateLimiter: vi.fn(),
-}));
+const { mockLog, mockGetIconCache, mockGetStore, mockGetDeduplicator, mockGetRateLimiter } =
+  vi.hoisted(() => ({
+    mockLog: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    mockGetIconCache: vi.fn(),
+    mockGetStore: vi.fn(),
+    mockGetDeduplicator: vi.fn(),
+    mockGetRateLimiter: vi.fn(),
+  }));
 
 // ──── Module mocks ─────────────────────────────────────────────────────────
 vi.mock('electron-log', () => ({

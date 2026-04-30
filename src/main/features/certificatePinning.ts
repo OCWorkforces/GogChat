@@ -85,7 +85,6 @@ function verifyCertificateValidity(cert: Certificate): boolean {
 
   return true;
 }
-
 // Store handler for cleanup
 let certificateErrorHandler:
   | ((
@@ -97,6 +96,21 @@ let certificateErrorHandler:
       callback: (isTrusted: boolean) => void
     ) => void)
   | null = null;
+
+/**
+ * In-memory validation cache keyed by `${hostname}:${cert.fingerprint}`.
+ *
+ * Security constraint: the key MUST include the certificate fingerprint (SHA-256).
+ * Caching by hostname alone would allow an attacker who later presents a different
+ * (potentially malicious) certificate for the same hostname to inherit a previously
+ * cached "trusted" verdict — i.e. enable MITM after first contact.
+ *
+ * Eviction: Map preserves insertion order, so the first key returned by `keys()` is
+ * the oldest. When size reaches MAX, drop that one. Same canonical pattern as
+ * `utils/configCache.ts`.
+ */
+const VALIDATION_CACHE_MAX = 100;
+const validationCache = new Map<string, boolean>();
 
 /**
  * Check if certificate pinning is disabled via the secure flags store.
@@ -133,13 +147,34 @@ export default function setupCertificatePinning(): void {
       return;
     }
 
+    // Cache lookup: key MUST include fingerprint to prevent MITM via cert swap.
+    const cacheKey = `${hostname}:${certificate.fingerprint}`;
+    const cached = validationCache.get(cacheKey);
+    if (cached !== undefined) {
+      log.debug(`[CertPinning] Cache hit for: ${hostname} (fp=${certificate.fingerprint})`);
+      callback(cached);
+      return;
+    }
+
     log.info(`[CertPinning] Validating certificate for: ${hostname}`);
 
     // Perform certificate validation
     const issuerValid = verifyCertificateIssuer(certificate);
     const validityValid = verifyCertificateValidity(certificate);
+    const isValid = issuerValid && validityValid;
 
-    if (issuerValid && validityValid) {
+    // Store result before invoking callback. Evict oldest entry (insertion order)
+    // when at capacity — same pattern as utils/configCache.ts.
+    if (validationCache.size >= VALIDATION_CACHE_MAX) {
+      const oldestKey = validationCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        validationCache.delete(oldestKey);
+        log.debug(`[CertPinning] Evicted oldest cache entry: ${oldestKey}`);
+      }
+    }
+    validationCache.set(cacheKey, isValid);
+
+    if (isValid) {
       log.info(`[CertPinning] Certificate valid for: ${hostname}`);
       callback(true);
     } else {
@@ -169,6 +204,9 @@ export function cleanupCertificatePinning(): void {
       app.removeListener('certificate-error', certificateErrorHandler);
       certificateErrorHandler = null;
     }
+
+    // Clear validation cache so a re-setup performs fresh validation.
+    validationCache.clear();
 
     log.info('[CertPinning] Certificate pinning cleaned up');
   } catch (error: unknown) {

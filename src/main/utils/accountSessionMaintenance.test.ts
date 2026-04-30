@@ -1,0 +1,334 @@
+/**
+ * Unit tests for accountSessionMaintenance — activity tracker + 5-min scheduler.
+ *
+ * Covers:
+ *   - AccountActivityTracker: recordActivity, getLastActivity, getIdleAccounts,
+ *     excludeIndices filtering, clear semantics
+ *   - startSessionMaintenance: 5-min tick scheduling, idle threshold (30 min),
+ *     bootstrap exclusion, partition resolution
+ *   - stopSessionMaintenance: idempotent
+ *   - destroyAccountActivityTracker: clears interval + singleton
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const { mockClearCodeCaches, mockFromPartition } = vi.hoisted(() => {
+  const mockClearCodeCaches = vi.fn().mockResolvedValue(undefined);
+  const mockFromPartition = vi.fn(() => ({ clearCodeCaches: mockClearCodeCaches }));
+  return { mockClearCodeCaches, mockFromPartition };
+});
+
+vi.mock('electron', () => ({
+  session: {
+    fromPartition: mockFromPartition,
+  },
+}));
+
+vi.mock('electron-log', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+import {
+  AccountActivityTracker,
+  startSessionMaintenance,
+  stopSessionMaintenance,
+  getAccountActivityTracker,
+  destroyAccountActivityTracker,
+} from './accountSessionMaintenance';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
+
+const FIVE_MIN = 5 * 60 * 1000;
+const THIRTY_MIN = 30 * 60 * 1000;
+
+function makeManager(overrides: Partial<IAccountWindowManager> = {}): IAccountWindowManager {
+  return {
+    isBootstrap: vi.fn().mockReturnValue(false),
+    registerWindow: vi.fn(),
+    getAccountIndex: vi.fn().mockReturnValue(null),
+    getAccountWindow: vi.fn().mockReturnValue(null),
+    getAccountWebContents: vi.fn().mockReturnValue(null),
+    getAccountForWebContents: vi.fn().mockReturnValue(null),
+    getAllWindows: vi.fn().mockReturnValue([]),
+    getMostRecentWindow: vi.fn().mockReturnValue(null),
+    hasAccount: vi.fn().mockReturnValue(false),
+    unregisterAccount: vi.fn(),
+    getAccountCount: vi.fn().mockReturnValue(0),
+    destroyAll: vi.fn(),
+    createAccountWindow: vi.fn(),
+    markAsBootstrap: vi.fn(),
+    promoteBootstrap: vi.fn().mockReturnValue(true),
+    clearBootstrap: vi.fn(),
+    getBootstrapAccounts: vi.fn().mockReturnValue([]),
+    saveAccountWindowState: vi.fn(),
+    getAccountWindowState: vi.fn().mockReturnValue(null),
+    ...overrides,
+  };
+}
+
+describe('AccountActivityTracker', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('recordActivity / getLastActivity', () => {
+    it('returns undefined for accounts with no recorded activity', () => {
+      const t = new AccountActivityTracker();
+      expect(t.getLastActivity(0)).toBeUndefined();
+    });
+
+    it('records the current Date.now() on activity', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      expect(t.getLastActivity(0)).toBe(Date.now());
+    });
+
+    it('overwrites the previous timestamp on subsequent activity', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      const first = t.getLastActivity(0);
+      vi.advanceTimersByTime(60_000);
+      t.recordActivity(0);
+      expect(t.getLastActivity(0)).toBe((first ?? 0) + 60_000);
+    });
+
+    it('tracks multiple accounts independently', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      vi.advanceTimersByTime(1000);
+      t.recordActivity(1);
+      expect(t.getLastActivity(1)).toBe((t.getLastActivity(0) ?? 0) + 1000);
+    });
+  });
+
+  describe('getIdleAccounts', () => {
+    it('returns empty array when no accounts are tracked', () => {
+      const t = new AccountActivityTracker();
+      expect(t.getIdleAccounts(THIRTY_MIN)).toEqual([]);
+    });
+
+    it('does not consider accounts idle before threshold elapses', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      vi.advanceTimersByTime(THIRTY_MIN - 1);
+      expect(t.getIdleAccounts(THIRTY_MIN)).toEqual([]);
+    });
+
+    it('returns accounts idle beyond threshold', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      t.recordActivity(1);
+      vi.advanceTimersByTime(THIRTY_MIN);
+      expect(t.getIdleAccounts(THIRTY_MIN).sort()).toEqual([0, 1]);
+    });
+
+    it('excludes accounts in excludeIndices set', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      t.recordActivity(1);
+      t.recordActivity(2);
+      vi.advanceTimersByTime(THIRTY_MIN);
+      expect(t.getIdleAccounts(THIRTY_MIN, new Set([1])).sort()).toEqual([0, 2]);
+    });
+
+    it('returns only the accounts past threshold when activity is mixed', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      vi.advanceTimersByTime(THIRTY_MIN);
+      t.recordActivity(1); // recent
+      expect(t.getIdleAccounts(THIRTY_MIN)).toEqual([0]);
+    });
+  });
+
+  describe('clear', () => {
+    it('removes all recorded activity', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      t.recordActivity(1);
+      t.clear();
+      expect(t.getLastActivity(0)).toBeUndefined();
+      expect(t.getLastActivity(1)).toBeUndefined();
+      expect(t.getIdleAccounts(0)).toEqual([]);
+    });
+  });
+});
+
+describe('startSessionMaintenance / stopSessionMaintenance', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    mockClearCodeCaches.mockClear();
+    mockFromPartition.mockClear();
+    destroyAccountActivityTracker();
+  });
+
+  afterEach(() => {
+    stopSessionMaintenance();
+    destroyAccountActivityTracker();
+    vi.useRealTimers();
+  });
+
+  it('schedules an interval that fires every 5 minutes', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    startSessionMaintenance(tracker, manager);
+
+    // Before first tick — no clears
+    vi.advanceTimersByTime(FIVE_MIN - 1);
+    expect(mockFromPartition).not.toHaveBeenCalled();
+
+    // First tick — no idle accounts to clear
+    vi.advanceTimersByTime(1);
+    expect(mockFromPartition).not.toHaveBeenCalled();
+  });
+
+  it('does NOT clear code cache for accounts within idle threshold', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    // Advance one tick — only 5 min idle, threshold is 30 min
+    vi.advanceTimersByTime(FIVE_MIN);
+    expect(mockClearCodeCaches).not.toHaveBeenCalled();
+  });
+
+  it('clears code cache for accounts idle >= 30 minutes', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    // 30 min later (6 ticks of 5 min)
+    vi.advanceTimersByTime(THIRTY_MIN);
+    expect(mockFromPartition).toHaveBeenCalledWith('persist:account-0');
+    expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips bootstrap accounts', () => {
+    const tracker = new AccountActivityTracker();
+    const isBootstrap = vi.fn((idx: number) => idx === 1);
+    const manager = makeManager({ isBootstrap });
+    tracker.recordActivity(0);
+    tracker.recordActivity(1);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(THIRTY_MIN);
+
+    expect(mockFromPartition).toHaveBeenCalledWith('persist:account-0');
+    expect(mockFromPartition).not.toHaveBeenCalledWith('persist:account-1');
+    expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
+    expect(isBootstrap).toHaveBeenCalledWith(1);
+  });
+
+  it('clears caches for multiple idle accounts on a single tick', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    tracker.recordActivity(2);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(THIRTY_MIN);
+
+    expect(mockFromPartition).toHaveBeenCalledWith('persist:account-0');
+    expect(mockFromPartition).toHaveBeenCalledWith('persist:account-2');
+    expect(mockClearCodeCaches).toHaveBeenCalledTimes(2);
+  });
+
+  it('continues processing other accounts when clearCodeCaches throws', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    mockFromPartition.mockImplementationOnce(() => {
+      throw new Error('boom');
+    });
+    tracker.recordActivity(0);
+    tracker.recordActivity(1);
+    startSessionMaintenance(tracker, manager);
+
+    expect(() => vi.advanceTimersByTime(THIRTY_MIN)).not.toThrow();
+    // 2 partitions attempted: first throws, second succeeds
+    expect(mockFromPartition).toHaveBeenCalledTimes(2);
+    expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
+  });
+
+  it('starting twice is a no-op (does not double-schedule)', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(THIRTY_MIN);
+    expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
+  });
+
+  it('stopSessionMaintenance prevents further ticks', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    stopSessionMaintenance();
+
+    vi.advanceTimersByTime(THIRTY_MIN * 2);
+    expect(mockClearCodeCaches).not.toHaveBeenCalled();
+  });
+
+  it('stopSessionMaintenance is safe to call when not running', () => {
+    expect(() => stopSessionMaintenance()).not.toThrow();
+    expect(() => {
+      stopSessionMaintenance();
+      stopSessionMaintenance();
+    }).not.toThrow();
+  });
+});
+
+describe('Singleton getAccountActivityTracker / destroyAccountActivityTracker', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    destroyAccountActivityTracker();
+    mockClearCodeCaches.mockClear();
+    mockFromPartition.mockClear();
+  });
+
+  afterEach(() => {
+    destroyAccountActivityTracker();
+    vi.useRealTimers();
+  });
+
+  it('returns the same instance across calls', () => {
+    const a = getAccountActivityTracker();
+    const b = getAccountActivityTracker();
+    expect(a).toBe(b);
+  });
+
+  it('returns a fresh instance after destroy', () => {
+    const a = getAccountActivityTracker();
+    a.recordActivity(0);
+    destroyAccountActivityTracker();
+    const b = getAccountActivityTracker();
+    expect(b).not.toBe(a);
+    expect(b.getLastActivity(0)).toBeUndefined();
+  });
+
+  it('destroy stops the maintenance interval', () => {
+    const tracker = getAccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    destroyAccountActivityTracker();
+
+    vi.advanceTimersByTime(THIRTY_MIN * 2);
+    expect(mockClearCodeCaches).not.toHaveBeenCalled();
+  });
+});

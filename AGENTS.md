@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-29
 
-**Commit:** 8a8bf54
+**Commit:** 846deba
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -16,7 +16,7 @@ src/
 ├── main/          # Electron main process (features, initializers, utils)
 │   ├── features/  # 25+ self-contained feature modules, phased lifecycle
 │   ├── initializers/ # Feature registration + shutdown + diagnostics
-│   └── utils/     # 39 utility modules (singletons, helpers, types)
+│   └── utils/     # 40 utility modules (singletons, helpers, types)
 ├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
 ├── shared/        # Cross-process contracts (constants, validators, types/)
 │   └── types/     # 6 type files (branded, window, domain, config, ipc, bridge)
@@ -29,29 +29,30 @@ resources/         # Icon variants (tray, normal, badge, offline)
 
 ## WHERE TO LOOK
 
-| Task                 | Location                                         | Notes                                       |
-| -------------------- | ------------------------------------------------ | ------------------------------------------- |
-| App init order       | `src/main/index.ts`                              | Thin orchestrator; logic in `initializers/` |
-| Feature registration | `src/main/initializers/registerFeatures.ts`      | 21 features with phases + deps              |
-| Shutdown handler     | `src/main/initializers/registerShutdown.ts`      | Graceful cleanup via `singletonDestroyers`  |
-| Shutdown diagnostics | `src/main/initializers/shutdownDiagnostics.ts`   | Cache statistics logging                     |
-| Multi-account mgr    | `src/main/utils/accountWindowManager.ts`         | Per-account windows + bootstrap             |
-| Account mgr interface| `src/shared/types/window.ts`                     | `IAccountWindowManager` (19 methods)        |
-| Add new feature      | `src/main/features/`                             | See `features/AGENTS.md`                    |
-| IPC channel names    | `src/shared/constants.ts`                        | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type |
-| Input validators     | `src/shared/dataValidators.ts`                    | Data validation (counts, booleans, objects) |
-| URL validators       | `src/shared/urlValidators.ts`                    | URL whitelist + Google auth detection       |
-| Config schema        | `src/shared/types/config.ts` + `src/main/config.ts` | Update both; use `configGet`/`configSet` for access  |
-| Encryption keys      | `src/main/utils/encryptionKey.ts`                | SafeStorage + legacy migration              |
-| Menu action registry | `src/main/features/menuActionRegistry.ts`        | Decouples features from appMenu             |
-| window.gogchat API   | `src/preload/index.ts` + `src/shared/types/bridge.ts` | `GogChatBridgeAPI`                    |
-| Build system         | `scripts/build-rsbuild.js` + `rsbuild.config.js` | Dual-pass                                   |
-| CI/CD                | `.github/workflows/`                             | pr-check + release                          |
-| DMG packaging        | `mac/`                                           | See `mac/AGENTS.md`                         |
-| Test helpers         | `tests/helpers/electron-test.ts`                 | Playwright fixtures                         |
-| Electron mocks       | `tests/mocks/electron.ts`                        | For unit tests                              |
-| Log files            | `~/Library/Logs/GogChat/main.log`                | macOS path                                  |
-| Secure flags (cert pinning kill switch) | `src/main/utils/secureFlags.ts` | `getDisableCertPinning()`/`setDisableCertPinning()`; macOS Keychain via safeStorage |
+| Task                                    | Location                                              | Notes                                                                               |
+| --------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| App init order                          | `src/main/index.ts`                                   | Thin orchestrator; logic in `initializers/`                                         |
+| Feature registration                    | `src/main/initializers/registerFeatures.ts`           | 21 features with phases + deps                                                      |
+| Shutdown handler                        | `src/main/initializers/registerShutdown.ts`           | Graceful cleanup via `singletonDestroyers`                                          |
+| Shutdown diagnostics                    | `src/main/initializers/shutdownDiagnostics.ts`        | Cache statistics logging                                                            |
+| Multi-account mgr                       | `src/main/utils/accountWindowManager.ts`              | Per-account windows + bootstrap                                                     |
+| Idle session maintenance | `src/main/utils/accountSessionMaintenance.ts`         | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts        |
+| Account mgr interface                   | `src/shared/types/window.ts`                          | `IAccountWindowManager` (22 methods)                                                |
+| Add new feature                         | `src/main/features/`                                  | See `features/AGENTS.md`                                                            |
+| IPC channel names                       | `src/shared/constants.ts`                             | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type                            |
+| Input validators                        | `src/shared/dataValidators.ts`                        | Data validation (counts, booleans, objects)                                         |
+| URL validators                          | `src/shared/urlValidators.ts`                         | URL whitelist + Google auth detection                                               |
+| Config schema                           | `src/shared/types/config.ts` + `src/main/config.ts`   | Update both; use `configGet`/`configSet` for access                                 |
+| Encryption keys                         | `src/main/utils/encryptionKey.ts`                     | SafeStorage + legacy migration                                                      |
+| Menu action registry                    | `src/main/features/menuActionRegistry.ts`             | Decouples features from appMenu                                                     |
+| window.gogchat API                      | `src/preload/index.ts` + `src/shared/types/bridge.ts` | `GogChatBridgeAPI`                                                                  |
+| Build system                            | `scripts/build-rsbuild.js` + `rsbuild.config.js`      | Dual-pass                                                                           |
+| CI/CD                                   | `.github/workflows/`                                  | pr-check + release                                                                  |
+| DMG packaging                           | `mac/`                                                | See `mac/AGENTS.md`                                                                 |
+| Test helpers                            | `tests/helpers/electron-test.ts`                      | Playwright fixtures                                                                 |
+| Electron mocks                          | `tests/mocks/electron.ts`                             | For unit tests                                                                      |
+| Log files                               | `~/Library/Logs/GogChat/main.log`                     | macOS path                                                                          |
+| Secure flags (cert pinning kill switch) | `src/main/utils/secureFlags.ts`                       | `getDisableCertPinning()`/`setDisableCertPinning()`; macOS Keychain via safeStorage |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -167,31 +168,31 @@ bun run hooks:install  # Install git pre-push hook
 - Platform: **macOS only** (Apple Silicon arm64; M1 or later)
 - Electron 41 / Node.js 22+ / Chromium-based
 - Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
-- Bundle: single main entry → 80.8KB (was 696KB before optimization, 110KB before startup tuning)
+- Bundle: single main entry → 72.0KB (was 696KB before optimization, 110KB before startup tuning, 80.8KB before performance pass)
 - `overrideNotifications.ts` preload: `contextIsolation: false` (intentional exception)
 - DOM selectors in `shared/constants.ts` `SELECTORS` — may break on Google HTML changes
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 - CI: GitHub Actions — `pr-check.yml` + `release.yml`
 - CI gates: madge circular deps (enforcing), import count (enforcing), coverage (informational)
-- Coverage: 99.25% statements (1850 tests, 85 test files)
+- Coverage: 97.97% statements (1922 tests, 87 test files)
 - Build history tracked in `.build-history.json` (last 20 builds)
 
 ## COMPLEXITY CENTERS (200+ lines)
 
-| File                                        | Lines | Purpose                                             |
-| ------------------------------------------- | ----- | --------------------------------------------------- |
-| `src/main/utils/featureManager.ts`          | 458   | Feature lifecycle, dependency resolution            |
-| `src/main/utils/resourceCleanup.ts`         | 372   | Tracked intervals/timeouts/listeners + lazy cleanup |
-| `scripts/build-rsbuild.js`                  | 386   | Dual-build orchestrator                             |
-| `src/main/utils/accountWindowManager.ts`    | 242   | Multi-account BrowserWindow management              |
-| `src/shared/urlValidators.ts`               | 334   | URL whitelist validation, Google auth URL detection |
-| `src/main/utils/ipcHelper.ts`               | 284   | Secure IPC handler factories                        |
-| `src/main/utils/ipcDeduplicator.ts`         | 263   | IPC request deduplication (100ms window)            |
-| `src/main/features/externalLinks.ts`        | 297   | External link handling with re-guard timer          |
-| `src/main/utils/performanceMonitor.ts`      | 259   | Startup timing markers, memory snapshots            |
-| `src/main/utils/accountWindowRegistry.ts`   | 255   | Window registry implementation                      |
-| `src/main/utils/errorHandler.ts`            | 245   | Structured error wrapping, feature init guard       |
-| `src/main/config.ts`                        | 211   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers |
-| `src/main/utils/iconCache.ts`               | 223   | Icon caching + warmup                               |
-| `src/main/utils/certificatePinning.ts`      | 188   | Certificate pinning for Google domains              |
-| `src/main/utils/secureFlags.ts`            | ~120  | safeStorage-backed cert pinning kill switch (macOS Keychain) |
+| File                                      | Lines | Purpose                                                                           |
+| ----------------------------------------- | ----- | --------------------------------------------------------------------------------- |
+| `src/main/utils/featureManager.ts`        | 485   | Feature lifecycle, dependency resolution                                          |
+| `src/main/utils/resourceCleanup.ts`       | 308   | Tracked intervals/timeouts/listeners + lazy cleanup                               |
+| `scripts/build-rsbuild.js`                | 386   | Dual-build orchestrator                                                           |
+| `src/main/utils/accountWindowManager.ts`  | 532   | Multi-account BrowserWindow + hydrate/dehydrate state machine                     |
+| `src/shared/urlValidators.ts`             | 334   | URL whitelist validation, Google auth URL detection                               |
+| `src/main/utils/ipcHelper.ts`             | 315   | Secure IPC handler factories                                                      |
+| `src/main/utils/ipcDeduplicator.ts`       | 317   | IPC request deduplication (100ms window)                                          |
+| `src/main/features/externalLinks.ts`      | 297   | External link handling with re-guard timer                                        |
+| `src/main/utils/performanceMonitor.ts`    | 265   | Startup timing markers, memory snapshots                                          |
+| `src/main/utils/accountWindowRegistry.ts` | 255   | Window registry implementation                                                    |
+| `src/main/utils/errorHandler.ts`          | 244   | Structured error wrapping, feature init guard                                     |
+| `src/main/config.ts`                      | 210   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers |
+| `src/main/utils/iconCache.ts`             | 220   | Icon caching + warmup                                                             |
+| `src/main/features/certificatePinning.ts` | 215   | Certificate pinning for Google domains                                            |
+| `src/main/utils/secureFlags.ts`           | 111   | safeStorage-backed cert pinning kill switch (macOS Keychain)                      |

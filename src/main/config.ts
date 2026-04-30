@@ -3,10 +3,7 @@ import Store from 'electron-store';
 import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
 import log from 'electron-log';
 import { getPackageInfo } from './utils/packageInfo.js';
-import {
-  getOrCreateEncryptionKey,
-  completeMigration,
-} from './utils/encryptionKey.js';
+import { getOrCreateEncryptionKey, completeMigration } from './utils/encryptionKey.js';
 
 import { schema, CACHE_VERSION } from './utils/configSchema.js';
 

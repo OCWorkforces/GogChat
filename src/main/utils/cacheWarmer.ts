@@ -18,17 +18,23 @@ import { createTrackedTimeout } from './resourceCleanup.js';
 import { compareStorePerformance } from './configProfiler.js';
 import type { FeatureManager } from './featureManager.js';
 
-
 /** Delay (ms) before idle cache warming fires after deferred features load. */
 const IDLE_WARM_DELAY_MS = 8000;
 
-/** Additional icons preloaded during idle to reduce later UI latency. */
+/**
+ * Additional icons preloaded during idle to reduce later UI latency.
+ *
+ * DISJOINTNESS INVARIANT: Must be the disjoint complement of INITIAL_ICON_PATHS
+ * in iconCache.ts. Together they form the complete preload set — no overlap,
+ * no gaps. Adding a path here requires removing it from INITIAL_ICON_PATHS.
+ */
 const ADDITIONAL_ICON_PATHS = [
   'resources/icons/normal/32.png',
   'resources/icons/normal/64.png',
   'resources/icons/normal/256.png',
+  'resources/icons/offline/16.png',
   'resources/icons/offline/32.png',
-  'resources/icons/offline/64.png',
+  'resources/icons/badge/16.png',
   'resources/icons/badge/32.png',
   // Unread tray icon variants — swapped at runtime when messages arrive
   'resources/icons/tray/iconUnreadTemplate.png',

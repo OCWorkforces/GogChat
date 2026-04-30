@@ -12,7 +12,7 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 | `dataValidators.ts` | `validateUnreadCount`, `validateBoolean`, `validateString`, `isSafeObject`, `sanitizeHTML`, `validatePasskeyFailureData`, `validateNotificationData` |
 | `urlValidators.ts` | `validateFaviconURL`, `validateExternalURL`, `validateAppleSystemPreferencesURL`, `isWhitelistedHost`, `validateDeepLinkURL`, `isAuthenticatedChatUrl`, `isGoogleAuthUrl`. Parse-once pattern: URLs parsed once per call, result reused. Internal helpers: `tryParseURL()`, `isWhitelistedHostInternal()` |
 | `types/branded.ts` | `Branded<T,Brand>`, `ValidatedURL` nominal types, `asValidatedURL()` helper |
-| `types/window.ts` | `IAccountWindowManager` (19 methods), `WindowFactory`, `WindowBounds`, `WindowState`, `AccountWindowBounds`, `AccountWindowState`, `AccountWindowsMap` |
+| `types/window.ts` | `IAccountWindowManager` (22 methods), `WindowFactory`, `WindowBounds`, `WindowState`, `AccountWindowBounds`, `AccountWindowState`, `AccountWindowsMap` |
 | `types/domain.ts` | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union (8 WebAuthn values), `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData`, `NotificationData`, `BadgeIconCacheEntry`, `LinkValidationResult`, `ErrorLogEntry`, `PerformanceMetrics` (all readonly) |
 | `types/config.ts` | `AppConfig`, `StoreMetadata`, `StoreType`, `StoreKeyPaths` |
 | `types/ipc.ts` | `IPCHandler<T>`, `ValidatedIPCMessage<T,C>` (channel typed as `IPCChannelName`), `RateLimitEntry`, `IPCResponse<T>`, `IPCChannelPayloadMap` (computed keys `[IPC_CHANNELS.X]`) |

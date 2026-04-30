@@ -43,4 +43,16 @@ export async function registerGlobalCleanups(): Promise<void> {
     'Icon cache'
   );
   manager.registerGlobalCleanupCallback('configCache', clearConfigCache, 'Config cache');
+  manager.registerGlobalCleanupCallback(
+    'sessionMaintenance',
+    () => {
+      // Lazy require avoids module-load-time coupling per AGENTS.md pattern.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require('../utils/accountSessionMaintenance.js') as {
+        stopSessionMaintenance: () => void;
+      };
+      mod.stopSessionMaintenance();
+    },
+    'Session maintenance'
+  );
 }

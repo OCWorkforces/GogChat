@@ -30,6 +30,7 @@ const mockSendFaviconChanged = vi.fn();
 describe('faviconChanged', () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.useFakeTimers();
 
     windowListeners = [];
     mutationCallback = null;
@@ -70,6 +71,7 @@ describe('faviconChanged', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     for (const { type, handler } of windowListeners) {
@@ -178,7 +180,8 @@ describe('faviconChanged', () => {
       {} as MutationObserver
     );
 
-    // Should NOT emit again — same href
+    // Should NOT emit again — same href (advance past debounce window)
+    vi.advanceTimersByTime(75);
     expect(mockSendFaviconChanged).toHaveBeenCalledTimes(1);
   });
 
@@ -203,6 +206,10 @@ describe('faviconChanged', () => {
       [{ type: 'attributes' }] as unknown as MutationRecord[],
       {} as MutationObserver
     );
+
+    // Trailing-edge debounce: nothing yet
+    expect(mockSendFaviconChanged).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(75);
 
     expect(mockSendFaviconChanged).toHaveBeenCalledWith('https://example.com/v2.ico');
     expect(mockSendFaviconChanged).toHaveBeenCalledTimes(2);
@@ -230,6 +237,10 @@ describe('faviconChanged', () => {
       [{ type: 'childList' }] as unknown as MutationRecord[],
       {} as MutationObserver
     );
+
+    // Trailing-edge debounce: emit only after quiet window elapses
+    expect(mockSendFaviconChanged).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(75);
 
     expect(mockSendFaviconChanged).toHaveBeenCalledWith('https://example.com/new.ico');
   });
@@ -339,9 +350,102 @@ describe('faviconChanged', () => {
       ] as unknown as MutationRecord[],
       {} as MutationObserver
     );
+    // Flush debounced emission so getCurrentFavicon runs once
+    vi.advanceTimersByTime(75);
 
     // getCurrentFavicon should only be called once per batch (break after first match)
     // One call for the first mutation that matches
     expect(callCount - initialCount).toBe(1);
+  });
+
+  it('collapses 5 rapid mutations into exactly 1 IPC send after 75ms quiet [debounce]', async () => {
+    const faviconEl = { href: 'https://example.com/start.ico' } as HTMLLinkElement;
+    vi.spyOn(document, 'querySelector').mockImplementation((sel: string) => {
+      if (sel === 'link[rel="shortcut icon"]') return faviconEl;
+      return null;
+    });
+
+    await import('./faviconChanged');
+
+    const handler = windowListeners.find((l) => l.type === 'DOMContentLoaded');
+    handler!.handler(new Event('DOMContentLoaded'));
+
+    // Initial synchronous emit on init
+    expect(mockSendFaviconChanged).toHaveBeenCalledTimes(1);
+    mockSendFaviconChanged.mockClear();
+
+    // Mutate href + fire 5 rapid mutations within the debounce window
+    faviconEl.href = 'https://example.com/final.ico';
+    for (let i = 0; i < 5; i++) {
+      mutationCallback!(
+        [{ type: 'attributes' }] as unknown as MutationRecord[],
+        {} as MutationObserver
+      );
+      vi.advanceTimersByTime(10); // < 75ms each
+    }
+
+    // Still nothing emitted (timer keeps getting reset)
+    expect(mockSendFaviconChanged).not.toHaveBeenCalled();
+
+    // Quiet for 75ms → trailing edge fires once
+    vi.advanceTimersByTime(75);
+    expect(mockSendFaviconChanged).toHaveBeenCalledTimes(1);
+    expect(mockSendFaviconChanged).toHaveBeenCalledWith('https://example.com/final.ico');
+  });
+
+  it('fires exactly on the trailing edge after 75ms of quiet [debounce]', async () => {
+    const faviconEl = { href: 'https://example.com/a.ico' } as HTMLLinkElement;
+    vi.spyOn(document, 'querySelector').mockImplementation((sel: string) => {
+      if (sel === 'link[rel="shortcut icon"]') return faviconEl;
+      return null;
+    });
+
+    await import('./faviconChanged');
+    const handler = windowListeners.find((l) => l.type === 'DOMContentLoaded');
+    handler!.handler(new Event('DOMContentLoaded'));
+    mockSendFaviconChanged.mockClear();
+
+    faviconEl.href = 'https://example.com/b.ico';
+    mutationCallback!(
+      [{ type: 'attributes' }] as unknown as MutationRecord[],
+      {} as MutationObserver
+    );
+
+    vi.advanceTimersByTime(74);
+    expect(mockSendFaviconChanged).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(mockSendFaviconChanged).toHaveBeenCalledTimes(1);
+    expect(mockSendFaviconChanged).toHaveBeenCalledWith('https://example.com/b.ico');
+  });
+
+  it('cancels pending debounce timer on observer disconnect / beforeunload [debounce cleanup]', async () => {
+    const faviconEl = { href: 'https://example.com/orig.ico' } as HTMLLinkElement;
+    vi.spyOn(document, 'querySelector').mockImplementation((sel: string) => {
+      if (sel === 'link[rel="shortcut icon"]') return faviconEl;
+      return null;
+    });
+
+    await import('./faviconChanged');
+    const dcHandler = windowListeners.find((l) => l.type === 'DOMContentLoaded');
+    dcHandler!.handler(new Event('DOMContentLoaded'));
+    mockSendFaviconChanged.mockClear();
+
+    // Schedule a pending emission
+    faviconEl.href = 'https://example.com/pending.ico';
+    mutationCallback!(
+      [{ type: 'attributes' }] as unknown as MutationRecord[],
+      {} as MutationObserver
+    );
+
+    // Cleanup before debounce window elapses
+    const buHandler = windowListeners.find((l) => l.type === 'beforeunload');
+    buHandler!.handler(new Event('beforeunload'));
+
+    expect(mockDisconnect).toHaveBeenCalled();
+
+    // Advance past debounce window — no emission should occur
+    vi.advanceTimersByTime(200);
+    expect(mockSendFaviconChanged).not.toHaveBeenCalled();
   });
 });

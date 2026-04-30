@@ -427,103 +427,103 @@ describe('deepLinkHandler', () => {
         expect.any(Error)
       );
     });
-    });
   });
+});
 
-  describe('getAccountIndexFromUrl invalid URL fallback', () => {
-    it('defaults to account 0 when URL constructor throws', () => {
-      // validateDeepLinkURL is mocked as identity, so we can pass a malformed URL.
-      // Reset to identity (prior tests may have set throw impl).
-      vi.mocked(validateDeepLinkURL).mockImplementation((url: string) => url);
-      vi.mocked(getWindowForAccount).mockReturnValue(null);
-      vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as FakeWindow);
+describe('getAccountIndexFromUrl invalid URL fallback', () => {
+  it('defaults to account 0 when URL constructor throws', () => {
+    // validateDeepLinkURL is mocked as identity, so we can pass a malformed URL.
+    // Reset to identity (prior tests may have set throw impl).
+    vi.mocked(validateDeepLinkURL).mockImplementation((url: string) => url);
+    vi.mocked(getWindowForAccount).mockReturnValue(null);
+    vi.mocked(createAccountWindow).mockReturnValue(makeFakeWindow() as FakeWindow);
 
-      // 'not a valid url' will throw inside `new URL()` → catch returns 0
-      processDeepLink('not a valid url at all');
+    // 'not a valid url' will throw inside `new URL()` → catch returns 0
+    processDeepLink('not a valid url at all');
 
-      // createAccountWindow called with account index 0 (catch fallback)
-      expect(createAccountWindow).toHaveBeenCalledWith(expect.any(String), 0);
-    });
+    // createAccountWindow called with account index 0 (catch fallback)
+    expect(createAccountWindow).toHaveBeenCalledWith(expect.any(String), 0);
   });
+});
 
-  describe('openInDefaultBrowser catch path', () => {
-    it('catches and logs when validateExternalURL throws', async () => {
-      // Reset module state so setupDeepLinkListener will re-register
-      vi.resetModules();
-      const mod = await import('./deepLinkHandler');
-      const { setupDeepLinkListener: setupFresh } = mod;
+describe('openInDefaultBrowser catch path', () => {
+  it('catches and logs when validateExternalURL throws', async () => {
+    // Reset module state so setupDeepLinkListener will re-register
+    vi.resetModules();
+    const mod = await import('./deepLinkHandler');
+    const { setupDeepLinkListener: setupFresh } = mod;
 
-      const validators = await import('../../shared/urlValidators.js');
-      const cleanup = await import('../utils/resourceCleanup');
+    const validators = await import('../../shared/urlValidators.js');
+    const cleanup = await import('../utils/resourceCleanup');
 
-      vi.mocked(validators.validateDeepLinkURL).mockImplementation((url: string) => url);
-      vi.mocked(validators.validateExternalURL).mockImplementation(() => {
-        throw new Error('Invalid external URL');
-      });
-
-      setupFresh();
-      const calls = vi.mocked(cleanup.addTrackedListener).mock.calls;
-      expect(calls.length).toBeGreaterThan(0);
-      const handler = calls[calls.length - 1][2] as (e: { preventDefault: () => void }, url: string) => void;
-
-      vi.mocked(log.error).mockClear();
-      handler({ preventDefault: vi.fn() }, 'https://malicious.example.com');
-
-      expect(log.error).toHaveBeenCalledWith(
-        '[DeepLink] Failed to open external URL:',
-        expect.any(Error)
-      );
+    vi.mocked(validators.validateDeepLinkURL).mockImplementation((url: string) => url);
+    vi.mocked(validators.validateExternalURL).mockImplementation(() => {
+      throw new Error('Invalid external URL');
     });
+
+    setupFresh();
+    const calls = vi.mocked(cleanup.addTrackedListener).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const handler = calls[calls.length - 1][2] as (
+      e: { preventDefault: () => void },
+      url: string
+    ) => void;
+
+    vi.mocked(log.error).mockClear();
+    handler({ preventDefault: vi.fn() }, 'https://malicious.example.com');
+
+    expect(log.error).toHaveBeenCalledWith(
+      '[DeepLink] Failed to open external URL:',
+      expect.any(Error)
+    );
   });
+});
 
-  describe('menu action registration', () => {
-    it('registers processDeepLink action with handler that invokes processDeepLink', async () => {
-      vi.mocked(validateDeepLinkURL).mockImplementation((url: string) => url);
-      vi.mocked(app.setAsDefaultProtocolClient).mockReturnValue(true);
+describe('menu action registration', () => {
+  it('registers processDeepLink action with handler that invokes processDeepLink', async () => {
+    vi.mocked(validateDeepLinkURL).mockImplementation((url: string) => url);
+    vi.mocked(app.setAsDefaultProtocolClient).mockReturnValue(true);
 
-      const { registerMenuAction } = await import('./menuActionRegistry');
-      vi.mocked(registerMenuAction).mockClear();
+    const { registerMenuAction } = await import('./menuActionRegistry');
+    vi.mocked(registerMenuAction).mockClear();
 
-      initDeepLinkHandler({});
+    initDeepLinkHandler({});
 
-      expect(registerMenuAction).toHaveBeenCalledWith(
-        'processDeepLink',
-        expect.objectContaining({
-          label: 'Process deep link',
-          handler: expect.any(Function),
-        })
-      );
+    expect(registerMenuAction).toHaveBeenCalledWith(
+      'processDeepLink',
+      expect.objectContaining({
+        label: 'Process deep link',
+        handler: expect.any(Function),
+      })
+    );
 
-      // Invoke the registered handler to cover the inline arrow body (line 162)
-      const callArgs = vi.mocked(registerMenuAction).mock.calls.find(
-        (c) => c[0] === 'processDeepLink'
-      );
-      expect(callArgs).toBeDefined();
-      const action = callArgs![1] as { handler: (url: string) => void };
+    // Invoke the registered handler to cover the inline arrow body (line 162)
+    const callArgs = vi
+      .mocked(registerMenuAction)
+      .mock.calls.find((c) => c[0] === 'processDeepLink');
+    expect(callArgs).toBeDefined();
+    const action = callArgs![1] as { handler: (url: string) => void };
 
-      // Set up window so processDeepLink reaches navigateToUrl
-      const fakeWindow = makeFakeWindow();
-      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as FakeWindow);
-      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as FakeWindow);
+    // Set up window so processDeepLink reaches navigateToUrl
+    const fakeWindow = makeFakeWindow();
+    vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as FakeWindow);
+    vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as FakeWindow);
 
-      action.handler('gogchat://chat.google.com/room/from-menu');
+    action.handler('gogchat://chat.google.com/room/from-menu');
 
-      expect(validateDeepLinkURL).toHaveBeenCalledWith('gogchat://chat.google.com/room/from-menu');
-      expect(fakeWindow.loadURL).toHaveBeenCalled();
+    expect(validateDeepLinkURL).toHaveBeenCalledWith('gogchat://chat.google.com/room/from-menu');
+    expect(fakeWindow.loadURL).toHaveBeenCalled();
+  });
+});
+
+describe('cleanupDeepLinkHandler catch path', () => {
+  it('catches and logs when log.debug throws', () => {
+    vi.mocked(log.debug).mockImplementationOnce(() => {
+      throw new Error('logger boom');
     });
+
+    cleanupDeepLinkHandler();
+
+    expect(log.error).toHaveBeenCalledWith('[DeepLink] Failed to cleanup:', expect.any(Error));
   });
-
-  describe('cleanupDeepLinkHandler catch path', () => {
-    it('catches and logs when log.debug throws', () => {
-      vi.mocked(log.debug).mockImplementationOnce(() => {
-        throw new Error('logger boom');
-      });
-
-      cleanupDeepLinkHandler();
-
-      expect(log.error).toHaveBeenCalledWith(
-        '[DeepLink] Failed to cleanup:',
-        expect.any(Error)
-      );
-    });
-  });
+});

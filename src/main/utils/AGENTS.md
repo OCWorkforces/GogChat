@@ -1,29 +1,29 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-29 · **Commit:** 8a8bf54
+**Generated:** 2026-04-29 · **Commit:** 846deba
 
-40 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
+40 utility modules (+1 new: `accountSessionMaintenance.ts`). All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
 ## MODULE INVENTORY
 
 | File | Lines | Purpose | Singleton |
 | --- | --- | --- | --- |
-| `featureManager.ts` | 458 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature` | `getFeatureManager()` |
-| `accountWindowManager.ts` | 242 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager` | `getAccountWindowManager()` |
-| `resourceCleanup.ts` | 372 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
+| `featureManager.ts` | 485 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature`; parallel phase-grouped cleanup (M2) | `getFeatureManager()` |
+| `accountWindowManager.ts` | 532 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager`; hydrate/dehydrate state machine (M3b) — idle windows dehydrated after 5min blur/hide, recreated on demand | `getAccountWindowManager()` |
+| `resourceCleanup.ts` | 308 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
 | `config.ts` (parent) | — | See `../config.ts` | — |
 | `performanceMonitor.ts` | 259 | Startup timing + memory snapshots | `getPerformanceMonitor()` |
-| `ipcHelper.ts` | 284 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param; optional deduplication via `withDeduplication` | `getIPCManager()` |
-| `ipcDeduplicator.ts` | 263 | Dedup rapid same-key requests; **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler` | `getDeduplicator()` |
+| `ipcHelper.ts` | 315 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param; optional deduplication via `withDeduplication` | `getIPCManager()` |
+| `ipcDeduplicator.ts` | 317 | Dedup rapid same-key requests; on-demand cleanup scheduling (M1); **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler` | `getDeduplicator()` |
 | `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
-| `iconCache.ts` | 223 | NativeImage preload cache | `getIconCache()` |
+| `iconCache.ts` | 220 | NativeImage preload cache; O(1) Map insertion-order LRU (T5+T8) | `getIconCache()` |
 | `bootstrapWatcher.ts` | 205 | Bootstrap window navigation watching | exported fns |
 | `rateLimiter.ts` | 199 | IPC DoS prevention | `getRateLimiter()` |
 | `configCache.ts` | 181 | In-memory layer for electron-store with O(1) LRU eviction | `addCacheLayer()` |
 | `configSchema.ts` | 159 | electron-store schema | exported const |
 | `platformUtils.ts` | 160 | Platform utilities singleton | `getPlatformUtils()` |
-| `cacheWarmer.ts` | 154 | Icon cache warm + deferred phase; `IDLE_WARM_DELAY_MS` = 8000ms; called in `setImmediate` (off critical path); includes tray unread icons | exported fns |
+| `cacheWarmer.ts` | 160 | Disjoint icon warmup sets (INITIAL_ICON_PATHS ∩ TRAY_ICON_PATHS = ∅); `IDLE_WARM_DELAY_MS` = 8000ms; called in `setImmediate`; DISJOINTNESS INVARIANT enforced by comment | exported fns |
 | `platformHelpers.ts` | 142 | macOS platform helpers (enforceLocation) | exported fns |
 | `performanceExport.ts` | 125 | Performance export/log helpers | exported fns |
 | `encryptionKey.ts` | 166 | SafeStorage encryption key mgmt; `getOrCreateEncryptionKey()` returns `EncryptionKeyResult { key, migrationPending }`; `needsMigration()` deprecated | exported fns + `EncryptionKeyResult` type |
@@ -33,15 +33,16 @@
 | `logger.ts` | 112 | Scoped structured logging | `logger.*` |
 | `featureSorter.ts` | 110 | Topological sort for feature deps | exported fns |
 | `configProfiler.ts` | 106 | Dev-only store perf profiler | — |
-| `featureConfigTypes.ts` | — | Canonical types: `FeaturePriority`, `FeatureContext`, `FeatureConfig`, `FeatureState` (extracted to break cycles) | exported types |
-| `performanceTypes.ts` | — | Canonical: `PERFORMANCE_TARGETS`, `MemorySnapshot`, `PerformanceMetrics`, `PerformanceMonitorReader` (extracted to break cycles) | exported types/const |
+| `featureConfigTypes.ts` | 91 | Canonical types: `FeaturePriority`, `FeatureContext`, `FeatureConfig`, `FeatureState` (extracted to break cycles) | exported types |
+| `performanceTypes.ts` | 68 | Canonical: `PERFORMANCE_TARGETS`, `MemorySnapshot`, `PerformanceMetrics`, `PerformanceMonitorReader` (extracted to break cycles) | exported types/const |
 | `permissionHandler.ts` | 98 | Chromium permission handlers | exported fns |
 | `benignLogFilter.ts` | 93 | Filter benign console messages | exported fns |
 | `packageInfo.ts` | 78 | package.json singleton | `getPackageInfo()` |
 | `cspHeaderHandler.ts` | 78 | Strip COEP/COOP for benign hosts | exported fns |
 | `bootstrapTracker.ts` | 74 | Tracks bootstrap window state | exported fns |
 | `ipcDeduplicationPatterns.ts` | 70 | `createDeduplicatedHandler`, `withDeduplication` | exported fns |
-| `accountRouter.ts` | 65 | Window creation + routing logic | exported fns |
+| `accountRouter.ts` | 100 | Window creation + routing logic | exported fns |
+| `accountSessionMaintenance.ts` | 161 | Periodic `clearCodeCaches()` on idle accounts (M3a); idle threshold = `clearCodeCaches` timer; registered in `registerGlobalCleanups.ts` | `getAccountActivityTracker()` / `destroyAccountActivityTracker()` |
 | `platformDetection.ts` | 53 | macOS detection (isMacOS, arch) | exported fns |
 | `errorUtils.ts` | 49 | Zero-dep error helpers (breaks cycles) | exported fns |
 | `ipcCommonValidators.ts` | 48 | Common IPC validation helpers | exported const |
@@ -62,13 +63,13 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 ## KEY PATTERNS
 
-**AccountWindowManager**: `createAccountWindow()` → `markAsBootstrap()` → `promoteBootstrap()` → `isBootstrap()`. Per-account partitions: `persist:account-N`. Implements 19-method `IAccountWindowManager` interface.
+**AccountWindowManager**: `createAccountWindow()` → `markAsBootstrap()` → `promoteBootstrap()` → `isBootstrap()`. Per-account partitions: `persist:account-N`. Implements 22-method `IAccountWindowManager` interface. T12/M3: `dehydrateAccount()` destroys idle (5 min blur/hide) windows to free webContents memory while preserving partition; `hydrateAccount()` recreates against same partition with bounds/maximized restore; `routeAccountWindow` auto-hydrates via `HydrationHook`. Bootstrap windows are excluded from dehydration.
 
 **Rate limiter**: `rateLimiter.isAllowed(IPC_CHANNELS.X, limit?)` — defaults from `RATE_LIMITS`.
 
 **IPC helper factories**: `createSecureIPCHandler()`, `createSecureReplyHandler()`, `createSecureInvokeHandler()` — all return cleanup fn. Channel param typed as `IPCChannelName`; `data` uses `NoInfer<T>` to prevent handler signature from widening the inferred type. Prefer over raw `ipcMain.on()`.
 
-**Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `setupWindowCleanup()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up.
+**Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up.
 
 **Feature creation**: `createFeature()` / `createLazyFeature()` from `featureManager`; types from `featureConfigTypes`.
 
@@ -103,7 +104,7 @@ Every tracked resource has exactly one scope. Cleanup must match the scope, not 
 
 **Window-scoped** (lifetime = single BrowserWindow)
 - Examples: `webContents` listeners, per-session `webRequest` handlers, navigation guards, window-tracked timeouts.
-- Cleanup: when that specific window emits `closed`, via `setupWindowCleanup()` / `addTrackedListener(window, ...)`.
+- Cleanup: when that specific window emits `closed`, via `addTrackedListener(window, ...)`.
 - Use the window as the cleanup key, not the account or process.
 
 **Account-scoped** (lifetime = account)

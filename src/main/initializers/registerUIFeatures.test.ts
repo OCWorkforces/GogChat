@@ -183,18 +183,13 @@ describe('registerUIFeatures', () => {
     });
   });
 
-
   it('should register features in correct order: userAgent, singleInstance, deepLinkHandler', () => {
     registerUIFeatures(mockFeatureManager);
 
     const features = vi.mocked(mockFeatureManager.registerAll).mock.calls[0]![0] as Array<{
       name: string;
     }>;
-    expect(features.map((f) => f.name)).toEqual([
-      'userAgent',
-      'singleInstance',
-      'deepLinkHandler',
-    ]);
+    expect(features.map((f) => f.name)).toEqual(['userAgent', 'singleInstance', 'deepLinkHandler']);
   });
 
   it('should assign correct phases to each feature', () => {

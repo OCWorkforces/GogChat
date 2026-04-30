@@ -29,7 +29,7 @@ const {
   mockCreateTrackedTimeout,
   mockCompareStorePerformance,
   mockSessionFromPartition,
-}  = vi.hoisted(() => ({
+} = vi.hoisted(() => ({
   mockAppWhenReady: vi.fn(),
   mockAppQuit: vi.fn(),
   mockAppGetPath: vi.fn().mockReturnValue('/tmp/user-data'),
@@ -101,7 +101,6 @@ vi.mock('../utils/accountWindowManager.js', () => ({
   getWindowForAccount: mockGetWindowForAccount,
   getMostRecentWindow: vi.fn(),
 }));
-
 
 vi.mock('../utils/configProfiler.js', () => ({
   compareStorePerformance: mockCompareStorePerformance,
@@ -834,14 +833,19 @@ describe('registerAppReady', () => {
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/normal/32.png');
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/normal/64.png');
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/normal/256.png');
+      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/offline/16.png');
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/offline/32.png');
-      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/offline/64.png');
+      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/badge/16.png');
       expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/badge/32.png');
-      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/tray/iconUnreadTemplate.png');
-      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith('resources/icons/tray/iconUnreadTemplate@2x.png');
+      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith(
+        'resources/icons/tray/iconUnreadTemplate.png'
+      );
+      expect(mockIconCacheInstance.getIcon).toHaveBeenCalledWith(
+        'resources/icons/tray/iconUnreadTemplate@2x.png'
+      );
 
       expect(mockLog.info).toHaveBeenCalledWith(
-        '[Main] Cache warming complete - 8/8 additional icons loaded'
+        '[Main] Cache warming complete - 9/9 additional icons loaded'
       );
       expect(mockIconCacheInstance.getStats).toHaveBeenCalled();
     });
@@ -940,9 +944,9 @@ describe('registerAppReady', () => {
       const timeoutCallback = mockCreateTrackedTimeout.mock.calls[0]![0] as () => void;
       timeoutCallback();
 
-      // 4 out of 8 icons should be non-empty (even call numbers)
+      // 5 out of 9 icons should be non-empty (odd call numbers: 1,3,5,7,9)
       expect(mockLog.info).toHaveBeenCalledWith(
-        '[Main] Cache warming complete - 4/8 additional icons loaded'
+        '[Main] Cache warming complete - 5/9 additional icons loaded'
       );
     });
   });
