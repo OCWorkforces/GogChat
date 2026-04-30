@@ -6,11 +6,8 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants.js';
-import {
-  validateUnreadCount,
-  validatePasskeyFailureData,
-  } from '../shared/dataValidators.js';
-  import { validateFaviconURL } from '../shared/urlValidators.js';
+import { validateUnreadCount, validatePasskeyFailureData } from '../shared/dataValidators.js';
+import { validateFaviconURL } from '../shared/urlValidators.js';
 import type { GogChatBridgeAPI } from '../shared/types/bridge.js';
 
 /**

@@ -230,7 +230,6 @@ describe('Encryption Key Module', () => {
       expect(result.key).toBeDefined();
       expect(result.key).toHaveLength(64);
       expect(result.migrationPending).toBe(false);
-
     });
   });
 });

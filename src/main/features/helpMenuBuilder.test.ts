@@ -151,11 +151,7 @@ describe('helpMenuBuilder', () => {
       const items = menu.submenu as MenuItemConstructorOptions[];
       const checkUpdates = items.find((i) => i.label === 'Check For Updates');
 
-      checkUpdates?.click?.(
-        {} as never,
-        undefined as never,
-        {} as never
-      );
+      checkUpdates?.click?.({} as never, undefined as never, {} as never);
       expect(checkForUpdates).toHaveBeenCalledWith({ silent: false });
     });
 
@@ -167,11 +163,7 @@ describe('helpMenuBuilder', () => {
       const sub = troubleshooting?.submenu as MenuItemConstructorOptions[];
       const reportIssue = sub.find((i) => i.label === 'Report issue...');
 
-      reportIssue?.click?.(
-        {} as never,
-        undefined as never,
-        {} as never
-      );
+      reportIssue?.click?.({} as never, undefined as never, {} as never);
       expect(openNewGitHubIssue).toHaveBeenCalledWith(
         expect.objectContaining({ repoUrl: 'https://github.com/test/repo' })
       );
@@ -185,11 +177,7 @@ describe('helpMenuBuilder', () => {
       const sub = troubleshooting?.submenu as MenuItemConstructorOptions[];
       const toggle = sub.find((i) => i.label === 'Toggle External Links Guard');
 
-      toggle?.click?.(
-        {} as never,
-        undefined as never,
-        {} as never
-      );
+      toggle?.click?.({} as never, undefined as never, {} as never);
       expect(mockToggleGuardHandler).toHaveBeenCalledWith(window);
     });
 
@@ -201,11 +189,7 @@ describe('helpMenuBuilder', () => {
       const sub = troubleshooting?.submenu as MenuItemConstructorOptions[];
       const demo = sub.find((i) => i.label === 'Demo Badge Count');
 
-      demo?.click?.(
-        {} as never,
-        undefined as never,
-        {} as never
-      );
+      demo?.click?.({} as never, undefined as never, {} as never);
       expect(app.setBadgeCount).toHaveBeenCalled();
     });
 
@@ -217,11 +201,7 @@ describe('helpMenuBuilder', () => {
       const sub = troubleshooting?.submenu as MenuItemConstructorOptions[];
       const showLogs = sub.find((i) => i.label === 'Show Logs in File Manager');
 
-      showLogs?.click?.(
-        {} as never,
-        undefined as never,
-        {} as never
-      );
+      showLogs?.click?.({} as never, undefined as never, {} as never);
       expect(shell.showItemInFolder).toHaveBeenCalled();
     });
 
@@ -231,11 +211,7 @@ describe('helpMenuBuilder', () => {
       const items = menu.submenu as MenuItemConstructorOptions[];
       const about = items.find((i) => i.label === 'About');
 
-      about?.click?.(
-        {} as never,
-        undefined as never,
-        {} as never
-      );
+      about?.click?.({} as never, undefined as never, {} as never);
       expect(mockAboutHandler).toHaveBeenCalledWith(window);
     });
 

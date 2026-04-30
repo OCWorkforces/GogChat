@@ -44,10 +44,7 @@ vi.mock('./searchShortcut.js', () => ({}));
 vi.mock('./unreadCount.js', () => ({}));
 
 import { contextBridge, ipcRenderer } from 'electron';
-import {
-  validateUnreadCount,
-  validatePasskeyFailureData,
-  } from '../shared/dataValidators.js';
+import { validateUnreadCount, validatePasskeyFailureData } from '../shared/dataValidators.js';
 import { validateFaviconURL } from '../shared/urlValidators.js';
 import type { GogChatBridgeAPI } from '../shared/types/bridge.js';
 

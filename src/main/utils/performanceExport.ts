@@ -11,10 +11,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
-import type {
-  PerformanceMetrics,
-  PerformanceMonitorReader,
-} from './performanceTypes.js';
+import type { PerformanceMetrics, PerformanceMonitorReader } from './performanceTypes.js';
 import { PERFORMANCE_TARGETS } from './performanceTypes.js';
 
 /**
@@ -122,4 +119,3 @@ export function logPerformanceSummary(monitor: PerformanceMonitorReader): void {
 
   log.info('[Performance] =======================================');
 }
-

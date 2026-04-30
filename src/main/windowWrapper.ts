@@ -1,6 +1,10 @@
 import path from 'path';
 import { app, BrowserWindow, Notification } from 'electron';
-import { getWindowDefaults, attachEventLogging, attachHealthMonitoring } from './utils/windowUtils.js';
+import {
+  getWindowDefaults,
+  attachEventLogging,
+  attachHealthMonitoring,
+} from './utils/windowUtils.js';
 import log from 'electron-log';
 import { getIconCache } from './utils/iconCache.js';
 import { installPermissionHandlers } from './utils/permissionHandler.js';

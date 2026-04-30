@@ -11,7 +11,6 @@ import { validateExternalURL } from '../../shared/urlValidators.js';
 import type { StoreType } from '../../shared/types/config.js';
 import { logger } from './logger.js';
 
-
 /**
  * Enforce macOS app location
  * Ensures the app is running from /Applications on macOS

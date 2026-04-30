@@ -97,7 +97,6 @@ const checkForInternet = async (window: BrowserWindow) => {
  * Setup IPC handlers for connectivity checks
  */
 export default (_window: BrowserWindow) => {
-
   // Add rate limiting to prevent connectivity check spam
   checkIfOnlineCleanup = createSecureIPCHandler({
     channel: IPC_CHANNELS.CHECK_IF_ONLINE,
