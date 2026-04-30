@@ -5,6 +5,8 @@
  * Extracted from ipcHelper.ts for focused module responsibility.
  */
 
+import { IPCError } from './errors.js';
+
 /**
  * Common validators that can be reused across IPC handlers
  */
@@ -12,7 +14,7 @@ export const commonValidators = {
   /** Validates that data is a non-null object */
   isObject: (data: unknown): Record<string, unknown> => {
     if (typeof data !== 'object' || data === null) {
-      throw new Error('Expected object');
+      throw new IPCError('Expected object', 'IPC_INVALID_PAYLOAD');
     }
     return data as Record<string, unknown>;
   },
@@ -20,7 +22,7 @@ export const commonValidators = {
   /** Validates that data is a string */
   isString: (data: unknown): string => {
     if (typeof data !== 'string') {
-      throw new Error('Expected string');
+      throw new IPCError('Expected string', 'IPC_INVALID_PAYLOAD');
     }
     return data;
   },
@@ -28,7 +30,7 @@ export const commonValidators = {
   /** Validates that data is a number */
   isNumber: (data: unknown): number => {
     if (typeof data !== 'number' || isNaN(data)) {
-      throw new Error('Expected valid number');
+      throw new IPCError('Expected valid number', 'IPC_INVALID_PAYLOAD');
     }
     return data;
   },
@@ -36,7 +38,7 @@ export const commonValidators = {
   /** Validates that data is a boolean */
   isBoolean: (data: unknown): boolean => {
     if (typeof data !== 'boolean') {
-      throw new Error('Expected boolean');
+      throw new IPCError('Expected boolean', 'IPC_INVALID_PAYLOAD');
     }
     return data;
   },

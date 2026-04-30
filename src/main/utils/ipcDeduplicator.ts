@@ -300,7 +300,7 @@ export function getDeduplicator(): IPCDeduplicator {
     globalDeduplicator = new IPCDeduplicator({
       windowMs: 100,
       maxCacheSize: 100,
-      debug: process.env.NODE_ENV === 'development',
+      debug: process.env['NODE_ENV'] === 'development',
     });
   }
   return globalDeduplicator;

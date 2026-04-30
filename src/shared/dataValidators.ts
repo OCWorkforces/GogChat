@@ -172,7 +172,7 @@ export function validateNotificationData(data: unknown): {
   }
 
   // Validate required fields
-  const title = validateString(data.title, 500);
+  const title = validateString(data['title'], 500);
 
   // Validate optional fields
   const result: {
@@ -186,17 +186,17 @@ export function validateNotificationData(data: unknown): {
     timestamp: Date.now(),
   };
 
-  if (data.body !== undefined && data.body !== null && data.body !== '') {
-    result.body = validateString(data.body, 5000);
+  if (data['body'] !== undefined && data['body'] !== null && data['body'] !== '') {
+    result.body = validateString(data['body'], 5000);
   }
 
-  if (data.icon !== undefined && data.icon !== null && data.icon !== '') {
+  if (data['icon'] !== undefined && data['icon'] !== null && data['icon'] !== '') {
     // Validate icon URL (can be data: URL for inline images)
-    result.icon = validateFaviconURL(data.icon);
+    result.icon = validateFaviconURL(data['icon']);
   }
 
-  if (data.tag !== undefined && data.tag !== null && data.tag !== '') {
-    result.tag = validateString(data.tag, 200);
+  if (data['tag'] !== undefined && data['tag'] !== null && data['tag'] !== '') {
+    result.tag = validateString(data['tag'], 200);
   }
 
   return result;

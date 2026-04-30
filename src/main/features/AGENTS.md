@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-29 (commit 846deba)
+**Generated:** 2026-04-30 (commit 315722d)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 

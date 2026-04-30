@@ -8,10 +8,7 @@ import type { IPCChannelName, IPC_CHANNELS } from '../constants.js';
 /**
  * IPC event handler type
  */
-export type IPCHandler<T = unknown> = (
-  event: Electron.IpcMainEvent,
-  data: T
-) => void | Promise<void>;
+export type IPCHandler<T> = (event: Electron.IpcMainEvent, data: T) => void | Promise<void>;
 
 /**
  * Validated IPC message wrapper
@@ -62,4 +59,25 @@ export interface IPCChannelPayloadMap {
   // main → renderer
   [IPC_CHANNELS.SEARCH_SHORTCUT]: void;
   [IPC_CHANNELS.ONLINE_STATUS]: boolean;
+}
+
+/**
+ * Maps each IPC channel to its expected response payload type.
+ * Complete request→response contract — every channel must be paired.
+ *
+ * All current channels are fire-and-forget (`void` response); this map
+ * establishes the pattern for future bidirectional channels.
+ *
+ * @example
+ *   type Response = IPCResponsePayloadMap[typeof IPC_CHANNELS.UNREAD_COUNT]; // void
+ */
+export interface IPCResponsePayloadMap {
+  [IPC_CHANNELS.UNREAD_COUNT]: void; // fire-and-forget
+  [IPC_CHANNELS.FAVICON_CHANGED]: void; // fire-and-forget
+  [IPC_CHANNELS.NOTIFICATION_SHOW]: void; // fire-and-forget
+  [IPC_CHANNELS.NOTIFICATION_CLICKED]: void; // fire-and-forget
+  [IPC_CHANNELS.CHECK_IF_ONLINE]: void; // fire-and-forget
+  [IPC_CHANNELS.PASSKEY_AUTH_FAILED]: void; // fire-and-forget
+  [IPC_CHANNELS.SEARCH_SHORTCUT]: void; // fire-and-forget
+  [IPC_CHANNELS.ONLINE_STATUS]: void; // fire-and-forget
 }

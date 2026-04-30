@@ -6,6 +6,7 @@ import { getPackageInfo } from './utils/packageInfo.js';
 import { getOrCreateEncryptionKey, completeMigration } from './utils/encryptionKey.js';
 
 import { schema, CACHE_VERSION } from './utils/configSchema.js';
+import { ConfigError } from './utils/errors.js';
 
 /**
  * Initialize encrypted store
@@ -76,7 +77,7 @@ export async function initializeStore(): Promise<Store<StoreType> | CachedStore<
    * Note: Disabled in test environment to preserve test spies
    */
   // Only enable cache layer if not in test environment
-  if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
+  if (process.env['NODE_ENV'] !== 'test' && process.env['VITEST'] !== 'true') {
     store = addCacheLayer(store);
   }
 
@@ -138,7 +139,10 @@ function validateAndUpdateCacheVersion(store: Store<StoreType> | CachedStore<Sto
  */
 export function getStore(): Store<StoreType> | CachedStore<StoreType> {
   if (!storeInstance) {
-    throw new Error('Store not initialized. Call initializeStore() before using the store.');
+    throw new ConfigError(
+      'Store not initialized. Call initializeStore() before using the store.',
+      'CONFIG_READ_FAILED'
+    );
   }
   return storeInstance;
 }

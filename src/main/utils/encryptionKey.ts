@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import log from 'electron-log';
+import { GogChatError } from './errors.js';
 
 /**
  * Check if a file exists (async equivalent of fs.existsSync)
@@ -90,12 +91,12 @@ async function handleSafeStorageKey(): Promise<EncryptionKeyResult> {
       const hexKey = safeStorage.decryptString(encrypted);
       log.info('[EncryptionKey] Retrieved encryption key from Keychain');
       return { key: hexKey, migrationPending: false };
-    } catch {
+    } catch (cause: unknown) {
       // Key file is stale (e.g., app identity changed). Remove it so
       // subsequent launches skip the decryption attempt entirely.
       await fs.unlink(keyFilePath).catch(() => {});
       log.info('[EncryptionKey] Removed stale key file');
-      throw new Error('SafeStorage decryption failed');
+      throw new GogChatError('SafeStorage decryption failed', 'ENCRYPTION_FAILED', { cause });
     }
   }
 

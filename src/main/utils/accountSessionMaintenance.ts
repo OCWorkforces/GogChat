@@ -14,6 +14,7 @@
 import { session } from 'electron';
 import log from 'electron-log';
 import { createTrackedInterval } from './resourceCleanup.js';
+import { toErrorMessage } from './errorUtils.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
 
 /** Tick interval for the maintenance scheduler (5 minutes). */
@@ -110,9 +111,9 @@ export function startSessionMaintenance(
           log.debug(
             `[AccountSessionMaintenance] Cleared code cache for idle account ${accountIndex}`
           );
-        } catch (error) {
+        } catch (error: unknown) {
           log.debug(
-            `[AccountSessionMaintenance] clearCodeCaches failed for account ${accountIndex}:`,
+            `[AccountSessionMaintenance] clearCodeCaches failed for account ${accountIndex}: ${toErrorMessage(error)}`,
             error
           );
         }
