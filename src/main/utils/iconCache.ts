@@ -2,13 +2,31 @@
  * Icon Cache Manager
  * Centralizes icon loading and caching to reduce file I/O operations
  * and improve startup performance
- * ⚡ OPTIMIZATION: Now includes LRU (Least Recently Used) eviction policy
+ * ⚡ OPTIMIZATION: Insertion-order LRU eviction matching configCache.ts pattern.
+ *
+ * DISJOINTNESS INVARIANT: INITIAL_ICON_PATHS (warmed during critical path) and
+ * ADDITIONAL_ICON_PATHS in cacheWarmer.ts (warmed at 8s idle) MUST be disjoint
+ * complements covering all preloaded icons exactly once. Do not duplicate paths
+ * across these two sets — adding to one requires removing from the other.
  */
 
 import type { NativeImage } from 'electron';
 import { app, nativeImage } from 'electron';
 import path from 'path';
 import log from 'electron-log';
+
+/**
+ * Icons preloaded synchronously on the critical path (before UI phase).
+ * Kept minimal: only icons required for first paint.
+ *
+ * INVARIANT: Must be disjoint from ADDITIONAL_ICON_PATHS in cacheWarmer.ts.
+ * Together they form the complete preload set — no overlap, no gaps.
+ */
+export const INITIAL_ICON_PATHS = [
+  'resources/icons/tray/iconTemplate.png', // Tray icon (light/dark mode)
+  'resources/icons/tray/iconTemplate@2x.png', // Tray icon Retina
+  'resources/icons/normal/16.png', // Favicon size
+] as const;
 
 /**
  * LRU Cache entry with access tracking
@@ -20,8 +38,12 @@ interface CacheEntry {
 }
 
 /**
- * Manages icon loading and caching with LRU eviction
- * Uses singleton pattern to ensure single cache instance across app lifecycle
+ * Manages icon loading and caching with insertion-order LRU eviction.
+ * Uses singleton pattern to ensure single cache instance across app lifecycle.
+ *
+ * Eviction policy: Map insertion order — oldest inserted entry evicted first.
+ * On cache hit, the entry is re-inserted to move it to the most-recent position
+ * (matching the canonical pattern in configCache.ts).
  */
 class IconCacheManager {
   private cache: Map<string, CacheEntry> = new Map();
@@ -29,7 +51,7 @@ class IconCacheManager {
 
   /**
    * Get icon from cache or load and cache it
-   * ⚡ OPTIMIZATION: Now implements LRU cache with size limit
+   * ⚡ OPTIMIZATION: Insertion-order LRU — on hit, delete+reinsert to refresh recency.
    * @param relativePath - Path relative to app root (e.g., 'resources/icons/normal/256.png')
    * @returns NativeImage instance (may be empty if load failed)
    */
@@ -40,6 +62,9 @@ class IconCacheManager {
       // Update access statistics
       cached.accessCount++;
       cached.lastAccessed = Date.now();
+      // LRU: move to end (most recently used) by re-inserting
+      this.cache.delete(relativePath);
+      this.cache.set(relativePath, cached);
       log.debug(`[IconCache] Cache hit: ${relativePath} (access count: ${cached.accessCount})`);
       return cached.icon;
     }
@@ -55,9 +80,18 @@ class IconCacheManager {
     if (icon.isEmpty()) {
       log.error(`[IconCache] Failed to load icon: ${relativePath}`);
     } else {
-      // Check if cache is full and evict LRU entry if needed
+      // Check if cache is full and evict oldest (insertion-order) entry if needed
       if (this.cache.size >= this.maxCacheSize) {
-        this.evictLRU();
+        // Insertion-order eviction: Map preserves insertion order, so first key is oldest.
+        // Mirrors the canonical pattern in configCache.ts:96-102.
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey !== undefined) {
+          const evicted = this.cache.get(oldestKey);
+          this.cache.delete(oldestKey);
+          log.debug(
+            `[IconCache] Evicted oldest entry: ${oldestKey} (access count: ${evicted?.accessCount})`
+          );
+        }
       }
 
       // Add to cache with access tracking
@@ -76,31 +110,6 @@ class IconCacheManager {
   }
 
   /**
-   * Evict least recently used entry from cache
-   * @private
-   */
-  private evictLRU(): void {
-    let lruKey: string | null = null;
-    let oldestTime = Date.now();
-
-    // Find the least recently used entry
-    for (const [key, entry] of this.cache.entries()) {
-      if (entry.lastAccessed < oldestTime) {
-        oldestTime = entry.lastAccessed;
-        lruKey = key;
-      }
-    }
-
-    if (lruKey) {
-      const evicted = this.cache.get(lruKey);
-      this.cache.delete(lruKey);
-      log.debug(
-        `[IconCache] Evicted LRU entry: ${lruKey} (access count: ${evicted?.accessCount}, last accessed: ${new Date(oldestTime).toISOString()})`
-      );
-    }
-  }
-
-  /**
    * Pre-load commonly used icons at startup
    * This reduces latency when icons are needed during app initialization
    * @returns Number of icons successfully loaded
@@ -108,27 +117,15 @@ class IconCacheManager {
   warmCache(): number {
     log.debug('[IconCache] Warming icon cache...');
 
-    const commonIcons = [
-      'resources/icons/normal/256.png', // Main window icon
-      'resources/icons/normal/64.png', // About panel icon
-      'resources/icons/normal/16.png', // Favicon size
-      'resources/icons/normal/32.png', // Favicon size
-      'resources/icons/offline/16.png', // Offline indicator (macOS)
-      'resources/icons/offline/32.png', // Offline indicator
-      'resources/icons/badge/16.png', // Badge overlay icon
-      'resources/icons/tray/iconTemplate.png', // Tray icon (light/dark mode)
-      'resources/icons/tray/iconTemplate@2x.png', // Tray icon Retina
-    ];
-
     let loaded = 0;
-    commonIcons.forEach((iconPath) => {
+    INITIAL_ICON_PATHS.forEach((iconPath) => {
       const icon = this.getIcon(iconPath);
       if (!icon.isEmpty()) {
         loaded++;
       }
     });
 
-    log.info(`[IconCache] Warmed cache with ${loaded}/${commonIcons.length} icons`);
+    log.info(`[IconCache] Warmed cache with ${loaded}/${INITIAL_ICON_PATHS.length} icons`);
     return loaded;
   }
 

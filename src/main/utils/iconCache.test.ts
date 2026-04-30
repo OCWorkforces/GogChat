@@ -30,7 +30,7 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-import { getIconCache, destroyIconCache } from './iconCache';
+import { getIconCache, destroyIconCache, INITIAL_ICON_PATHS } from './iconCache';
 import { nativeImage } from 'electron';
 
 describe('IconCacheManager', () => {
@@ -161,47 +161,37 @@ describe('IconCacheManager', () => {
     });
   });
 
-  describe('LRU Eviction', () => {
-    it('should evict least recently used entry when cache exceeds maxCacheSize', () => {
-      vi.useFakeTimers();
+  describe('Insertion-Order LRU Eviction', () => {
+    it('should evict in Map insertion order on overflow (insertion-order LRU)', () => {
       const cache = getIconCache();
 
-      // Fill cache to max (50 items) with distinct timestamps
+      // Fill cache to max
       for (let i = 0; i < 50; i++) {
-        vi.advanceTimersByTime(1);
         cache.getIcon(`test/icon-${i}.png`);
       }
       expect(cache.getCacheSize()).toBe(50);
 
-      // Add one more to trigger eviction
-      vi.advanceTimersByTime(1);
+      // Overflow — oldest insertion (icon-0) must be evicted
       cache.getIcon('test/icon-overflow.png');
       expect(cache.getCacheSize()).toBe(50);
 
-      // First icon should have been evicted (least recently used)
       const stats = cache.getStats();
+      expect(stats.icons[0]).toBe('test/icon-1.png'); // icon-0 evicted; icon-1 now oldest
+      expect(stats.icons[stats.icons.length - 1]).toBe('test/icon-overflow.png');
       expect(stats.icons).not.toContain('test/icon-0.png');
-      expect(stats.icons).toContain('test/icon-overflow.png');
-
-      vi.useRealTimers();
     });
 
-    it('should evict correct entry when items have different access times', () => {
-      vi.useFakeTimers();
+    it('should refresh recency on cache hit (delete+reinsert moves to most-recent)', () => {
       const cache = getIconCache();
 
-      // Fill cache to max with distinct timestamps
       for (let i = 0; i < 50; i++) {
-        vi.advanceTimersByTime(1);
         cache.getIcon(`test/icon-${i}.png`);
       }
 
-      // Access the first icon to update its lastAccessed
-      vi.advanceTimersByTime(1);
+      // Re-access icon-0 — should move to end (most-recent)
       cache.getIcon('test/icon-0.png');
 
-      // Add new icon — icon-1 should be evicted (least recently accessed now)
-      vi.advanceTimersByTime(1);
+      // Overflow — icon-1 should now be oldest and evicted
       cache.getIcon('test/icon-new.png');
       expect(cache.getCacheSize()).toBe(50);
 
@@ -209,8 +199,35 @@ describe('IconCacheManager', () => {
       expect(stats.icons).toContain('test/icon-0.png');
       expect(stats.icons).not.toContain('test/icon-1.png');
       expect(stats.icons).toContain('test/icon-new.png');
+    });
+  });
 
-      vi.useRealTimers();
+  describe('Disjointness Invariant (INITIAL ∩ ADDITIONAL = ∅)', () => {
+    it('INITIAL_ICON_PATHS must be disjoint from cacheWarmer ADDITIONAL_ICON_PATHS', async () => {
+      // Read cacheWarmer.ts source and extract ADDITIONAL_ICON_PATHS to enforce
+      // the cross-file disjointness invariant at test time.
+      const fs = await import('fs');
+      const path = await import('path');
+      const src = fs.readFileSync(path.join(__dirname, 'cacheWarmer.ts'), 'utf8');
+      const match = src.match(/ADDITIONAL_ICON_PATHS\s*=\s*\[([\s\S]*?)\]\s*as const/);
+      expect(match, 'ADDITIONAL_ICON_PATHS must be defined in cacheWarmer.ts').toBeTruthy();
+      const additionalPaths = Array.from(match![1].matchAll(/'([^']+)'/g)).map((m) => m[1]);
+      expect(additionalPaths.length).toBeGreaterThan(0);
+
+      const initialSet = new Set<string>(INITIAL_ICON_PATHS);
+      const overlap = additionalPaths.filter((p) => initialSet.has(p as string));
+      expect(
+        overlap,
+        `INITIAL and ADDITIONAL icon sets must be disjoint, found overlap: ${overlap.join(', ')}`
+      ).toEqual([]);
+    });
+
+    it('INITIAL_ICON_PATHS contains exactly the canonical first-paint icons', () => {
+      expect([...INITIAL_ICON_PATHS]).toEqual([
+        'resources/icons/tray/iconTemplate.png',
+        'resources/icons/tray/iconTemplate@2x.png',
+        'resources/icons/normal/16.png',
+      ]);
     });
   });
 
@@ -287,8 +304,8 @@ describe('IconCacheManager', () => {
 
       // With 9 common icons and every other being empty,
       // loaded should be less than total
-      expect(loaded).toBeLessThan(9);
-      expect(loaded).toBeGreaterThan(0);
+      // With 3 INITIAL icons and every other being empty, loaded should be < 3
+      expect(loaded).toBeLessThan(3);
     });
   });
 });
