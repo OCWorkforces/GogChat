@@ -590,6 +590,307 @@ describe('certificatePinning feature', () => {
       cleanupCertificatePinning();
       expect(() => cleanupCertificatePinning()).not.toThrow();
     });
+
+    it('clears the validation cache on cleanup', async () => {
+      const { default: setupCertificatePinning, cleanupCertificatePinning } =
+        await import('./certificatePinning.js');
+
+      setupCertificatePinning();
+
+      const appOnMock = (await import('electron')).app.on as ReturnType<typeof vi.fn>;
+      const handler = appOnMock.mock.calls.find(
+        (call: unknown[]) => (call[0] as string) === 'certificate-error'
+      )?.[1] as (
+        event: Electron.Event,
+        webContents: Electron.WebContents,
+        url: string,
+        error: string,
+        certificate: Electron.Certificate,
+        callback: (isTrusted: boolean) => void
+      ) => void;
+
+      const mockCert = {
+        issuerName: 'Google Trust Services LLC',
+        fingerprint: 'sha256/AAAA',
+        validStart: Date.now() / 1000 - 86400,
+        validExpiry: Date.now() / 1000 + 86400 * 30,
+      } as Electron.Certificate;
+
+      // Prime the cache
+      const cb1 = vi.fn();
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        mockCert,
+        cb1
+      );
+      expect(cb1).toHaveBeenCalledWith(true);
+
+      // Cleanup should clear cache (we can't directly observe, but it should not throw
+      // and re-setup should re-validate from scratch — covered by listener removal)
+      cleanupCertificatePinning();
+    });
+  });
+
+  // ── Validation cache ────────────────────────────────────────────────────────
+
+  describe('validation cache', () => {
+    type CertHandler = (
+      event: Electron.Event,
+      webContents: Electron.WebContents,
+      url: string,
+      error: string,
+      certificate: Electron.Certificate,
+      callback: (isTrusted: boolean) => void
+    ) => void;
+
+    async function getHandler(): Promise<CertHandler> {
+      const appOnMock = (await import('electron')).app.on as ReturnType<typeof vi.fn>;
+      const handler = appOnMock.mock.calls.find(
+        (call: unknown[]) => (call[0] as string) === 'certificate-error'
+      )?.[1] as CertHandler;
+      return handler;
+    }
+
+    function makeCert(
+      fingerprint: string,
+      issuerName = 'Google Trust Services LLC'
+    ): Electron.Certificate {
+      return {
+        issuerName,
+        fingerprint,
+        validStart: Date.now() / 1000 - 86400,
+        validExpiry: Date.now() / 1000 + 86400 * 30,
+      } as Electron.Certificate;
+    }
+
+    it('caches validation result by hostname+fingerprint (3 calls → 1 validation)', async () => {
+      const log = (await import('electron-log')).default as unknown as {
+        info: ReturnType<typeof vi.fn>;
+      };
+      const { default: setupCertificatePinning } = await import('./certificatePinning.js');
+      setupCertificatePinning();
+      const handler = await getHandler();
+
+      const cert = makeCert('sha256/CACHE_HIT');
+      const cb = vi.fn();
+
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        cert,
+        cb
+      );
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        cert,
+        cb
+      );
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        cert,
+        cb
+      );
+
+      expect(cb).toHaveBeenCalledTimes(3);
+      expect(cb).toHaveBeenNthCalledWith(1, true);
+      expect(cb).toHaveBeenNthCalledWith(2, true);
+      expect(cb).toHaveBeenNthCalledWith(3, true);
+
+      // "Validating certificate for: ..." should appear exactly once (subsequent are cache hits)
+      const validatingCalls = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      );
+      expect(validatingCalls).toHaveLength(1);
+    });
+
+    it('different fingerprint → new validation entry (fingerprint required in key)', async () => {
+      const log = (await import('electron-log')).default as unknown as {
+        info: ReturnType<typeof vi.fn>;
+      };
+      const { default: setupCertificatePinning } = await import('./certificatePinning.js');
+      setupCertificatePinning();
+      const handler = await getHandler();
+
+      const certA = makeCert('sha256/AAAA');
+      const certB = makeCert('sha256/BBBB');
+      const cb = vi.fn();
+
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        certA,
+        cb
+      );
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        certB,
+        cb
+      );
+
+      const validatingCalls = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      );
+      expect(validatingCalls).toHaveLength(2);
+    });
+
+    it('cached false result is preserved (does not re-validate to true)', async () => {
+      const { default: setupCertificatePinning } = await import('./certificatePinning.js');
+      setupCertificatePinning();
+      const handler = await getHandler();
+
+      // First call: untrusted issuer → false
+      const badCert = makeCert('sha256/BAD', 'Unknown CA');
+      const cb1 = vi.fn();
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        badCert,
+        cb1
+      );
+      expect(cb1).toHaveBeenCalledWith(false);
+
+      // Second call with the SAME hostname+fingerprint: must still return cached false
+      const cb2 = vi.fn();
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        badCert,
+        cb2
+      );
+      expect(cb2).toHaveBeenCalledWith(false);
+    });
+
+    it('evicts oldest entry when exceeding 100 entries (Map insertion order)', async () => {
+      const log = (await import('electron-log')).default as unknown as {
+        info: ReturnType<typeof vi.fn>;
+      };
+      const { default: setupCertificatePinning } = await import('./certificatePinning.js');
+      setupCertificatePinning();
+      const handler = await getHandler();
+
+      const cb = vi.fn();
+
+      // Fill cache with 100 entries (entries 0..99)
+      for (let i = 0; i < 100; i++) {
+        handler(
+          makeMockEvent(),
+          {} as Electron.WebContents,
+          'https://chat.google.com/',
+          'e',
+          makeCert(`sha256/FP${i}`),
+          cb
+        );
+      }
+
+      const validatingAfter100 = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      ).length;
+      expect(validatingAfter100).toBe(100);
+
+      // Insert 101st entry → should evict the oldest (FP0)
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        makeCert('sha256/FP100'),
+        cb
+      );
+
+      // Re-request the OLDEST (FP0) — it must have been evicted, so a new validation runs
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        makeCert('sha256/FP0'),
+        cb
+      );
+
+      const validatingFinal = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      ).length;
+      // 100 (initial) + 1 (FP100) + 1 (FP0 re-validated after eviction) = 102
+      expect(validatingFinal).toBe(102);
+
+      // Re-request a still-cached entry (e.g. FP50) — should be a cache hit (no new validation log)
+      handler(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        makeCert('sha256/FP50'),
+        cb
+      );
+      const validatingAfterHit = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      ).length;
+      expect(validatingAfterHit).toBe(102); // unchanged → cache hit
+    });
+
+    it('cleanup clears the cache (re-setup re-validates same key)', async () => {
+      const log = (await import('electron-log')).default as unknown as {
+        info: ReturnType<typeof vi.fn>;
+      };
+      const { default: setupCertificatePinning, cleanupCertificatePinning } =
+        await import('./certificatePinning.js');
+      setupCertificatePinning();
+      const handler1 = await getHandler();
+
+      const cert = makeCert('sha256/PERSIST');
+      const cb = vi.fn();
+      handler1(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        cert,
+        cb
+      );
+
+      const validatingBefore = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      ).length;
+      expect(validatingBefore).toBe(1);
+
+      // Cleanup must clear cache. Re-setup and re-call: should re-validate (not hit stale cache).
+      cleanupCertificatePinning();
+      setupCertificatePinning();
+      const handler2 = await getHandler();
+      handler2(
+        makeMockEvent(),
+        {} as Electron.WebContents,
+        'https://chat.google.com/',
+        'e',
+        cert,
+        cb
+      );
+
+      const validatingAfter = log.info.mock.calls.filter((args) =>
+        String(args[0]).startsWith('[CertPinning] Validating certificate for:')
+      ).length;
+      expect(validatingAfter).toBe(2);
+    });
   });
 
   // ── Event.preventDefault ─────────────────────────────────────────────────────
