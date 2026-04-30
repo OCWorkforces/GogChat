@@ -19,11 +19,24 @@ export interface IPCHandlerConfig<T> {
   silent?: boolean;
   description?: string;
   /**
-   * When true, the handler body is wrapped with the IPC deduplicator so that
-   * rapid successive invocations on the same channel within the dedup window
-   * (default 100ms) share a single execution. Defaults to false.
+   * When true, the handler body is wrapped with the IPC deduplicator using the
+   * channel name as the dedup key (default 100ms window). Defaults to false.
+   *
+   * Prefer `withDeduplication` for fine-grained, payload-aware key generation.
    */
   deduplicate?: boolean;
+  /**
+   * Fine-grained deduplication: provide a key function that receives the
+   * validated payload and returns a string key, plus the dedup window in ms.
+   * Wraps the handler body with the IPC deduplicator after rate-limit and
+   * validation, so the rate-limit → validate → dedup → handle → catch chain
+   * is preserved. Mutually exclusive with `deduplicate`; if both are set,
+   * `withDeduplication` wins.
+   */
+  withDeduplication?: {
+    keyFn: (channel: IPCChannelName, validated: NoInfer<T>) => string;
+    windowMs: number;
+  };
 }
 
 /** Configuration for creating a reply-based IPC handler */
@@ -38,14 +51,21 @@ export interface IPCInvokeHandlerConfig<T, R> extends Omit<IPCHandlerConfig<T>, 
 }
 
 /** Common config fields shared by all secure handler types */
-type BaseSecureConfig = Pick<
-  IPCHandlerConfig<unknown>,
-  'channel' | 'validator' | 'rateLimit' | 'onError' | 'silent' | 'description' | 'deduplicate'
+type BaseSecureConfig<T> = Pick<
+  IPCHandlerConfig<T>,
+  | 'channel'
+  | 'validator'
+  | 'rateLimit'
+  | 'onError'
+  | 'silent'
+  | 'description'
+  | 'deduplicate'
+  | 'withDeduplication'
 >;
 
 /** Internal base handler: rate-limit → validate → log → execute → catch */
 async function executeSecureHandler<T, R>(
-  config: BaseSecureConfig,
+  config: BaseSecureConfig<T>,
   data: unknown,
   event: IpcMainEvent | IpcMainInvokeEvent,
   execute: (validated: T) => R | Promise<R>,
@@ -65,6 +85,7 @@ async function executeSecureHandler<T, R>(
     silent = false,
     description,
     deduplicate = false,
+    withDeduplication,
   } = config;
   const rateLimiter = getRateLimiter();
   const log = logger.ipc;
@@ -78,14 +99,24 @@ async function executeSecureHandler<T, R>(
       return undefined;
     }
 
-    const validated = validator(data) as T;
+    const validated = validator(data);
 
     if (!silent) {
       log.debug(`${options.debugLabel}${channel}${description ? ` (${description})` : ''}`);
     }
 
+    if (withDeduplication) {
+      const key = withDeduplication.keyFn(channel, validated);
+      return await getDeduplicator().deduplicate(
+        key,
+        () => Promise.resolve(execute(validated)),
+        withDeduplication.windowMs
+      );
+    }
     if (deduplicate) {
-      return await getDeduplicator().deduplicate(channel, () => Promise.resolve(execute(validated)));
+      return await getDeduplicator().deduplicate(channel, () =>
+        Promise.resolve(execute(validated))
+      );
     }
     return await execute(validated);
   } catch (error: unknown) {

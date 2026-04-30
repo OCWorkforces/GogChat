@@ -13,16 +13,10 @@
 import { app } from 'electron';
 import type { BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
-import {
-  FAVICON_PATTERNS,
-  ICON_TYPES,
-  IPC_CHANNELS,
-  } from '../../shared/constants.js';
+import { FAVICON_PATTERNS, ICON_TYPES, IPC_CHANNELS, RATE_LIMITS } from '../../shared/constants.js';
 import type { IconType } from '../../shared/types/domain.js';
-import { toErrorMessage } from '../utils/errorUtils.js';
 import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import { getRateLimiter } from '../utils/rateLimiter.js';
-import { getDeduplicator } from '../utils/ipcDeduplicator.js';
+import { deduplicationPatterns } from '../utils/ipcDeduplicationPatterns.js';
 import { validateFaviconURL } from '../../shared/urlValidators.js';
 import { validateUnreadCount } from '../../shared/dataValidators.js';
 import { getIconCache } from '../utils/iconCache.js';
@@ -61,94 +55,63 @@ export interface BadgeHandlerCleanups {
  * Register the FAVICON_CHANGED + UNREAD_COUNT IPC handlers.
  * Returns cleanup callbacks for each.
  */
-export function setupBadgeHandlers(
-  window: BrowserWindow,
-  trayIcon: Tray
-): BadgeHandlerCleanups {
-  const rateLimiter = getRateLimiter();
-  const deduplicator = getDeduplicator();
-
+export function setupBadgeHandlers(window: BrowserWindow, trayIcon: Tray): BadgeHandlerCleanups {
   // Track current tray icon type to avoid redundant updates
   let currentTrayIconType: IconType = ICON_TYPES.OFFLINE;
 
-  // ⚡ OPTIMIZATION: Deduplicated favicon handler to prevent redundant updates
-  // Validate favicon URL and check rate limit
+  // ⚡ OPTIMIZATION: payload-aware deduplication via createSecureIPCHandler.
+  // Rapid identical favicon changes (e.g., during page load) collapse to one execution.
   const faviconCleanup = createSecureIPCHandler({
     channel: IPC_CHANNELS.FAVICON_CHANGED,
     validator: validateFaviconURL,
+    rateLimit: RATE_LIMITS.IPC_FAVICON,
     description: 'Badge favicon changed',
+    withDeduplication: {
+      keyFn: (channel, validatedHref) =>
+        deduplicationPatterns.byChannelAndFirstArg(channel, validatedHref),
+      windowMs: 150,
+    },
     handler: (validatedHref) => {
-      // Deduplicate rapid favicon changes (e.g., during page load)
-      void deduplicator.deduplicate(
-        `${IPC_CHANNELS.FAVICON_CHANGED}:${validatedHref}`,
-        async () => {
-          try {
-            if (!rateLimiter.isAllowed(IPC_CHANNELS.FAVICON_CHANGED)) {
-              log.warn('[BadgeIcon] Favicon change rate limited');
-              return;
-            }
+      // Determine icon type
+      const type = decideIcon(validatedHref);
 
-            // Determine icon type
-            const type = decideIcon(validatedHref);
+      // macOS: Update tray icon to reflect unread state in addition to dock badge
+      setTrayUnread(type === ICON_TYPES.BADGE);
 
-            // macOS: Update tray icon to reflect unread state in addition to dock badge
-            setTrayUnread(type === ICON_TYPES.BADGE);
-
-            // Non-darwin: also swap tray image to the icon-type variant
-            if (process.platform !== 'darwin') {
-              if (type !== currentTrayIconType) {
-                currentTrayIconType = type;
-                const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
-                trayIcon.setImage(icon);
-                log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
-              } else {
-                log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
-              }
-            }
-          } catch (error: unknown) {
-            log.error('[BadgeIcon] Failed to process favicon change:', toErrorMessage(error));
-          }
-          // Return void to satisfy async function requirement
-          return Promise.resolve();
-        },
-        150 // 150ms deduplication window
-      );
+      // Non-darwin: also swap tray image to the icon-type variant
+      if (process.platform !== 'darwin') {
+        if (type !== currentTrayIconType) {
+          currentTrayIconType = type;
+          const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);
+          trayIcon.setImage(icon);
+          log.debug(`[BadgeIcon] Tray icon updated to type: ${type}`);
+        } else {
+          log.debug(`[BadgeIcon] Tray icon type unchanged (${type}), skipping update`);
+        }
+      }
     },
   });
 
-  // ⚡ OPTIMIZATION: Deduplicated unread count handler
-  // Validate unread count and check rate limit
-  // Uses cached badge icons for Windows
+  // ⚡ OPTIMIZATION: payload-aware deduplication via createSecureIPCHandler.
+  // Rapid identical unread-count updates (e.g., burst of incoming messages) collapse to one.
   const unreadCleanup = createSecureIPCHandler({
     channel: IPC_CHANNELS.UNREAD_COUNT,
     validator: validateUnreadCount,
+    rateLimit: RATE_LIMITS.IPC_UNREAD_COUNT,
     description: 'Badge unread count updated',
+    withDeduplication: {
+      keyFn: (channel, validatedCount) =>
+        deduplicationPatterns.byChannelAndFirstArg(channel, validatedCount),
+      windowMs: 100,
+    },
     handler: (validatedCount) => {
-      // Deduplicate rapid count changes (e.g., multiple messages arriving at once)
-      void deduplicator.deduplicate(
-        `${IPC_CHANNELS.UNREAD_COUNT}:${validatedCount}`,
-        async () => {
-          try {
-            if (!rateLimiter.isAllowed(IPC_CHANNELS.UNREAD_COUNT)) {
-              log.warn('[BadgeIcon] Unread count rate limited');
-              return;
-            }
+      // Update badge icon (platform-specific)
+      updateBadgeIcon(window, validatedCount);
 
-            // Update badge icon (platform-specific)
-            updateBadgeIcon(window, validatedCount);
+      // Update tray icon to reflect unread state
+      setTrayUnread(validatedCount > 0);
 
-            // Update tray icon to reflect unread state
-            setTrayUnread(validatedCount > 0);
-
-            log.debug(`[BadgeIcon] Unread count updated: ${validatedCount}`);
-          } catch (error: unknown) {
-            log.error('[BadgeIcon] Failed to update unread count:', toErrorMessage(error));
-          }
-          // Return void to satisfy async function requirement
-          return Promise.resolve();
-        },
-        100 // 100ms deduplication window
-      );
+      log.debug(`[BadgeIcon] Unread count updated: ${validatedCount}`);
     },
   });
 

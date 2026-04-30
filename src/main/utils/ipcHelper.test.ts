@@ -57,7 +57,7 @@ vi.mock('./logger.js', () => ({
 }));
 
 // Mock ipcDeduplicator
-const mockDeduplicate = vi.fn(<T,>(_key: string, fn: () => Promise<T>) => fn());
+const mockDeduplicate = vi.fn(<T>(_key: string, fn: () => Promise<T>) => fn());
 vi.mock('./ipcDeduplicator.js', () => ({
   getDeduplicator: () => ({
     deduplicate: mockDeduplicate,
@@ -1558,6 +1558,119 @@ describe('ipcHelper', () => {
       expect(mockDeduplicate).not.toHaveBeenCalled();
       expect(handler).not.toHaveBeenCalled();
       mockIsAllowed.mockReturnValue(true);
+      cleanup();
+    });
+  });
+
+  describe('createSecureIPCHandler with withDeduplication', () => {
+    beforeEach(() => {
+      // Reset to default impl: invoke fn() so handlers run.
+      mockDeduplicate.mockImplementation(<T>(_key: string, fn: () => Promise<T>) => fn());
+    });
+
+    it('routes through deduplicator using keyFn(channel, validated) and forwards windowMs', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      const keyFn = vi.fn((channel: string, validated: string) => `${channel}:${validated}`);
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'with-dedup-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        withDeduplication: { keyFn, windowMs: 250 },
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'payload-A');
+      await new Promise((r) => setImmediate(r));
+
+      expect(keyFn).toHaveBeenCalledWith('with-dedup-channel', 'payload-A');
+      expect(mockDeduplicate).toHaveBeenCalledWith(
+        'with-dedup-channel:payload-A',
+        expect.any(Function),
+        250
+      );
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
+
+    it('withDeduplication wins over deduplicate when both are set', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'precedence-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        deduplicate: true,
+        withDeduplication: {
+          keyFn: (channel, validated) => `${channel}!${validated}`,
+          windowMs: 75,
+        },
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'X');
+      await new Promise((r) => setImmediate(r));
+
+      // Only the withDeduplication path should be invoked — with payload-aware key + window.
+      expect(mockDeduplicate).toHaveBeenCalledTimes(1);
+      expect(mockDeduplicate).toHaveBeenCalledWith(
+        'precedence-channel!X',
+        expect.any(Function),
+        75
+      );
+      cleanup();
+    });
+
+    it('still applies rate limiting before withDeduplication', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      mockIsAllowed.mockReturnValue(false);
+
+      const keyFn = vi.fn((channel: string, validated: string) => `${channel}:${validated}`);
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'with-dedup-rate-channel',
+        validator: (data: unknown): string => data as string,
+        handler,
+        rateLimit: 5,
+        withDeduplication: { keyFn, windowMs: 100 },
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, 'data');
+      await new Promise((r) => setImmediate(r));
+
+      expect(keyFn).not.toHaveBeenCalled();
+      expect(mockDeduplicate).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+      mockIsAllowed.mockReturnValue(true);
+      cleanup();
+    });
+
+    it('passes the validated payload (not raw data) to keyFn', async () => {
+      const { createSecureIPCHandler } = await import('./ipcHelper');
+      const { ipcMain } = await import('electron');
+
+      const keyFn = vi.fn((channel: string, validated: number) => `${channel}:${validated}`);
+      const handler = vi.fn();
+      const cleanup = createSecureIPCHandler({
+        channel: 'validated-key-channel',
+        validator: (data: unknown): number => Number(data) * 2,
+        handler,
+        withDeduplication: { keyFn, windowMs: 50 },
+      });
+
+      const registeredHandler = (ipcMain.on as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      registeredHandler({} as IpcMainEvent, '7');
+      await new Promise((r) => setImmediate(r));
+
+      // Validator doubles → keyFn should see 14, not '7'.
+      expect(keyFn).toHaveBeenCalledWith('validated-key-channel', 14);
       cleanup();
     });
   });
