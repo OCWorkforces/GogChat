@@ -76,4 +76,24 @@ export interface IAccountWindowManager {
   getBootstrapAccounts(): number[];
   saveAccountWindowState(accountIndex: number): void;
   getAccountWindowState(accountIndex: number): AccountWindowState | null;
+  /**
+   * Dehydrate the account: destroy the BrowserWindow and persist
+   * URL/bounds/maximized state for later rehydration. The
+   * `persist:account-N` partition is preserved (cookies/localStorage/IDB
+   * survive). No-op for bootstrap accounts, unknown indices, or accounts
+   * that are already dehydrated.
+   */
+  dehydrateAccount(accountIndex: number): void;
+  /**
+   * Hydrate the account: recreate the BrowserWindow against the same
+   * `persist:account-N` partition and restore URL/bounds/maximized state.
+   * Returns the hydrated window, or `null` if the account is unknown.
+   * Returns the existing window if the account is already alive.
+   * Throws if hydration is required but no `WindowFactory` is configured.
+   */
+  hydrateAccount(accountIndex: number): Electron.BrowserWindow | null;
+  /**
+   * Whether the given account is currently in the dehydrated state.
+   */
+  isDehydrated(accountIndex: number): boolean;
 }

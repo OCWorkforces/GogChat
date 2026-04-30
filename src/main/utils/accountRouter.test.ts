@@ -235,3 +235,69 @@ describe('routeAccountWindow — auth-flow guard', () => {
     expect(loadURLSpy).toHaveBeenCalledWith(BOOTSTRAP_TARGET);
   });
 });
+
+// ---------------------------------------------------------------------------
+// routeAccountWindow — auto-hydrate dehydrated accounts (T12/M3)
+// ---------------------------------------------------------------------------
+
+describe('routeAccountWindow — auto-hydrate dehydrated accounts', () => {
+  let registry: AccountWindowRegistry;
+  let mockFactory: ReturnType<typeof makeMockFactory>;
+
+  beforeEach(() => {
+    nextWebContentsId = 9500;
+    clearAllBootstrap();
+    registry = new AccountWindowRegistry();
+    mockFactory = makeMockFactory();
+  });
+
+  it('invokes the hydration hook when the account is dehydrated and uses the hydrated window', () => {
+    const hydrated = makeTypedWindow();
+    const hydrate = vi.fn().mockImplementation(() => {
+      registry.registerWindow(hydrated, 0);
+      return hydrated;
+    });
+    const isDehydrated = vi.fn().mockReturnValue(true);
+
+    const result = routeAccountWindow(registry, mockFactory, 'https://chat.google.com', 0, {
+      isDehydrated,
+      hydrate,
+    });
+
+    expect(isDehydrated).toHaveBeenCalledWith(0);
+    expect(hydrate).toHaveBeenCalledWith(0);
+    expect(result).toBe(hydrated);
+    // Factory must NOT be invoked — the hydration hook owns window creation.
+    expect(mockFactory.createWindow).not.toHaveBeenCalled();
+  });
+
+  it('does not call the hydration hook when the account is not dehydrated', () => {
+    const win = makeTypedWindow();
+    registry.registerWindow(win, 0);
+    const hydrate = vi.fn();
+    const isDehydrated = vi.fn().mockReturnValue(false);
+
+    routeAccountWindow(registry, mockFactory, 'https://chat.google.com', 0, {
+      isDehydrated,
+      hydrate,
+    });
+
+    expect(isDehydrated).toHaveBeenCalledWith(0);
+    expect(hydrate).not.toHaveBeenCalled();
+  });
+
+  it('falls back to factory creation when hook is provided but reports not dehydrated', () => {
+    const newWin = makeTypedWindow();
+    mockFactory.createWindow.mockReturnValue(newWin);
+    const hydrate = vi.fn();
+    const isDehydrated = vi.fn().mockReturnValue(false);
+
+    const result = routeAccountWindow(registry, mockFactory, 'https://chat.google.com', 0, {
+      isDehydrated,
+      hydrate,
+    });
+
+    expect(result).toBe(newWin);
+    expect(hydrate).not.toHaveBeenCalled();
+  });
+});

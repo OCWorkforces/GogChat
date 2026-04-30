@@ -442,16 +442,20 @@ describe('AccountWindowManager — registerWindow', () => {
     const win = makeTypedWindow();
     manager.registerWindow(win, 0);
     const listenerCountBefore = win.listenerCount('focus');
+    const closedCountBefore = win.listenerCount('closed');
 
     manager.registerWindow(win, 1);
     // Should still have exactly one focus listener (the new one)
     // AWM also wires its own focus/blur/show/hide listeners on top of the
     // registry's. Re-registration must replace, not duplicate, both layers.
+    // T12/M3 — AWM now wires 2 listeners per blur/hide event (record +
+    // onIdleStart) and 2 per focus/show (record + onIdleCancel) so the idle
+    // dehydration timer can be scheduled and cancelled.
     expect(win.listenerCount('focus')).toBe(listenerCountBefore);
-    expect(win.listenerCount('blur')).toBe(1);
+    expect(win.listenerCount('blur')).toBe(2);
     expect(win.listenerCount('show')).toBe(listenerCountBefore);
-    expect(win.listenerCount('hide')).toBe(1);
-    expect(win.listenerCount('closed')).toBe(listenerCountBefore);
+    expect(win.listenerCount('hide')).toBe(2);
+    expect(win.listenerCount('closed')).toBe(closedCountBefore);
   });
 
   it('updates webContents reverse index on registration', () => {
@@ -733,8 +737,9 @@ describe('AccountWindowManager — unregisterAccount', () => {
 
     // Listeners should be removed (only the ones AWM added)
     // Listeners should be fully removed: registry adds 1 focus + 1 show + 1 closed,
-    // AWM adds 1 focus + 1 blur + 1 show + 1 hide + 1 closed (once-listener).
-    expect(win.listenerCount('focus')).toBe(focusListenersBefore - 2);
+    // AWM adds 2 focus + 2 blur + 2 show + 2 hide + 1 closed (once-listener)
+    // — record/onIdleCancel for focus|show, record/onIdleStart for blur|hide.
+    expect(win.listenerCount('focus')).toBe(focusListenersBefore - 3);
     expect(win.listenerCount('blur')).toBe(0);
     expect(win.listenerCount('show')).toBe(0);
     expect(win.listenerCount('hide')).toBe(0);
@@ -1103,5 +1108,294 @@ describe('AccountWindowManager — module-level convenience functions', () => {
 
   it('getAccountForWebContents returns null for unknown id', () => {
     expect(getAccountForWebContents(9999)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dehydrateAccount / hydrateAccount / isDehydrated — T12/M3
+//
+// Idle account windows release their webContents memory while preserving the
+// `persist:account-N` partition (cookies/localStorage/IDB survive). Triggered
+// 5 minutes after blur/hide; cancelled by focus/show. Bootstrap windows are
+// excluded.
+// ---------------------------------------------------------------------------
+
+describe('AccountWindowManager — dehydrateAccount', () => {
+  let manager: AccountWindowManager;
+  let mockFactory: ReturnType<typeof makeMockFactory>;
+
+  beforeEach(() => {
+    nextWebContentsId = 5500;
+    mockFactory = makeMockFactory();
+    manager = new AccountWindowManager(mockFactory);
+  });
+
+  afterEach(() => {
+    manager.destroyAll();
+  });
+
+  it('destroys the BrowserWindow and reports isDehydrated=true', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+    const destroySpy = vi.spyOn(win, 'destroy');
+
+    manager.dehydrateAccount(0);
+
+    expect(destroySpy).toHaveBeenCalled();
+    expect(manager.isDehydrated(0)).toBe(true);
+  });
+
+  it('captures URL, bounds, and maximized state before destroying the window', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+    (win as unknown as MockBrowserWindow).setBounds({ x: 100, y: 200, width: 1024, height: 768 });
+    (win as unknown as MockBrowserWindow).maximize();
+
+    manager.dehydrateAccount(0);
+
+    // Subsequent hydrate must restore these — assert via hydration outcome.
+    const hydrated = makeTypedWindow();
+    mockFactory.createWindow.mockReturnValue(hydrated);
+    const loadSpy = vi.spyOn(hydrated, 'loadURL');
+    const setBoundsSpy = vi.spyOn(hydrated, 'setBounds');
+    const maximizeSpy = vi.spyOn(hydrated, 'maximize');
+
+    manager.hydrateAccount(0);
+
+    expect(mockFactory.createWindow).toHaveBeenCalledWith(
+      'https://chat.google.com/u/0/',
+      'persist:account-0'
+    );
+    expect(loadSpy).toHaveBeenCalledWith('https://chat.google.com/u/0/');
+    expect(setBoundsSpy).toHaveBeenCalledWith({ x: 100, y: 200, width: 1024, height: 768 });
+    expect(maximizeSpy).toHaveBeenCalled();
+  });
+
+  it('refuses to dehydrate a bootstrap account', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    manager.markAsBootstrap(0);
+    const destroySpy = vi.spyOn(win, 'destroy');
+
+    manager.dehydrateAccount(0);
+
+    expect(destroySpy).not.toHaveBeenCalled();
+    expect(manager.isDehydrated(0)).toBe(false);
+  });
+
+  it('is a no-op for an unknown account index', () => {
+    expect(() => manager.dehydrateAccount(99)).not.toThrow();
+    expect(manager.isDehydrated(99)).toBe(false);
+  });
+
+  it('is a no-op when the account is already dehydrated', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    manager.dehydrateAccount(0);
+    expect(manager.isDehydrated(0)).toBe(true);
+    // Calling again must not throw and must remain dehydrated.
+    expect(() => manager.dehydrateAccount(0)).not.toThrow();
+    expect(manager.isDehydrated(0)).toBe(true);
+  });
+
+  it('getAccountWindow returns null while dehydrated', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    manager.dehydrateAccount(0);
+    expect(manager.getAccountWindow(0)).toBeNull();
+  });
+});
+
+describe('AccountWindowManager — hydrateAccount', () => {
+  let manager: AccountWindowManager;
+  let mockFactory: ReturnType<typeof makeMockFactory>;
+
+  beforeEach(() => {
+    nextWebContentsId = 5600;
+    mockFactory = makeMockFactory();
+    manager = new AccountWindowManager(mockFactory);
+  });
+
+  afterEach(() => {
+    manager.destroyAll();
+  });
+
+  it('recreates a window against the same persist:account-N partition', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 2);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/2/');
+    manager.dehydrateAccount(2);
+
+    const hydrated = makeTypedWindow();
+    mockFactory.createWindow.mockReturnValue(hydrated);
+
+    const result = manager.hydrateAccount(2);
+
+    expect(mockFactory.createWindow).toHaveBeenCalledWith(
+      'https://chat.google.com/u/2/',
+      'persist:account-2'
+    );
+    expect(result).toBe(hydrated);
+    expect(manager.isDehydrated(2)).toBe(false);
+    expect(manager.getAccountWindow(2)).toBe(hydrated);
+    expect(manager.hasAccount(2)).toBe(true);
+  });
+
+  it('returns the existing window without recreating when not dehydrated', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+
+    const result = manager.hydrateAccount(0);
+
+    expect(result).toBe(win);
+    expect(mockFactory.createWindow).not.toHaveBeenCalled();
+  });
+
+  it('returns null when account is unknown and not dehydrated', () => {
+    expect(manager.hydrateAccount(99)).toBeNull();
+    expect(mockFactory.createWindow).not.toHaveBeenCalled();
+  });
+
+  it('throws when no WindowFactory is configured but hydration is required', () => {
+    const noFactoryManager = new AccountWindowManager();
+    const win = makeTypedWindow();
+    noFactoryManager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+    noFactoryManager.dehydrateAccount(0);
+
+    expect(() => noFactoryManager.hydrateAccount(0)).toThrow(/WindowFactory/);
+    noFactoryManager.destroyAll();
+  });
+
+  it('clears dehydrated state so subsequent dehydrate→hydrate cycles work', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+
+    manager.dehydrateAccount(0);
+    expect(manager.isDehydrated(0)).toBe(true);
+
+    const hydrated1 = makeTypedWindow();
+    mockFactory.createWindow.mockReturnValueOnce(hydrated1);
+    manager.hydrateAccount(0);
+    expect(manager.isDehydrated(0)).toBe(false);
+
+    (hydrated1 as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/inbox');
+    manager.dehydrateAccount(0);
+    expect(manager.isDehydrated(0)).toBe(true);
+
+    const hydrated2 = makeTypedWindow();
+    mockFactory.createWindow.mockReturnValueOnce(hydrated2);
+    const result = manager.hydrateAccount(0);
+    expect(result).toBe(hydrated2);
+    expect(manager.getAccountWindow(0)).toBe(hydrated2);
+  });
+});
+
+describe('AccountWindowManager — idle dehydration scheduling', () => {
+  let manager: AccountWindowManager;
+  let mockFactory: ReturnType<typeof makeMockFactory>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    nextWebContentsId = 5700;
+    mockFactory = makeMockFactory();
+    manager = new AccountWindowManager(mockFactory);
+  });
+
+  afterEach(() => {
+    manager.destroyAll();
+    vi.useRealTimers();
+  });
+
+  const FIVE_MIN = 5 * 60 * 1000;
+
+  it('dehydrates an account 5 minutes after the window blurs', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+    const destroySpy = vi.spyOn(win, 'destroy');
+
+    win.emit('blur');
+    // Just under threshold — must not yet dehydrate.
+    vi.advanceTimersByTime(FIVE_MIN - 1);
+    expect(destroySpy).not.toHaveBeenCalled();
+    expect(manager.isDehydrated(0)).toBe(false);
+
+    vi.advanceTimersByTime(1);
+    expect(destroySpy).toHaveBeenCalled();
+    expect(manager.isDehydrated(0)).toBe(true);
+  });
+
+  it('dehydrates an account 5 minutes after the window hides', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+
+    win.emit('hide');
+    vi.advanceTimersByTime(FIVE_MIN);
+    expect(manager.isDehydrated(0)).toBe(true);
+  });
+
+  it('cancels the pending dehydrate timer when the window is focused', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+
+    win.emit('blur');
+    vi.advanceTimersByTime(FIVE_MIN - 1);
+    win.emit('focus');
+    vi.advanceTimersByTime(FIVE_MIN);
+
+    expect(manager.isDehydrated(0)).toBe(false);
+  });
+
+  it('cancels the pending dehydrate timer when the window is shown', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    (win as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+
+    win.emit('hide');
+    vi.advanceTimersByTime(FIVE_MIN - 1);
+    win.emit('show');
+    vi.advanceTimersByTime(FIVE_MIN);
+
+    expect(manager.isDehydrated(0)).toBe(false);
+  });
+
+  it('does NOT schedule a dehydrate timer for a bootstrap window', () => {
+    const win = makeTypedWindow();
+    manager.registerWindow(win, 0);
+    manager.markAsBootstrap(0);
+    const destroySpy = vi.spyOn(win, 'destroy');
+
+    win.emit('blur');
+    vi.advanceTimersByTime(FIVE_MIN * 2);
+
+    expect(destroySpy).not.toHaveBeenCalled();
+    expect(manager.isDehydrated(0)).toBe(false);
+  });
+
+  it('schedules independent timers per account index', () => {
+    const win0 = makeTypedWindow();
+    const win1 = makeTypedWindow();
+    manager.registerWindow(win0, 0);
+    manager.registerWindow(win1, 1);
+    (win0 as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/0/');
+    (win1 as unknown as MockBrowserWindow).loadURL('https://chat.google.com/u/1/');
+
+    win0.emit('blur');
+    vi.advanceTimersByTime(FIVE_MIN / 2);
+    win1.emit('blur');
+    vi.advanceTimersByTime(FIVE_MIN / 2);
+
+    // Account 0 has now been blurred for 5 min, account 1 only 2.5 min
+    expect(manager.isDehydrated(0)).toBe(true);
+    expect(manager.isDehydrated(1)).toBe(false);
+
+    vi.advanceTimersByTime(FIVE_MIN / 2);
+    expect(manager.isDehydrated(1)).toBe(true);
   });
 });

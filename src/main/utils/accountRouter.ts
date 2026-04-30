@@ -15,20 +15,55 @@ import { isBootstrap as _isBootstrap } from './bootstrapTracker.js';
 import type { AccountWindowRegistry } from './accountWindowRegistry.js';
 
 /**
+ * Optional hook letting the router transparently rehydrate a dehydrated
+ * account before routing. When `isDehydrated(i)` returns true, the router
+ * MUST delegate window creation to `hydrate(i)` instead of consulting the
+ * registry or factory — the hook owns partition + state restoration.
+ *
+ * See {@link IAccountWindowManager.dehydrateAccount} for the dehydration
+ * lifecycle (T12/M3).
+ */
+export interface HydrationHook {
+  isDehydrated: (accountIndex: number) => boolean;
+  hydrate: (accountIndex: number) => BrowserWindow | null;
+}
+
+/**
  * Route a createAccountWindow request: reuse existing, skip if mid-auth, or create new.
  *
  * @param registry - The window registry to query/update
  * @param windowFactory - Optional factory for creating new BrowserWindows
  * @param url - The URL to load
  * @param accountIndex - The account index for this window
+ * @param hydrationHook - Optional auto-hydrate hook (T12/M3). When provided
+ *   and `isDehydrated(accountIndex)` is true, the hook's `hydrate` result is
+ *   returned without invoking the factory.
  * @returns The created or existing BrowserWindow
  */
 export function routeAccountWindow(
   registry: AccountWindowRegistry,
   windowFactory: WindowFactory | undefined,
   url: string,
-  accountIndex: number
+  accountIndex: number,
+  hydrationHook?: HydrationHook
 ): BrowserWindow {
+  // Auto-hydrate path (T12/M3): if the account is currently dehydrated, the
+  // hook recreates the window against the same persist:account-N partition.
+  // The hook is the sole owner of window creation in this case — we MUST NOT
+  // fall through to the registry/factory path, which would discard the
+  // hydrated window or double-create.
+  if (hydrationHook && hydrationHook.isDehydrated(accountIndex)) {
+    const hydrated = hydrationHook.hydrate(accountIndex);
+    if (hydrated) {
+      return hydrated;
+    }
+    // Hook reported dehydrated but failed to produce a window — fall through
+    // to the standard path so we still satisfy the BrowserWindow return type.
+    log.warn(
+      `[AccountRouter] Hydration hook returned null for account ${accountIndex}; falling back to factory path`
+    );
+  }
+
   const existingWindow = registry.getAccountWindow(accountIndex);
   if (existingWindow && !existingWindow.isDestroyed()) {
     if (existingWindow.isMinimized()) {

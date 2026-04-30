@@ -62,7 +62,7 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 ## KEY PATTERNS
 
-**AccountWindowManager**: `createAccountWindow()` → `markAsBootstrap()` → `promoteBootstrap()` → `isBootstrap()`. Per-account partitions: `persist:account-N`. Implements 19-method `IAccountWindowManager` interface.
+**AccountWindowManager**: `createAccountWindow()` → `markAsBootstrap()` → `promoteBootstrap()` → `isBootstrap()`. Per-account partitions: `persist:account-N`. Implements 22-method `IAccountWindowManager` interface. T12/M3: `dehydrateAccount()` destroys idle (5 min blur/hide) windows to free webContents memory while preserving partition; `hydrateAccount()` recreates against same partition with bounds/maximized restore; `routeAccountWindow` auto-hydrates via `HydrationHook`. Bootstrap windows are excluded from dehydration.
 
 **Rate limiter**: `rateLimiter.isAllowed(IPC_CHANNELS.X, limit?)` — defaults from `RATE_LIMITS`.
 
