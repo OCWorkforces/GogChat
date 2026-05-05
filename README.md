@@ -11,6 +11,8 @@ A secure, feature-rich desktop application for GogChat with native OS integratio
 - Auto-launch on startup
 - Window state persistence
 - Keyboard shortcuts
+- Multi-account sessions with per-account isolation
+- Idle window memory management (hydrate/dehydrate)
 
 🔒 **Enterprise-Grade Security**
 
@@ -40,7 +42,7 @@ Get the latest release:
 
 ### Prerequisites
 
-- Bun >= 1.3.9 (Node.js >= 24.13.1 embedded by Electron)
+- Bun >= 1.3.11 (Node.js >= 22.0.0)
 
 ### Setup
 
@@ -101,11 +103,8 @@ bun run lint:all:fix
 ### Building Installers
 
 ```bash
-# Build ARM64 DMG
+# Build ARM64 DMG (production)
 bun run build:mac
-
-# Build via unified script
-./build-macOS-dmg.sh --environment production
 ```
 
 ## CI/CD
@@ -120,7 +119,7 @@ This project uses GitHub Actions for automated building and testing:
 
 ```bash
 # Tag a new version
-git tag v3.0.7
+git tag v3.12.3
 git push origin v3.0.7
 
 # GitHub Actions will automatically:
@@ -147,9 +146,8 @@ For detailed security information, see [SECURITY.md](SECURITY.md).
 | Layer    | Tech            |
 | -------- | --------------- |
 | Runtime  | Electron 41     |
-| Language | TypeScript 5.9  |
-| Build    | Rslib + Rsbuild |
-| Calendar | Swift EventKit  |
+| Language | TypeScript 6.0  |
+| Build    | Rsbuild (Rspack) |
 | Test     | Vitest 4        |
 
 ## Contact

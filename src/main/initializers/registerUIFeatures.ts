@@ -25,7 +25,7 @@ export function registerUIFeatures(featureManager: FeatureManager): void {
       async ({ accountWindowManager }) => {
         const { restoreFirstInstance } = await import('../features/singleInstance.js');
         // Pass account window manager for dynamic window lookup on second-instance
-        restoreFirstInstance({ accountWindowManager });
+        restoreFirstInstance(accountWindowManager ? { accountWindowManager } : {});
       },
       {
         description: 'Single instance restoration handler',
@@ -38,7 +38,7 @@ export function registerUIFeatures(featureManager: FeatureManager): void {
       async ({ accountWindowManager }) => {
         const module = await import('../features/deepLinkHandler.js');
         // Pass account window manager for dynamic window lookup
-        module.default({ accountWindowManager });
+        module.default(accountWindowManager ? { accountWindowManager } : {});
       },
       {
         cleanup: async () => {

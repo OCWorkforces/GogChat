@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-04-30 · **Commit:** 315722d
+**Generated:** 2026-05-05 · **Commit:** c19efe6
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -27,6 +27,8 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Feature modules | `features/` (25+) | See `features/AGENTS.md` |
 | Utility modules | `utils/` (40) | See `utils/AGENTS.md` |
 | Initializer modules | `initializers/` (13) | See `initializers/AGENTS.md` |
+
+Note: BrowserWindow `webPreferences` uses conditional assignment for `partition` (rather than `partition: partition ?? undefined`) for `exactOptionalPropertyTypes` compatibility.
 
 ## INIT ORDER (DO NOT REORDER)
 

@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-04-30 · **Commit:** 315722d
+**Generated:** 2026-05-05 · **Commit:** c19efe6
 
 40 utility modules (+1 new: `accountSessionMaintenance.ts`). All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
 
@@ -8,14 +8,14 @@
 
 | File | Lines | Purpose | Singleton |
 | --- | --- | --- | --- |
-| `featureManager.ts` | 485 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature`; parallel phase-grouped cleanup (M2) | `getFeatureManager()` |
-| `accountWindowManager.ts` | 532 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager`; hydrate/dehydrate state machine (M3b) — idle windows dehydrated after 5min blur/hide, recreated on demand | `getAccountWindowManager()` |
+| `featureManager.ts` | 485 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature`; parallel phase-grouped cleanup (M2); uses `assertNever()` for exhaustive `FeatureState.status` switches | `getFeatureManager()` |
+| `accountWindowManager.ts` | 532 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager`; hydrate/dehydrate state machine (M3b) — idle windows dehydrated after 5min blur/hide, recreated on demand; uses branded `AccountIndex` and `AccountPartition` types via `asAccountIndex()` / `toPartition()` helpers | `getAccountWindowManager()` |
 | `resourceCleanup.ts` | 308 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
 | `config.ts` (parent) | — | See `../config.ts` | — |
 | `performanceMonitor.ts` | 259 | Startup timing + memory snapshots | `getPerformanceMonitor()` |
 | `ipcHelper.ts` | 315 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param; optional deduplication via `withDeduplication` | `getIPCManager()` |
 | `ipcDeduplicator.ts` | 317 | Dedup rapid same-key requests; on-demand cleanup scheduling (M1); **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler` | `getDeduplicator()` |
-| `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle | exported fns |
+| `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle; Map keys typed as branded `AccountIndex` and `WebContentsId` | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
 | `errors.ts` | 42 | Typed error subclasses: `GogChatError` base, `IPCError`, `ConfigError`; native `Error.cause` chaining for IPC, config, encryption errors | exported classes |
 | `iconCache.ts` | 220 | NativeImage preload cache; O(1) Map insertion-order LRU (T5+T8) | `getIconCache()` |

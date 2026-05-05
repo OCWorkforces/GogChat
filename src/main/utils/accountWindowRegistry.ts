@@ -13,13 +13,14 @@
 import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { clearBootstrap as _clearBootstrap, clearAllBootstrap } from './bootstrapTracker.js';
+import type { AccountIndex, WebContentsId } from '../../shared/types/branded.js';
 
 /**
  * Account window registration entry
  */
 export interface AccountWindowEntry {
   window: BrowserWindow;
-  accountIndex: number;
+  accountIndex: AccountIndex;
   createdAt: number;
 }
 
@@ -27,9 +28,9 @@ export interface AccountWindowEntry {
  * Account Window Registry - Manages per-account BrowserWindow lookups and lifecycle
  */
 export class AccountWindowRegistry {
-  private windows = new Map<number, AccountWindowEntry>();
-  private reverseLookup = new Map<BrowserWindow, number>();
-  private mostRecentAccountIndex: number | null = null;
+  private windows = new Map<AccountIndex, AccountWindowEntry>();
+  private reverseLookup = new Map<BrowserWindow, AccountIndex>();
+  private mostRecentAccountIndex: AccountIndex | null = null;
   /**
    * Tracks event listeners attached to windows so they can be removed on re-register.
    * Prevents stale closures from firing with wrong accountIndex on focus/show events.
@@ -42,14 +43,14 @@ export class AccountWindowRegistry {
    * Reverse index for O(1) webContents.id → accountIndex lookup.
    * Used by getAccountForWebContents() to avoid O(n) iteration.
    */
-  private webContentsToAccountIndex = new Map<number, number>();
+  private webContentsToAccountIndex = new Map<WebContentsId, AccountIndex>();
 
   /**
    * Register a BrowserWindow for a specific account index
    * @param window - The BrowserWindow to register
    * @param accountIndex - The account index (0, 1, 2, ...)
    */
-  registerWindow(window: BrowserWindow, accountIndex: number): void {
+  registerWindow(window: BrowserWindow, accountIndex: AccountIndex): void {
     // Clean up existing entry if re-registering
     if (this.reverseLookup.has(window)) {
       const existingIndex = this.reverseLookup.get(window);
@@ -93,7 +94,7 @@ export class AccountWindowRegistry {
       show: showHandler,
       closed: closedHandler,
     });
-    this.webContentsToAccountIndex.set(window.webContents.id, accountIndex);
+    this.webContentsToAccountIndex.set(window.webContents.id as WebContentsId, accountIndex);
     log.info(`[AccountWindowRegistry] Registered window for account ${accountIndex}`);
   }
 
@@ -102,7 +103,7 @@ export class AccountWindowRegistry {
    * @param window - The BrowserWindow to look up
    * @returns The account index or null if not found
    */
-  getAccountIndex(window: BrowserWindow): number | null {
+  getAccountIndex(window: BrowserWindow): AccountIndex | null {
     const index = this.reverseLookup.get(window);
     return index !== undefined ? index : null;
   }
@@ -112,7 +113,7 @@ export class AccountWindowRegistry {
    * @param accountIndex - The account index to look up
    * @returns The BrowserWindow or null if not found
    */
-  getAccountWindow(accountIndex: number): BrowserWindow | null {
+  getAccountWindow(accountIndex: AccountIndex): BrowserWindow | null {
     const entry = this.windows.get(accountIndex);
     return entry?.window ?? null;
   }
@@ -122,12 +123,12 @@ export class AccountWindowRegistry {
    * @param accountIndex - The account index
    * @returns The webContents or null if window doesn't exist
    */
-  getAccountWebContents(accountIndex: number): Electron.WebContents | null {
+  getAccountWebContents(accountIndex: AccountIndex): Electron.WebContents | null {
     const window = this.getAccountWindow(accountIndex);
     return window?.webContents ?? null;
   }
 
-  getAccountForWebContents(webContentsId: number): number | null {
+  getAccountForWebContents(webContentsId: WebContentsId): AccountIndex | null {
     const index = this.webContentsToAccountIndex.get(webContentsId);
     return index !== undefined ? index : null;
   }
@@ -155,7 +156,7 @@ export class AccountWindowRegistry {
    * Update the most recently focused account index
    * @param accountIndex - The account index to set as most recent
    */
-  setMostRecentAccountIndex(accountIndex: number): void {
+  setMostRecentAccountIndex(accountIndex: AccountIndex): void {
     this.mostRecentAccountIndex = accountIndex;
   }
 
@@ -163,7 +164,7 @@ export class AccountWindowRegistry {
    * Remove a window from management (without destroying it)
    * @param accountIndex - The account index to remove
    */
-  unregisterAccount(accountIndex: number): void {
+  unregisterAccount(accountIndex: AccountIndex): void {
     const entry = this.windows.get(accountIndex);
     if (entry) {
       // Clean up event listeners
@@ -185,7 +186,7 @@ export class AccountWindowRegistry {
 
       // Clean up webContents reverse index
       if (!entry.window.isDestroyed()) {
-        this.webContentsToAccountIndex.delete(entry.window.webContents.id);
+        this.webContentsToAccountIndex.delete(entry.window.webContents.id as WebContentsId);
       }
 
       this.reverseLookup.delete(entry.window);
@@ -194,7 +195,7 @@ export class AccountWindowRegistry {
 
       if (this.mostRecentAccountIndex === accountIndex) {
         // Find the next most recent
-        let newestIndex: number | null = null;
+        let newestIndex: AccountIndex | null = null;
         let newestTime = 0;
         for (const [idx, e] of this.windows) {
           if (e.createdAt > newestTime) {
@@ -214,7 +215,7 @@ export class AccountWindowRegistry {
    * @param accountIndex - The account index to check
    * @returns True if the account window exists
    */
-  hasAccount(accountIndex: number): boolean {
+  hasAccount(accountIndex: AccountIndex): boolean {
     return this.windows.has(accountIndex);
   }
 

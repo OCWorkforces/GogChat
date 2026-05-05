@@ -19,6 +19,8 @@ import type {
   IAccountWindowManager,
   AccountWindowsMap,
 } from '../../shared/types/window.js';
+import type { AccountIndex, WebContentsId } from '../../shared/types/branded.js';
+import { toPartition } from '../../shared/types/branded.js';
 import {
   markAsBootstrap as _markAsBootstrap,
   isBootstrap as _isBootstrap,
@@ -118,13 +120,13 @@ export class AccountWindowManager implements IAccountWindowManager {
    * Electron's session subsystem, NOT this map, so cookies/localStorage/IDB
    * survive even though the entry only stores presentation state.
    */
-  private readonly dehydratedAccounts = new Map<number, DehydratedSnapshot>();
+  private readonly dehydratedAccounts = new Map<AccountIndex, DehydratedSnapshot>();
   /**
    * T12/M3 — Pending dehydration timers per account. A timer is started by
    * blur/hide and cancelled by focus/show, hydrate, register, and destroy.
    * Tracked via {@link createTrackedTimeout} so app shutdown clears them.
    */
-  private readonly dehydrateTimers = new Map<number, NodeJS.Timeout>();
+  private readonly dehydrateTimers = new Map<AccountIndex, NodeJS.Timeout>();
 
   constructor(private readonly windowFactory?: WindowFactory) {
     // Reset shared bootstrap tracker so each manager instance starts clean
@@ -147,7 +149,7 @@ export class AccountWindowManager implements IAccountWindowManager {
 
   // ─── Registry delegates ──────────────────────────────────────────────────
 
-  registerWindow(window: BrowserWindow, accountIndex: number): void {
+  registerWindow(window: BrowserWindow, accountIndex: AccountIndex): void {
     this.detachActivityListeners(window);
     this.registry.registerWindow(window, accountIndex);
     this.attachActivityListeners(window, accountIndex);
@@ -159,7 +161,7 @@ export class AccountWindowManager implements IAccountWindowManager {
    * additionally record blur/hide so that any user interaction with the
    * window — gaining or losing OS focus — counts as recent activity.
    */
-  private attachActivityListeners(window: BrowserWindow, accountIndex: number): void {
+  private attachActivityListeners(window: BrowserWindow, accountIndex: AccountIndex): void {
     const tracker = getAccountActivityTracker();
     // Stamp activity immediately on registration so the window is not
     // immediately considered idle.
@@ -212,11 +214,11 @@ export class AccountWindowManager implements IAccountWindowManager {
     this.activityListeners.delete(window);
   }
 
-  getAccountIndex(window: BrowserWindow): number | null {
+  getAccountIndex(window: BrowserWindow): AccountIndex | null {
     return this.registry.getAccountIndex(window);
   }
 
-  getAccountWindow(accountIndex: number): BrowserWindow | null {
+  getAccountWindow(accountIndex: AccountIndex): BrowserWindow | null {
     // T12/M3 — a dehydrated account has no live BrowserWindow. Callers must
     // use {@link hydrateAccount} (or routeAccountWindow's hydration hook) to
     // bring the window back. Returning the registry value here would expose a
@@ -227,11 +229,11 @@ export class AccountWindowManager implements IAccountWindowManager {
     return this.registry.getAccountWindow(accountIndex);
   }
 
-  getAccountWebContents(accountIndex: number): Electron.WebContents | null {
+  getAccountWebContents(accountIndex: AccountIndex): Electron.WebContents | null {
     return this.registry.getAccountWebContents(accountIndex);
   }
 
-  getAccountForWebContents(webContentsId: number): number | null {
+  getAccountForWebContents(webContentsId: WebContentsId): AccountIndex | null {
     return this.registry.getAccountForWebContents(webContentsId);
   }
 
@@ -243,7 +245,7 @@ export class AccountWindowManager implements IAccountWindowManager {
     return this.registry.getMostRecentWindow();
   }
 
-  unregisterAccount(accountIndex: number): void {
+  unregisterAccount(accountIndex: AccountIndex): void {
     const window = this.registry.getAccountWindow(accountIndex);
     if (window) {
       this.detachActivityListeners(window);
@@ -253,7 +255,7 @@ export class AccountWindowManager implements IAccountWindowManager {
     this.registry.unregisterAccount(accountIndex);
   }
 
-  hasAccount(accountIndex: number): boolean {
+  hasAccount(accountIndex: AccountIndex): boolean {
     return this.registry.hasAccount(accountIndex);
   }
 
@@ -280,7 +282,7 @@ export class AccountWindowManager implements IAccountWindowManager {
 
   // ─── Router delegate ──────────────────────────────────────────────────
 
-  createAccountWindow(url: string, accountIndex: number): BrowserWindow {
+  createAccountWindow(url: string, accountIndex: AccountIndex): BrowserWindow {
     // Pass our own dehydrate/hydrate hooks so the router transparently
     // rehydrates a dehydrated account before navigating (T12/M3).
     const hydrationHook: HydrationHook = {
@@ -292,7 +294,7 @@ export class AccountWindowManager implements IAccountWindowManager {
 
   // ─── Bootstrap window tracking ───────────────────────────────────────────
 
-  markAsBootstrap(accountIndex: number): void {
+  markAsBootstrap(accountIndex: AccountIndex): void {
     if (!this.registry.hasAccount(accountIndex)) {
       log.warn(
         `[AccountWindowManager] markAsBootstrap: account ${accountIndex} not registered — ignored`
@@ -302,25 +304,25 @@ export class AccountWindowManager implements IAccountWindowManager {
     _markAsBootstrap(accountIndex);
   }
 
-  isBootstrap(accountIndex: number): boolean {
+  isBootstrap(accountIndex: AccountIndex): boolean {
     return _isBootstrap(accountIndex);
   }
 
-  promoteBootstrap(accountIndex: number): boolean {
+  promoteBootstrap(accountIndex: AccountIndex): boolean {
     return _promoteBootstrap(accountIndex);
   }
 
-  clearBootstrap(accountIndex: number): void {
+  clearBootstrap(accountIndex: AccountIndex): void {
     _clearBootstrap(accountIndex);
   }
 
-  getBootstrapAccounts(): number[] {
+  getBootstrapAccounts(): AccountIndex[] {
     return _getBootstrapAccounts();
   }
 
   // ─── Window state persistence ────────────────────────────────────────────
 
-  saveAccountWindowState(accountIndex: number): void {
+  saveAccountWindowState(accountIndex: AccountIndex): void {
     const window = this.getAccountWindow(accountIndex);
     if (!window || window.isDestroyed()) {
       return;
@@ -344,14 +346,14 @@ export class AccountWindowManager implements IAccountWindowManager {
     log.debug(`[AccountWindowManager] Saved state for account ${accountIndex}`);
   }
 
-  getAccountWindowState(accountIndex: number): AccountWindowState | null {
+  getAccountWindowState(accountIndex: AccountIndex): AccountWindowState | null {
     const accountWindows = configGet('accountWindows');
     return accountWindows?.[accountIndex] ?? null;
   }
 
   // ─── T12/M3 — Hydrate / Dehydrate ──────────────────────────────────────────
 
-  isDehydrated(accountIndex: number): boolean {
+  isDehydrated(accountIndex: AccountIndex): boolean {
     return this.dehydratedAccounts.has(accountIndex);
   }
 
@@ -363,7 +365,7 @@ export class AccountWindowManager implements IAccountWindowManager {
    * preserved. Bootstrap accounts and unknown indices are no-ops to keep
    * mid-auth Google sign-in flows intact.
    */
-  dehydrateAccount(accountIndex: number): void {
+  dehydrateAccount(accountIndex: AccountIndex): void {
     if (this.dehydratedAccounts.has(accountIndex)) {
       return;
     }
@@ -404,7 +406,7 @@ export class AccountWindowManager implements IAccountWindowManager {
    * sidecar. Throws when hydration is required but no {@link WindowFactory}
    * is configured — we cannot create a partitioned window without one.
    */
-  hydrateAccount(accountIndex: number): BrowserWindow | null {
+  hydrateAccount(accountIndex: AccountIndex): BrowserWindow | null {
     const snapshot = this.dehydratedAccounts.get(accountIndex);
     if (!snapshot) {
       // Already hydrated — return the live window if any.
@@ -415,7 +417,7 @@ export class AccountWindowManager implements IAccountWindowManager {
         `[AccountWindowManager] hydrateAccount(${accountIndex}): no WindowFactory configured — cannot recreate window`
       );
     }
-    const partition = `persist:account-${accountIndex}`;
+    const partition = toPartition(accountIndex);
     const window = this.windowFactory.createWindow(snapshot.url, partition);
     // Clear sidecar BEFORE registering so getAccountWindow (which checks the
     // sidecar) returns the new window during downstream `registerWindow`
@@ -446,7 +448,7 @@ export class AccountWindowManager implements IAccountWindowManager {
    * blur/hide moment continues to drive the deadline (resetting on every
    * blur/hide would let frequent re-blurs delay dehydration indefinitely).
    */
-  private scheduleDehydrate(accountIndex: number): void {
+  private scheduleDehydrate(accountIndex: AccountIndex): void {
     if (this.dehydrateTimers.has(accountIndex)) {
       return;
     }
@@ -464,7 +466,7 @@ export class AccountWindowManager implements IAccountWindowManager {
     this.dehydrateTimers.set(accountIndex, timer);
   }
 
-  private cancelDehydrate(accountIndex: number): void {
+  private cancelDehydrate(accountIndex: AccountIndex): void {
     const timer = this.dehydrateTimers.get(accountIndex);
     if (!timer) {
       return;
@@ -511,11 +513,11 @@ export function getMostRecentWindow(): BrowserWindow | null {
  * Convenience function: Get the BrowserWindow for a specific account index
  * Shorthand for getAccountWindowManager().getAccountWindow(accountIndex)
  */
-export function getWindowForAccount(accountIndex: number): BrowserWindow | null {
+export function getWindowForAccount(accountIndex: AccountIndex): BrowserWindow | null {
   return getAccountWindowManager().getAccountWindow(accountIndex);
 }
 
-export function getAccountIndex(window: BrowserWindow): number | null {
+export function getAccountIndex(window: BrowserWindow): AccountIndex | null {
   return getAccountWindowManager().getAccountIndex(window);
 }
 
@@ -523,10 +525,10 @@ export function getAccountIndex(window: BrowserWindow): number | null {
  * Convenience function: Create a new account window with isolated session partition
  * Shorthand for getAccountWindowManager().createAccountWindow(url, accountIndex)
  */
-export function createAccountWindow(url: string, accountIndex: number): BrowserWindow {
+export function createAccountWindow(url: string, accountIndex: AccountIndex): BrowserWindow {
   return getAccountWindowManager().createAccountWindow(url, accountIndex);
 }
 
-export function getAccountForWebContents(webContentsId: number): number | null {
+export function getAccountForWebContents(webContentsId: WebContentsId): AccountIndex | null {
   return getAccountWindowManager().getAccountForWebContents(webContentsId);
 }

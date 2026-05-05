@@ -28,6 +28,7 @@ import { warmInitialIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
 import environment from '../../environment.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import type { WindowFactory } from '../../shared/types/window.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
 
 /**
  * Options for registerAppReady
@@ -99,13 +100,13 @@ export function registerAppReady(options: AppReadyOptions): void {
       account0Session.preconnect({ url: 'https://fonts.gstatic.com', numSockets: 1 });
 
       // Create account-0 window (primary window)
-      createAccountWindow(environment.appUrl, 0);
-      accountWindowManager.markAsBootstrap(0);
+      createAccountWindow(environment.appUrl, asAccountIndex(0));
+      accountWindowManager.markAsBootstrap(asAccountIndex(0));
       perfMonitor.mark('window-created', 'Main window created');
 
       // Get the created window and use it as mainWindow for features
       // This preserves single-window behavior for account-0 while preparing for multi-account
-      const mainWindow = getWindowForAccount(0);
+      const mainWindow = getWindowForAccount(asAccountIndex(0));
       setMainWindow(mainWindow);
 
       // Update feature context with mainWindow and account manager

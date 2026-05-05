@@ -9,6 +9,7 @@
 
 import log from 'electron-log';
 import type { FeatureConfig } from './featureConfigTypes.js';
+import type { FeatureNameBrand } from '../../shared/types/branded.js';
 
 /**
  * Topological sort features by dependencies
@@ -19,8 +20,8 @@ import type { FeatureConfig } from './featureConfigTypes.js';
  */
 export function topologicalSort(features: FeatureConfig[]): FeatureConfig[] {
   const sorted: FeatureConfig[] = [];
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
+  const visited = new Set<FeatureNameBrand>();
+  const visiting = new Set<FeatureNameBrand>();
 
   const visit = (feature: FeatureConfig): void => {
     if (visited.has(feature.name)) {
@@ -66,7 +67,7 @@ export function topologicalSort(features: FeatureConfig[]): FeatureConfig[] {
  */
 export function groupFeaturesByDependencyLevel(features: FeatureConfig[]): FeatureConfig[][] {
   const batches: FeatureConfig[][] = [];
-  const assignedFeatures = new Set<string>();
+  const assignedFeatures = new Set<FeatureNameBrand>();
 
   // Helper: Check if all dependencies of a feature are in previous batches
   const areDependenciesSatisfied = (feature: FeatureConfig): boolean => {

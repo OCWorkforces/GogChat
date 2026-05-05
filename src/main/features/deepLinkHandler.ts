@@ -3,6 +3,7 @@ import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/urlValidators.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
 import {
   createAccountWindow,
   getMostRecentWindow,
@@ -14,13 +15,13 @@ import { registerMenuAction } from './menuActionRegistry.js';
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;
 
-function getAccountIndexFromUrl(url: string): number {
+function getAccountIndexFromUrl(url: string) {
   try {
     const parsed = new URL(url);
     const match = parsed.pathname.match(/^\/u\/(\d+)(?:\/|$)/);
-    return match ? Number(match[1]) : 0;
+    return asAccountIndex(match ? Number(match[1]) : 0);
   } catch {
-    return 0;
+    return asAccountIndex(0);
   }
 }
 

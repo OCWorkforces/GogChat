@@ -39,7 +39,7 @@ export const SELECTORS = {
   // Favicon tracking
   FAVICON_ICON: 'link[rel="icon"]',
   FAVICON_SHORTCUT: 'link[rel="shortcut icon"]',
-} as const;
+} as const satisfies Record<string, string>;
 
 /**
  * Timing constants for polling and throttling
@@ -59,7 +59,7 @@ export const TIMING = {
 
   // Re-guard timer for external links
   EXTERNAL_LINKS_REGUARD: 5 * 60 * 1000, // 5 minutes
-} as const;
+} as const satisfies Record<string, number>;
 
 /**
  * Icon types based on favicon state
@@ -68,7 +68,7 @@ export const ICON_TYPES = {
   OFFLINE: 'offline',
   NORMAL: 'normal',
   BADGE: 'badge',
-} as const;
+} as const satisfies Record<string, string>;
 
 /**
  * Favicon URL patterns for detecting GogChat state
@@ -76,7 +76,7 @@ export const ICON_TYPES = {
 export const FAVICON_PATTERNS = {
   NORMAL: /favicon_chat_r2|favicon_chat_new_non_notif_r2/,
   BADGE: /favicon_chat_new_notif_r2/,
-} as const;
+} as const satisfies Record<string, RegExp>;
 
 /**
  * Rate limiting configuration
@@ -86,7 +86,7 @@ export const RATE_LIMITS = {
   IPC_UNREAD_COUNT: 5,
   IPC_FAVICON: 5,
   IPC_NOTIFICATION: 5, // Limit notification creation
-} as const;
+} as const satisfies Record<string, number>;
 
 /**
  * Badge icon limits
@@ -94,7 +94,7 @@ export const RATE_LIMITS = {
 export const BADGE = {
   MAX_COUNT: 9999,
   CACHE_LIMIT: 99, // Cache icons for counts 0-99
-} as const;
+} as const satisfies Record<string, number>;
 
 /**
  * Whitelisted hosts for navigation
@@ -104,7 +104,7 @@ export const WHITELISTED_HOSTS = [
   'accounts.youtube.com',
   'chat.google.com',
   'mail.google.com',
-] as const;
+] as const satisfies readonly string[];
 
 /**
  * URL patterns for special handling
@@ -113,7 +113,7 @@ export const URL_PATTERNS = {
   DOWNLOAD: 'https://chat.google.com/u/0/api/get_attachment_url',
   GMAIL_PREFIX: 'https://mail.google.com/',
   CHAT_PREFIX: 'https://mail.google.com/chat',
-} as const;
+} as const satisfies Record<string, string>;
 
 /**
  * Deep link protocol configuration
@@ -131,7 +131,7 @@ export const DEEP_LINK = {
   MAX_URL_LENGTH: 2048,
   /** Allowed path prefixes for deep link navigation */
   ALLOWED_PATH_PREFIXES: ['/room/', '/dm/', '/space/'] as readonly string[],
-} as const;
+} as const satisfies Record<string, string | number | readonly string[]>;
 
 /**
  * Union of all IPC channel name string literals, derived from IPC_CHANNELS.

@@ -15,19 +15,22 @@ import { configGet, configSet } from './config.js';
 installBenignWarningFilter();
 
 export default (url: string, partition?: string): BrowserWindow => {
+  const webPrefs: Electron.WebPreferences = {
+    autoplayPolicy: 'user-gesture-required',
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: true,
+    webSecurity: true,
+    allowRunningInsecureContent: false,
+    disableBlinkFeatures: 'Auxclick',
+    backgroundThrottling: false, // Keep badge/notification updates alive when hidden
+    preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
+  };
+  if (partition !== undefined) {
+    webPrefs.partition = partition;
+  }
   const window = new BrowserWindow({
-    webPreferences: {
-      autoplayPolicy: 'user-gesture-required',
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      disableBlinkFeatures: 'Auxclick',
-      backgroundThrottling: false, // Keep badge/notification updates alive when hidden
-      preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
-      partition: partition ?? undefined,
-    },
+    webPreferences: webPrefs,
     icon: getIconCache().getIcon('resources/icons/normal/256.png'),
     show: false,
     paintWhenInitiallyHidden: false, // Defer painting until window.show() to save CPU/GPU

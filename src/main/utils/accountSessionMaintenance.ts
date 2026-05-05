@@ -16,6 +16,8 @@ import log from 'electron-log';
 import { createTrackedInterval } from './resourceCleanup.js';
 import { toErrorMessage } from './errorUtils.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
+import type { AccountIndex } from '../../shared/types/branded.js';
+import { toPartition } from '../../shared/types/branded.js';
 
 /** Tick interval for the maintenance scheduler (5 minutes). */
 const MAINTENANCE_INTERVAL_MS = 5 * 60 * 1000;
@@ -32,12 +34,12 @@ const IDLE_THRESHOLD_MS = 30 * 60 * 1000;
  * idle-detection queries.
  */
 export class AccountActivityTracker {
-  private readonly lastActivity = new Map<number, number>();
+  private readonly lastActivity = new Map<AccountIndex, number>();
 
   /**
    * Stamp `Date.now()` as the most recent activity time for an account.
    */
-  recordActivity(accountIndex: number): void {
+  recordActivity(accountIndex: AccountIndex): void {
     this.lastActivity.set(accountIndex, Date.now());
   }
 
@@ -45,7 +47,7 @@ export class AccountActivityTracker {
    * Get the most recent activity timestamp for an account, or undefined if
    * no activity has been recorded.
    */
-  getLastActivity(accountIndex: number): number | undefined {
+  getLastActivity(accountIndex: AccountIndex): number | undefined {
     return this.lastActivity.get(accountIndex);
   }
 
@@ -56,9 +58,9 @@ export class AccountActivityTracker {
    * are filtered out. Accounts with no recorded activity are NOT considered idle —
    * they have never been seen, so we have no signal to act on.
    */
-  getIdleAccounts(thresholdMs: number, excludeIndices?: Set<number>): number[] {
+  getIdleAccounts(thresholdMs: number, excludeIndices?: Set<AccountIndex>): AccountIndex[] {
     const now = Date.now();
-    const idle: number[] = [];
+    const idle: AccountIndex[] = [];
     for (const [accountIndex, lastTime] of this.lastActivity) {
       if (excludeIndices?.has(accountIndex)) {
         continue;
@@ -106,7 +108,7 @@ export function startSessionMaintenance(
           continue;
         }
         try {
-          const partition = `persist:account-${accountIndex}`;
+          const partition = toPartition(accountIndex);
           void session.fromPartition(partition).clearCodeCaches({ urls: [] });
           log.debug(
             `[AccountSessionMaintenance] Cleared code cache for idle account ${accountIndex}`
