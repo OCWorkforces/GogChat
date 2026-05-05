@@ -1,6 +1,6 @@
 # src/shared/ — Cross-Process Contracts
 
-**Generated:** 2026-04-30 | **Commit:** 315722d
+**Generated:** 2026-05-05 | **Commit:** c19efe6
 
 Cross-process contracts: constants, validators (split by domain), types (split into `types/`, 7 files). Single source of truth for IPC, config, and bridge APIs. **Edit this before touching IPC handlers or preload scripts.** No barrel files, all imports go directly to source modules.
 
@@ -8,11 +8,11 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 
 | File | Role |
 | --- | --- |
-| `constants.ts` | `IPC_CHANNELS` (8, `as const satisfies Record<string, string>`), `IPCChannelName` type, `SELECTORS`, `TIMING`, `ICON_TYPES`, `FAVICON_PATTERNS`, `RATE_LIMITS`, `BADGE`, `WHITELISTED_HOSTS`, `URL_PATTERNS`, `DEEP_LINK` |
+| `constants.ts` | All `as const` objects validated with `satisfies` (not just `IPC_CHANNELS`): `IPC_CHANNELS` (8), `IPCChannelName` type, `SELECTORS`, `TIMING`, `ICON_TYPES`, `FAVICON_PATTERNS`, `RATE_LIMITS`, `BADGE`, `WHITELISTED_HOSTS`, `URL_PATTERNS`, `DEEP_LINK` |
 | `dataValidators.ts` | `validateUnreadCount`, `validateBoolean`, `validateString`, `isSafeObject`, `sanitizeHTML`, `validatePasskeyFailureData`, `validateNotificationData` |
 | `urlValidators.ts` | `validateFaviconURL`, `validateExternalURL`, `validateAppleSystemPreferencesURL`, `isWhitelistedHost`, `validateDeepLinkURL`, `isAuthenticatedChatUrl`, `isGoogleAuthUrl`. Parse-once pattern: URLs parsed once per call, result reused. Internal helpers: `tryParseURL()`, `isWhitelistedHostInternal()` |
-| `typeUtils.ts` | `assertNever(value)` — exhaustiveness helper for discriminated union `switch` defaults; throws `GogChatError` if a case is unhandled |
-| `types/branded.ts` | `Branded<T,Brand>`, `ValidatedURL` nominal types, `asValidatedURL()` helper |
+| `typeUtils.ts` | `assertNever(value)` — exhaustiveness helper for discriminated union `switch` defaults; throws `GogChatError` if a case is unhandled. Actively used in `featureManager` and `badgeHandlers` (no longer dead code) |
+| `types/branded.ts` | `Branded<T,Brand>` plus nominal types: `AccountIndex`, `AccountPartition`, `FeatureNameBrand`, `WebContentsId`, `ValidatedURL`, with helpers `asAccountIndex()`, `toPartition()`, `asValidatedURL()` |
 | `types/window.ts` | `IAccountWindowManager` (22 methods), `WindowFactory`, `WindowBounds`, `WindowState`, `AccountWindowBounds`, `AccountWindowState`, `AccountWindowsMap` |
 | `types/domain.ts` | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union (8 WebAuthn values), `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData`, `NotificationData`, `BadgeIconCacheEntry`, `LinkValidationResult`, `ErrorLogEntry`, `PerformanceMetrics` (all readonly) |
 | `types/config.ts` | `AppConfig`, `StoreMetadata`, `StoreType`, `StoreKeyPaths` |
@@ -22,7 +22,7 @@ Cross-process contracts: constants, validators (split by domain), types (split i
 
 ## KEY EXPORTS
 
-**constants.ts**: `IPC_CHANNELS` (renderer→main + main→renderer, `as const satisfies Record<string, string>`), `IPCChannelName` derived type, `SELECTORS` (FRAGILE DOM selectors), `WHITELISTED_HOSTS`, `RATE_LIMITS`, `TIMING`, `BADGE`, `FAVICON_PATTERNS`, `DEEP_LINK`, `URL_PATTERNS`, `ICON_TYPES`.
+**constants.ts**: `IPC_CHANNELS` (renderer→main + main→renderer), `IPCChannelName` derived type, `SELECTORS` (FRAGILE DOM selectors), `WHITELISTED_HOSTS`, `RATE_LIMITS`, `TIMING`, `BADGE`, `FAVICON_PATTERNS`, `DEEP_LINK`, `URL_PATTERNS`, `ICON_TYPES`. All declared `as const satisfies` their respective record shapes for compile-time validation without widening.
 
 **dataValidators.ts**: data sanitization for IPC payloads. Use `isSafeObject` first, then field validators.
 

@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-04-30 (commit 315722d)
+**Generated:** 2026-05-05 (commit c19efe6)
 
 25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -26,18 +26,18 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `mediaPermissions.ts`   | `security` | none; macOS camera/mic TCC permissions                 |
 | `userAgent.ts`          | `critical` | none                                                   |
 | `singleInstance.ts`     | `ui`       | none; receives `{ accountWindowManager }` context      |
-| `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context      |
+| `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context; `getAccountIndexFromUrl` returns branded `AccountIndex` via `asAccountIndex()` |
 | `bootstrapPromotion.ts` | `deferred` | none (webContents events); moved from ui phase |
 | `trayIcon.ts`           | `deferred` | none; exports `setTrayUnread()` for badgeHandlers to toggle tray unread dot |
 | `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`, `helpMenuBuilder` |
 | `helpMenuBuilder.ts`    | `deferred` | none; builds Help submenu (relaunch/reset); used by appMenu |
 | `badgeIcon.ts`          | `deferred` | none; delegates to `badgeHandlers`                     |
-| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens); decideIcon + updateBadgeIcon + calls `setTrayUnread`; both handlers use `withDeduplication` (H2) |
+| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens); decideIcon uses `assertNever()` for exhaustive `IconType` switch + updateBadgeIcon + calls `setTrayUnread`; both handlers use `withDeduplication` (H2) |
 | `windowState.ts`        | `deferred` | none; uses `accountWindowManager`                      |
 | `passkeySupport.ts`     | `deferred` | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                 |
 | `handleNotification.ts` | `deferred` | `NOTIFICATION_SHOW` (listens)                          |
 | `inOnline.ts`           | `deferred` | `CHECK_IF_ONLINE` (deduplicate: true), `ONLINE_STATUS`     |
-| `externalLinks.ts`      | `deferred` | none (will-navigate); self-registers toggle guard in `menuActionRegistry` |
+| `externalLinks.ts`      | `deferred` | none (will-navigate); self-registers toggle guard in `menuActionRegistry`; account routing uses branded `AccountIndex` via `asAccountIndex()` |
 | `closeToTray.ts`        | `deferred` | none                                                   |
 | `openAtLogin.ts`        | `deferred` | none; self-registers `autoLaunch` in `menuActionRegistry` |
 | `appUpdates.ts`         | `deferred` | none                                                   |
