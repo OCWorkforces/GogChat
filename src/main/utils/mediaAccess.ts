@@ -8,7 +8,6 @@ import { type BrowserWindow, dialog, shell, systemPreferences } from 'electron';
 import log from 'electron-log';
 import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
 
-
 type MediaType = 'camera' | 'microphone';
 
 /** In-flight deduplication map — prevents concurrent duplicate TCC prompts */
