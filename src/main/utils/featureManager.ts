@@ -13,6 +13,7 @@
  */
 
 import { topologicalSort } from './featureSorter.js';
+import { assertNever } from '../../shared/typeUtils.js';
 import { groupFeaturesByDependencyLevel } from './featureSorter.js';
 import type {
   FeaturePriority,
@@ -20,6 +21,7 @@ import type {
   FeatureConfig,
   FeatureState,
 } from './featureConfigTypes.js';
+import type { FeatureNameBrand } from '../../shared/types/branded.js';
 
 import log from 'electron-log';
 import { getErrorHandler } from './errorHandler.js';
@@ -47,11 +49,13 @@ export function createFeature(
     required?: boolean;
   }
 ): FeatureConfig {
+  const { dependencies, ...rest } = options ?? {};
   return {
-    name,
+    name: name as FeatureNameBrand,
     priority,
     init,
-    ...options,
+    ...rest,
+    ...(dependencies && { dependencies: dependencies as FeatureNameBrand[] }),
   };
 }
 
@@ -74,15 +78,17 @@ export function createLazyFeature(
     required?: boolean;
   }
 ): FeatureConfig {
+  const { dependencies, ...rest } = options ?? {};
   return {
-    name,
+    name: name as FeatureNameBrand,
     priority,
     lazy: true,
     init: async (context: FeatureContext) => {
       const module = await importFn();
       await module.default(context);
     },
-    ...options,
+    ...rest,
+    ...(dependencies && { dependencies: dependencies as FeatureNameBrand[] }),
   };
 }
 
@@ -104,7 +110,7 @@ export async function initializeFeature(
     await handler.wrapAsync(
       {
         feature: featureName,
-        phase,
+        ...(phase !== undefined && { phase }),
         operation: 'initialization',
       },
       async () => {
@@ -123,9 +129,9 @@ export async function initializeFeature(
  * Feature Manager - Centralized feature orchestration
  */
 export class FeatureManager {
-  private features = new Map<string, FeatureConfig>();
-  private featureStates = new Map<string, FeatureState>();
-  private initializationOrder: string[] = [];
+  private features = new Map<FeatureNameBrand, FeatureConfig>();
+  private featureStates = new Map<FeatureNameBrand, FeatureState>();
+  private initializationOrder: FeatureNameBrand[] = [];
   private context: FeatureContext = {};
   private errorHandler = getErrorHandler();
 
@@ -382,14 +388,14 @@ export class FeatureManager {
   /**
    * Get initialization state for a feature
    */
-  getFeatureState(name: string): FeatureState | undefined {
+  getFeatureState(name: FeatureNameBrand): FeatureState | undefined {
     return this.featureStates.get(name);
   }
 
   /**
    * Get all feature states
    */
-  getAllStates(): Map<string, FeatureState> {
+  getAllStates(): Map<FeatureNameBrand, FeatureState> {
     return new Map(this.featureStates);
   }
 
@@ -414,8 +420,10 @@ export class FeatureManager {
         totalTime += state.initTime || 0;
       } else if (state.status === 'failed') {
         failed++;
-      } else {
+      } else if (state.status === 'pending' || state.status === 'initializing') {
         pending++;
+      } else {
+        assertNever(state.status);
       }
     }
 
@@ -458,7 +466,7 @@ export class FeatureManager {
   /**
    * Check if a feature is initialized
    */
-  isInitialized(name: string): boolean {
+  isInitialized(name: FeatureNameBrand): boolean {
     const state = this.featureStates.get(name);
     return state?.status === 'initialized';
   }
@@ -466,7 +474,7 @@ export class FeatureManager {
   /**
    * Get initialization order
    */
-  getInitializationOrder(): string[] {
+  getInitializationOrder(): FeatureNameBrand[] {
     return [...this.initializationOrder];
   }
 }

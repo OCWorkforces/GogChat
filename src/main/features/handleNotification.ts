@@ -35,8 +35,8 @@ export default (window: BrowserWindow) => {
         // Create native Electron notification
         const notification = new Notification({
           title: validated.title,
-          body: validated.body,
-          icon: validated.icon,
+          ...(validated.body !== undefined && { body: validated.body }),
+          ...(validated.icon !== undefined && { icon: validated.icon }),
           silent: false,
         });
 

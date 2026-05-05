@@ -82,7 +82,7 @@ export function registerDeferredSystemFeatures(
         const module = await import('../features/windowState.js');
         return {
           default: ({ accountWindowManager }: { accountWindowManager?: IAccountWindowManager }) => {
-            module.default({ accountWindowManager });
+            module.default(accountWindowManager ? { accountWindowManager } : {});
           },
         };
       },
