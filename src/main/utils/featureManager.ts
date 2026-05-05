@@ -22,6 +22,7 @@ import type {
   FeatureState,
 } from './featureConfigTypes.js';
 import type { FeatureNameBrand } from '../../shared/types/branded.js';
+import { asFeatureName } from '../../shared/types/branded.js';
 
 import log from 'electron-log';
 import { getErrorHandler } from './errorHandler.js';
@@ -51,11 +52,11 @@ export function createFeature(
 ): FeatureConfig {
   const { dependencies, ...rest } = options ?? {};
   return {
-    name: name as FeatureNameBrand,
+    name: asFeatureName(name),
     priority,
     init,
     ...rest,
-    ...(dependencies && { dependencies: dependencies as FeatureNameBrand[] }),
+    ...(dependencies && { dependencies: dependencies.map(asFeatureName) }),
   };
 }
 
@@ -80,7 +81,7 @@ export function createLazyFeature(
 ): FeatureConfig {
   const { dependencies, ...rest } = options ?? {};
   return {
-    name: name as FeatureNameBrand,
+    name: asFeatureName(name),
     priority,
     lazy: true,
     init: async (context: FeatureContext) => {
@@ -88,7 +89,7 @@ export function createLazyFeature(
       await module.default(context);
     },
     ...rest,
-    ...(dependencies && { dependencies: dependencies as FeatureNameBrand[] }),
+    ...(dependencies && { dependencies: dependencies.map(asFeatureName) }),
   };
 }
 

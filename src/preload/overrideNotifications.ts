@@ -2,6 +2,7 @@
 import { ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants.js';
 import { validateNotificationData } from '../shared/dataValidators.js';
+import { asUnsafe } from '../shared/typeUtils.js';
 
 // This feature requires contextIsolation to be disabled on BrowserWindow
 // When contextIsolation is enabled, we can not override any global (window.X) API
@@ -98,7 +99,13 @@ ipcRenderer.on(IPC_CHANNELS.NOTIFICATION_CLICKED, () => {
   // Trigger click callback for all notifications
   notificationInstances.forEach((instance) => {
     if (instance.onclick) {
-      instance.onclick.call(null as unknown as Notification, new Event('click'));
+      instance.onclick.call(
+        asUnsafe<Notification>(
+          null,
+          'Notification mock bridge for sandboxed preload (contextIsolation:false)'
+        ),
+        new Event('click')
+      );
     }
   });
 });
@@ -115,4 +122,7 @@ Object.defineProperty(newNotify, 'permission', {
   get: () => NativeNotification.permission,
 });
 
-window.Notification = newNotify as unknown as typeof Notification;
+window.Notification = asUnsafe<typeof Notification>(
+  newNotify,
+  'Notification mock bridge for sandboxed preload (contextIsolation:false)'
+);

@@ -8,6 +8,7 @@ import { getRateLimiter } from './rateLimiter.js';
 import { getDeduplicator } from './ipcDeduplicator.js';
 import { logger } from './logger.js';
 import { toError, toErrorMessage } from './errorUtils.js';
+import { asType } from '../../shared/typeUtils.js';
 
 /** Configuration for creating a secure IPC handler */
 export interface IPCHandlerConfig<T> {
@@ -220,7 +221,7 @@ export function createSecureInvokeHandler<T, R>(config: IPCInvokeHandlerConfig<T
         },
       }
     );
-    return result as R;
+    return asType<R>(result);
   };
 
   ipcMain.handle(config.channel, secureHandler);
