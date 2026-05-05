@@ -143,12 +143,12 @@ For detailed security information, see [SECURITY.md](SECURITY.md).
 
 ## Tech Stack
 
-| Layer    | Tech            |
-| -------- | --------------- |
-| Runtime  | Electron 41     |
-| Language | TypeScript 6.0  |
+| Layer    | Tech             |
+| -------- | ---------------- |
+| Runtime  | Electron 41      |
+| Language | TypeScript 6.0   |
 | Build    | Rsbuild (Rspack) |
-| Test     | Vitest 4        |
+| Test     | Vitest 4         |
 
 ## Contact
 

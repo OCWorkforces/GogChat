@@ -81,6 +81,19 @@ export default [
         },
       ],
       'no-console': 'off',
+      // Dry-run measurement (Plan Task 2): flag bare TS `as` casts.
+      // Migrating to `asType<T>()` from src/shared/typeUtils.ts in Task 8 (will become 'error').
+      // Allowlist: `as const` / `as const satisfies` (excluded by typeName.name='const'),
+      // and `e as Error` inside CatchClause. typeUtils.ts and types/branded.ts are exempted via overrides below.
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector:
+            'TSAsExpression:not([typeAnnotation.type="TSTypeReference"][typeAnnotation.typeName.name="const"]):not(CatchClause TSAsExpression[typeAnnotation.type="TSTypeReference"][typeAnnotation.typeName.name="Error"])',
+          message:
+            'Use `asType<T>(value)` from `src/shared/typeUtils.ts` (or a branded helper) instead of bare `value as T`. Bare casts reduce discoverability and are forbidden outside the allowlist.',
+        },
+      ],
     },
   },
 
@@ -282,6 +295,20 @@ export default [
       ...prettierConfig.rules,
       'prettier/prettier': 'error',
       'no-console': 'off',
+    },
+  },
+
+  // Allowlist override for the bare-cast measurement rule.
+  // typeUtils.ts owns the future asType<T>() helper; branded.ts intentionally creates branded values via internal `as`.
+  // Test files (*.test.ts) are exempt as well — see Plan Task 2.
+  {
+    files: [
+      'src/shared/typeUtils.ts',
+      'src/shared/types/branded.ts',
+      'src/**/*.test.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 ];

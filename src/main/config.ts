@@ -7,6 +7,7 @@ import { getOrCreateEncryptionKey, completeMigration } from './utils/encryptionK
 
 import { schema, CACHE_VERSION } from './utils/configSchema.js';
 import { ConfigError } from './utils/errors.js';
+import { asUnsafe } from '../shared/typeUtils.js';
 
 /**
  * Initialize encrypted store
@@ -195,7 +196,13 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
 export function configGet<K extends StoreKeyPaths<StoreType>>(
   key: K
 ): PathValue<StoreType, K> | undefined {
-  return getStore().get(key as never) as PathValue<StoreType, K> | undefined;
+  // electron-store's `.get()` overload set is not generic over dot-notation paths;
+  // `K extends StoreKeyPaths<StoreType>` is wider than the runtime-accepted union, so
+  // the typed key collapses to `never` at the call boundary. Validation is structural
+  // (StoreKeyPaths) — the cast bridges the proxy variance only.
+  return getStore().get(
+    asUnsafe<never>(key, 'electron-store .get() overload variance vs StoreKeyPaths dot-notation')
+  ) as PathValue<StoreType, K> | undefined;
 }
 
 /**
@@ -208,7 +215,19 @@ export function configSet<K extends StoreKeyPaths<StoreType>>(
   key: K,
   value: PathValue<StoreType, K>
 ): void {
-  getStore().set(key as never, value as never);
+  // Same overload-variance reason as configGet: both `key` and `value` parameters of
+  // electron-store's `.set()` collapse to `never` under our path-typed generic. The
+  // pair of casts is intentional and bounded to this single helper.
+  getStore().set(
+    asUnsafe<never>(
+      key,
+      'electron-store .set() key overload variance vs StoreKeyPaths dot-notation'
+    ),
+    asUnsafe<never>(
+      value,
+      'electron-store .set() value overload variance vs PathValue<StoreType, K>'
+    )
+  );
 }
 
 export default storeProxy;

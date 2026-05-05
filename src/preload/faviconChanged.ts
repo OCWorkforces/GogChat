@@ -4,6 +4,7 @@
  */
 
 import { SELECTORS } from '../shared/constants.js';
+import { asType } from '../shared/typeUtils.js';
 
 let previousHref: string = '';
 let observer: MutationObserver | null = null;
@@ -51,8 +52,8 @@ const scheduleEmit = () => {
 const getCurrentFavicon = (): string => {
   // Try shortcut icon first, then regular icon
   const favicon =
-    (document.querySelector(SELECTORS.FAVICON_SHORTCUT) as HTMLLinkElement) ||
-    (document.querySelector(SELECTORS.FAVICON_ICON) as HTMLLinkElement);
+    asType<HTMLLinkElement | null>(document.querySelector(SELECTORS.FAVICON_SHORTCUT)) ||
+    asType<HTMLLinkElement | null>(document.querySelector(SELECTORS.FAVICON_ICON));
 
   return favicon?.href || '';
 };

@@ -14,6 +14,7 @@ import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { clearBootstrap as _clearBootstrap, clearAllBootstrap } from './bootstrapTracker.js';
 import type { AccountIndex, WebContentsId } from '../../shared/types/branded.js';
+import { asWebContentsId } from '../../shared/types/branded.js';
 
 /**
  * Account window registration entry
@@ -94,7 +95,7 @@ export class AccountWindowRegistry {
       show: showHandler,
       closed: closedHandler,
     });
-    this.webContentsToAccountIndex.set(window.webContents.id as WebContentsId, accountIndex);
+    this.webContentsToAccountIndex.set(asWebContentsId(window.webContents.id), accountIndex);
     log.info(`[AccountWindowRegistry] Registered window for account ${accountIndex}`);
   }
 
@@ -186,7 +187,7 @@ export class AccountWindowRegistry {
 
       // Clean up webContents reverse index
       if (!entry.window.isDestroyed()) {
-        this.webContentsToAccountIndex.delete(entry.window.webContents.id as WebContentsId);
+        this.webContentsToAccountIndex.delete(asWebContentsId(entry.window.webContents.id));
       }
 
       this.reverseLookup.delete(entry.window);
