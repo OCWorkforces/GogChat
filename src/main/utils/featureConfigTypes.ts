@@ -14,6 +14,7 @@
 
 import type { BrowserWindow, Tray } from 'electron';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
+import type { FeatureNameBrand } from '../../shared/types/branded.js';
 
 /**
  * Feature initialization priority/phase
@@ -39,13 +40,13 @@ export interface FeatureContext {
  */
 export interface FeatureConfig {
   /** Unique feature identifier */
-  name: string;
+  name: FeatureNameBrand;
 
   /** Initialization priority/phase */
   priority: FeaturePriority;
 
   /** Feature names this feature depends on (must be initialized first) */
-  dependencies?: string[];
+  dependencies?: FeatureNameBrand[];
 
   /**
    * Feature initialization function
@@ -84,7 +85,7 @@ export interface FeatureConfig {
  * Feature initialization state
  */
 export interface FeatureState {
-  name: string;
+  name: FeatureNameBrand;
   status: 'pending' | 'initializing' | 'initialized' | 'failed';
   error?: Error;
   initTime?: number; // milliseconds

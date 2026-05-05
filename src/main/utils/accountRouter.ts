@@ -10,6 +10,8 @@
 import type { BrowserWindow } from 'electron';
 import { isGoogleAuthUrl } from '../../shared/urlValidators.js';
 import type { WindowFactory } from '../../shared/types/window.js';
+import type { AccountIndex } from '../../shared/types/branded.js';
+import { toPartition } from '../../shared/types/branded.js';
 import log from 'electron-log';
 import { isBootstrap as _isBootstrap } from './bootstrapTracker.js';
 import type { AccountWindowRegistry } from './accountWindowRegistry.js';
@@ -24,8 +26,8 @@ import type { AccountWindowRegistry } from './accountWindowRegistry.js';
  * lifecycle (T12/M3).
  */
 export interface HydrationHook {
-  isDehydrated: (accountIndex: number) => boolean;
-  hydrate: (accountIndex: number) => BrowserWindow | null;
+  isDehydrated: (accountIndex: AccountIndex) => boolean;
+  hydrate: (accountIndex: AccountIndex) => BrowserWindow | null;
 }
 
 /**
@@ -44,7 +46,7 @@ export function routeAccountWindow(
   registry: AccountWindowRegistry,
   windowFactory: WindowFactory | undefined,
   url: string,
-  accountIndex: number,
+  accountIndex: AccountIndex,
   hydrationHook?: HydrationHook
 ): BrowserWindow {
   // Auto-hydrate path (T12/M3): if the account is currently dehydrated, the
@@ -89,7 +91,7 @@ export function routeAccountWindow(
   if (!windowFactory) {
     throw new Error('[AccountRouter] No WindowFactory injected — cannot create window');
   }
-  const partition = `persist:account-${accountIndex}`;
+  const partition = toPartition(accountIndex);
   const window = windowFactory.createWindow(url, partition);
 
   registry.registerWindow(window, accountIndex);

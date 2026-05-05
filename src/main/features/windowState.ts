@@ -3,6 +3,7 @@ import log from 'electron-log';
 import store, { configGet } from '../config.js';
 import { TIMING } from '../../shared/constants.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
 import { getWindowForAccount } from '../utils/accountWindowManager.js';
 
 // Store handlers for cleanup
@@ -20,7 +21,7 @@ interface WindowStateContext {
 export default (_context: WindowStateContext) => {
   try {
     // Resolve window from account-0 (preserving current single-window behavior)
-    const window = getWindowForAccount(0);
+    const window = getWindowForAccount(asAccountIndex(0));
     if (!window) {
       log.warn('[WindowState] No window available for account-0');
       return;
@@ -125,7 +126,7 @@ export function cleanupWindowState(_context: WindowStateContext): void {
   try {
     log.debug('[WindowState] Cleaning up window state listeners');
     // Resolve window from account-0 for cleanup
-    const win = getWindowForAccount(0);
+    const win = getWindowForAccount(asAccountIndex(0));
 
     // Cancel any pending throttled/debounced calls
     if (debouncedSaveHandler) {

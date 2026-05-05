@@ -81,3 +81,9 @@ export interface IPCResponsePayloadMap {
   [IPC_CHANNELS.SEARCH_SHORTCUT]: void; // fire-and-forget
   [IPC_CHANNELS.ONLINE_STATUS]: void; // fire-and-forget
 }
+
+/** Maps an IPC channel name to its request type (e.g. "config:get" → RequestConfigPayload) */
+export type ChannelRequest<K extends IPCChannelName> = IPCChannelPayloadMap[K];
+
+/** Maps an IPC channel name to its response type (e.g. "config:get" → ConfigResponse) */
+export type ChannelResponse<K extends IPCChannelName> = IPCResponsePayloadMap[K];

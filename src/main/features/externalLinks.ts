@@ -9,6 +9,7 @@ import {
 } from '../../shared/urlValidators.js';
 import { createTrackedInterval } from '../utils/resourceCleanup.js';
 import { watchBootstrapAccount } from '../utils/bootstrapWatcher.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
 import {
   createAccountWindow,
   getAccountIndex,
@@ -53,19 +54,19 @@ function isValidHttpURL(input: string): boolean {
   }
 }
 
-function getAccountIndexFromUrl(input: string): number {
+function getAccountIndexFromUrl(input: string) {
   try {
     const parsed = new URL(input);
     const match = parsed.pathname.match(/^\/u\/(\d+)(?:\/|$)/);
-    return match ? Number(match[1]) : 0;
+    return asAccountIndex(match ? Number(match[1]) : 0);
   } catch {
-    return 0;
+    return asAccountIndex(0);
   }
 }
 
 function routeAccountUrl(window: BrowserWindow, url: string): boolean {
   const targetAccountIndex = getAccountIndexFromUrl(url);
-  const currentAccountIndex = getAccountIndex(window) ?? 0;
+  const currentAccountIndex = getAccountIndex(window) ?? asAccountIndex(0);
 
   if (targetAccountIndex === currentAccountIndex) {
     return false;

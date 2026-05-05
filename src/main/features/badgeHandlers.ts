@@ -21,20 +21,30 @@ import { validateFaviconURL } from '../../shared/urlValidators.js';
 import { validateUnreadCount } from '../../shared/dataValidators.js';
 import { getIconCache } from '../utils/iconCache.js';
 import { setTrayUnread } from './trayIcon.js';
+import { assertNever } from '../../shared/typeUtils.js';
 
 /**
  * Decide app icon based on favicon URL.
  */
 export const decideIcon = (href: string): IconType => {
-  let type: IconType = ICON_TYPES.OFFLINE;
+  let type: IconType;
 
   if (FAVICON_PATTERNS.NORMAL.test(href)) {
     type = ICON_TYPES.NORMAL;
   } else if (FAVICON_PATTERNS.BADGE.test(href)) {
     type = ICON_TYPES.BADGE;
+  } else {
+    type = ICON_TYPES.OFFLINE;
   }
 
-  return type;
+  switch (type) {
+    case ICON_TYPES.OFFLINE:
+    case ICON_TYPES.NORMAL:
+    case ICON_TYPES.BADGE:
+      return type;
+    default:
+      return assertNever(type);
+  }
 };
 
 /**

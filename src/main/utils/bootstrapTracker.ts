@@ -10,17 +10,18 @@
  */
 
 import log from 'electron-log';
+import type { AccountIndex } from '../../shared/types/branded.js';
 
 /**
  * Internal set tracking which account indices are currently bootstrap windows.
  */
-const bootstrapAccounts = new Set<number>();
+const bootstrapAccounts = new Set<AccountIndex>();
 
 /**
  * Mark an account index as a bootstrap (pre-auth) window.
  * @param accountIndex - The account index to mark
  */
-export function markAsBootstrap(accountIndex: number): void {
+export function markAsBootstrap(accountIndex: AccountIndex): void {
   bootstrapAccounts.add(accountIndex);
   log.debug(`[BootstrapTracker] Account ${accountIndex} marked as bootstrap window`);
 }
@@ -30,7 +31,7 @@ export function markAsBootstrap(accountIndex: number): void {
  * @param accountIndex - The account index to query
  * @returns True if the account is a bootstrap window
  */
-export function isBootstrap(accountIndex: number): boolean {
+export function isBootstrap(accountIndex: AccountIndex): boolean {
   return bootstrapAccounts.has(accountIndex);
 }
 
@@ -40,7 +41,7 @@ export function isBootstrap(accountIndex: number): boolean {
  * @param accountIndex - The account index to promote
  * @returns True if the account was previously marked as bootstrap
  */
-export function promoteBootstrap(accountIndex: number): boolean {
+export function promoteBootstrap(accountIndex: AccountIndex): boolean {
   const wasBootstrap = bootstrapAccounts.delete(accountIndex);
   if (wasBootstrap) {
     log.info(`[BootstrapTracker] Account ${accountIndex} promoted from bootstrap to authenticated`);
@@ -53,7 +54,7 @@ export function promoteBootstrap(accountIndex: number): boolean {
  * Use this when the bootstrap window should be discarded rather than kept.
  * @param accountIndex - The account index to clear
  */
-export function clearBootstrap(accountIndex: number): void {
+export function clearBootstrap(accountIndex: AccountIndex): void {
   bootstrapAccounts.delete(accountIndex);
   log.debug(`[BootstrapTracker] Bootstrap flag cleared for account ${accountIndex}`);
 }
@@ -61,7 +62,7 @@ export function clearBootstrap(accountIndex: number): void {
 /**
  * Return all account indices currently in bootstrap state.
  */
-export function getBootstrapAccounts(): number[] {
+export function getBootstrapAccounts(): AccountIndex[] {
   return Array.from(bootstrapAccounts);
 }
 

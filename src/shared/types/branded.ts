@@ -22,6 +22,28 @@ export type Branded<T, Brand extends string> = T & { readonly __brand: Brand };
 export type ValidatedURL = Branded<string, 'ValidatedURL'>;
 
 /**
+ * Account index identifier.
+ * Distinguishes account indexes from other numeric values like window IDs or port numbers.
+ */
+export type AccountIndex = Branded<number, 'AccountIndex'>;
+
+/**
+ * Session partition string for per-account isolation (e.g. "persist:account-0").
+ */
+export type AccountPartition = Branded<string, 'AccountPartition'>;
+
+/**
+ * Feature module name identifier.
+ */
+export type FeatureNameBrand = Branded<string, 'FeatureName'>;
+
+/**
+ * Renderer webContents numeric identifier.
+ * Distinguishes webContents IDs from other numeric values like account indexes.
+ */
+export type WebContentsId = Branded<number, 'WebContentsId'>;
+
+/**
  * Cast a validated string to the `ValidatedURL` branded type.
  * Only call this after the string has been through validateExternalURL(),
  * validateFaviconURL(), or validateDeepLinkURL().
@@ -29,4 +51,19 @@ export type ValidatedURL = Branded<string, 'ValidatedURL'>;
  */
 export function asValidatedURL(s: string): ValidatedURL {
   return s as ValidatedURL;
+}
+
+/**
+ * Cast a number to the `AccountIndex` branded type.
+ * Only call this after the number has been validated as a genuine account index.
+ */
+export function asAccountIndex(n: number): AccountIndex {
+  return n as AccountIndex;
+}
+
+/**
+ * Create a session partition string from an account index.
+ */
+export function toPartition(index: AccountIndex): AccountPartition {
+  return `persist:account-${String(index)}` as AccountPartition;
 }

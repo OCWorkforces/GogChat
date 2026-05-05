@@ -8,6 +8,7 @@ import { type BrowserWindow, dialog, shell, systemPreferences } from 'electron';
 import log from 'electron-log';
 import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
 
+
 type MediaType = 'camera' | 'microphone';
 
 /** In-flight deduplication map — prevents concurrent duplicate TCC prompts */
@@ -71,6 +72,8 @@ async function performMediaAccessCheck(type: MediaType): Promise<boolean> {
 
     default:
       log.warn(`[MediaAccess] Unexpected ${type} status: ${String(status)}`);
+      // External Electron API may return new values in future versions —
+      // gracefully fall back to deny rather than crashing via assertNever.
       return false;
   }
 }

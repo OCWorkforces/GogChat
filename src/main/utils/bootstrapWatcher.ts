@@ -12,6 +12,8 @@ import type { BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { isAuthenticatedChatUrl } from '../../shared/urlValidators.js';
 import { getAccountWindowManager } from './accountWindowManager.js';
+import type { AccountIndex } from '../../shared/types/branded.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
 
 // ─── module-level cleanup refs ────────────────────────────────────────────────
 
@@ -20,7 +22,7 @@ import { getAccountWindowManager } from './accountWindowManager.js';
  * Each entry is removed (set to null / deleted from the map) once the watcher
  * fires or is explicitly cleaned up.
  */
-const cleanupByAccount = new Map<number, (() => void) | null>();
+const cleanupByAccount = new Map<AccountIndex, (() => void) | null>();
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,7 +70,7 @@ function watchForAuth(win: BrowserWindow, onAuth: (url: string) => void): () => 
  * The returned function is also stored internally so `cleanupBootstrapPromotion`
  * can reach it.
  */
-export function watchBootstrapAccount(accountIndex: number): () => void {
+export function watchBootstrapAccount(accountIndex: AccountIndex): () => void {
   const mgr = getAccountWindowManager();
 
   const noop = () => {
@@ -123,8 +125,8 @@ export function watchBootstrapAccount(accountIndex: number): () => void {
         mgr.promoteBootstrap(accountIndex);
       }
 
-      if (accountIndex === 0) {
-        const mainWindow = mgr.getAccountWindow(0);
+      if (accountIndex === asAccountIndex(0)) {
+        const mainWindow = mgr.getAccountWindow(asAccountIndex(0));
         if (mainWindow && !mainWindow.isDestroyed()) {
           const currentUrl = mainWindow.webContents.getURL();
           if (currentUrl !== url) {
