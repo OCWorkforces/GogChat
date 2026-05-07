@@ -1,13 +1,15 @@
 /**
  * Unit tests for aboutPanel feature with custom BrowserWindow dialog.
  *
- * Uses dynamic import to work around Bun's vi.mock limitation:
- * static imports of modules that runtime-import from 'electron'
- * require vi.hoisted (unavailable in Bun) to expose mock state.
+ * Uses dynamic import + globalThis to expose mock state across
+ * both Bun and Node.js Vitest runners.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('electron', () => {
+  const instances: any[] = [];
+  (globalThis as any).__aboutPanelMock = { instances };
+
   const BW = function MockBW(this: any) {
     this.loadURL = vi.fn();
     this.show = vi.fn();
@@ -19,9 +21,8 @@ vi.mock('electron', () => {
     this.isMinimized = vi.fn().mockReturnValue(false);
     this.isDestroyed = vi.fn().mockReturnValue(false);
     this.webContents = { url: '' };
-    (BW as any).__instances.push(this);
+    instances.push(this);
   };
-  (BW as any).__instances = [];
   return { BrowserWindow: BW };
 });
 
@@ -55,11 +56,19 @@ async function loadAboutPanel() {
 }
 
 function getInstances(): any[] {
-  const { BrowserWindow } = require('electron');
-  return (BrowserWindow as any).__instances;
+  return (globalThis as any).__aboutPanelMock?.instances ?? [];
 }
 
 describe('aboutPanel', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    // Reload cached modules so aboutWindow starts fresh each test
+    vi.resetModules();
+    // Clear mock instances in-place (preserves closure link from mock factory)
+    const state = (globalThis as any).__aboutPanelMock;
+    if (state?.instances) state.instances.length = 0;
+  });
+
   it('creates a BrowserWindow and loads aura icon HTML', async () => {
     const aboutPanel = await loadAboutPanel();
     aboutPanel({ id: 1 } as any);
