@@ -13,9 +13,27 @@ import { registerAllFeatures } from './initializers/registerFeatures.js';
 import { registerShutdownHandler } from './initializers/registerShutdown.js';
 import { registerAppReady, getMostRecentWindow } from './initializers/registerAppReady.js';
 
-app.commandLine.appendSwitch('disable-background-timer-throttling');
-app.commandLine.appendSwitch('disable-renderer-backgrounding');
-app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+// Cap V8 heap per renderer (default 512MB, conservative for Google Chat SPA).
+// Must be set before app.ready per Electron docs. Replaces the previous anti-throttle
+// flags (disable-background-timer-throttling / disable-renderer-backgrounding /
+// disable-backgrounding-occluded-windows); throttling is now toggled per-window via
+// `setBackgroundThrottling` so account-0 stays unthrottled for badge/notification
+// reliability while accounts 1+ recover 5–15% renderer CPU when blurred.
+//
+// Allow override via env var `GOGCHAT_V8_HEAP_CAP_MB` (range 128–4096).
+// Config store cannot be used here: it requires SafeStorage → app.ready, but
+// `--js-flags` must be set before any chromium process starts.
+const v8HeapCapMB = ((): number => {
+  const env = process.env['GOGCHAT_V8_HEAP_CAP_MB'];
+  if (env !== undefined) {
+    const parsed = parseInt(env, 10);
+    if (!isNaN(parsed) && parsed >= 128 && parsed <= 4096) {
+      return parsed;
+    }
+  }
+  return 512;
+})();
+app.commandLine.appendSwitch('js-flags', `--max-old-space-size=${v8HeapCapMB}`);
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.

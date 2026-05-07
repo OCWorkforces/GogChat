@@ -39,12 +39,13 @@ import {
 import { createTrackedTimeout } from './resourceCleanup.js';
 
 /**
- * Idle threshold (T12/M3) after which a blurred or hidden account window is
- * dehydrated — the BrowserWindow is destroyed while its `persist:account-N`
- * partition (cookies/localStorage/IDB) survives. Independent of T11's
- * 30-minute session-maintenance threshold.
+ * Idle threshold after which a blurred or hidden non-primary
+ * account window is dehydrated — the BrowserWindow is destroyed while its
+ * `persist:account-N` partition (cookies/localStorage/IDB) survives.
+ * Account-0 is permanently exempt to keep badges/notifications alive.
+ * Independent of T11's 30-minute session-maintenance threshold.
  */
-const DEHYDRATE_IDLE_THRESHOLD_MS = 5 * 60 * 1000;
+const DEFAULT_DEHYDRATE_THRESHOLD_MS = 90 * 1000; // 90 seconds
 
 /**
  * Per-account state captured immediately before {@link AccountWindowManager.dehydrateAccount}
@@ -110,6 +111,8 @@ export class AccountWindowManager implements IAccountWindowManager {
       onClosed: () => void;
       onIdleStart: () => void;
       onIdleCancel: () => void;
+      onFocusThrottle: () => void;
+      onBlurThrottle: () => void;
     }
   >();
   /**
@@ -127,12 +130,28 @@ export class AccountWindowManager implements IAccountWindowManager {
    * Tracked via {@link createTrackedTimeout} so app shutdown clears them.
    */
   private readonly dehydrateTimers = new Map<AccountIndex, NodeJS.Timeout>();
+  /**
+   * Effective dehydration threshold (ms). Resolved once at
+   * construction time from `configGet('memory').dehydrationThresholdMs`,
+   * with validation (60000–600000) and a 90s fallback. Read-only because
+   * pending {@link createTrackedTimeout} timers cannot be retargeted; a
+   * value change requires an app restart.
+   */
+  private readonly dehydrateThresholdMs: number;
 
   constructor(private readonly windowFactory?: WindowFactory) {
     // Reset shared bootstrap tracker so each manager instance starts clean
     clearAllBootstrap();
     this.registry = new AccountWindowRegistry();
     this.startMaintenance();
+    // Read dehydration threshold from config, fall back to 90s default.
+    // Validate range (60s–600s) to guard against typos in the hidden pref.
+    const configured = configGet('memory')?.dehydrationThresholdMs;
+    if (typeof configured === 'number' && configured >= 60000 && configured <= 600000) {
+      this.dehydrateThresholdMs = configured;
+    } else {
+      this.dehydrateThresholdMs = DEFAULT_DEHYDRATE_THRESHOLD_MS;
+    }
   }
 
   /**
@@ -183,6 +202,28 @@ export class AccountWindowManager implements IAccountWindowManager {
     const onIdleCancel = (): void => {
       this.cancelDehydrate(accountIndex);
     };
+    // Toggle Chromium background throttling per focus state.
+    // Account-0 stays unthrottled to preserve badge/notification reliability;
+    // accounts 1+ throttle when blurred (5–15% renderer CPU savings) and
+    // unthrottle when focused for snappy interaction.
+    const applyThrottle = (focused: boolean): void => {
+      if (window.isDestroyed()) return;
+      if (accountIndex === 0) {
+        window.webContents.setBackgroundThrottling(false);
+        return;
+      }
+      window.webContents.setBackgroundThrottling(!focused);
+    };
+    const onFocusThrottle = (): void => {
+      applyThrottle(true);
+    };
+    const onBlurThrottle = (): void => {
+      applyThrottle(false);
+    };
+    // Establish initial throttling state synchronously: a freshly registered
+    // window has not yet emitted focus/blur, so default to the throttled
+    // (background) state for accounts 1+ until the user focuses it.
+    applyThrottle(false);
     window.on('focus', record);
     window.on('blur', record);
     window.on('show', record);
@@ -191,8 +232,17 @@ export class AccountWindowManager implements IAccountWindowManager {
     window.on('hide', onIdleStart);
     window.on('focus', onIdleCancel);
     window.on('show', onIdleCancel);
+    window.on('focus', onFocusThrottle);
+    window.on('blur', onBlurThrottle);
     window.once('closed', onClosed);
-    this.activityListeners.set(window, { record, onClosed, onIdleStart, onIdleCancel });
+    this.activityListeners.set(window, {
+      record,
+      onClosed,
+      onIdleStart,
+      onIdleCancel,
+      onFocusThrottle,
+      onBlurThrottle,
+    });
   }
 
   private detachActivityListeners(window: BrowserWindow): void {
@@ -209,6 +259,8 @@ export class AccountWindowManager implements IAccountWindowManager {
       window.removeListener('hide', handle.onIdleStart);
       window.removeListener('focus', handle.onIdleCancel);
       window.removeListener('show', handle.onIdleCancel);
+      window.removeListener('focus', handle.onFocusThrottle);
+      window.removeListener('blur', handle.onBlurThrottle);
       window.removeListener('closed', handle.onClosed);
     }
     this.activityListeners.delete(window);
@@ -443,12 +495,17 @@ export class AccountWindowManager implements IAccountWindowManager {
   }
 
   /**
-   * Schedule a dehydration after {@link DEHYDRATE_IDLE_THRESHOLD_MS}. Idempotent:
+   * Schedule a dehydration after {@link AccountWindowManager#dehydrateThresholdMs}. Idempotent:
    * a pending timer for the same account is left in place so the original
    * blur/hide moment continues to drive the deadline (resetting on every
    * blur/hide would let frequent re-blurs delay dehydration indefinitely).
    */
   private scheduleDehydrate(accountIndex: AccountIndex): void {
+    // Never dehydrate account-0 (keeps notifications/badges alive).
+    // Bootstrap accounts are already guarded in attachActivityListeners.onIdleStart.
+    if (accountIndex === 0) {
+      return;
+    }
     if (this.dehydrateTimers.has(accountIndex)) {
       return;
     }
@@ -460,7 +517,7 @@ export class AccountWindowManager implements IAccountWindowManager {
         this.dehydrateTimers.delete(accountIndex);
         this.dehydrateAccount(accountIndex);
       },
-      DEHYDRATE_IDLE_THRESHOLD_MS,
+      this.dehydrateThresholdMs,
       `dehydrate-account-${accountIndex}`
     );
     this.dehydrateTimers.set(accountIndex, timer);

@@ -156,4 +156,19 @@ export const schema: Schema<StoreType> = {
     },
     default: {},
   },
+  memory: {
+    type: 'object',
+    properties: {
+      dehydrationThresholdMs: {
+        type: 'number',
+      },
+      v8HeapCapMB: {
+        type: 'number',
+      },
+      diskCacheMaxMB: {
+        type: 'number',
+      },
+    },
+    default: {},
+  },
 };

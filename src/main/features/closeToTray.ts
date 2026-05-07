@@ -2,6 +2,9 @@ import type { BrowserWindow } from 'electron';
 import { app } from 'electron';
 import log from 'electron-log';
 import { platform } from '../utils/platformDetection.js';
+import { getAccountWindowManager } from '../utils/accountWindowManager.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
 
 let willQuit = false;
 let beforeQuitHandler: (() => void) | null = null;
@@ -18,6 +21,15 @@ export default (window: BrowserWindow) => {
     if (!willQuit) {
       event.preventDefault();
 
+      // Dehydrate background accounts 1+ when closing to tray.
+      // Account-0 stays alive for badge/notification updates.
+      try {
+        const manager = getAccountWindowManager();
+        dehydrateBackgroundAccounts(manager);
+      } catch {
+        // Fail silently — dehydration is a memory optimization, not critical.
+      }
+
       if (platform.isMac) {
         app.hide();
       } else {
@@ -27,6 +39,22 @@ export default (window: BrowserWindow) => {
   };
   window.on('close', closeHandler);
 };
+
+/**
+ * Dehydrate every non-primary account window so the tray-only state holds
+ * only account-0 in memory. Account-0 is intentionally preserved to keep
+ * badges and notifications flowing while the app is hidden.
+ */
+function dehydrateBackgroundAccounts(manager: IAccountWindowManager): void {
+  const accountCount = manager.getAccountCount();
+  for (let i = 1; i < accountCount; i++) {
+    const idx = asAccountIndex(i);
+    if (manager.hasAccount(idx) && !manager.isDehydrated(idx)) {
+      manager.dehydrateAccount(idx);
+      log.debug(`[CloseToTray] Dehydrated account ${i} on tray close`);
+    }
+  }
+}
 
 /**
  * Cleanup function for close to tray feature

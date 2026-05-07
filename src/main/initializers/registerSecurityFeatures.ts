@@ -1,5 +1,5 @@
 /**
- * Security Phase Feature Registration
+ * Security Feature Registration
  *
  * These features are initialized BEFORE app.whenReady() for security.
  * Certificate pinning must precede any HTTP requests.

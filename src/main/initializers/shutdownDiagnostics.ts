@@ -6,6 +6,7 @@
  */
 
 import log from 'electron-log';
+import { session } from 'electron';
 import type Store from 'electron-store';
 import type { FeatureManager } from '../utils/featureManager.js';
 import { getIconCache } from '../utils/iconCache.js';
@@ -13,6 +14,9 @@ import { getStore } from '../config.js';
 import type { CachedStore } from '../utils/configCache.js';
 import { getRateLimiter } from '../utils/rateLimiter.js';
 import { getDeduplicator } from '../utils/ipcDeduplicator.js';
+import { getAccountWindowManager } from '../utils/accountWindowManager.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
+import { toPartition } from '../../shared/types/branded.js';
 import type { StoreType } from '../../shared/types/config.js';
 
 /**
@@ -26,7 +30,7 @@ function isCachedStore(store: Store<StoreType>): store is CachedStore<StoreType>
  * Log comprehensive cache statistics on app quit.
  * Provides visibility into cache performance for optimization.
  */
-export function logShutdownDiagnostics(featureManager: FeatureManager): void {
+export async function logShutdownDiagnostics(featureManager: FeatureManager): Promise<void> {
   try {
     // Icon Cache Statistics
     const iconCache = getIconCache();
@@ -108,6 +112,27 @@ export function logShutdownDiagnostics(featureManager: FeatureManager): void {
     log.info(`[Main]   Failed: ${summary.failed}`);
     log.info(`[Main]   Pending: ${summary.pending}`);
     log.info(`[Main]   Total init time: ${summary.totalTime}ms`);
+
+    // Per-account disk cache sizes (diagnostics only).
+    try {
+      const manager = getAccountWindowManager();
+      const accountCount = manager.getAccountCount();
+      log.info('[Main] --- Account Disk Cache Sizes ---');
+      for (let i = 0; i < accountCount; i++) {
+        const partition = toPartition(asAccountIndex(i));
+        try {
+          const sesh = session.fromPartition(partition);
+          const sizeBytes = await sesh.getCacheSize();
+          log.info(
+            `[Main]   Account ${i} (${partition}) disk cache: ${(sizeBytes / 1024 / 1024).toFixed(2)} MB`
+          );
+        } catch (err: unknown) {
+          log.debug(`[Main]   Account ${i} cache size unavailable:`, err);
+        }
+      }
+    } catch (err: unknown) {
+      log.debug('[Main] Account window manager not available for cache size logging:', err);
+    }
   } catch (error: unknown) {
     log.error('[Main] Failed to log comprehensive cache statistics:', error);
   }

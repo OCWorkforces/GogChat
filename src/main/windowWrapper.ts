@@ -14,6 +14,24 @@ import { configGet, configSet } from './config.js';
 
 installBenignWarningFilter();
 
+/**
+ * Parse the account index from a session partition string of the form
+ * `persist:account-N`. Returns 0 (default) when the partition is not present
+ * or does not match the expected pattern.
+ *
+ * Used to gate per-window `backgroundThrottling`: account-0 keeps
+ * throttling disabled for badge/notification reliability while accounts 1+
+ * permit Chromium to throttle background timers.
+ */
+function parseAccountIndexFromPartition(partition: string): number {
+  const match = /^persist:account-(\d+)$/.exec(partition);
+  if (match && match[1]) {
+    const idx = parseInt(match[1], 10);
+    if (!Number.isNaN(idx)) return idx;
+  }
+  return 0;
+}
+
 export default (url: string, partition?: string): BrowserWindow => {
   const webPrefs: Electron.WebPreferences = {
     autoplayPolicy: 'user-gesture-required',
@@ -23,7 +41,12 @@ export default (url: string, partition?: string): BrowserWindow => {
     webSecurity: true,
     allowRunningInsecureContent: false,
     disableBlinkFeatures: 'Auxclick',
-    backgroundThrottling: false, // Keep badge/notification updates alive when hidden
+    // account-0 keeps throttling disabled to preserve badge and
+    // notification updates when the window is hidden/blurred. Accounts 1+
+    // opt into Chromium background throttling (5–15% renderer CPU savings)
+    // and are toggled live via `setBackgroundThrottling` on focus/blur in
+    // accountWindowManager.attachActivityListeners.
+    backgroundThrottling: partition !== undefined && parseAccountIndexFromPartition(partition) > 0,
     preload: path.join(app.getAppPath(), 'lib/preload/index.js'),
   };
   if (partition !== undefined) {

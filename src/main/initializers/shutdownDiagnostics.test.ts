@@ -11,19 +11,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ──── Hoisted mocks ────────────────────────────────────────────────────────
-const { mockLog, mockGetIconCache, mockGetStore, mockGetDeduplicator, mockGetRateLimiter } =
-  vi.hoisted(() => ({
-    mockLog: {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      debug: vi.fn(),
-    },
-    mockGetIconCache: vi.fn(),
-    mockGetStore: vi.fn(),
-    mockGetDeduplicator: vi.fn(),
-    mockGetRateLimiter: vi.fn(),
-  }));
+const {
+  mockLog,
+  mockGetIconCache,
+  mockGetStore,
+  mockGetDeduplicator,
+  mockGetRateLimiter,
+  mockGetAccountWindowManager,
+  mockSessionFromPartition,
+} = vi.hoisted(() => ({
+  mockLog: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  mockGetIconCache: vi.fn(),
+  mockGetStore: vi.fn(),
+  mockGetDeduplicator: vi.fn(),
+  mockGetRateLimiter: vi.fn(),
+  mockGetAccountWindowManager: vi.fn(() => ({ getAccountCount: () => 0 })),
+  mockSessionFromPartition: vi.fn(() => ({ getCacheSize: vi.fn().mockResolvedValue(0) })),
+}));
 
 // ──── Module mocks ─────────────────────────────────────────────────────────
 vi.mock('electron-log', () => ({
@@ -44,6 +53,14 @@ vi.mock('../utils/ipcDeduplicator.js', () => ({
 
 vi.mock('../utils/rateLimiter.js', () => ({
   getRateLimiter: mockGetRateLimiter,
+}));
+
+vi.mock('../utils/accountWindowManager.js', () => ({
+  getAccountWindowManager: mockGetAccountWindowManager,
+}));
+
+vi.mock('electron', () => ({
+  session: { fromPartition: mockSessionFromPartition },
 }));
 
 // ──── Import under test ────────────────────────────────────────────────────
@@ -117,7 +134,7 @@ describe('logShutdownDiagnostics', () => {
 
   // ─── Icon cache statistics ──────────────────────────────────────────────
 
-  it('should log icon cache statistics', () => {
+  it('should log icon cache statistics', async () => {
     setupIconCacheMock({
       size: 5,
       maxSize: 50,
@@ -126,7 +143,7 @@ describe('logShutdownDiagnostics', () => {
       leastAccessed: 'icons/badge.png',
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main] --- Icon Cache Statistics ---');
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Total icons cached: 5/50');
@@ -136,7 +153,7 @@ describe('logShutdownDiagnostics', () => {
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Average accesses per icon: 20.00');
   });
 
-  it('should handle icon cache with size 0 (average shows "0")', () => {
+  it('should handle icon cache with size 0 (average shows "0")', async () => {
     setupIconCacheMock({
       size: 0,
       maxSize: 50,
@@ -145,7 +162,7 @@ describe('logShutdownDiagnostics', () => {
       leastAccessed: null,
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Total icons cached: 0/50');
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Most accessed: N/A');
@@ -155,7 +172,7 @@ describe('logShutdownDiagnostics', () => {
 
   // ─── isCachedStore: store with getCacheStats ───────────────────────────
 
-  it('should log config cache statistics when store is a CachedStore', () => {
+  it('should log config cache statistics when store is a CachedStore', async () => {
     mockGetStore.mockReturnValue({
       getCacheStats: vi.fn().mockReturnValue({
         hits: 200,
@@ -165,7 +182,7 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main] --- Config Cache Statistics ---');
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Cache hits: 200');
@@ -174,7 +191,7 @@ describe('logShutdownDiagnostics', () => {
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Hit rate: 80.0%');
   });
 
-  it('should log "Excellent" performance when hit rate > 80%', () => {
+  it('should log "Excellent" performance when hit rate > 80%', async () => {
     mockGetStore.mockReturnValue({
       getCacheStats: vi.fn().mockReturnValue({
         hits: 200,
@@ -184,12 +201,12 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Performance: Excellent');
   });
 
-  it('should log "Good" performance when hit rate is between 60% and 80%', () => {
+  it('should log "Good" performance when hit rate is between 60% and 80%', async () => {
     mockGetStore.mockReturnValue({
       getCacheStats: vi.fn().mockReturnValue({
         hits: 70,
@@ -199,12 +216,12 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Performance: Good');
   });
 
-  it('should log "Poor" performance when hit rate <= 60%', () => {
+  it('should log "Poor" performance when hit rate <= 60%', async () => {
     mockGetStore.mockReturnValue({
       getCacheStats: vi.fn().mockReturnValue({
         hits: 30,
@@ -214,34 +231,34 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Performance: Poor');
   });
 
   // ─── isCachedStore: regular store without getCacheStats ────────────────
 
-  it('should skip config cache stats when store is not a CachedStore', () => {
+  it('should skip config cache stats when store is not a CachedStore', async () => {
     mockGetStore.mockReturnValue({});
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).not.toHaveBeenCalledWith('[Main] --- Config Cache Statistics ---');
   });
 
-  it('should handle getStore() throwing (logs debug)', () => {
+  it('should handle getStore() throwing (logs debug)', async () => {
     mockGetStore.mockImplementation(() => {
       throw new Error('store not initialized');
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.debug).toHaveBeenCalledWith('[Main] Store not initialized or cache disabled');
   });
 
   // ─── IPC deduplicator statistics ───────────────────────────────────────
 
-  it('should log IPC deduplicator statistics', () => {
+  it('should log IPC deduplicator statistics', async () => {
     mockGetDeduplicator.mockReturnValue({
       getStats: vi.fn().mockReturnValue({
         cacheHits: 40,
@@ -250,7 +267,7 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main] --- IPC Deduplicator Statistics ---');
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Cache hits (deduplicated): 40');
@@ -259,7 +276,7 @@ describe('logShutdownDiagnostics', () => {
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Deduplication rate: 40.0%');
   });
 
-  it('should show 0% deduplication rate when no requests processed', () => {
+  it('should show 0% deduplication rate when no requests processed', async () => {
     mockGetDeduplicator.mockReturnValue({
       getStats: vi.fn().mockReturnValue({
         cacheHits: 0,
@@ -268,18 +285,18 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Deduplication rate: 0%');
   });
 
-  it('should handle getDeduplicator() throwing (logs debug)', () => {
+  it('should handle getDeduplicator() throwing (logs debug)', async () => {
     const dedupError = new Error('dedup not available');
     mockGetDeduplicator.mockImplementation(() => {
       throw dedupError;
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.debug).toHaveBeenCalledWith(
       '[Main] IPC deduplicator not available:',
@@ -289,7 +306,7 @@ describe('logShutdownDiagnostics', () => {
 
   // ─── Rate limiter statistics ───────────────────────────────────────────
 
-  it('should log rate limiter statistics with active channels', () => {
+  it('should log rate limiter statistics with active channels', async () => {
     const statsMap = new Map([
       ['channel-a', { messagesLastSecond: 10, totalBlocked: 5 }],
       ['channel-b', { messagesLastSecond: 20, totalBlocked: 3 }],
@@ -298,7 +315,7 @@ describe('logShutdownDiagnostics', () => {
       getAllStats: vi.fn().mockReturnValue(statsMap),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main] --- Rate Limiter Statistics ---');
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Active channels: 2');
@@ -307,30 +324,30 @@ describe('logShutdownDiagnostics', () => {
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Block rate: 21.1%');
   });
 
-  it('should show 0% block rate when no messages', () => {
+  it('should show 0% block rate when no messages', async () => {
     mockGetRateLimiter.mockReturnValue({
       getAllStats: vi.fn().mockReturnValue(new Map()),
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Block rate: 0%');
   });
 
-  it('should handle getRateLimiter() throwing (logs debug)', () => {
+  it('should handle getRateLimiter() throwing (logs debug)', async () => {
     const rlError = new Error('rate limiter not available');
     mockGetRateLimiter.mockImplementation(() => {
       throw rlError;
     });
 
-    logShutdownDiagnostics(createMockFeatureManager());
+    await logShutdownDiagnostics(createMockFeatureManager());
 
     expect(mockLog.debug).toHaveBeenCalledWith('[Main] Rate limiter not available:', rlError);
   });
 
   // ─── Feature manager statistics ────────────────────────────────────────
 
-  it('should log feature manager summary statistics', () => {
+  it('should log feature manager summary statistics', async () => {
     const fm = createMockFeatureManager({
       getSummary: vi.fn().mockReturnValue({
         total: 21,
@@ -341,7 +358,7 @@ describe('logShutdownDiagnostics', () => {
       }),
     });
 
-    logShutdownDiagnostics(fm);
+    await logShutdownDiagnostics(fm);
 
     expect(mockLog.info).toHaveBeenCalledWith('[Main] --- Feature Manager Statistics ---');
     expect(mockLog.info).toHaveBeenCalledWith('[Main]   Total features: 21');
@@ -353,12 +370,12 @@ describe('logShutdownDiagnostics', () => {
 
   // ─── Outer catch: top-level failure ────────────────────────────────────
 
-  it('should log error when comprehensive cache statistics throw', () => {
+  it('should log error when comprehensive cache statistics throw', async () => {
     mockGetIconCache.mockImplementation(() => {
       throw new Error('icon cache unavailable');
     });
 
-    expect(() => logShutdownDiagnostics(createMockFeatureManager())).not.toThrow();
+    await expect(logShutdownDiagnostics(createMockFeatureManager())).resolves.not.toThrow();
 
     expect(mockLog.error).toHaveBeenCalledWith(
       '[Main] Failed to log comprehensive cache statistics:',

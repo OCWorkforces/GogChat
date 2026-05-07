@@ -56,7 +56,7 @@ export function registerShutdownHandler(deps: { featureManager: FeatureManager }
         }
 
         // Log comprehensive cache statistics
-        logShutdownDiagnostics(featureManager);
+        await logShutdownDiagnostics(featureManager);
 
         log.info('[Main] =====================================================');
       } catch (error: unknown) {

@@ -28,6 +28,18 @@ export interface StoreMetadata {
 }
 
 /**
+ * Memory optimization configuration (hidden prefs, not in UI).
+ */
+export interface MemoryConfig {
+  /** Dehydration idle threshold in ms (default 90000 = 90s). Range: 60000-600000. */
+  dehydrationThresholdMs?: number;
+  /** V8 heap cap per renderer in MB (applied via --js-flags before app.ready). Default: 512. */
+  v8HeapCapMB?: number;
+  /** Disk cache max size per account in MB (0 = clear, undefined = unlimited). Not yet enforced. */
+  diskCacheMaxMB?: number;
+}
+
+/**
  * Complete electron-store type definition
  */
 export interface StoreType extends Record<string, unknown> {
@@ -35,6 +47,8 @@ export interface StoreType extends Record<string, unknown> {
   app: AppConfig;
   _meta?: StoreMetadata;
   accountWindows?: AccountWindowsMap;
+  /** Hidden memory optimization preferences (not exposed in UI). */
+  memory?: MemoryConfig;
 }
 
 /**
