@@ -1,18 +1,29 @@
 /**
- * Unit tests for aboutPanel feature.
+ * Unit tests for aboutPanel feature with custom BrowserWindow dialog.
+ *
+ * Uses dynamic import to work around Bun's vi.mock limitation:
+ * static imports of modules that runtime-import from 'electron'
+ * require vi.hoisted (unavailable in Bun) to expose mock state.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { BrowserWindow as BrowserWindowType } from 'electron';
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('electron', () => ({
-  app: {
-    setAboutPanelOptions: vi.fn(),
-    showAboutPanel: vi.fn(),
-  },
-  BrowserWindow: {
-    getAllWindows: vi.fn().mockReturnValue([]),
-  },
-}));
+vi.mock('electron', () => {
+  const BW = function MockBW(this: any) {
+    this.loadURL = vi.fn();
+    this.show = vi.fn();
+    this.setAlwaysOnTop = vi.fn();
+    this.setMenuBarVisibility = vi.fn();
+    this.once = vi.fn();
+    this.focus = vi.fn();
+    this.restore = vi.fn();
+    this.isMinimized = vi.fn().mockReturnValue(false);
+    this.isDestroyed = vi.fn().mockReturnValue(false);
+    this.webContents = { url: '' };
+    (BW as any).__instances.push(this);
+  };
+  (BW as any).__instances = [];
+  return { BrowserWindow: BW };
+});
 
 vi.mock('os', () => ({
   default: {
@@ -22,7 +33,7 @@ vi.mock('os', () => ({
   },
 }));
 
-vi.mock('../utils/packageInfo', () => ({
+vi.mock('../utils/packageInfo.js', () => ({
   getPackageInfo: vi.fn().mockReturnValue({
     productName: 'GogChat',
     version: '1.0.0',
@@ -30,72 +41,97 @@ vi.mock('../utils/packageInfo', () => ({
   }),
 }));
 
-import aboutPanel from './aboutPanel';
-import { app, BrowserWindow } from 'electron';
+vi.mock('../utils/iconCache.js', () => ({
+  getIconCache: vi.fn().mockReturnValue({
+    getIcon: vi.fn().mockReturnValue({
+      isEmpty: vi.fn().mockReturnValue(false),
+      toDataURL: vi.fn().mockReturnValue('data:image/png;base64,FAKE_AURA'),
+    }),
+  }),
+}));
+
+async function loadAboutPanel() {
+  return (await import('./aboutPanel')).default;
+}
+
+function getInstances(): any[] {
+  const { BrowserWindow } = require('electron');
+  return (BrowserWindow as any).__instances;
+}
 
 describe('aboutPanel', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('creates a BrowserWindow and loads aura icon HTML', async () => {
+    const aboutPanel = await loadAboutPanel();
+    aboutPanel({ id: 1 } as any);
+
+    const instances = getInstances();
+    expect(instances).toHaveLength(1);
+
+    // Decode the data URL (it's URL-encoded by encodeURIComponent)
+    const rawUrl: string = instances[0].loadURL.mock.calls[0][0];
+    const decoded = decodeURIComponent(rawUrl.replace('data:text/html;charset=utf-8,', ''));
+    expect(decoded).toContain('GogChat');
+    expect(decoded).toContain('Test Author');
+    expect(decoded).toContain('Darwin');
+    expect(decoded).toContain('arm64');
+    expect(decoded).toContain('FAKE_AURA');
   });
 
-  function makeFakeWindow(id: number): BrowserWindowType {
-    return {
-      id,
-      isDestroyed: vi.fn().mockReturnValue(false),
-      setAlwaysOnTop: vi.fn(),
-      once: vi.fn(),
-    } as unknown as BrowserWindowType;
-  }
+  it('sets always on top and hides menu bar', async () => {
+    const aboutPanel = await loadAboutPanel();
+    aboutPanel({ id: 1 } as any);
 
-  it('calls setAboutPanelOptions with correct package info', () => {
-    const mainWindow = makeFakeWindow(1);
-    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
+    const instances = getInstances();
+    const win = instances[instances.length - 1];
+    expect(win.setAlwaysOnTop).toHaveBeenCalledWith(true, 'floating');
+    expect(win.setMenuBarVisibility).toHaveBeenCalledWith(false);
+  });
 
-    aboutPanel(mainWindow);
+  it('shows window on ready-to-show event', async () => {
+    const aboutPanel = await loadAboutPanel();
+    aboutPanel({ id: 1 } as any);
 
-    expect(app.setAboutPanelOptions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        applicationName: 'GogChat',
-        applicationVersion: '1.0.0',
-        copyright: 'Developed by Test Author',
-      })
+    const instances = getInstances();
+    const win = instances[instances.length - 1];
+    const readyCall = win.once.mock.calls.find(
+      (c: unknown[]) => c[0] === 'ready-to-show'
     );
+    expect(readyCall).toBeDefined();
+    readyCall[1]();
+    expect(win.show).toHaveBeenCalled();
   });
 
-  it('calls showAboutPanel', () => {
-    const mainWindow = makeFakeWindow(1);
-    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
+  it('reuses existing window on second call', async () => {
+    const aboutPanel = await loadAboutPanel();
+    aboutPanel({ id: 1 } as any);
 
-    aboutPanel(mainWindow);
-    expect(app.showAboutPanel).toHaveBeenCalled();
+    const count = getInstances().length;
+    // Second call should reuse
+    aboutPanel({ id: 1 } as any);
+    expect(getInstances()).toHaveLength(count);
   });
 
-  it('includes platform info in version string', () => {
-    const mainWindow = makeFakeWindow(1);
-    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
+  it('creates new window when previous one is destroyed', async () => {
+    const aboutPanel = await loadAboutPanel();
+    aboutPanel({ id: 1 } as any);
 
-    aboutPanel(mainWindow);
-
-    const callArgs = vi.mocked(app.setAboutPanelOptions).mock.calls[0][0];
-    expect(callArgs.version).toBe('Darwin, 23.0.0, arm64');
+    const count = getInstances().length;
+    // Simulate destroyed window
+    getInstances()[getInstances().length - 1].isDestroyed.mockReturnValue(true);
+    aboutPanel({ id: 1 } as any);
+    expect(getInstances()).toHaveLength(count + 1);
   });
 
-  it('does not error on second call', () => {
-    const mainWindow = makeFakeWindow(1);
-    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow]);
+  it('restores minimized window when reusing', async () => {
+    const aboutPanel = await loadAboutPanel();
+    aboutPanel({ id: 1 } as any);
 
-    aboutPanel(mainWindow);
-    vi.mocked(app.setAboutPanelOptions).mockClear();
-    vi.mocked(app.showAboutPanel).mockClear();
+    const instances = getInstances();
+    const win = instances[instances.length - 1];
+    win.isMinimized.mockReturnValue(true);
 
-    aboutPanel(mainWindow);
-  });
-
-  it('finds and configures the about window when a new window is created', () => {
-    const mainWindow = makeFakeWindow(1);
-    const aboutWin = makeFakeWindow(2);
-    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mainWindow, aboutWin]);
-
-    aboutPanel(mainWindow);
+    aboutPanel({ id: 1 } as any);
+    expect(win.restore).toHaveBeenCalled();
+    expect(win.focus).toHaveBeenCalled();
   });
 });
