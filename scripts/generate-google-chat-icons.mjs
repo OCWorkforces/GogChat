@@ -102,7 +102,7 @@ const TRAY_GEOMETRY = {
 };
 
 // Ensure icon subdirectories exist
-for (const dir of ['tray', 'normal', 'badge', 'offline']) {
+for (const dir of ['tray', 'normal', 'badge', 'offline', 'aura']) {
   const p = join(ICONS_DIR, dir);
   if (!existsSync(p)) mkdirSync(p, { recursive: true });
 }
@@ -400,6 +400,54 @@ function trayUnreadIconSvg(s) {
 </svg>`;
 }
 
+/**
+ * Aura icon — speech bubble with a soft radiant glow for dialog displays.
+ * Uses the full four-color brand treatment with a radial gradient aura
+ * behind the bubble, creating a luminous/polished appearance.
+ *
+ * @param {number} s - Canvas size in pixels (recommended: 256)
+ */
+function auraIconSvg(s) {
+  const scale = (v) => ((v * s) / 100).toFixed(3);
+  const outerPath = buildOuterBubble(scale, APP_GEOMETRY.cornerRadius, APP_GEOMETRY);
+  const innerPath = buildInnerCutout(scale, APP_GEOMETRY.innerRadius, APP_GEOMETRY);
+  const clipId = `gc-aura-${s}-clip`;
+  const glowId = `gc-aura-${s}-glow`;
+  const shadowId = `gc-aura-${s}-shadow`;
+
+  // Amplified drop shadow for depth against the glow
+  const shadowDy = ((4 * s) / 256).toFixed(3);
+  const shadowBlur = ((12 * s) / 256).toFixed(3);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+  <defs>
+    <!-- Radial aura glow — visible against the about dialog white background -->
+    <radialGradient id="${glowId}" cx="48%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#4285F4" stop-opacity="0.25"/>
+      <stop offset="30%" stop-color="#7C4DFF" stop-opacity="0.12"/>
+      <stop offset="60%" stop-color="#4285F4" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#4285F4" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="${shadowId}" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="${shadowDy}" stdDeviation="${shadowBlur}" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+    <clipPath id="${clipId}">
+      <path d="${outerPath}"/>
+    </clipPath>
+  </defs>
+  <!-- Aura glow canvas — no opaque background so glow bleeds into dialog white -->
+  <rect x="0" y="0" width="${s}" height="${s}" fill="url(#${glowId})"/>
+  ${buildMultiColorContent(scale, outerPath, innerPath, false, {
+    clipId,
+    shadowId,
+    useShadow: true,
+    geometry: APP_GEOMETRY,
+    size: s,
+    isSmall: false,
+  })}
+</svg>`;
+}
+
 
 /**
  * Scalable SVG for resources/icons/normal/scalable.svg.
@@ -501,6 +549,12 @@ const ICON_SPECS = [
   ...APP_SIZES.map((size) => ({
     path: `offline/${size}.png`,
     generator: () => chatIconSvg(size, { isOffline: true, withBackground: size >= 64 }),
+    size,
+  })),
+  // Aura state — speech bubble with soft radiant glow for About dialog
+  ...APP_SIZES.map((size) => ({
+    path: `aura/${size}.png`,
+    generator: () => auraIconSvg(size),
     size,
   })),
 ];
