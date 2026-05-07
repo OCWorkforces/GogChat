@@ -199,6 +199,10 @@ export class MockWebContents extends EventEmitter {
     // Mock implementation
   }
 
+  setBackgroundThrottling(_allowed: boolean): void {
+    // Mock implementation — spied via vi.spyOn in tests
+  }
+
   getWebPreferences(): any {
     return {
       contextIsolation: true,

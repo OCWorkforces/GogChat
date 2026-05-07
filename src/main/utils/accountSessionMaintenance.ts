@@ -11,10 +11,11 @@
  * @module accountSessionMaintenance
  */
 
-import { session } from 'electron';
+import { app, session } from 'electron';
 import log from 'electron-log';
 import { createTrackedInterval } from './resourceCleanup.js';
 import { toErrorMessage } from './errorUtils.js';
+import { asType } from '../../shared/typeUtils.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
 import type { AccountIndex } from '../../shared/types/branded.js';
 import { toPartition } from '../../shared/types/branded.js';
@@ -24,6 +25,15 @@ const MAINTENANCE_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Idle threshold for clearCodeCaches (30 minutes). */
 const IDLE_THRESHOLD_MS = 30 * 60 * 1000;
+
+/** Idle threshold for full HTTP cache clearing (2 hours). */
+const HTTP_CACHE_IDLE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
+
+/** Idle threshold for service worker storage clearing (6 hours). */
+const SERVICE_WORKER_IDLE_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+
+/** Idle threshold for memory-pressure-triggered dehydration (30 seconds). */
+const PRESSURE_IDLE_THRESHOLD_MS = 30 * 1000;
 
 /**
  * Per-account activity timestamp registry.
@@ -83,6 +93,7 @@ export class AccountActivityTracker {
 // ─── Maintenance scheduler ───────────────────────────────────────────────────
 
 let maintenanceInterval: NodeJS.Timeout | null = null;
+let pressureHandler: (() => void) | null = null;
 
 /**
  * Start the periodic maintenance scheduler.
@@ -102,7 +113,12 @@ export function startSessionMaintenance(
   }
   maintenanceInterval = createTrackedInterval(
     () => {
-      const idleAccounts = tracker.getIdleAccounts(IDLE_THRESHOLD_MS);
+      // Build the active-accounts exclusion set once per tick. Bootstrap
+      // accounts must never have their caches touched mid-auth.
+      const bootstrapAccounts = new Set<AccountIndex>(manager.getBootstrapAccounts());
+
+      // ── Tier 1 — V8 code cache (idle >= 30 min) ─────────────────────
+      const idleAccounts = tracker.getIdleAccounts(IDLE_THRESHOLD_MS, bootstrapAccounts);
       for (const accountIndex of idleAccounts) {
         if (manager.isBootstrap(accountIndex)) {
           continue;
@@ -120,11 +136,107 @@ export function startSessionMaintenance(
           );
         }
       }
+
+      // ── Tier 2 — Full HTTP cache (idle >= 2 hours) ────────
+      const twoHourIdle = tracker.getIdleAccounts(HTTP_CACHE_IDLE_THRESHOLD_MS, bootstrapAccounts);
+      for (const accountIndex of twoHourIdle) {
+        if (manager.isBootstrap(accountIndex)) {
+          continue;
+        }
+        try {
+          const partition = toPartition(accountIndex);
+          void session
+            .fromPartition(partition)
+            .clearCache()
+            .then(() => {
+              log.debug(
+                `[AccountSessionMaintenance] Cleared HTTP cache for idle account ${accountIndex}`
+              );
+            })
+            .catch((err: unknown) => {
+              log.warn(
+                `[AccountSessionMaintenance] clearCache failed for account ${accountIndex}: ${toErrorMessage(err)}`
+              );
+            });
+        } catch (error: unknown) {
+          log.warn(
+            `[AccountSessionMaintenance] clearCache failed for account ${accountIndex}: ${toErrorMessage(error)}`
+          );
+        }
+      }
+
+      // ── Tier 3 — Service worker storage (idle >= 6 hours) ─
+      const sixHourIdle = tracker.getIdleAccounts(
+        SERVICE_WORKER_IDLE_THRESHOLD_MS,
+        bootstrapAccounts
+      );
+      for (const accountIndex of sixHourIdle) {
+        if (manager.isBootstrap(accountIndex)) {
+          continue;
+        }
+        try {
+          const partition = toPartition(accountIndex);
+          void session
+            .fromPartition(partition)
+            .clearStorageData({ storages: ['serviceworkers'] })
+            .then(() => {
+              log.info(
+                `[AccountSessionMaintenance] Cleared service workers for idle account ${accountIndex}`
+              );
+            })
+            .catch((err: unknown) => {
+              log.warn(
+                `[AccountSessionMaintenance] clearStorageData(serviceworkers) failed for account ${accountIndex}: ${toErrorMessage(err)}`
+              );
+            });
+        } catch (error: unknown) {
+          log.warn(
+            `[AccountSessionMaintenance] clearStorageData(serviceworkers) failed for account ${accountIndex}: ${toErrorMessage(error)}`
+          );
+        }
+      }
     },
     MAINTENANCE_INTERVAL_MS,
     'accountSessionMaintenance'
   );
-  log.info('[AccountSessionMaintenance] Scheduler started (5-min tick, 30-min idle threshold)');
+
+  // Register memory pressure handler to shed idle renderers.
+  // macOS sends 'memory-pressure' when the system is low on RAM. We respond
+  // by dehydrating ALL idle accounts (including account-0 when idle) to
+  // immediately free renderer memory.
+  pressureHandler = () => {
+    const pressureIdle = tracker.getIdleAccounts(PRESSURE_IDLE_THRESHOLD_MS);
+    let dehydratedCount = 0;
+    for (const idx of pressureIdle) {
+      // Bootstrap accounts must never be dehydrated — they are mid-auth.
+      if (manager.isBootstrap(idx)) {
+        continue;
+      }
+      // Only dehydrate if the account is not already dehydrated.
+      if (!manager.isDehydrated(idx)) {
+        manager.dehydrateAccount(idx);
+        dehydratedCount++;
+      }
+    }
+    if (dehydratedCount > 0) {
+      log.info(
+        `[AccountSessionMaintenance] Memory pressure: dehydrated ${dehydratedCount} idle account(s)`
+      );
+    }
+  };
+  // Guard: in unit-test environments where `electron` is partially mocked,
+  // `app` may be missing. Wrap registration so a missing export does not throw.
+  try {
+    asType<NodeJS.EventEmitter>(app).on('memory-pressure', pressureHandler);
+  } catch (error: unknown) {
+    log.debug(
+      `[AccountSessionMaintenance] memory-pressure handler not registered: ${toErrorMessage(error)}`
+    );
+  }
+
+  log.info(
+    '[AccountSessionMaintenance] Scheduler started (5-min tick; thresholds: 30-min code cache, 2-hr HTTP cache, 6-hr service workers; memory-pressure handler armed)'
+  );
 }
 
 /**
@@ -135,6 +247,14 @@ export function stopSessionMaintenance(): void {
     clearInterval(maintenanceInterval);
     maintenanceInterval = null;
     log.info('[AccountSessionMaintenance] Scheduler stopped');
+  }
+  if (pressureHandler) {
+    try {
+      asType<NodeJS.EventEmitter>(app).removeListener('memory-pressure', pressureHandler);
+    } catch {
+      // app missing in test environments — ignore
+    }
+    pressureHandler = null;
   }
 }
 

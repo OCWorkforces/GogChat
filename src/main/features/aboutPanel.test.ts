@@ -102,9 +102,7 @@ describe('aboutPanel', () => {
 
     const instances = getInstances();
     const win = instances[instances.length - 1];
-    const readyCall = win.once.mock.calls.find(
-      (c: unknown[]) => c[0] === 'ready-to-show'
-    );
+    const readyCall = win.once.mock.calls.find((c: unknown[]) => c[0] === 'ready-to-show');
     expect(readyCall).toBeDefined();
     readyCall[1]();
     expect(win.show).toHaveBeenCalled();

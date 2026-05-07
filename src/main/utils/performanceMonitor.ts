@@ -11,13 +11,19 @@
  * - Module loading time tracking
  */
 
+import { app } from 'electron';
 import log from 'electron-log';
 
 import environment from '../../environment.js';
 
 import { exportPerformanceMetrics, logPerformanceSummary } from './performanceExport.js';
 import { PERFORMANCE_TARGETS } from './performanceTypes.js';
-import type { MemorySnapshot, PerformanceMetrics } from './performanceTypes.js';
+import type {
+  MemorySnapshot,
+  PerformanceMetrics,
+  RendererMemorySnapshot,
+} from './performanceTypes.js';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
 
 /**
  * Performance metrics tracker
@@ -26,8 +32,11 @@ class PerformanceMonitor {
   private startTime: number;
   private markers: Map<string, number> = new Map();
   private memorySnapshots: MemorySnapshot[] = [];
+  private rendererSnapshots: RendererMemorySnapshot[] = [];
   private warnings: string[] = [];
   private readonly MAX_SNAPSHOTS = 100;
+  // 60s sampling interval → ~1000 snapshots covers ~17 hours of runtime
+  private readonly MAX_RENDERER_SNAPSHOTS = 1000;
   private readonly MAX_WARNINGS = 50;
   private enabled: boolean = true;
   private readonly isDev: boolean;
@@ -189,6 +198,105 @@ class PerformanceMonitor {
   }
 
   /**
+   * Sample memory + CPU for every Electron process (renderer, GPU, utility)
+   * via `app.getAppMetrics()`. Optionally correlates renderer PIDs with their
+   * owning account index when an `accountWindowManager` is provided.
+   *
+   * Snapshots are appended to an internal ring buffer capped at
+   * `MAX_RENDERER_SNAPSHOTS` (oldest entries are evicted FIFO).
+   *
+   * Visibility only. No process is killed or throttled here.
+   *
+   * @param accountWindowManager - Optional account manager used to map renderer
+   *   PIDs to their owning account index.
+   */
+  sampleAllRenderers(accountWindowManager?: IAccountWindowManager): void {
+    if (!this.enabled) return;
+
+    // Build PID → accountIndex map up-front so we don't repeatedly walk windows.
+    const pidToAccount = new Map<number, number>();
+    if (accountWindowManager) {
+      for (const window of accountWindowManager.getAllWindows()) {
+        if (window.isDestroyed()) continue;
+        const wc = window.webContents;
+        if (wc.isDestroyed()) continue;
+        const accountIndex = accountWindowManager.getAccountIndex(window);
+        if (accountIndex === null) continue;
+        const pid = wc.getOSProcessId();
+        if (pid > 0) {
+          pidToAccount.set(pid, accountIndex);
+        }
+      }
+    }
+
+    const metrics = app.getAppMetrics();
+    const timestamp = Date.now() - this.startTime;
+    let rendererCount = 0;
+    let sampled = 0;
+
+    for (const m of metrics) {
+      // Only track renderer ("Tab") / GPU / utility — ignore Browser (main) and helpers.
+      if (m.type !== 'Tab' && m.type !== 'GPU' && m.type !== 'Utility') continue;
+
+      const type: RendererMemorySnapshot['type'] =
+        m.type === 'Tab' ? 'renderer' : m.type === 'GPU' ? 'gpu' : 'utility';
+      if (type === 'renderer') rendererCount++;
+
+      const snapshot: RendererMemorySnapshot = {
+        timestamp,
+        pid: m.pid,
+        type,
+        memory: {
+          // Electron's MemoryInfo values are in KB → convert to MB (2 decimals).
+          // `privateBytes` is Windows-only; default to 0 elsewhere.
+          residentSet: Math.round((m.memory.workingSetSize / 1024) * 100) / 100,
+          peakResidentSet: Math.round((m.memory.peakWorkingSetSize / 1024) * 100) / 100,
+          private:
+            m.memory.privateBytes !== undefined
+              ? Math.round((m.memory.privateBytes / 1024) * 100) / 100
+              : 0,
+        },
+        cpuPercent: m.cpu.percentCPUUsage,
+      };
+
+      const accountIndex = pidToAccount.get(m.pid);
+      if (accountIndex !== undefined) {
+        snapshot.accountIndex = accountIndex;
+      }
+
+      if (this.rendererSnapshots.length >= this.MAX_RENDERER_SNAPSHOTS) {
+        this.rendererSnapshots.shift();
+      }
+      this.rendererSnapshots.push(snapshot);
+      sampled++;
+    }
+
+    if (this.isDev) {
+      log.debug(
+        `[Performance] Renderer memory sample: ${sampled} processes (${rendererCount} renderers)`
+      );
+    }
+  }
+
+  /**
+   * Get the in-memory list of renderer snapshots collected by
+   * {@link sampleAllRenderers}.
+   */
+  getRendererMemoryStats(): RendererMemorySnapshot[] {
+    return this.rendererSnapshots;
+  }
+
+  /**
+   * Internal accessor for the renderer-snapshot list. Used by
+   * `performanceExport` helpers and satisfies
+   * {@link PerformanceMonitorReader.getRendererSnapshots}.
+   * @internal
+   */
+  getRendererSnapshots(): RendererMemorySnapshot[] {
+    return this.rendererSnapshots;
+  }
+
+  /**
    * Internal accessor for the enabled flag. Used by `performanceExport` helpers.
    * @internal
    */
@@ -227,6 +335,7 @@ class PerformanceMonitor {
   reset(): void {
     this.markers.clear();
     this.memorySnapshots = [];
+    this.rendererSnapshots = [];
     this.warnings = [];
     this.startTime = Date.now();
     this.captureMemorySnapshot('reset');

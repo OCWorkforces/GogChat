@@ -1,5 +1,5 @@
 /**
- * Critical + UI Phase Feature Registration
+ * Critical + UI Feature Registration
  *
  * Critical features must be initialized during app.whenReady() (sequential).
  * UI features are minimal — only the single-instance handler is synchronous.

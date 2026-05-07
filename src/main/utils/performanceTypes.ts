@@ -33,12 +33,40 @@ export interface MemorySnapshot {
 }
 
 /**
+ * Per-renderer / GPU / utility process memory snapshot.
+ * Captured periodically via `app.getAppMetrics()` to enable
+ * measuring memory improvements introduced in later optimization phases.
+ */
+export interface RendererMemorySnapshot {
+  /** Milliseconds since perf monitor start */
+  timestamp: number;
+  /** Renderer / GPU / utility process ID */
+  pid: number;
+  /** Which account (0, 1, 2…) if known. Undefined for non-renderer processes. */
+  accountIndex?: number;
+  /** Process kind reported by Electron */
+  type: 'renderer' | 'gpu' | 'utility';
+  /** Memory metrics in MB (rounded to 2 decimals) */
+  memory: {
+    /** Working set size — currently pinned to physical RAM (mapped from `workingSetSize`) */
+    residentSet: number;
+    /** Peak working set size ever pinned (mapped from `peakWorkingSetSize`) */
+    peakResidentSet: number;
+    /** Private (non-shared) bytes — only available on Windows; 0 elsewhere */
+    private: number;
+  };
+  /** CPU usage percentage as reported by Electron's ProcessMetric */
+  cpuPercent: number;
+}
+
+/**
  * Performance metrics export interface
  */
 export interface PerformanceMetrics {
   startupTime: number;
   markers: Record<string, number>;
   memorySnapshots: MemorySnapshot[];
+  rendererSnapshots: RendererMemorySnapshot[];
   targetMet: boolean;
   warnings: string[];
   timestamp: string;
@@ -65,4 +93,5 @@ export interface PerformanceMonitorReader {
     current: MemorySnapshot;
     peak: MemorySnapshot;
   } | null;
+  getRendererSnapshots(): RendererMemorySnapshot[];
 }

@@ -34,6 +34,7 @@ export function exportPerformanceMetrics(
     startupTime: monitor.getTotalElapsed(),
     markers: monitor.getMetrics(),
     memorySnapshots: monitor.getMemorySnapshotList(),
+    rendererSnapshots: monitor.getRendererSnapshots(),
     targetMet: monitor.isTargetMet(),
     warnings: monitor.getWarningsList(),
     timestamp: new Date().toISOString(),

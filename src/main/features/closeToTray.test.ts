@@ -74,6 +74,17 @@ vi.mock('electron-log', () => ({
   },
 }));
 
+// Mock accountWindowManager (tray-close dehydration)
+const mockManager = {
+  getAccountCount: vi.fn(() => 0),
+  hasAccount: vi.fn(() => false),
+  isDehydrated: vi.fn(() => false),
+  dehydrateAccount: vi.fn(),
+};
+vi.mock('../utils/accountWindowManager.js', () => ({
+  getAccountWindowManager: vi.fn(() => mockManager),
+}));
+
 // Mock platform
 const mockPlatform = {
   isMac: true,
@@ -94,6 +105,11 @@ describe('closeToTray feature', () => {
 
     // Reset platform
     mockPlatform.isMac = true;
+
+    // Reset dehydration mocks
+    mockManager.getAccountCount.mockReturnValue(0);
+    mockManager.hasAccount.mockReturnValue(false);
+    mockManager.isDehydrated.mockReturnValue(false);
 
     win = makeFakeWindow();
   });
@@ -249,6 +265,92 @@ describe('closeToTray feature', () => {
       const { app: electronApp } = await import('electron');
       expect(electronApp.removeListener).toHaveBeenCalledWith('before-quit', beforeQuitHandler);
       expect(win.removeListener).toHaveBeenCalledWith('close', closeHandler);
+    });
+  });
+
+  // ── tray-close dehydration ──────────────────────────
+
+  describe('tray-close dehydration', () => {
+    it('dehydrates non-primary accounts (1+) when closing to tray', async () => {
+      mockManager.getAccountCount.mockReturnValue(3);
+      mockManager.hasAccount.mockReturnValue(true);
+      mockManager.isDehydrated.mockReturnValue(false);
+
+      const feature = await import('./closeToTray.js');
+      feature.default(win as unknown as Electron.BrowserWindow);
+
+      const closeHandler = getCloseHandler();
+      closeHandler!({ preventDefault: vi.fn() } as unknown as Electron.Event);
+
+      // Account 0 must NEVER be dehydrated.
+      expect(mockManager.dehydrateAccount).not.toHaveBeenCalledWith(0);
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledWith(1);
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledWith(2);
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledTimes(2);
+    });
+
+    it('skips already-dehydrated accounts', async () => {
+      mockManager.getAccountCount.mockReturnValue(3);
+      mockManager.hasAccount.mockReturnValue(true);
+      mockManager.isDehydrated.mockImplementation((idx: number) => idx === 1);
+
+      const feature = await import('./closeToTray.js');
+      feature.default(win as unknown as Electron.BrowserWindow);
+
+      const closeHandler = getCloseHandler();
+      closeHandler!({ preventDefault: vi.fn() } as unknown as Electron.Event);
+
+      expect(mockManager.dehydrateAccount).not.toHaveBeenCalledWith(1);
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledWith(2);
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips accounts not registered (hasAccount=false)', async () => {
+      mockManager.getAccountCount.mockReturnValue(3);
+      mockManager.hasAccount.mockImplementation((idx: number) => idx === 1);
+      mockManager.isDehydrated.mockReturnValue(false);
+
+      const feature = await import('./closeToTray.js');
+      feature.default(win as unknown as Electron.BrowserWindow);
+
+      const closeHandler = getCloseHandler();
+      closeHandler!({ preventDefault: vi.fn() } as unknown as Electron.Event);
+
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledWith(1);
+      expect(mockManager.dehydrateAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing when only account-0 exists', async () => {
+      mockManager.getAccountCount.mockReturnValue(1);
+      mockManager.hasAccount.mockReturnValue(true);
+
+      const feature = await import('./closeToTray.js');
+      feature.default(win as unknown as Electron.BrowserWindow);
+
+      const closeHandler = getCloseHandler();
+      closeHandler!({ preventDefault: vi.fn() } as unknown as Electron.Event);
+
+      expect(mockManager.dehydrateAccount).not.toHaveBeenCalled();
+    });
+
+    it('still hides the window if dehydration throws', async () => {
+      mockManager.getAccountCount.mockReturnValue(2);
+      mockManager.hasAccount.mockReturnValue(true);
+      mockManager.dehydrateAccount.mockImplementationOnce(() => {
+        throw new Error('boom');
+      });
+
+      const feature = await import('./closeToTray.js');
+      feature.default(win as unknown as Electron.BrowserWindow);
+
+      const closeHandler = getCloseHandler();
+      const preventDefault = vi.fn();
+      closeHandler!({ preventDefault } as unknown as Electron.Event);
+
+      // Default still prevented and hide still called.
+      expect(preventDefault).toHaveBeenCalled();
+      const { app: electronApp } = await import('electron');
+      expect(electronApp.hide).toHaveBeenCalled();
     });
   });
 });

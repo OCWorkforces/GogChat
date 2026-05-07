@@ -8,12 +8,19 @@ import {
   destroyPerformanceMonitor,
   perfMonitor,
 } from './performanceMonitor';
+import type { RendererMemorySnapshot } from './performanceTypes';
+import type { IAccountWindowManager } from '../../shared/types/window.js';
+import { asAccountIndex } from '../../shared/types/branded.js';
+
+// Hoisted mock for app.getAppMetrics so individual tests can swap return values.
+const getAppMetricsMock = vi.hoisted(() => vi.fn(() => [] as Electron.ProcessMetric[]));
 
 // Mock electron
 vi.mock('electron', () => ({
   app: {
     getAppPath: () => '/fake/app/path',
     getVersion: () => '1.0.0',
+    getAppMetrics: getAppMetricsMock,
   },
 }));
 
@@ -732,6 +739,158 @@ describe('PerformanceMonitor', () => {
       expect(metricsAfter.memorySnapshots[0]!.timestamp).toBeGreaterThan(firstTimestamp);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('renderer memory tracking', () => {
+    /** Build a fake ProcessMetric list. Memory values are in KB per Electron docs. */
+    function makeMetric(
+      pid: number,
+      type: Electron.ProcessMetric['type'],
+      workingSetKB: number,
+      cpuPercent = 5
+    ): Electron.ProcessMetric {
+      return {
+        pid,
+        type,
+        cpu: {
+          percentCPUUsage: cpuPercent,
+          cumulativeCPUUsage: 0,
+          idleWakeupsPerSecond: 0,
+        },
+        creationTime: Date.now(),
+        memory: {
+          workingSetSize: workingSetKB,
+          peakWorkingSetSize: workingSetKB,
+          // privateBytes is Windows-only; omit to mirror macOS / Linux runtime.
+        },
+        // sandboxed/integrityLevel/name are optional in the API surface
+      } as Electron.ProcessMetric;
+    }
+
+    beforeEach(() => {
+      getAppMetricsMock.mockReset();
+    });
+
+    it('sampleAllRenderers() populates renderer snapshots', () => {
+      getAppMetricsMock.mockReturnValue([
+        makeMetric(101, 'Browser', 200_000), // skipped (Browser is main process)
+        makeMetric(202, 'Tab', 150_000, 12), // 150_000 KB → ~146.48 MB
+        makeMetric(303, 'GPU', 80_000, 3),
+        makeMetric(404, 'Utility', 50_000, 1),
+      ]);
+
+      const monitor = getPerformanceMonitor();
+      monitor.sampleAllRenderers();
+
+      const snaps = monitor.getRendererMemoryStats();
+      // Browser is filtered out; remaining 3 should be captured.
+      expect(snaps.length).toBe(3);
+
+      const tab = snaps.find((s) => s.pid === 202);
+      expect(tab).toBeDefined();
+      expect(tab!.type).toBe('renderer');
+      expect(tab!.cpuPercent).toBe(12);
+      // 150_000 KB / 1024 ≈ 146.48 MB
+      expect(tab!.memory.residentSet).toBeCloseTo(146.48, 1);
+      expect(tab!.memory.peakResidentSet).toBeCloseTo(146.48, 1);
+      // privateBytes omitted in the mock → normalized to 0
+      expect(tab!.memory.private).toBe(0);
+      expect(tab!.accountIndex).toBeUndefined();
+
+      expect(snaps.find((s) => s.pid === 303)?.type).toBe('gpu');
+      expect(snaps.find((s) => s.pid === 404)?.type).toBe('utility');
+    });
+
+    it('getRendererMemoryStats() returns the snapshot list', () => {
+      getAppMetricsMock.mockReturnValue([makeMetric(11, 'Tab', 1024)]);
+      const monitor = getPerformanceMonitor();
+      monitor.sampleAllRenderers();
+      const stats = monitor.getRendererMemoryStats();
+      expect(Array.isArray(stats)).toBe(true);
+      expect(stats.length).toBe(1);
+    });
+
+    it('getRendererSnapshots() satisfies the reader interface contract', () => {
+      getAppMetricsMock.mockReturnValue([makeMetric(22, 'Tab', 2048)]);
+      const monitor = getPerformanceMonitor();
+      monitor.sampleAllRenderers();
+
+      // The reader-shaped accessor used by performanceExport.
+      const reader = monitor.getRendererSnapshots();
+      expect(reader.length).toBe(1);
+      expect(reader[0]!.pid).toBe(22);
+    });
+
+    it('enforces MAX_RENDERER_SNAPSHOTS limit (FIFO eviction)', () => {
+      // Each call adds 1 snapshot. Need 1001 calls to overflow the 1000 cap.
+      const monitor = getPerformanceMonitor();
+      // First sample uses pid=1 so we can detect when it gets evicted.
+      getAppMetricsMock.mockReturnValueOnce([makeMetric(1, 'Tab', 1024)]);
+      monitor.sampleAllRenderers();
+
+      // Fill the rest of the buffer with pid=999.
+      getAppMetricsMock.mockReturnValue([makeMetric(999, 'Tab', 1024)]);
+      for (let i = 0; i < 1000; i++) {
+        monitor.sampleAllRenderers();
+      }
+
+      const snaps = monitor.getRendererMemoryStats();
+      expect(snaps.length).toBe(1000);
+      // The original pid=1 snapshot should have been evicted (FIFO).
+      expect(snaps.find((s) => s.pid === 1)).toBeUndefined();
+    });
+
+    it('correlates renderer PIDs with account index when manager provided', () => {
+      const fakeWebContents = {
+        isDestroyed: () => false,
+        getOSProcessId: () => 555,
+      } as unknown as Electron.WebContents;
+      const fakeWindow = {
+        isDestroyed: () => false,
+        webContents: fakeWebContents,
+      } as unknown as Electron.BrowserWindow;
+
+      const fakeManager: Pick<IAccountWindowManager, 'getAllWindows' | 'getAccountIndex'> = {
+        getAllWindows: () => [fakeWindow],
+        getAccountIndex: (w) => (w === fakeWindow ? asAccountIndex(2) : null),
+      };
+
+      getAppMetricsMock.mockReturnValue([
+        makeMetric(555, 'Tab', 100_000, 8),
+        makeMetric(666, 'Tab', 200_000, 4), // unmapped PID → no accountIndex
+      ]);
+
+      const monitor = getPerformanceMonitor();
+      monitor.sampleAllRenderers(fakeManager as IAccountWindowManager);
+
+      const snaps = monitor.getRendererMemoryStats();
+      const mapped = snaps.find((s) => s.pid === 555);
+      const unmapped = snaps.find((s) => s.pid === 666);
+      expect(mapped?.accountIndex).toBe(2);
+      expect(unmapped?.accountIndex).toBeUndefined();
+    });
+
+    it('produces snapshots that match the RendererMemorySnapshot shape', () => {
+      getAppMetricsMock.mockReturnValue([makeMetric(77, 'Tab', 4096, 9)]);
+      const monitor = getPerformanceMonitor();
+      monitor.sampleAllRenderers();
+      const snap = monitor.getRendererMemoryStats()[0]!;
+
+      // Spot-check every required field exists with the right primitive shape.
+      const expected: RendererMemorySnapshot = {
+        timestamp: snap.timestamp,
+        pid: 77,
+        type: 'renderer',
+        memory: {
+          residentSet: snap.memory.residentSet,
+          peakResidentSet: snap.memory.peakResidentSet,
+          private: 0,
+        },
+        cpuPercent: 9,
+      };
+      expect(snap).toEqual(expected);
+      expect(typeof snap.timestamp).toBe('number');
     });
   });
 });

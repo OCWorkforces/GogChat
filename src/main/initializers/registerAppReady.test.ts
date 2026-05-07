@@ -27,6 +27,7 @@ const {
   mockCreateAccountWindow,
   mockGetWindowForAccount,
   mockCreateTrackedTimeout,
+  mockCreateTrackedInterval,
   mockCompareStorePerformance,
   mockSessionFromPartition,
 } = vi.hoisted(() => ({
@@ -53,6 +54,7 @@ const {
   mockCreateAccountWindow: vi.fn(),
   mockGetWindowForAccount: vi.fn(),
   mockCreateTrackedTimeout: vi.fn(),
+  mockCreateTrackedInterval: vi.fn(),
   mockCompareStorePerformance: vi.fn(),
   mockSessionFromPartition: vi.fn(),
 }));
@@ -85,6 +87,7 @@ vi.mock('../utils/errorHandler.js', () => ({
 vi.mock('../utils/resourceCleanup.js', () => ({
   getCleanupManager: mockGetCleanupManager,
   createTrackedTimeout: mockCreateTrackedTimeout,
+  createTrackedInterval: mockCreateTrackedInterval,
 }));
 
 vi.mock('../config.js', () => ({

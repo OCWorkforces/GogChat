@@ -25,6 +25,7 @@ export { getMostRecentWindow };
 import { registerGlobalCleanups } from './registerGlobalCleanups.js';
 import { initializeStore } from '../config.js';
 import { warmInitialIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
+import { createTrackedInterval } from '../utils/resourceCleanup.js';
 import environment from '../../environment.js';
 import type { FeatureManager } from '../utils/featureManager.js';
 import type { WindowFactory } from '../../shared/types/window.js';
@@ -126,6 +127,18 @@ export function registerAppReady(options: AppReadyOptions): void {
       // All other warmed icons are consumed by deferred-only features (tray, badges, inOnline).
       setImmediate(() => {
         warmInitialIcons();
+
+        // visibility: sample per-renderer memory every 60s so later
+        // optimization phases (B/C) can be measured. Tracked via resourceCleanup
+        // so it is torn down on app shutdown.
+        createTrackedInterval(
+          () => {
+            perfMonitor.sampleAllRenderers(accountWindowManager);
+          },
+          60 * 1000,
+          'renderer-memory-sampling'
+        );
+
         void runDeferredPhase({
           featureManager,
           getMainWindow,

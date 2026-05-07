@@ -11,10 +11,12 @@ describe('CACHE_VERSION', () => {
 
 describe('schema structure', () => {
   it('has the expected top-level sections', () => {
-    expect(Object.keys(schema).sort()).toEqual(['_meta', 'accountWindows', 'app', 'window'].sort());
+    expect(Object.keys(schema).sort()).toEqual(
+      ['_meta', 'accountWindows', 'app', 'memory', 'window'].sort()
+    );
   });
 
-  it.each(['window', 'app', '_meta', 'accountWindows'] as const)(
+  it.each(['window', 'app', '_meta', 'accountWindows', 'memory'] as const)(
     'section "%s" is an object with a default object',
     (key) => {
       const section = schema[key] as { type?: string; default?: unknown };

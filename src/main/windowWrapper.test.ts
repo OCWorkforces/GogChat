@@ -11,8 +11,9 @@ vi.mock('electron', () => ({
     getAppPath: vi.fn().mockReturnValue('/fake/app/path'),
     getPath: vi.fn().mockReturnValue('/fake/path'),
   },
-  BrowserWindow: vi.fn().mockImplementation(function MockBrowserWindow() {
+  BrowserWindow: vi.fn().mockImplementation(function MockBrowserWindow(options?: unknown) {
     const win = {
+      __options: options,
       webContents: {
         session: {
           setPermissionRequestHandler: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('electron', () => ({
         },
         on: vi.fn(),
         getURL: vi.fn().mockReturnValue('https://chat.google.com'),
+        setBackgroundThrottling: vi.fn(),
       },
       on: vi.fn(),
       once: vi.fn(),
@@ -358,6 +360,38 @@ describe('windowWrapper', () => {
       const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
 
       expect(handler({}, 'fullscreen', '', {})).toBe(false);
+    });
+  });
+
+  describe('backgroundThrottling per partition', () => {
+    function getPrefs(): Electron.WebPreferences {
+      const opts = lastCreatedWindow!.__options as { webPreferences: Electron.WebPreferences };
+      return opts.webPreferences;
+    }
+
+    it('disables backgroundThrottling when no partition is supplied (default account-0)', () => {
+      createWindow('https://chat.google.com');
+      expect(getPrefs().backgroundThrottling).toBe(false);
+    });
+
+    it('disables backgroundThrottling for persist:account-0', () => {
+      createWindow('https://chat.google.com', 'persist:account-0');
+      expect(getPrefs().backgroundThrottling).toBe(false);
+    });
+
+    it('enables backgroundThrottling for persist:account-1', () => {
+      createWindow('https://chat.google.com', 'persist:account-1');
+      expect(getPrefs().backgroundThrottling).toBe(true);
+    });
+
+    it('enables backgroundThrottling for persist:account-7 (higher indices)', () => {
+      createWindow('https://chat.google.com', 'persist:account-7');
+      expect(getPrefs().backgroundThrottling).toBe(true);
+    });
+
+    it('falls back to disabled when partition string is malformed', () => {
+      createWindow('https://chat.google.com', 'persist:something-else');
+      expect(getPrefs().backgroundThrottling).toBe(false);
     });
   });
 });

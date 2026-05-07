@@ -12,15 +12,51 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-const { mockClearCodeCaches, mockFromPartition } = vi.hoisted(() => {
+const {
+  mockClearCodeCaches,
+  mockClearCache,
+  mockClearStorageData,
+  mockFromPartition,
+  mockAppOn,
+  mockAppRemoveListener,
+  appListeners,
+} = vi.hoisted(() => {
   const mockClearCodeCaches = vi.fn().mockResolvedValue(undefined);
-  const mockFromPartition = vi.fn(() => ({ clearCodeCaches: mockClearCodeCaches }));
-  return { mockClearCodeCaches, mockFromPartition };
+  const mockClearCache = vi.fn().mockResolvedValue(undefined);
+  const mockClearStorageData = vi.fn().mockResolvedValue(undefined);
+  const mockFromPartition = vi.fn(() => ({
+    clearCodeCaches: mockClearCodeCaches,
+    clearCache: mockClearCache,
+    clearStorageData: mockClearStorageData,
+  }));
+  const appListeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  const mockAppOn = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+    if (!appListeners.has(event)) {
+      appListeners.set(event, new Set());
+    }
+    appListeners.get(event)!.add(handler);
+  });
+  const mockAppRemoveListener = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+    appListeners.get(event)?.delete(handler);
+  });
+  return {
+    mockClearCodeCaches,
+    mockClearCache,
+    mockClearStorageData,
+    mockFromPartition,
+    mockAppOn,
+    mockAppRemoveListener,
+    appListeners,
+  };
 });
 
 vi.mock('electron', () => ({
   session: {
     fromPartition: mockFromPartition,
+  },
+  app: {
+    on: mockAppOn,
+    removeListener: mockAppRemoveListener,
   },
 }));
 
@@ -44,6 +80,8 @@ import type { IAccountWindowManager } from '../../shared/types/window.js';
 
 const FIVE_MIN = 5 * 60 * 1000;
 const THIRTY_MIN = 30 * 60 * 1000;
+const TWO_HOURS = 2 * 60 * 60 * 1000;
+const SIX_HOURS = 6 * 60 * 60 * 1000;
 
 function makeManager(overrides: Partial<IAccountWindowManager> = {}): IAccountWindowManager {
   return {
@@ -66,6 +104,9 @@ function makeManager(overrides: Partial<IAccountWindowManager> = {}): IAccountWi
     getBootstrapAccounts: vi.fn().mockReturnValue([]),
     saveAccountWindowState: vi.fn(),
     getAccountWindowState: vi.fn().mockReturnValue(null),
+    dehydrateAccount: vi.fn(),
+    hydrateAccount: vi.fn().mockReturnValue(null),
+    isDehydrated: vi.fn().mockReturnValue(false),
     ...overrides,
   };
 }
@@ -167,6 +208,8 @@ describe('startSessionMaintenance / stopSessionMaintenance', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
     mockClearCodeCaches.mockClear();
+    mockClearCache.mockClear();
+    mockClearStorageData.mockClear();
     mockFromPartition.mockClear();
     destroyAccountActivityTracker();
   });
@@ -290,6 +333,80 @@ describe('startSessionMaintenance / stopSessionMaintenance', () => {
       stopSessionMaintenance();
     }).not.toThrow();
   });
+
+  // ── Tier 2 (HTTP cache @ 2 hours) ───────────────────────
+  it('does NOT clear HTTP cache for accounts idle < 2 hours', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    // 30 min in: code cache cleared, but HTTP cache NOT yet.
+    vi.advanceTimersByTime(THIRTY_MIN);
+    expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
+    expect(mockClearCache).not.toHaveBeenCalled();
+  });
+
+  it('clears HTTP cache for accounts idle >= 2 hours', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(TWO_HOURS);
+    expect(mockFromPartition).toHaveBeenCalledWith('persist:account-0');
+    expect(mockClearCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips HTTP cache clear for bootstrap accounts', () => {
+    const tracker = new AccountActivityTracker();
+    const isBootstrap = vi.fn((idx: number) => idx === 1);
+    const getBootstrapAccounts = vi.fn().mockReturnValue([1]);
+    const manager = makeManager({ isBootstrap, getBootstrapAccounts });
+    tracker.recordActivity(0);
+    tracker.recordActivity(1);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(TWO_HOURS);
+    expect(mockFromPartition).not.toHaveBeenCalledWith('persist:account-1');
+    // Account 0 still cleared.
+    expect(mockClearCache).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Tier 3 (Service workers @ 6 hours) ────────────────
+  it('does NOT clear service worker storage for accounts idle < 6 hours', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(TWO_HOURS);
+    expect(mockClearStorageData).not.toHaveBeenCalled();
+  });
+
+  it('clears service worker storage for accounts idle >= 6 hours', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(SIX_HOURS);
+    expect(mockClearStorageData).toHaveBeenCalledWith({ storages: ['serviceworkers'] });
+  });
+
+  it('skips service worker clear for bootstrap accounts', () => {
+    const tracker = new AccountActivityTracker();
+    const isBootstrap = vi.fn((idx: number) => idx === 2);
+    const getBootstrapAccounts = vi.fn().mockReturnValue([2]);
+    const manager = makeManager({ isBootstrap, getBootstrapAccounts });
+    tracker.recordActivity(0);
+    tracker.recordActivity(2);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(SIX_HOURS);
+    expect(mockFromPartition).not.toHaveBeenCalledWith('persist:account-2');
+    expect(mockClearStorageData).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('Singleton getAccountActivityTracker / destroyAccountActivityTracker', () => {
@@ -297,6 +414,8 @@ describe('Singleton getAccountActivityTracker / destroyAccountActivityTracker', 
     vi.useFakeTimers();
     destroyAccountActivityTracker();
     mockClearCodeCaches.mockClear();
+    mockClearCache.mockClear();
+    mockClearStorageData.mockClear();
     mockFromPartition.mockClear();
   });
 
@@ -330,5 +449,126 @@ describe('Singleton getAccountActivityTracker / destroyAccountActivityTracker', 
 
     vi.advanceTimersByTime(THIRTY_MIN * 2);
     expect(mockClearCodeCaches).not.toHaveBeenCalled();
+  });
+});
+
+describe('startSessionMaintenance — memory pressure handler', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    mockAppOn.mockClear();
+    mockAppRemoveListener.mockClear();
+    appListeners.clear();
+    destroyAccountActivityTracker();
+  });
+
+  afterEach(() => {
+    stopSessionMaintenance();
+    destroyAccountActivityTracker();
+    vi.useRealTimers();
+  });
+
+  function firePressure(): void {
+    const handlers = appListeners.get('memory-pressure');
+    if (handlers) {
+      for (const h of handlers) {
+        h();
+      }
+    }
+  }
+
+  it('registers a memory-pressure handler on startSessionMaintenance', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    startSessionMaintenance(tracker, manager);
+    expect(mockAppOn).toHaveBeenCalledWith('memory-pressure', expect.any(Function));
+    expect(appListeners.get('memory-pressure')?.size).toBe(1);
+  });
+
+  it('dehydrates idle accounts (>= 30s) on memory pressure', () => {
+    const tracker = new AccountActivityTracker();
+    const dehydrateAccount = vi.fn();
+    const manager = makeManager({ dehydrateAccount });
+    tracker.recordActivity(0);
+    tracker.recordActivity(1);
+    startSessionMaintenance(tracker, manager);
+
+    // Advance past the 30-second pressure threshold
+    vi.advanceTimersByTime(30 * 1000);
+    firePressure();
+
+    expect(dehydrateAccount).toHaveBeenCalledTimes(2);
+    expect(dehydrateAccount).toHaveBeenCalledWith(0);
+    expect(dehydrateAccount).toHaveBeenCalledWith(1);
+  });
+
+  it('does NOT dehydrate accounts that are still active (< 30s idle)', () => {
+    const tracker = new AccountActivityTracker();
+    const dehydrateAccount = vi.fn();
+    const manager = makeManager({ dehydrateAccount });
+    tracker.recordActivity(0);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(30 * 1000 - 1);
+    firePressure();
+
+    expect(dehydrateAccount).not.toHaveBeenCalled();
+  });
+
+  it('skips bootstrap accounts on memory pressure', () => {
+    const tracker = new AccountActivityTracker();
+    const dehydrateAccount = vi.fn();
+    const isBootstrap = vi.fn((idx: number) => idx === 1);
+    const manager = makeManager({ dehydrateAccount, isBootstrap });
+    tracker.recordActivity(0);
+    tracker.recordActivity(1);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(30 * 1000);
+    firePressure();
+
+    expect(dehydrateAccount).toHaveBeenCalledTimes(1);
+    expect(dehydrateAccount).toHaveBeenCalledWith(0);
+    expect(dehydrateAccount).not.toHaveBeenCalledWith(1);
+  });
+
+  it('skips already-dehydrated accounts on memory pressure', () => {
+    const tracker = new AccountActivityTracker();
+    const dehydrateAccount = vi.fn();
+    const isDehydrated = vi.fn((idx: number) => idx === 1);
+    const manager = makeManager({ dehydrateAccount, isDehydrated });
+    tracker.recordActivity(0);
+    tracker.recordActivity(1);
+    startSessionMaintenance(tracker, manager);
+
+    vi.advanceTimersByTime(30 * 1000);
+    firePressure();
+
+    expect(dehydrateAccount).toHaveBeenCalledTimes(1);
+    expect(dehydrateAccount).toHaveBeenCalledWith(0);
+    expect(dehydrateAccount).not.toHaveBeenCalledWith(1);
+  });
+
+  it('removes the memory-pressure listener on stopSessionMaintenance', () => {
+    const tracker = new AccountActivityTracker();
+    const manager = makeManager();
+    startSessionMaintenance(tracker, manager);
+    expect(appListeners.get('memory-pressure')?.size).toBe(1);
+
+    stopSessionMaintenance();
+
+    expect(mockAppRemoveListener).toHaveBeenCalledWith('memory-pressure', expect.any(Function));
+    expect(appListeners.get('memory-pressure')?.size).toBe(0);
+  });
+
+  it('does NOT dehydrate when no accounts are idle', () => {
+    const tracker = new AccountActivityTracker();
+    const dehydrateAccount = vi.fn();
+    const manager = makeManager({ dehydrateAccount });
+    startSessionMaintenance(tracker, manager);
+
+    firePressure();
+
+    expect(dehydrateAccount).not.toHaveBeenCalled();
   });
 });
