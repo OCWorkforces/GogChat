@@ -139,6 +139,14 @@ export class MockBrowserWindow extends EventEmitter {
     this.emit('blur');
   }
 
+  setAlwaysOnTop(_flag: boolean, _level?: string): void {
+    // Mock implementation
+  }
+
+  setMenuBarVisibility(_visible: boolean): void {
+    // Mock implementation
+  }
+
   static reset(): void {
     MockBrowserWindow.windows = [];
     MockBrowserWindow.nextId = 1;
