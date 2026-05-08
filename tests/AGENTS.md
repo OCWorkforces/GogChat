@@ -1,6 +1,6 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-05-07 | **Commit:** 8a4a924
+**Generated:** 2026-05-08
 
 4 test tiers: **unit** (Vitest, colocated with source), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`.
 
@@ -54,7 +54,11 @@ beforeEach(() => {
 | CPU idle             | 5%     |
 | JS bundle            | 1MB    |
 
-Coverage thresholds (vitest.config.ts): statements 94%, branches 92%, functions 94%, lines 94%.
+Coverage thresholds (vitest.config.ts): statements 94%, branches 92%, functions 94%, lines 94%. Current run: ~1743 tests across the colocated unit suites + integration/e2e/perf tiers (down from 1930 after the perf pass dropped legacy `featureManager` tests).
+
+## CI PERF BUDGET GATE
+
+`scripts/headless-startup.js` launches Electron in headless mode and writes `performance-metrics.json` (9 metrics: app launch, window ready, first paint, memory baseline, memory after nav, IPC response, CPU idle, JS bundle size, deferred phase duration). `scripts/check-perf-budget.js` reads that file and compares against the thresholds above. A gated subset (launch / window ready / first paint / memory baseline) **fails the build** on regression; the rest are informational. Wired into `pr-check.yml`.
 
 ## ANTI-PATTERNS
 

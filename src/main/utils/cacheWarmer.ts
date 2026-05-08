@@ -13,10 +13,11 @@ import { app, type BrowserWindow } from 'electron';
 import log from 'electron-log';
 import path from 'path';
 import { perfMonitor } from './performanceMonitor.js';
-import { getIconCache } from './iconCache.js';
+import { getIconCache, SOON_DEFERRED_ICON_PATHS } from './iconCache.js';
 import { createTrackedTimeout } from './resourceCleanup.js';
 import { compareStorePerformance } from './configProfiler.js';
-import type { FeatureManager } from './featureManager.js';
+import { runPhase } from './featureRunner.js';
+import type { FeatureContext } from './featureConfigTypes.js';
 
 /** Delay (ms) before idle cache warming fires after deferred features load. */
 const IDLE_WARM_DELAY_MS = 8000;
@@ -24,9 +25,10 @@ const IDLE_WARM_DELAY_MS = 8000;
 /**
  * Additional icons preloaded during idle to reduce later UI latency.
  *
- * DISJOINTNESS INVARIANT: Must be the disjoint complement of INITIAL_ICON_PATHS
- * in iconCache.ts. Together they form the complete preload set — no overlap,
- * no gaps. Adding a path here requires removing it from INITIAL_ICON_PATHS.
+ * DISJOINTNESS INVARIANT: Triple-set partition — INITIAL_ICON_PATHS ⊕
+ * SOON_DEFERRED_ICON_PATHS (both in iconCache.ts) ⊕ ADDITIONAL_ICON_PATHS (here)
+ * MUST be the disjoint complement covering the complete preload set — no overlap,
+ * no gaps. Adding a path here requires removing it from the other two sets.
  */
 const ADDITIONAL_ICON_PATHS = [
   'resources/icons/normal/32.png',
@@ -34,11 +36,6 @@ const ADDITIONAL_ICON_PATHS = [
   'resources/icons/normal/256.png',
   'resources/icons/offline/16.png',
   'resources/icons/offline/32.png',
-  'resources/icons/badge/16.png',
-  'resources/icons/badge/32.png',
-  // Unread tray icon variants — swapped at runtime when messages arrive
-  'resources/icons/tray/iconUnreadTemplate.png',
-  'resources/icons/tray/iconUnreadTemplate@2x.png',
 ] as const;
 
 /**
@@ -51,10 +48,23 @@ export function warmInitialIcons(): void {
 }
 
 /**
+ * Warm the soon-deferred icon cache (called on setImmediate after the critical
+ * path, before the 8s idle warm). Loads tray unread + badge variants so the first
+ * notification can render the correct icon within ~50ms of startup.
+ */
+export function warmSoonDeferredIcons(): void {
+  const iconCache = getIconCache();
+  for (const iconPath of SOON_DEFERRED_ICON_PATHS) {
+    iconCache.getIcon(iconPath);
+  }
+  perfMonitor.mark('icons-soon-deferred-cached', 'Soon-deferred icons pre-loaded');
+}
+
+/**
  * Options for runDeferredPhase.
  */
 export interface DeferredPhaseOptions {
-  featureManager: FeatureManager;
+  context: FeatureContext;
   getMainWindow: () => BrowserWindow | null;
   isDev: boolean;
 }
@@ -69,7 +79,7 @@ export interface DeferredPhaseOptions {
  * - Schedules idle cache warming via tracked timeout
  */
 export async function runDeferredPhase(options: DeferredPhaseOptions): Promise<void> {
-  const { featureManager, getMainWindow, isDev } = options;
+  const { context, getMainWindow, isDev } = options;
 
   const currentMainWindow = getMainWindow();
   if (!currentMainWindow) {
@@ -80,8 +90,8 @@ export async function runDeferredPhase(options: DeferredPhaseOptions): Promise<v
   log.debug('[Main] Loading non-critical features with dynamic imports');
   perfMonitor.mark('deferred-features-start', 'Starting deferred feature loading');
 
-  // Initialize deferred features (parallel with dynamic imports)
-  await featureManager.initializePhase('deferred');
+  // Initialize deferred features (parallel within precomputed dep batches)
+  await runPhase('deferred', context);
 
   perfMonitor.mark('all-features-loaded', 'All features initialized', true);
   log.info('[Main] All features initialized');

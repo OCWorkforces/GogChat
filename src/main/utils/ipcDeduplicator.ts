@@ -5,7 +5,6 @@
  */
 
 import { logger } from './logger.js';
-import { toError } from './errorUtils.js';
 import { createTrackedTimeout } from './resourceCleanup.js';
 
 /**
@@ -26,10 +25,6 @@ export interface DeduplicationConfig {
 interface CacheEntry<T> {
   promise: Promise<T>;
   timestamp: number;
-  resolvers: Array<{
-    resolve: (value: T) => void;
-    reject: (error: Error) => void;
-  }>;
 }
 
 type CacheEntryAny = CacheEntry<unknown>;
@@ -96,33 +91,11 @@ export class IPCDeduplicator {
     }
 
     // Create new promise
-    const promise = fn()
-      .then((result) => {
-        // Resolve all waiting promises
-        const entry = this.cache.get(key);
-        if (entry) {
-          entry.resolvers.forEach(({ resolve }) => resolve(result));
-        }
-        return result;
-      })
-      .catch((error: unknown) => {
-        // Reject all waiting promises
-        const entry = this.cache.get(key);
-        if (entry) {
-          entry.resolvers.forEach(({ reject }) => reject(toError(error)));
-        }
-        throw error;
-      })
-      .finally(() => {
-        // Don't immediately remove from cache, let it expire naturally
-        // This allows for better deduplication of rapid successive calls
-      });
-
+    const promise = fn();
     // Store in cache
     this.cache.set(key, {
       promise,
       timestamp: now,
-      resolvers: [],
     });
 
     // Schedule cleanup for this entry's expiration

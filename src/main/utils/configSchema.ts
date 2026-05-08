@@ -78,6 +78,10 @@ export const schema: Schema<StoreType> = {
         type: 'boolean',
         default: false,
       },
+      useWebContentsView: {
+        type: 'boolean',
+        default: false,
+      },
     },
     default: {
       autoCheckForUpdates: true,
@@ -87,6 +91,7 @@ export const schema: Schema<StoreType> = {
       disableSpellChecker: false,
       suppressPasskeyDialog: false,
       notificationPermissionRequested: false,
+      useWebContentsView: false,
     },
   },
   _meta: {

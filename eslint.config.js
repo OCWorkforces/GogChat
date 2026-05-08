@@ -286,6 +286,11 @@ export default [
         exports: 'readonly',
         Buffer: 'readonly',
         global: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        URL: 'readonly',
       },
     },
     plugins: {
@@ -302,11 +307,7 @@ export default [
   // typeUtils.ts owns the future asType<T>() helper; branded.ts intentionally creates branded values via internal `as`.
   // Test files (*.test.ts) are exempt as well — see Plan Task 2.
   {
-    files: [
-      'src/shared/typeUtils.ts',
-      'src/shared/types/branded.ts',
-      'src/**/*.test.ts',
-    ],
+    files: ['src/shared/typeUtils.ts', 'src/shared/types/branded.ts', 'src/**/*.test.ts'],
     rules: {
       'no-restricted-syntax': 'off',
     },

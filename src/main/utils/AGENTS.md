@@ -1,27 +1,31 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-05-07 · **Commit:** 8a4a924
+**Generated:** 2026-05-08
 
-40 utility modules (+1 new: `accountSessionMaintenance.ts`). All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`.
+~50 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`. Feature lifecycle moved out of utils: build-time plan in `../generated/featurePlan.ts`, runtime walker in `featureRunner.ts`, context in `featureContextStore.ts`.
 
 ## MODULE INVENTORY
 
 | File | Lines | Purpose | Singleton |
 | --- | --- | --- | --- |
-| `featureManager.ts` | 485 | Feature lifecycle + re-exports config types; includes `createFeature`/`createLazyFeature`/`initializeFeature`; parallel phase-grouped cleanup (M2); uses `assertNever()` for exhaustive `FeatureState.status` switches | `getFeatureManager()` |
-| `accountWindowManager.ts` | 532 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager`; hydrate/dehydrate state machine (M3b) — idle windows dehydrated after 5min blur/hide, recreated on demand; uses branded `AccountIndex` and `AccountPartition` types via `asAccountIndex()` / `toPartition()` helpers | `getAccountWindowManager()` |
-| `resourceCleanup.ts` | 308 | Tracked intervals/timeouts/listeners; lazy `require()` only | `getCleanupManager()` |
+| `featureRunner.ts` | 109 | Walks build-time `FEATURE_PLAN` per phase; sequential batches with parallel specs; tracks initialized for reverse-order `cleanupAll`. Replaces the deleted 485-line `featureManager.ts` | exported fns |
+| `featureContextStore.ts` | 22 | Holds the live `FeatureContext` for any feature reading `mainWindow` / `accountWindowManager` post-init | exported fns |
+| `accountViewManager.ts` | 569 | Opt-in WebContentsView backend (`app.useWebContentsView` flag); single host BrowserWindow + per-account views; alternative to `accountWindowManager` | `getAccountViewManager()` |
+| `ipcFastPath.ts` | 54 | `registerFastHandler` for sync one-way IPC (e.g. `FAVICON_CHANGED`, `UNREAD_COUNT`) — keeps rate limit + validator, skips Promise alloc | exported fns |
+| `cdpMetrics.ts` | 144 | Local-only CDP metrics buffer + persistence; powers `features/cdpTelemetry.ts` | exported fns |
+| `accountWindowManager.ts` | 532 | Multi-account BrowserWindow mgmt; serialized writes, queue isolation; implements `IAccountWindowManager`; hydrate/dehydrate state machine; dispatches to `accountViewManager` when `app.useWebContentsView=true`; uses branded `AccountIndex` and `AccountPartition` types | `getAccountWindowManager()` |
+| `resourceCleanup.ts` | 308 | Tracked intervals/timeouts/listeners; lazy `require()` only; `AbortController`-driven timer fan-out for batched cancellation | `getCleanupManager()` |
 | `config.ts` (parent) | — | See `../config.ts` | — |
 | `performanceMonitor.ts` | 259 | Startup timing + memory snapshots | `getPerformanceMonitor()` |
 | `ipcHelper.ts` | 315 | Secure IPC handler factories; `IPCHandlerConfig.channel: IPCChannelName`; `NoInfer<T>` on `data` param; optional deduplication via `withDeduplication` | `getIPCManager()` |
-| `ipcDeduplicator.ts` | 317 | Dedup rapid same-key requests; on-demand cleanup scheduling (M1); **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler` | `getDeduplicator()` |
+| `ipcDeduplicator.ts` | 317 | Dedup rapid same-key requests; on-demand cleanup scheduling; **opt-in** per handler via `withDeduplication` or `createDeduplicatedHandler`; resolver-storage path simplified (resolvers map deleted, all callers go through `withDeduplication`) | `getDeduplicator()` |
 | `accountWindowRegistry.ts` | 255 | Window registration, lookup, lifecycle; Map keys typed as branded `AccountIndex` and `WebContentsId` | exported fns |
 | `errorHandler.ts` | 245 | Structured error wrapping | `getErrorHandler()` |
 | `errors.ts` | 42 | Typed error subclasses: `GogChatError` base, `IPCError`, `ConfigError`; native `Error.cause` chaining for IPC, config, encryption errors | exported classes |
 | `iconCache.ts` | 220 | NativeImage preload cache; O(1) Map insertion-order LRU (T5+T8) | `getIconCache()` |
 | `bootstrapWatcher.ts` | 205 | Bootstrap window navigation watching | exported fns |
 | `rateLimiter.ts` | 199 | IPC DoS prevention | `getRateLimiter()` |
-| `configCache.ts` | 181 | In-memory layer for electron-store with O(1) LRU eviction | `addCacheLayer()` |
+| `configCache.ts` | 181 | In-memory layer for electron-store with O(1) LRU eviction; **read-through, no TTL** — entries invalidated only by `set`/`delete`/`clear` | `addCacheLayer()` |
 | `configSchema.ts` | 159 | electron-store schema | exported const |
 | `platformUtils.ts` | 160 | Platform utilities singleton | `getPlatformUtils()` |
 | `cacheWarmer.ts` | 160 | Disjoint icon warmup sets (INITIAL_ICON_PATHS ∩ TRAY_ICON_PATHS = ∅); `IDLE_WARM_DELAY_MS` = 8000ms; called in `setImmediate`; DISJOINTNESS INVARIANT enforced by comment | exported fns |
@@ -53,13 +57,13 @@
 
 `resourceCleanup.ts` — zero static util imports; lazy `require()` via callbacks registered in `../initializers/registerGlobalCleanups.ts`.
 `ipcHelper` → `rateLimiter`, `logger`, `errorHandler`. `ipcDeduplicator` → `logger`, `errorHandler`.
-`featureManager.ts` re-exports from `featureConfigTypes.ts`. `performanceMonitor.ts` consumes `performanceTypes.ts`. Both extracted to break circular deps (former `featureTypes.ts` deleted; `ipc.ts` barrel deleted).
+`featureRunner.ts` consumes `FEATURE_PLAN` from `../generated/featurePlan.ts`. `featureContextStore.ts` is a tiny holder with no util deps. `performanceMonitor.ts` consumes `performanceTypes.ts`; both extracted to break circular deps (former `featureManager.ts` and `featureTypes.ts` deleted; `ipc.ts` barrel deleted).
 `errorUtils.ts` — zero util imports. Breaks cycle between `ipcHelper` / `ipcDeduplicator` / `resourceCleanup`.
 `cleanupTypes.ts` — extracted from `resourceCleanup.ts` to break circular dep.
-`cacheWarmer.ts` → `iconCache`, `performanceMonitor`, `featureManager`, `configProfiler`. Called from `app.whenReady()` orchestration.
+`cacheWarmer.ts` → `iconCache`, `performanceMonitor`, `configProfiler`. Called from `app.whenReady()` orchestration. (No longer depends on `featureManager`.)
 `bootstrapTracker.ts` → used by `accountWindowManager.ts`.
 `permissionHandler.ts` / `cspHeaderHandler.ts` / `benignLogFilter.ts` / `windowUtils.ts` → used by `windowWrapper.ts`.
-`accountWindowManager.ts` implements `IAccountWindowManager` from `shared/types/window.ts`.
+`accountWindowManager.ts` implements `IAccountWindowManager` from `shared/types/window.ts`; dispatches to `accountViewManager.ts` when `app.useWebContentsView=true`.
 Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 ## KEY PATTERNS
@@ -72,7 +76,9 @@ Menu action registry + deepLinkUtils live in `../features/`, NOT here.
 
 **Resource cleanup**: `createTrackedInterval()`, `createTrackedTimeout()`, `addTrackedListener()`, `registerCleanupTask()`, `registerGlobalCleanupCallback()`. Bare `setInterval`/`setTimeout` will NOT be cleaned up.
 
-**Feature creation**: `createFeature()` / `createLazyFeature()` from `featureManager`; types from `featureConfigTypes`.
+**Feature lifecycle**: declare in `../initializers/*.spec.ts` as a `FeatureSpec`; build-time codegen (`scripts/featurePlanPlugin.js`) emits `../generated/featurePlan.ts`; `featureRunner.runPhase(phase, ctx)` walks it. Types live in `featureConfigTypes.ts`.
+
+**IPC fast path**: `registerFastHandler({ channel, rateLimit, validator, handler })` from `ipcFastPath.ts` for hot one-way `.send()` channels. Preserves rate limit + validation, removes Promise allocation. NOT for `invoke()` — use `createSecureInvokeHandler` instead.
 
 **Error handler**: `initializeFeature('name', async () => {...}, 'phase')`, `wrapAsync({ feature, operation }, async () => {...})`.
 

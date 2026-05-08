@@ -1,6 +1,6 @@
 # src/shared/types/ — Cross-Process Type Contracts
 
-**Generated:** 2026-05-07 · **Commit:** 8a4a924
+**Generated:** 2026-05-08
 
 Canonical TypeScript types shared between main, preload, and renderer processes. All types are `export`-only — no runtime logic, no side effects. Import directly from each file (no barrel re-exports).
 
@@ -8,9 +8,9 @@ Canonical TypeScript types shared between main, preload, and renderer processes.
 
 | File | Lines | Key Exports | Used By |
 | --- | --- | --- | --- |
-| `branded.ts` | 68 | `Branded<T, Brand>`, `ValidatedURL`, `AccountIndex`, `AccountPartition`, `FeatureNameBrand`, `WebContentsId`, `asValidatedURL`, `asAccountIndex`, `toPartition` | `urlValidators.ts`, `ipcHelper.ts`, `accountWindowManager.ts`, `featureManager.ts` |
+| `branded.ts` | 68 | `Branded<T, Brand>`, `ValidatedURL`, `AccountIndex`, `AccountPartition`, `FeatureNameBrand`, `WebContentsId`, `asValidatedURL`, `asAccountIndex`, `toPartition` | `urlValidators.ts`, `ipcHelper.ts`, `accountWindowManager.ts`, `featureRunner.ts` |
 | `bridge.ts` | 28 | `GogChatBridgeAPI`, `declare global { Window.gogchat }` | `src/preload/index.ts`, renderer |
-| `config.ts` | 59 | `AppConfig` (incl. `notificationPermissionRequested: boolean`), `StoreMetadata`, `StoreType` (security flags NOT stored here — see `secureFlags.ts`), `StoreKeyPaths` | `src/main/config.ts`, `configCache.ts`, `configSchema.ts` |
+| `config.ts` | 60 | `AppConfig` (incl. `notificationPermissionRequested: boolean`, `useWebContentsView?: boolean` opt-in flag for WebContentsView backend), `StoreMetadata`, `StoreType` (security flags NOT stored here — see `secureFlags.ts`), `StoreKeyPaths` | `src/main/config.ts`, `configCache.ts`, `configSchema.ts` |
 | `domain.ts` | 92 | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union, `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData` (all readonly) | features, utils, preload |
 | `ipc.ts` | 95 | `IPCHandler<T>`, `ValidatedIPCMessage<T,C>`, `RateLimitEntry`, `IPCResponse<T>`, `IPCChannelPayloadMap`, `IPCResponsePayloadMap`, `ChannelRequest<C>`, `ChannelResponse<C>` template literal types | `ipcHelper.ts`, `ipcDeduplicator.ts` |
 | `window.ts` | 84 | `IAccountWindowManager` (22 methods, `AccountIndex`-typed), `WindowFactory`, `WindowBounds`, `AccountWindowsMap` | `accountWindowManager.ts`, features |

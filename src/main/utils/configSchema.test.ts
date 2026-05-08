@@ -96,9 +96,10 @@ describe('app section', () => {
     disableSpellChecker: false,
     suppressPasskeyDialog: false,
     notificationPermissionRequested: false,
+    useWebContentsView: false,
   };
 
-  it('has exactly 7 boolean properties', () => {
+  it('has exactly 8 boolean properties', () => {
     expect(Object.keys(app.properties).sort()).toEqual(Object.keys(expectedDefaults).sort());
   });
 

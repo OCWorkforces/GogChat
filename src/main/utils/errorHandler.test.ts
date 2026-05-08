@@ -2,8 +2,7 @@
  * Unit tests for ErrorHandler — centralized error handling
  *
  * Covers: ErrorHandler class, wrapAsync, wrapSync, global handlers
- * (unhandledRejection, uncaughtException), singleton pattern, context stack,
- * and initializeFeature helper.
+ * (unhandledRejection, uncaughtException), singleton pattern, and context stack.
  *
  * Note: toErrorMessage, toError, isError utilities are tested in errorUtils.test.ts
  * (extracted to break circular dependency).
@@ -510,79 +509,6 @@ describe('ErrorHandler', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(electron.app.quit).not.toHaveBeenCalled();
-    });
-  });
-
-  // ========================================================================
-  // initializeFeature()
-  // ========================================================================
-
-  describe('initializeFeature()', () => {
-    it('wraps feature initialization successfully', async () => {
-      const { initializeFeature } = await import('./featureManager');
-      const log = await import('electron-log');
-      const initFn = vi.fn().mockResolvedValue(undefined);
-
-      await initializeFeature('successFeature', initFn, 'critical');
-
-      expect(initFn).toHaveBeenCalled();
-      const debugCalls = log.default.debug.mock.calls;
-      expect(debugCalls.some((call) => call[0]?.includes("'successFeature'"))).toBe(true);
-    });
-
-    it('catches and logs errors without re-throwing', async () => {
-      const { initializeFeature } = await import('./featureManager');
-      const log = await import('electron-log');
-      const initFn = vi.fn().mockRejectedValue(new Error('init failed'));
-
-      // Should NOT throw
-      await expect(initializeFeature('failFeature', initFn, 'critical')).resolves.toBeUndefined();
-
-      const errorCalls = log.default.error.mock.calls;
-      expect(errorCalls.some((call) => call[0]?.includes('failFeature'))).toBe(true);
-    });
-
-    it('allows app to continue after feature failure', async () => {
-      const { initializeFeature } = await import('./featureManager');
-      const initFn = vi.fn().mockRejectedValue(new Error('failed'));
-
-      // Should not throw - app continues
-      await expect(initializeFeature('optional', initFn, 'deferred')).resolves.toBeUndefined();
-    });
-
-    it('works without phase', async () => {
-      const { initializeFeature } = await import('./featureManager');
-      const initFn = vi.fn().mockResolvedValue(undefined);
-
-      await initializeFeature('noPhase', initFn);
-
-      expect(initFn).toHaveBeenCalled();
-    });
-
-    it('works with sync init function', async () => {
-      const { initializeFeature } = await import('./featureManager');
-      const initFn = vi.fn();
-
-      await initializeFeature('syncInit', initFn, 'ui');
-
-      expect(initFn).toHaveBeenCalled();
-    });
-
-    it('uses wrapAsync internally for async operations', async () => {
-      const { initializeFeature } = await import('./featureManager');
-      const log = await import('electron-log');
-
-      await initializeFeature(
-        'asyncOp',
-        async () => {
-          await Promise.resolve();
-        },
-        'critical'
-      );
-
-      // Verify the handler was used
-      const debugCalls = log.default.debug.mock.calls;
-      expect(debugCalls.some((call) => call[0]?.includes('asyncOp'))).toBe(true);
     });
   });
 });

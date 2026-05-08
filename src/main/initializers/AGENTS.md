@@ -1,74 +1,89 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-05-07 · **Commit:** 8a4a924
+**Generated:** 2026-05-08
 
-Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is split into specialized sub-modules by concern. Shutdown handled separately.
+Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is now declarative (`*.spec.ts` files) and resolved at build time. Shutdown is handled separately.
 
 ## FILES
 
-| File                                  | Lines | Purpose                                                    |
-| ------------------------------------- | ----- | ---------------------------------------------------------- |
-| `registerFeatures.ts`                 | 36    | Entry point, delegates to sub-initializers                 |
-| `registerSecurityFeatures.ts`         | 43    | Security phase features (before app.ready)                 |
-| `registerUIFeatures.ts`               | 68    | UI phase features (inside app.whenReady blocking)          |
-| `registerDeferredFeatures.ts`         | 28    | Deferred dispatcher, delegates to 3 specialized modules    |
-| `registerDeferredSystemFeatures.ts`   | 113   | System: tray, badges, window state, auto-launch            |
-| `registerDeferredWindowFeatures.ts`   | 70    | Window: menus, notifications, links, context menu          |
-| `registerDeferredNetworkFeatures.ts`  | 45    | Network: connectivity monitoring                           |
-| `featureHelpers.ts`                   | 47    | `createMainWindowFeature()` helper                         |
-| `registerAppReady.ts`                 | 132   | app.whenReady orchestration; parallel phase init                   |
-| `registerGlobalCleanups.ts`           | 39    | Lazy-required cleanup callback registration                |
-| `registerShutdown.ts`                 | 70    | before-quit handler, delegates diagnostics + destroyers    |
-| `shutdownDiagnostics.ts`              | 115   | Cache statistics logging                                   |
-| `singletonDestroyers.ts`              | 29    | Aggregated singleton destroy calls                         |
+| File                           | Lines | Purpose                                                                                                |
+| ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------ |
+| `security.spec.ts`             | ~50   | Declarative `SECURITY_FEATURES` array (FeatureSpec[]); runs before `app.whenReady`                     |
+| `ui.spec.ts`                   | ~60   | Declarative `UI_FEATURES` array; runs inside `app.whenReady` after window creation                     |
+| `deferred.spec.ts`             | ~120  | Declarative `DEFERRED_FEATURES` array; runs in `setImmediate` after first paint                        |
+| `registerAppReady.ts`          | ~140  | `app.whenReady` orchestration; drives phases via `featureRunner` (no longer `featureManager`)          |
+| `registerGlobalCleanups.ts`    | 39    | Lazy-required cleanup callback registration                                                            |
+| `registerShutdown.ts`          | 70    | `before-quit` handler; calls `cleanupAll(featureRunner)` then singleton destroyers                     |
+| `shutdownDiagnostics.ts`       | 115   | Cache statistics logging                                                                               |
+| `singletonDestroyers.ts`       | 29    | Aggregated singleton destroy calls                                                                     |
 
-## registerFeatures.ts
+**Deleted in performance pass (2026-05-08):**
 
-**Exports**: `registerAllFeatures(featureManager, callbacks)`
+- `registerFeatures.ts` (entry point, 36 lines)
+- `registerSecurityFeatures.ts` (43 lines)
+- `registerUIFeatures.ts` (68 lines)
+- `registerDeferredFeatures.ts` (28 lines)
+- `registerDeferredSystemFeatures.ts` (113 lines)
+- `registerDeferredWindowFeatures.ts` (70 lines)
+- `registerDeferredNetworkFeatures.ts` (45 lines)
+- `featureHelpers.ts` (47 lines)
 
-**Callbacks** (bridge to `index.ts` module state):
+Replaced by `*.spec.ts` declarative specs + build-time codegen.
 
-- `setTrayIcon(icon)` — stores tray reference in `index.ts` module scope
-- `registerCleanupTask(name, cleanup)` — delegates to `resourceCleanup`
+## FEATURE SPEC FILES
 
-**Feature list**: 21 features across 4 phases. Security (3) → Critical (1) → UI (2) → Deferred (15). See `../features/AGENTS.md` for full inventory.
+Each `*.spec.ts` exports a typed `readonly FeatureSpec[]` (`as const satisfies`). A `FeatureSpec` declares: `name`, `phase`, optional `dependencies`, optional `required`, `description`, `init(ctx)`, optional `cleanup(ctx)`.
 
-**Deferred registration split into 3 specialized modules:**
-- `registerDeferredSystemFeatures.ts` — tray, badges, window state, auto-launch, updates, firstLaunch, enforceMacOSAppLocation
-- `registerDeferredWindowFeatures.ts` — appMenu, passkey, notifications, externalLinks, closeToTray, contextMenu
-- `registerDeferredNetworkFeatures.ts` — inOnline connectivity monitoring
-
-`featureHelpers.ts` provides `createMainWindowFeature()` to eliminate repeated `createLazyFeature` boilerplate for simple mainWindow-scoped features.
-
-**Dependency chain** (topological order resolved by featureManager):
-
-```
-trayIcon → badgeIcons, closeToTray
-bootstrapPromotion → externalLinks, windowState
-singleInstance, deepLinkHandler, bootstrapPromotion → windowState
-openAtLogin, externalLinks → appMenu
+```typescript
+export const SECURITY_FEATURES = [
+  {
+    name: 'certificatePinning',
+    phase: 'security',
+    required: true,
+    init: () => setupCertificatePinning(),
+    cleanup: () => cleanupCertificatePinning(),
+  },
+  // ...
+] as const satisfies readonly FeatureSpec[];
 ```
 
-**Pattern**: Synchronous features use `createFeature()`. Lazy-loaded features use `createLazyFeature()` with dynamic `import()`. Both receive `FeatureContext` on init.
+Phase distribution: security (3) → critical (1) → ui (2) → deferred (~15+ incl. `cdpTelemetry`).
+
+## BUILD-TIME CODEGEN
+
+`scripts/featurePlanPlugin.js` (Rsbuild plugin) reads the three `*.spec.ts` files and emits `src/main/generated/featurePlan.ts` containing `FEATURE_PLAN: Record<FeaturePriority, readonly (readonly FeatureSpec[])[]>`. Topological sort + dependency batching happens **at build time**, not runtime. The 485-line `featureManager` class is gone.
+
+## RUNTIME
+
+- `src/main/utils/featureRunner.ts` (~109 lines) walks `FEATURE_PLAN` per phase. Within a phase, batches run sequentially; specs in a batch run in parallel via `Promise.all`. Tracks initialized specs for reverse-order `cleanupAll`.
+- `src/main/utils/featureContextStore.ts` (~22 lines) holds the live `FeatureContext` for any feature that needs to read `mainWindow` / `accountWindowManager` post-init.
+
+## registerAppReady.ts
+
+Drives the lifecycle:
+
+1. `runPhase('security', ctx)` — before window creation
+2. Create main window, set context via `featureContextStore.update(...)`
+3. `runPhase('critical', ctx)` + `runPhase('ui', ctx)`
+4. `setImmediate(() => runPhase('deferred', ctx))` — non-blocking
 
 ## registerShutdown.ts
 
-**Exports**: `registerShutdownHandler({ featureManager })`
-
 **Cleanup order**:
 
-1. `featureManager.cleanup()` — reverse init order
-2. `destroyAccountWindowManager()` — after features
+1. `cleanupAll(ctx)` — reverse init order via `featureRunner`
+2. `destroyAccountWindowManager()`
 3. `runShutdownDiagnostics()` — delegates to `shutdownDiagnostics.ts`
 4. `destroyAllSingletons()` — perfMonitor → deduplicator → rateLimiter → iconCache (via `singletonDestroyers.ts`)
-5. `app.exit()` — allow quit
+5. `app.exit()`
 
-**Cache statistics** (logged from `shutdownDiagnostics.ts`): icon cache, config cache, IPC deduplicator, rate limiter, feature manager.
+**Cache statistics** (logged from `shutdownDiagnostics.ts`): icon cache, config cache, IPC deduplicator, rate limiter.
 
 ## ANTI-PATTERNS
 
-- **Never** add feature registrations in `index.ts` — add here via `createLazyFeature()`
-- **Never** import feature modules at module level in `registerFeatures.ts` (except security/critical) — use dynamic `import()`
-- **Never** reorder shutdown steps — feature cleanup MUST precede window manager destruction
-- **Never** access `mainWindow` directly — receive via `callbacks` or `featureManager.getContext()`
-- **Never** add inline feature logic — delegate to feature module's default export
+- **Never** add feature registrations in `index.ts` — add a new entry to the relevant `*.spec.ts`
+- **Never** import a feature module statically inside `*.spec.ts` (except security/critical) — use dynamic `import()` in the spec's `init`; the build-time plugin keeps phase batches lean
+- **Never** edit `src/main/generated/featurePlan.ts` by hand — it is regenerated on every build
+- **Never** reorder shutdown steps — `cleanupAll` MUST precede window manager destruction
+- **Never** access `mainWindow` from a feature's module scope — read it from the `FeatureContext` argument or `featureContextStore.get()`
+- **Never** add inline feature logic — delegate to a feature module's default export

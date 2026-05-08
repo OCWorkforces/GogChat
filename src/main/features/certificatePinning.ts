@@ -140,19 +140,20 @@ export default function setupCertificatePinning(): void {
 
     const hostname = new URL(url).hostname;
 
-    // Only apply pinning to Google domains
-    if (!isPinnedDomain(hostname)) {
-      log.debug(`[CertPinning] Non-pinned domain, allowing: ${hostname}`);
-      callback(true);
-      return;
-    }
-
-    // Cache lookup: key MUST include fingerprint to prevent MITM via cert swap.
+    // Check pin cache first to avoid O(N) domain scan on cached hosts.
+    // Cache key MUST include fingerprint to prevent MITM via cert swap.
     const cacheKey = `${hostname}:${certificate.fingerprint}`;
     const cached = validationCache.get(cacheKey);
     if (cached !== undefined) {
       log.debug(`[CertPinning] Cache hit for: ${hostname} (fp=${certificate.fingerprint})`);
       callback(cached);
+      return;
+    }
+
+    // Only apply pinning to Google domains
+    if (!isPinnedDomain(hostname)) {
+      log.debug(`[CertPinning] Non-pinned domain, allowing: ${hostname}`);
+      callback(true);
       return;
     }
 

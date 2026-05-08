@@ -1,92 +1,63 @@
 /**
  * Feature Configuration Types
  *
- * Standalone type definitions shared between {@link FeatureManager} and
- * {@link featureSorter}. Extracted into its own module to break the
- * type-only circular dependency that existed between
- * `featureManager.ts` ↔ `featureSorter.ts`.
- *
- * Both `featureManager.ts` and `featureSorter.ts` import from this file.
- * `featureManager.ts` re-exports these symbols for backward compatibility.
+ * Shared types consumed by `.spec.ts` data files and the `featureRunner` runtime.
+ * The legacy FeatureManager class was removed; only the spec/runner shape lives here.
  *
  * @module featureConfigTypes
  */
 
 import type { BrowserWindow, Tray } from 'electron';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
-import type { FeatureNameBrand } from '../../shared/types/branded.js';
 
 /**
  * Feature initialization priority/phase
- * - security: Initialized first, before app.whenReady (sequential)
- * - critical: Core features during app.whenReady (sequential)
- * - ui: UI features during app.whenReady (parallel for performance)
- * - deferred: Non-critical features after UI ready (parallel via setImmediate)
+ * - security: Initialized first, before BrowserWindow creation
+ * - critical: Core features inside app.whenReady (sequential)
+ * - ui: UI features inside app.whenReady (parallel within batches)
+ * - deferred: Non-critical features after window ready (parallel within batches)
  */
 export type FeaturePriority = 'security' | 'critical' | 'ui' | 'deferred';
 
 /**
- * Feature initialization context
- * Provides access to app resources needed by features
+ * Side-effect callbacks that features may invoke. Wired by app entry.
+ */
+export interface FeatureCallbacks {
+  setTrayIcon: (icon: Tray | null) => void;
+  registerCleanupTask: (name: string, cleanup: () => void | Promise<void>) => void;
+  updateContext: (patch: Partial<FeatureContext>) => void;
+}
+
+/**
+ * Feature initialization context provided to every spec init function.
  */
 export interface FeatureContext {
   mainWindow?: BrowserWindow | null;
-  trayIcon?: Tray;
+  trayIcon?: Tray | null;
   accountWindowManager?: IAccountWindowManager;
+  callbacks?: FeatureCallbacks;
 }
 
 /**
- * Feature configuration
+ * A single feature declaration. `.spec.ts` files export readonly arrays of these.
+ *
+ * The build-time codegen plugin reads `name`, `phase`, `dependencies`, and
+ * `required` to compute `FEATURE_PLAN` (phase → dependency-batched arrays).
+ * `init` and `cleanup` are executed at runtime by `featureRunner`.
  */
-export interface FeatureConfig {
-  /** Unique feature identifier */
-  name: FeatureNameBrand;
-
-  /** Initialization priority/phase */
-  priority: FeaturePriority;
-
-  /** Feature names this feature depends on (must be initialized first) */
-  dependencies?: FeatureNameBrand[];
-
-  /**
-   * Feature initialization function
-   * Can be sync or async
-   * Receives feature context (mainWindow, trayIcon, etc.)
-   */
-  init: (context: FeatureContext) => Promise<void> | void;
-
-  /**
-   * Optional cleanup function
-   * Called in reverse initialization order on app quit
-   */
-  cleanup?: (context: FeatureContext) => Promise<void> | void;
-
-  /**
-   * Whether to use dynamic import (code splitting)
-   * When true, the feature is loaded on-demand
-   * Recommended for deferred features to improve startup time
-   */
-  lazy?: boolean;
-
-  /**
-   * Optional description for logging
-   */
-  description?: string;
-
-  /**
-   * Whether the feature is required
-   * If true, initialization failure will be treated as critical
-   * If false, failures are logged but app continues
-   */
-  required?: boolean;
-}
-
-/**
- * Feature initialization state
- */
-export interface FeatureState {
-  name: FeatureNameBrand;
-  status: 'pending' | 'initializing' | 'initialized' | 'failed';
-  error?: Error;
-  initTime?: number; // milliseconds
+export interface FeatureSpec {
+  /** Globally unique identifier */
+  readonly name: string;
+  /** Initialization phase */
+  readonly phase: FeaturePriority;
+  /** Whether failure is fatal (true) or merely logged (false). Defaults to false. */
+  readonly required?: boolean;
+  /** Names of features that must be initialized first */
+  readonly dependencies?: readonly string[];
+  /** Optional human-readable description for logs */
+  readonly description?: string;
+  /** Init function — receives the live FeatureContext */
+  readonly init: (context: FeatureContext) => Promise<void> | void;
+  /** Optional cleanup, called in reverse init order on shutdown */
+  readonly cleanup?: (context: FeatureContext) => Promise<void> | void;
 }
