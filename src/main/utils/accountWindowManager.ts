@@ -563,7 +563,8 @@ export function destroyAccountWindowManager(): void {
  * Shorthand for getAccountWindowManager().getMostRecentWindow()
  */
 export function getMostRecentWindow(): BrowserWindow | null {
-  return getAccountWindowManager().getMostRecentWindow();
+  if (!accountWindowManager) return null;
+  return accountWindowManager.getMostRecentWindow();
 }
 
 /**
@@ -571,11 +572,13 @@ export function getMostRecentWindow(): BrowserWindow | null {
  * Shorthand for getAccountWindowManager().getAccountWindow(accountIndex)
  */
 export function getWindowForAccount(accountIndex: AccountIndex): BrowserWindow | null {
-  return getAccountWindowManager().getAccountWindow(accountIndex);
+  if (!accountWindowManager) return null;
+  return accountWindowManager.getAccountWindow(accountIndex);
 }
 
 export function getAccountIndex(window: BrowserWindow): AccountIndex | null {
-  return getAccountWindowManager().getAccountIndex(window);
+  if (!accountWindowManager) return null;
+  return accountWindowManager.getAccountIndex(window);
 }
 
 /**
@@ -587,5 +590,6 @@ export function createAccountWindow(url: string, accountIndex: AccountIndex): Br
 }
 
 export function getAccountForWebContents(webContentsId: WebContentsId): AccountIndex | null {
-  return getAccountWindowManager().getAccountForWebContents(webContentsId);
+  if (!accountWindowManager) return null;
+  return accountWindowManager.getAccountForWebContents(webContentsId);
 }
