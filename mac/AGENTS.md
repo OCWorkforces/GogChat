@@ -1,6 +1,6 @@
 # mac/ — macOS DMG Build Support
 
-**Generated:** 2026-04-30 | **Commit:** 315722d
+**Generated:** 2026-05-07 | **Commit:** 8a4a924
 
 DMG build support. Pipeline managed by `build-macOS-dmg.sh` at project root, which calls `electron-builder`.
 

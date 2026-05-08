@@ -1,6 +1,6 @@
 # tests/ — Test Suite
 
-**Generated:** 2026-04-30 | **Commit:** 315722d
+**Generated:** 2026-05-07 | **Commit:** 8a4a924
 
 4 test tiers: **unit** (Vitest, colocated with source), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`.
 
