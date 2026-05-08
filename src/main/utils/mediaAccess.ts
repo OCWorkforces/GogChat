@@ -58,6 +58,12 @@ async function performMediaAccessCheck(type: MediaType): Promise<boolean> {
 
     case 'not-determined':
     case 'unknown': {
+      // Skip permission request in CI/headless environments — no user to respond.
+      if (process.env['CI'] === '1' || process.env['CI'] === 'true') {
+        log.info(`[MediaAccess] Skipping ${type} access request in CI environment`);
+        return false;
+      }
+
       log.info(`[MediaAccess] Requesting ${type} access`);
       const granted = await systemPreferences.askForMediaAccess(type);
       log.info(`[MediaAccess] ${type} access ${granted ? 'granted' : 'denied'} by user`);

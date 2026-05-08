@@ -48,14 +48,19 @@ const mockValidateURL = validateAppleSystemPreferencesURL as Mock;
 
 describe('mediaAccess', () => {
   const originalPlatform = process.platform;
+  const originalCI = process.env.CI;
 
   beforeEach(() => {
     vi.resetAllMocks();
     Object.defineProperty(process, 'platform', { value: 'darwin' });
+    // Clear CI env — tests assert default (non-CI) behavior unless explicitly testing CI.
+    delete process.env.CI;
   });
 
   afterEach(() => {
     Object.defineProperty(process, 'platform', { value: originalPlatform });
+    if (originalCI !== undefined) process.env.CI = originalCI;
+    else delete process.env.CI;
   });
 
   describe('checkAndRequestMediaAccess', () => {
@@ -105,6 +110,26 @@ describe('mediaAccess', () => {
 
       expect(result).toBe(false);
       expect(mockAskForMediaAccess).toHaveBeenCalledWith('camera');
+    });
+
+    it('skips askForMediaAccess in CI when status is not-determined', async () => {
+      process.env.CI = 'true';
+      mockGetMediaAccessStatus.mockReturnValue('not-determined');
+
+      const result = await checkAndRequestMediaAccess('camera');
+
+      expect(result).toBe(false);
+      expect(mockAskForMediaAccess).not.toHaveBeenCalled();
+    });
+
+    it('skips askForMediaAccess in CI when status is unknown', async () => {
+      process.env.CI = '1';
+      mockGetMediaAccessStatus.mockReturnValue('unknown');
+
+      const result = await checkAndRequestMediaAccess('microphone');
+
+      expect(result).toBe(false);
+      expect(mockAskForMediaAccess).not.toHaveBeenCalled();
     });
 
     it('returns true on non-darwin platforms without calling system APIs', async () => {
