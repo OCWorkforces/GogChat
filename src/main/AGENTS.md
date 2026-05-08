@@ -1,6 +1,6 @@
 # src/main/ — Main Process
 
-**Generated:** 2026-05-07 · **Commit:** 8a4a924
+**Generated:** 2026-05-08
 
 Electron main process. Node.js environment with full system access. Owns app lifecycle, BrowserWindow creation, native integrations, encrypted config, and IPC handling. `index.ts` is a thin orchestrator — all feature registration and shutdown logic lives in `initializers/`.
 
@@ -9,7 +9,14 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Task | File | Notes |
 | --- | --- | --- |
 | App init sequence | `index.ts` | Thin orchestrator, delegates to initializers/ |
-| Feature registration | `initializers/registerFeatures.ts` | 21 features with phases + deps |
+| Feature specs (declarative)  | `initializers/{security,ui,deferred}.spec.ts` | `FeatureSpec[]` arrays compiled into `generated/featurePlan.ts` at build time |
+| Feature plan codegen         | `../../scripts/featurePlanPlugin.js` | Rsbuild plugin: parses specs, topo-sorts, emits `generated/featurePlan.ts` |
+| Feature runtime walker       | `utils/featureRunner.ts` | `runPhase('security'\|'critical'\|'ui'\|'deferred', ctx)` — replaces `featureManager` |
+| Feature context store        | `utils/featureContextStore.ts` | Holds live `FeatureContext` for post-init readers |
+| WebContentsView backend      | `utils/accountViewManager.ts` | Opt-in alternative to `accountWindowManager`, gated by `app.useWebContentsView` config |
+| CDP RUM telemetry            | `features/cdpTelemetry.ts` + `utils/cdpMetrics.ts` | Local Chrome DevTools Protocol metrics; killable via `secureFlags.disableCdpTelemetry` |
+| IPC fast path                | `utils/ipcFastPath.ts` | Sync `registerFastHandler` for hot one-way channels (skips Promise allocation) |
+| Perf budget gate (CI)        | `../../scripts/check-perf-budget.js` + `../../scripts/headless-startup.js` | Headless run produces `performance-metrics.json` → 9 metrics gated |
 | Shutdown handler | `initializers/registerShutdown.ts` | 70 lines; delegates diagnostics + destroyers |
 | Shutdown diagnostics | `initializers/shutdownDiagnostics.ts` | Cache stats logging |
 | Singleton destroyers | `initializers/singletonDestroyers.ts` | Centralized destroy registry |
@@ -24,9 +31,9 @@ Electron main process. Node.js environment with full system access. Owns app lif
 | Window defaults | `utils/windowDefaults.ts` | Shared BrowserWindow options |
 | Encrypted config | `config.ts` | AES-256-GCM; schema paired with `../shared/types/config.ts`; use `configGet`/`configSet` — never `store.get(...) as T` |
 | Secure flags | `utils/secureFlags.ts` | `getDisableCertPinning()`/`setDisableCertPinning()`; safeStorage (macOS Keychain); NOT in electron-store |
-| Feature modules | `features/` (25+) | See `features/AGENTS.md` |
-| Utility modules | `utils/` (40) | See `utils/AGENTS.md` |
-| Initializer modules | `initializers/` (13) | See `initializers/AGENTS.md` |
+| Feature modules | `features/` (27+, incl. `cdpTelemetry`) | See `features/AGENTS.md` |
+| Utility modules | `utils/` (~50, incl. `featureRunner`, `featureContextStore`, `accountViewManager`, `ipcFastPath`, `cdpMetrics`) | See `utils/AGENTS.md` |
+| Initializer modules | `initializers/` (8 — declarative specs + lifecycle) | See `initializers/AGENTS.md` |
 
 Note: BrowserWindow `webPreferences` uses conditional assignment for `partition` (rather than `partition: partition ?? undefined`) for `exactOptionalPropertyTypes` compatibility.
 
@@ -38,7 +45,7 @@ BEFORE app.ready:
   reportExceptions()           ← catches startup panics
   mediaPermissions()            ← macOS camera/mic TCC checks
   enforceSingleInstance()      ← exits if duplicate running
-  registerAllFeatures(fm, cb)  ← delegates to initializers/registerFeatures.ts
+  (no global feature-register call — specs declared in `initializers/*.spec.ts` and compiled by `scripts/featurePlanPlugin.js`)
   setupDeepLinkListener()      ← open-url event (before app.ready)
 
 app.whenReady() — critical + ui phases (blocking):
@@ -47,17 +54,17 @@ app.whenReady() — critical + ui phases (blocking):
   Promise.all([critical phase (userAgent), initializeStore()])  ← PARALLEL
   accountWindowManager → session.preconnect('persist:account-0')  ← DNS/TCP/TLS warmup
   createAccountWindow(url, 0) → markAsBootstrap(0)
-  featureManager.updateContext({ mainWindow, accountWindowManager })
-  featureManager.initializePhase('ui'):
+  featureContextStore.update({ mainWindow, accountWindowManager })
+  runPhase('ui', ctx):
     singleInstance → deepLinkHandler
 
 setImmediate() — deferred (non-blocking):
   warmInitialIcons()  ← moved here; 256.png loaded on-demand in windowWrapper
-  featureManager.initializePhase('deferred'):
+  runPhase('deferred', ctx):
   trayIcon, appMenu, badgeIcons, bootstrapPromotion, windowState, passkeySupport,
   handleNotification, inOnline, externalLinks, closeToTray,
   openAtLogin, appUpdates, contextMenu, firstLaunch,
-  enforceMacOSAppLocation
+  enforceMacOSAppLocation, cdpTelemetry
 ```
 
 **New feature placement rules:**
@@ -103,7 +110,7 @@ Common keys: `app.*`, `accountWindows` (type `AccountWindowsMap`), `features.*`,
 ## ANTI-PATTERNS
 
 - **Never** add inline feature logic to `index.ts` — put in `features/`
-- **Never** register features in `index.ts` — use `initializers/registerFeatures.ts`
+- **Never** register features in `index.ts` — add an entry to the relevant `initializers/*.spec.ts`
 - **Never** skip rate limiting on any `ipcMain.on`
 - **Never** skip input validation before using IPC data
 - **Never** access `mainWindow` without null-check (`mainWindow?.webContents`)
@@ -117,5 +124,5 @@ Common keys: `app.*`, `accountWindows` (type `AccountWindowsMap`), `features.*`,
 
 ## WINDOW LIFECYCLE & LOGGING
 
- `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown: `registerShutdownHandler()` → `before-quit` → `event.preventDefault()` → async cleanup → `featureManager.cleanup()` (await) → `destroyAccountWindowManager()` → `app.exit()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`.
+ `mainWindow`: module-level global, set after `windowWrapper()`. Close-to-tray: `window.hide()` (not destroy). `activate` uses `getMostRecentWindow()`. `window-all-closed` → `app.exit()`. Shutdown: `registerShutdownHandler()` → `before-quit` → `event.preventDefault()` → async cleanup → `cleanupAll(ctx)` (await, via `featureRunner`) → `destroyAccountWindowManager()` → `app.exit()`. Multi-account uses per-account `BrowserWindow` instances via `accountWindowManager`, or per-account `WebContentsView` instances via `accountViewManager` when `app.useWebContentsView` is enabled.
  Logger scopes: `logger.security`, `logger.ipc`, `logger.performance`, `logger.main`, `logger.feature('Name')`. Log file: `~/Library/Logs/GogChat/main.log`. **Never log** passwords or credential-bearing URLs.

@@ -1,27 +1,28 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-05-07
+**Generated:** 2026-05-08
 
-**Commit:** 8a4a924
+**Commit:** 3555423
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
 
-Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions. Electron 41 / Node.js 22+ / Chromium-based.
+Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). TypeScript throughout. macOS only (Apple Silicon arm64). Built with Rsbuild (Rspack). **NOT a typical Electron app** — dual-build system outputs ESM for main process and CJS for preload (required by `sandbox: true`). Supports **multi-account sessions** via per-account BrowserWindow partitions, with an opt-in WebContentsView backend behind `app.useWebContentsView`. Feature lifecycle is **build-time codegen**: `*.spec.ts` files in `initializers/` are compiled into a static dependency-batched plan by `scripts/featurePlanPlugin.js`, then walked at runtime by `featureRunner.ts` (no runtime FeatureManager). Electron 41 / Node.js 22+ / Chromium-based.
 
 ## STRUCTURE
 
 ```
 src/
 ├── main/          # Electron main process (features, initializers, utils)
-│   ├── features/  # 25+ self-contained feature modules, phased lifecycle
-│   ├── initializers/ # Feature registration + shutdown + diagnostics
-│   └── utils/     # 40 utility modules (singletons, helpers, types)
+│   ├── features/  # 27+ self-contained feature modules (incl. cdpTelemetry)
+│   ├── initializers/ # *.spec.ts feature plans + app-ready + shutdown + diagnostics
+│   ├── generated/ # Build-time featurePlan.ts (do NOT edit by hand)
+│   └── utils/     # ~50 utility modules (singletons, helpers, types)
 ├── preload/       # 8 bridge scripts (CJS, sandbox-compatible)
 ├── shared/        # Cross-process contracts (constants, validators, types/)
 │   └── types/     # 7 type files (branded, window, domain, config, ipc, bridge, errors)
 └── offline/       # Standalone fallback page (no IPC access)
-scripts/           # Dual-build system, lint, icon generation, notarization
+scripts/           # Dual-build, featurePlanPlugin, perf budget gate, headless startup, lint, icons, notarize
 tests/             # 4 tiers: unit (colocated), integration, e2e, performance
 mac/               # DMG packaging support
 resources/         # Icon variants (tray, normal, badge, offline)
@@ -31,15 +32,18 @@ resources/         # Icon variants (tray, normal, badge, offline)
 
 | Task                                    | Location                                                  | Notes                                                                                                                                    |
 | --------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| App init order                          | `src/main/index.ts`                                       | Thin orchestrator; logic in `initializers/`                                                                                              |
-| Feature registration                    | `src/main/initializers/registerFeatures.ts`               | 21 features with phases + deps                                                                                                           |
+| App init order                          | `src/main/index.ts` + `initializers/registerAppReady.ts` | Thin orchestrator; app.whenReady body in `registerAppReady.ts`                                                                           |
+| Feature specs (build-time plan)         | `src/main/initializers/{security,ui,deferred}.spec.ts`    | Declarative `FeatureSpec[]` arrays — consumed by `scripts/featurePlanPlugin.js`                                                          |
+| Feature plan codegen                    | `scripts/featurePlanPlugin.js`                            | Rsbuild plugin: parses `*.spec.ts`, topo-sorts, emits `src/main/generated/featurePlan.ts`                                                |
+| Feature runtime walker                  | `src/main/utils/featureRunner.ts`                         | `runPhase('security'|'critical'|'ui'|'deferred', ctx)` — no FeatureManager class                                                         |
 | Shutdown handler                        | `src/main/initializers/registerShutdown.ts`               | Graceful cleanup via `singletonDestroyers`                                                                                               |
 | Shutdown diagnostics                    | `src/main/initializers/shutdownDiagnostics.ts`            | Cache statistics logging                                                                                                                 |
-| Multi-account mgr                       | `src/main/utils/accountWindowManager.ts`                  | Per-account windows + bootstrap                                                                                                          |
+| Multi-account mgr (BrowserWindow path)  | `src/main/utils/accountWindowManager.ts`                  | Per-account windows + bootstrap; dispatches to `accountViewManager` when `useWebContentsView=true`                                       |
+| Multi-account mgr (WebContentsView path)| `src/main/utils/accountViewManager.ts`                    | Opt-in WebContentsView backend (`app.useWebContentsView` flag); single host BrowserWindow + per-account views                            |
 | Idle session maintenance                | `src/main/utils/accountSessionMaintenance.ts`             | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts                                                             |
 | Account mgr interface                   | `src/shared/types/window.ts`                              | `IAccountWindowManager` (22 methods)                                                                                                     |
 | Add new feature                         | `src/main/features/`                                      | See `features/AGENTS.md`                                                                                                                 |
-| Type narrowing helper                   | `src/shared/typeUtils.ts`                                 | `assertNever()` for exhaustive discriminated union switches (now actively used in `featureManager`, `badgeHandlers`)                     |
+| Type narrowing helper                   | `src/shared/typeUtils.ts`                                 | `assertNever()` for exhaustive discriminated union switches (used in `featureRunner`, `badgeHandlers`)                                   |
 | Error class hierarchy                   | `src/shared/types/errors.ts` + `src/main/utils/errors.ts` | `GogChatError`, `IPCError`, `ConfigError`; use `{ cause }` chaining                                                                      |
 | IPC channel names                       | `src/shared/constants.ts`                                 | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type                                                                                 |
 | Input validators                        | `src/shared/dataValidators.ts`                            | Data validation (counts, booleans, objects)                                                                                              |
@@ -55,6 +59,10 @@ resources/         # Icon variants (tray, normal, badge, offline)
 | Electron mocks                          | `tests/mocks/electron.ts`                                 | For unit tests                                                                                                                           |
 | Log files                               | `~/Library/Logs/GogChat/main.log`                         | macOS path                                                                                                                               |
 | Secure flags (cert pinning kill switch) | `src/main/utils/secureFlags.ts`                           | `getDisableCertPinning()`/`setDisableCertPinning()`; macOS Keychain via safeStorage                                                      |
+| CDP RUM telemetry                       | `src/main/features/cdpTelemetry.ts` + `src/main/utils/cdpMetrics.ts` | Local-only Chrome DevTools Protocol metrics; killable via `secureFlags.disableCdpTelemetry`                                |
+| IPC fast path                           | `src/main/utils/ipcFastPath.ts`                           | Skips dedup/rate-limit for high-frequency low-risk channels                                                                              |
+| Config cache                            | `src/main/utils/configCache.ts`                           | Read-through cache; **no TTL** — invalidated by `set`/`delete`/`clear` only                                                              |
+| Perf budget gate (CI)                   | `scripts/check-perf-budget.js` + `scripts/headless-startup.js` | Headless run produces `performance-metrics.json` → 9 metrics checked, gated subset fails CI                                       |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -73,25 +81,26 @@ Preload MUST be CJS because `sandbox: true` in BrowserWindow prevents ESM module
 1. setupCertificatePinning()      ← BEFORE any network (app not ready yet)
 2. reportExceptions()             ← catch startup errors
 3. enforceSingleInstance()        ← exits if duplicate
-4. registerAllFeatures(fm, cb)    ← delegate to initializers/registerFeatures.ts
+4. (feature plan loaded statically from generated/featurePlan.ts — no runtime register call)
 5. setupDeepLinkListener()        ← before app.ready (open-url event)
-6. app.whenReady():
+6. app.whenReady() (in registerAppReady.ts):
    initializeErrorHandler()
-   Promise.all([registerGlobalCleanups(), security phase])  ← PARALLEL
-   Promise.all([critical phase (userAgent), initializeStore()])  ← PARALLEL
+   Promise.all([registerGlobalCleanups(), runPhase('security')])  ← PARALLEL
+   Promise.all([runPhase('critical'), initializeStore()])  ← PARALLEL
    accountWindowManager → session.preconnect('persist:account-0')  ← DNS/TCP/TLS warmup
-   session.preconnect: accounts.google.com, ssl.gstatic.com, fonts.gstatic.com
+   session.preconnect: 7 hosts — mail.google.com, accounts.google.com, ssl.gstatic.com,
+     fonts.gstatic.com, chat.google.com, hangouts.google.com (numSockets per host)
    createAccountWindow(url, 0) → markAsBootstrap(0)
-   featureManager.updateContext({ mainWindow, accountWindowManager })
-   featureManager.initializePhase('ui'):
-    singleInstance → deepLinkHandler
+   setSharedFeatureContext({ mainWindow, accountWindowManager })
+   runPhase('ui'): singleInstance → deepLinkHandler
 7. setImmediate() — deferred (non-blocking):
-   warmInitialIcons()  ← moved off critical path
-   trayIcon → appMenu → badgeIcons → bootstrapPromotion → windowState → passkeySupport
-   → handleNotification → inOnline → externalLinks → closeToTray
-   → openAtLogin → appUpdates → contextMenu → firstLaunch
-   → enforceMacOSAppLocation
-   → cache warming (8s idle) → perf metrics
+   warmInitialIcons() → warmSoonDeferredIcons()  ← 3-tier icon paths (INITIAL, SOON_DEFERRED, IDLE_DEFERRED)
+   if (!app.isPackaged) renderer-memory sampling every 60s  ← dev only, gated
+   runDeferredPhase(): trayIcon → appMenu → badgeIcons → bootstrapPromotion → windowState
+   → passkeySupport → handleNotification → inOnline → externalLinks → closeToTray
+   → openAtLogin → appUpdates → contextMenu → firstLaunch → enforceMacOSAppLocation
+   → cdpTelemetry (RUM, killable via secureFlags.disableCdpTelemetry)
+   → cache warming (8s idle) → perf metrics export
 
 Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() → async cleanup → app.exit()
 ```
@@ -105,9 +114,9 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **New source files**: Zero config needed — build auto-discovers `*.ts` in `src/`
 - **New settings**: Update `StoreType` in `shared/types/config.ts` → add schema in `config.ts`; access via `configGet()`/`configSet()`. Security-sensitive flags (e.g., cert pinning kill switch) go in `secureFlags.ts` (safeStorage/Keychain), NOT `StoreType`
 - **IPC handler pattern**: rate limit → validate → handle → catch (see `src/main/AGENTS.md`)
-- **Feature priority**: SECURITY→CRITICAL→UI→DEFERRED phases via featureManager
-- **Feature dependencies**: Declared in feature config; featureManager resolves via topological sort
-- **Feature registration**: In `initializers/registerFeatures.ts` — NOT in `index.ts`
+- **Feature priority**: SECURITY→CRITICAL→UI→DEFERRED phases walked by `featureRunner.runPhase()`
+- **Feature dependencies**: Declared in `*.spec.ts` `dependencies` field; topo-sorted at **build time** by `scripts/featurePlanPlugin.js` into batches
+- **Feature registration**: Edit `initializers/{security,ui,deferred}.spec.ts` — build-time codegen emits `generated/featurePlan.ts`. Do NOT add features in `index.ts` or hand-edit the generated plan
 - **Singletons**: All util managers expose `getXxx()` factory + `destroyXxx()` cleanup
 - **Multi-account**: Per-account BrowserWindows with `persist:account-N` session partitions
 - **Bootstrap windows**: Temporary login windows promoted via `bootstrapPromotion.ts` after auth
@@ -122,7 +131,7 @@ Shutdown: registerShutdownHandler() → before-quit → event.preventDefault() �
 - **Never** skip rate limiting in IPC handlers
 - **Never** use `as any`, `@ts-ignore`, `@ts-expect-error`
 - **Never** add feature logic directly in `index.ts` — create `features/myFeature.ts`
-- **Never** register features in `index.ts` — use `initializers/registerFeatures.ts`
+- **Never** add features in `index.ts` or hand-edit `generated/featurePlan.ts` — declare them in `initializers/*.spec.ts` and let `featurePlanPlugin.js` regenerate
 - **Never** hardcode IPC channel strings — use `IPC_CHANNELS` from `shared/constants.ts`
 - **Never** call `setInterval`/`setTimeout` without tracking via `resourceCleanup.ts`
 - **Never** modify preload build to output ESM — `sandbox: true` requires CJS
@@ -174,7 +183,7 @@ bun run hooks:install  # Install git pre-push hook
 - Electron 41 / Node.js 22+ / Chromium-based
 - TypeScript 6.0.3 with 10+ strict flags including `exactOptionalPropertyTypes`, `noUncheckedSideEffectImports`
 - Branded types: `AccountIndex`, `AccountPartition`, `FeatureNameBrand`, `WebContentsId` enforce nominal typing at module boundaries
-- `assertNever()` actively used in `featureManager` and `badgeHandlers` for exhaustive discriminated union switches
+- `assertNever()` actively used in `featureRunner` and `badgeHandlers` for exhaustive discriminated union switches
 - All `as const` objects in `constants.ts` now use `satisfies` validation
 - Electron 41 / Node.js 22+ / Chromium-based
 - Dynamic imports → deferred features in `lib/chunks/` (not `lib/main/`)
@@ -191,17 +200,21 @@ bun run hooks:install  # Install git pre-push hook
 
 | File                                      | Lines | Purpose                                                                                     |
 | ----------------------------------------- | ----- | ------------------------------------------------------------------------------------------- |
-| `src/main/utils/featureManager.ts`        | 485   | Feature lifecycle, dependency resolution; uses `assertNever()` for exhaustive status checks |
-| `src/main/utils/resourceCleanup.ts`       | 308   | Tracked intervals/timeouts/listeners + lazy cleanup                                         |
+| `src/main/utils/accountViewManager.ts`    | 569   | Opt-in WebContentsView backend (host BrowserWindow + per-account views)                     |
+| `src/main/utils/accountWindowManager.ts`  | 623   | Multi-account BrowserWindow + hydrate/dehydrate; dispatches to accountViewManager when flag |
+| `scripts/check-perf-budget.js`            | 371   | CI perf budget gate — 9 metrics, gated subset fails build                                   |
+| `src/main/utils/performanceMonitor.ts`    | 374   | Startup timing markers, memory snapshots, per-renderer sampling                             |
+| `src/main/utils/resourceCleanup.ts`       | 331   | Tracked intervals/timeouts/listeners + lazy cleanup                                         |
+| `scripts/featurePlanPlugin.js`            | 299   | Build-time feature plan codegen (parses *.spec.ts, topo-sorts, emits featurePlan.ts)        |
+| `scripts/headless-startup.js`             | 208   | CI headless run — produces performance-metrics.json for budget gate                         |
 | `scripts/build-rsbuild.js`                | 386   | Dual-build orchestrator                                                                     |
 | `src/main/utils/accountWindowManager.ts`  | 532   | Multi-account BrowserWindow + hydrate/dehydrate state machine                               |
-| `src/shared/urlValidators.ts`             | 334   | URL whitelist validation, Google auth URL detection                                         |
-| `src/main/utils/ipcHelper.ts`             | 315   | Secure IPC handler factories                                                                |
-| `src/main/utils/ipcDeduplicator.ts`       | 317   | IPC request deduplication (100ms window)                                                    |
-| `src/main/features/externalLinks.ts`      | 297   | External link handling with re-guard timer                                                  |
-| `src/main/utils/performanceMonitor.ts`    | 265   | Startup timing markers, memory snapshots                                                    |
-| `src/main/utils/accountWindowRegistry.ts` | 255   | Window registry implementation                                                              |
+| `src/shared/urlValidators.ts`             | 336   | URL whitelist validation, Google auth URL detection                                         |
+| `src/main/utils/ipcHelper.ts`             | 316   | Secure IPC handler factories                                                                |
+| `src/main/utils/ipcDeduplicator.ts`       | 307   | IPC request deduplication (100ms window)                                                    |
+| `src/main/features/externalLinks.ts`      | 298   | External link handling with re-guard timer                                                  |
+| `src/main/utils/accountWindowRegistry.ts` | 257   | Window registry implementation                                                              |
 | `src/main/utils/errorHandler.ts`          | 244   | Structured error wrapping, feature init guard                                               |
-| `src/main/config.ts`                      | 214   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers           |
+| `src/main/config.ts`                      | 233   | Encrypted electron-store with AES-256-GCM + `configGet`/`configSet` typed helpers           |
 | `src/main/features/certificatePinning.ts` | 215   | Certificate pinning for Google domains                                                      |
-| `src/main/utils/iconCache.ts`             | 220   | Icon caching + warmup                                                                       |
+| `src/main/utils/iconCache.ts`             | 235   | 3-tier icon paths (INITIAL, SOON_DEFERRED, IDLE_DEFERRED) + cache + warmup                  |

@@ -1,12 +1,12 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-05-07 (commit 8a4a924)
+**Generated:** 2026-05-08
 
-25+ self-contained feature modules. All registered via `registerAllFeatures()` in `initializers/registerFeatures.ts` with 4-phase lifecycle. Lazy-loaded via dynamic imports, deferred features land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
+27+ self-contained feature modules. All registered declaratively in `../initializers/{security,ui,deferred}.spec.ts` (`FeatureSpec[]` arrays). The build-time plugin (`scripts/featurePlanPlugin.js`) compiles specs into `../generated/featurePlan.ts`; `featureRunner` walks that plan at runtime. Lazy features use dynamic `import()` inside their spec's `init` — deferred chunks land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
 ## FEATURE CONTRACT
 
-Each feature is registered with `createFeature()` (static) or `createLazyFeature()` (dynamic). Init receives `FeatureContext { mainWindow?, trayIcon?, isFirstLaunch?, isDevelopment? }`. Must wrap body in try-catch.
+Each feature is declared as a `FeatureSpec` entry in a `*.spec.ts` file: `{ name, phase, dependencies?, required?, description, init(ctx), cleanup?(ctx) }`. The runtime is `featureRunner` (no `createFeature`/`createLazyFeature` factories anymore). `init` receives `FeatureContext { mainWindow?, trayIcon?, accountWindowManager?, isFirstLaunch?, isDevelopment? }` from `featureContextStore`. Wrap the body in try-catch — `featureRunner` catches phase-level errors but per-feature handling stays the feature's responsibility.
 
 ## PHASES
 
@@ -32,7 +32,7 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`, `helpMenuBuilder` |
 | `helpMenuBuilder.ts`    | `deferred` | none; builds Help submenu (relaunch/reset); used by appMenu |
 | `badgeIcon.ts`          | `deferred` | none; delegates to `badgeHandlers`                     |
-| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens); decideIcon uses `assertNever()` for exhaustive `IconType` switch + updateBadgeIcon + calls `setTrayUnread`; both handlers use `withDeduplication` (H2) |
+| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens via `registerFastHandler` from `ipcFastPath.ts` — skips Promise alloc on hot channels); decideIcon uses `assertNever()` for exhaustive `IconType` switch + updateBadgeIcon + calls `setTrayUnread`; rate limiting + validation preserved |
 | `windowState.ts`        | `deferred` | none; uses `accountWindowManager`                      |
 | `passkeySupport.ts`     | `deferred` | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                 |
 | `handleNotification.ts` | `deferred` | `NOTIFICATION_SHOW` (listens)                          |
@@ -44,6 +44,7 @@ Each feature is registered with `createFeature()` (static) or `createLazyFeature
 | `contextMenu.ts`        | `deferred` | none (cleanup via `registerCleanupTask`)               |
 | `firstLaunch.ts`        | `deferred` | none                                                   |
 | `aboutPanel.ts`         | on-demand  | none; self-registers in `menuActionRegistry`, called from appMenu |
+| `cdpTelemetry.ts`       | `deferred` | none; local-only Chrome DevTools Protocol RUM metrics; persists via `cdpMetrics` util; killable via `secureFlags.disableCdpTelemetry` |
 | `menuActionRegistry.ts` | utility    | none; registry for feature-provided menu actions (moved from utils/) |
 | `deepLinkUtils.ts`      | utility    | none; deep link URL extraction from argv (moved from utils/)        |
 
@@ -63,7 +64,10 @@ Features that expose actions consumed by `appMenu.ts` must self-register via `re
 2. Add IPC channel to `../../shared/constants.ts` (if needed)
 3. Add validator to `../../shared/dataValidators.ts` or `../../shared/urlValidators.ts` (if IPC data)
 4. Add to `../../preload/index.ts` (if renderer-side sender needed)
-5. Register in `../initializers/registerFeatures.ts` via `createLazyFeature('myFeature', 'deferred', () => import('../features/myFeature.js'))`
+5. Add an entry to the appropriate `../initializers/{security,ui,deferred}.spec.ts` array. For deferred, prefer dynamic `import()` inside `init`:
+   ```ts
+   { name: 'myFeature', phase: 'deferred', init: async (ctx) => (await import('../features/myFeature.js')).default(ctx) }
+   ```
 6. If consumed by appMenu: `registerMenuAction('myAction', { label, handler })` in your feature file
 7. If config needed: `StoreType` in `../../shared/types/config.ts` + schema in `../config.ts`; access via `configGet`/`configSet`
 
@@ -77,19 +81,20 @@ Features that expose actions consumed by `appMenu.ts` must self-register via `re
 ## ANTI-PATTERNS
 
 - **Never** add inline feature logic to `index.ts` — register in featureManager
-- **Never** register features in `index.ts` — use `initializers/registerFeatures.ts`
-- **Never** initialize features outside their designated phase
+- **Never** register features in `index.ts` — add a `FeatureSpec` to the relevant `../initializers/*.spec.ts`
+- **Never** initialize features outside their declared phase — the build-time plan is authoritative
 - **Never** skip error handling — feature failure must not crash the app
 - **Never** store mutable state in module scope without cleanup registration (exception: `closeToTray`, `trayIcon`, `externalLinks`, `openAtLogin` use module-level state with explicit cleanup — intentional where singleton-per-feature is required)
 - **Never** perform menu action self-registration inside the `init()` function — `registerMenuAction()` calls happen at module load time (import-time side effect)
 - **Never** access `ctx.mainWindow` without null/destroyed check in async callbacks
 - **Never** route to an account window mid-auth-flow without checking `isGoogleAuthUrl()`
-- **Never** skip dependency declarations in `registerAllFeatures()`
+- **Never** skip dependency declarations in a `FeatureSpec` — the build-time topological sort needs them to compute batches
 - **Never** import from other features directly — use `menuActionRegistry`
+- **Never** import `FeatureManager` or `FeatureContext` from a deleted location — the runtime is `featureRunner` + `featureContextStore`; `FeatureContext` lives in `../utils/featureConfigTypes.ts`
 
 ## DYNAMIC IMPORTS
 
-Deferred features use `createLazyFeature()` → dynamic import → `lib/chunks/<hash>.js`. Auto-included in asar.
+Deferred features use dynamic `import()` inside the spec's `init` → `lib/chunks/<hash>.js`. Auto-included in asar. The build-time plan (`generated/featurePlan.ts`) holds spec metadata only — the actual feature module is loaded on first call.
 
 ## COMPLEXITY RANKING
 
