@@ -25,6 +25,7 @@ export class ResourceCleanupManager {
   private tasks: CleanupTask[] = [];
   private intervals = new Set<NodeJS.Timeout>();
   private timeouts = new Set<NodeJS.Timeout>();
+  private timerAborter = new AbortController();
   private listeners: Array<{
     target: EventTarget;
     event: string;
@@ -65,6 +66,13 @@ export class ResourceCleanupManager {
   }
 
   /**
+   * Untrack a timeout (e.g. when it fires naturally)
+   */
+  untrackTimeout(timeout: NodeJS.Timeout): void {
+    this.timeouts.delete(timeout);
+  }
+
+  /**
    * Track an event listener for cleanup
    */
   trackListener(target: EventTarget, event: string, handler: EventHandler): void {
@@ -93,23 +101,32 @@ export class ResourceCleanupManager {
   /**
    * Clean up all tracked intervals
    */
-  private cleanupIntervals(): void {
-    this.log.debug(`Cleaning up ${this.intervals.size} intervals`);
-    for (const interval of this.intervals) {
-      clearInterval(interval);
-    }
+  private cleanupTimers(): void {
+    this.log.debug(
+      `Aborting tracked timers (${this.intervals.size} intervals, ${this.timeouts.size} timeouts)`
+    );
+    this.timerAborter.abort();
+    this.timerAborter = new AbortController();
+    // Clear any direct-tracked timers (back-compat fallback)
+    for (const interval of this.intervals) clearInterval(interval);
+    for (const timeout of this.timeouts) clearTimeout(timeout);
     this.intervals.clear();
+    this.timeouts.clear();
   }
 
   /**
-   * Clean up all tracked timeouts
+   * Register a timer with the abort signal for fan-out cleanup
    */
-  private cleanupTimeouts(): void {
-    this.log.debug(`Cleaning up ${this.timeouts.size} timeouts`);
-    for (const timeout of this.timeouts) {
-      clearTimeout(timeout);
-    }
-    this.timeouts.clear();
+  registerTimerSignal(id: NodeJS.Timeout, kind: 'interval' | 'timeout', label?: string): void {
+    this.timerAborter.signal.addEventListener(
+      'abort',
+      () => {
+        if (kind === 'interval') clearInterval(id);
+        else clearTimeout(id);
+        this.log.debug(`Timer aborted: ${label ?? 'unnamed'}`);
+      },
+      { once: true }
+    );
   }
 
   /**
@@ -162,8 +179,7 @@ export class ResourceCleanupManager {
     this.log.info('Starting resource cleanup...');
 
     // Clean up basic tracked resources
-    this.cleanupIntervals();
-    this.cleanupTimeouts();
+    this.cleanupTimers();
     this.cleanupListeners();
 
     // Execute registered cleanup tasks
@@ -214,6 +230,8 @@ export class ResourceCleanupManager {
     this.tasks = [];
     this.intervals.clear();
     this.timeouts.clear();
+    this.timerAborter.abort();
+    this.timerAborter = new AbortController();
     this.listeners = [];
     this.globalCleanupCallbacks.clear();
     this.isCleaningUp = false;
@@ -245,7 +263,8 @@ export function createTrackedInterval(
   name?: string
 ): NodeJS.Timeout {
   const interval = setInterval(callback, delay);
-  getCleanupManager().trackInterval(interval);
+  const manager = getCleanupManager();
+  manager.registerTimerSignal(interval, 'interval', name);
 
   if (name) {
     logger.main.debug(`Created tracked interval: ${name}`);
@@ -262,8 +281,12 @@ export function createTrackedTimeout(
   delay: number,
   name?: string
 ): NodeJS.Timeout {
-  const timeout = setTimeout(callback, delay);
-  getCleanupManager().trackTimeout(timeout);
+  const manager = getCleanupManager();
+  const timeout: NodeJS.Timeout = setTimeout(() => {
+    manager.untrackTimeout(timeout);
+    callback();
+  }, delay);
+  manager.registerTimerSignal(timeout, 'timeout', name);
 
   if (name) {
     logger.main.debug(`Created tracked timeout: ${name}`);

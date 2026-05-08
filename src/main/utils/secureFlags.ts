@@ -34,6 +34,7 @@ const SECURE_FLAGS_FILE = 'secure-flags.enc';
 
 interface SecureFlags {
   disableCertPinning?: boolean;
+  disableCdpTelemetry?: boolean;
 }
 
 function getSecureFlagsPath(): string {
@@ -107,5 +108,28 @@ export function getDisableCertPinning(): boolean {
 export function setDisableCertPinning(value: boolean): void {
   const current = readSecureFlags();
   current.disableCertPinning = value;
+  writeSecureFlags(current);
+}
+
+/**
+ * Returns the persisted `disableCdpTelemetry` flag.
+ *
+ * Defaults to `false` (telemetry enabled). When set to `true`, the CDP
+ * telemetry feature becomes a no-op — useful as a privacy/perf kill switch
+ * without rebuilding the app. Stored alongside other secure flags so it
+ * cannot be silently flipped via tampering with the plaintext-MAC-less
+ * electron-store mirror.
+ */
+export function getDisableCdpTelemetry(): boolean {
+  return readSecureFlags().disableCdpTelemetry === true;
+}
+
+/**
+ * Persist the `disableCdpTelemetry` flag using authenticated encryption.
+ * Throws if safeStorage is unavailable.
+ */
+export function setDisableCdpTelemetry(value: boolean): void {
+  const current = readSecureFlags();
+  current.disableCdpTelemetry = value;
   writeSecureFlags(current);
 }

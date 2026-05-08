@@ -15,6 +15,14 @@ export interface AppConfig {
   disableSpellChecker: boolean;
   suppressPasskeyDialog: boolean;
   notificationPermissionRequested: boolean;
+  /**
+   * Hidden experimental flag — when true, the app uses a single host
+   * BrowserWindow with one WebContentsView per account (Electron 30+ API)
+   * instead of one BrowserWindow per account. Saves ~15-25 MB/account and
+   * makes account switching effectively instantaneous via setBounds().
+   * Default: false (BrowserWindow-per-account fallback path).
+   */
+  useWebContentsView?: boolean;
 }
 
 /**

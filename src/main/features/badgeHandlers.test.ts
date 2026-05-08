@@ -4,10 +4,12 @@
  * Covers:
  *   • decideIcon()         — favicon URL → IconType resolution
  *   • updateBadgeIcon()    — macOS dock badge update
- *   • setupBadgeHandlers() — IPC handler registration with rate limiting,
- *                             validation, and `withDeduplication` config wiring.
+ *   • setupBadgeHandlers() — IPC handler registration via registerFastHandler
+ *                             with rate limiting + validation.
+ *   • Inline caching       — identical consecutive payloads short-circuit
+ *                             via last-value comparison (replaces dedup map).
  *   • Burst regression     — rapid identical payloads collapse to one
- *                             downstream call via the real IPC deduplicator.
+ *                             downstream call via the inline cache.
  */
 
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
@@ -59,25 +61,25 @@ function fakeTray() {
   return { setImage: vi.fn() } as unknown as Electron.Tray;
 }
 
-// ─── Config-shape tests (mocked createSecureIPCHandler) ───────────────────────
+// ─── Config-shape tests (mocked registerFastHandler) ─────────────────────────
 
 describe('badgeHandlers (config wiring)', () => {
-  const mockCreateSecureIPCHandler = vi.fn().mockReturnValue(vi.fn());
+  const mockRegisterFastHandler = vi.fn().mockReturnValue(vi.fn());
 
   beforeEach(() => {
     vi.resetModules();
-    vi.doMock('../utils/ipcHelper.js', () => ({
-      createSecureIPCHandler: (cfg: unknown) => mockCreateSecureIPCHandler(cfg),
+    vi.doMock('../utils/ipcFastPath.js', () => ({
+      registerFastHandler: (cfg: unknown) => mockRegisterFastHandler(cfg),
     }));
-    mockCreateSecureIPCHandler.mockClear();
-    mockCreateSecureIPCHandler.mockReturnValue(vi.fn());
+    mockRegisterFastHandler.mockClear();
+    mockRegisterFastHandler.mockReturnValue(vi.fn());
     mockSetBadgeCount.mockClear();
     mockGetIcon.mockReturnValue('/fake/icon.png');
     mockSetTrayUnread.mockClear();
   });
 
   afterEach(() => {
-    vi.doUnmock('../utils/ipcHelper.js');
+    vi.doUnmock('../utils/ipcFastPath.js');
   });
 
   describe('decideIcon', () => {
@@ -102,10 +104,11 @@ describe('badgeHandlers (config wiring)', () => {
       const { setupBadgeHandlers } = await import('./badgeHandlers.js');
       setupBadgeHandlers(fakeWindow(), fakeTray());
 
-      expect(mockCreateSecureIPCHandler).toHaveBeenCalledWith(
+      expect(mockRegisterFastHandler).toHaveBeenCalledWith(
         expect.objectContaining({
           channel: 'faviconChanged',
           validator: expect.any(Function),
+          handler: expect.any(Function),
           rateLimit: 5,
         })
       );
@@ -115,10 +118,11 @@ describe('badgeHandlers (config wiring)', () => {
       const { setupBadgeHandlers } = await import('./badgeHandlers.js');
       setupBadgeHandlers(fakeWindow(), fakeTray());
 
-      expect(mockCreateSecureIPCHandler).toHaveBeenCalledWith(
+      expect(mockRegisterFastHandler).toHaveBeenCalledWith(
         expect.objectContaining({
           channel: 'unreadCount',
           validator: expect.any(Function),
+          handler: expect.any(Function),
           rateLimit: 5,
         })
       );
@@ -127,7 +131,7 @@ describe('badgeHandlers (config wiring)', () => {
     it('returns cleanup callbacks for both handlers', async () => {
       const faviconCleanupFn = vi.fn();
       const unreadCleanupFn = vi.fn();
-      mockCreateSecureIPCHandler
+      mockRegisterFastHandler
         .mockReturnValueOnce(faviconCleanupFn)
         .mockReturnValueOnce(unreadCleanupFn);
 
@@ -138,47 +142,43 @@ describe('badgeHandlers (config wiring)', () => {
       expect(unreadCleanup).toBe(unreadCleanupFn);
     });
 
-    it('passes withDeduplication with 150ms window and channel-aware key for FAVICON_CHANGED', async () => {
+    it('short-circuits identical consecutive FAVICON_CHANGED payloads (inline cache)', async () => {
       const { setupBadgeHandlers } = await import('./badgeHandlers.js');
       setupBadgeHandlers(fakeWindow(), fakeTray());
 
-      const faviconCfg = mockCreateSecureIPCHandler.mock.calls.find(
+      const faviconCfg = mockRegisterFastHandler.mock.calls.find(
         ([cfg]) => (cfg as { channel: string }).channel === 'faviconChanged'
-      )?.[0] as {
-        withDeduplication: {
-          keyFn: (channel: string, payload: unknown) => string;
-          windowMs: number;
-        };
-      };
+      )?.[0] as { handler: (v: string) => void };
 
-      expect(faviconCfg.withDeduplication.windowMs).toBe(150);
-      expect(faviconCfg.withDeduplication.keyFn('faviconChanged', 'https://x/y.ico')).toBe(
-        'faviconChanged:https://x/y.ico'
-      );
+      faviconCfg.handler('https://x/y.ico');
+      faviconCfg.handler('https://x/y.ico');
+      faviconCfg.handler('https://x/y.ico');
+
+      // setTrayUnread runs inside the handler body — should be called once
+      expect(mockSetTrayUnread).toHaveBeenCalledTimes(1);
     });
 
-    it('passes withDeduplication with 100ms window and channel-aware key for UNREAD_COUNT', async () => {
+    it('short-circuits identical consecutive UNREAD_COUNT payloads (inline cache)', async () => {
       const { setupBadgeHandlers } = await import('./badgeHandlers.js');
       setupBadgeHandlers(fakeWindow(), fakeTray());
 
-      const unreadCfg = mockCreateSecureIPCHandler.mock.calls.find(
+      const unreadCfg = mockRegisterFastHandler.mock.calls.find(
         ([cfg]) => (cfg as { channel: string }).channel === 'unreadCount'
-      )?.[0] as {
-        withDeduplication: {
-          keyFn: (channel: string, payload: unknown) => string;
-          windowMs: number;
-        };
-      };
+      )?.[0] as { handler: (v: number) => void };
 
-      expect(unreadCfg.withDeduplication.windowMs).toBe(100);
-      expect(unreadCfg.withDeduplication.keyFn('unreadCount', 7)).toBe('unreadCount:7');
+      unreadCfg.handler(7);
+      unreadCfg.handler(7);
+      unreadCfg.handler(7);
+
+      expect(mockSetBadgeCount).toHaveBeenCalledTimes(1);
+      expect(mockSetBadgeCount).toHaveBeenCalledWith(7);
     });
 
     it('handler updates dock badge and tray when invoked', async () => {
       const { setupBadgeHandlers } = await import('./badgeHandlers.js');
       setupBadgeHandlers(fakeWindow(), fakeTray());
 
-      const unreadCfg = mockCreateSecureIPCHandler.mock.calls.find(
+      const unreadCfg = mockRegisterFastHandler.mock.calls.find(
         ([cfg]) => (cfg as { channel: string }).channel === 'unreadCount'
       )?.[0] as { handler: (v: number) => void };
       unreadCfg.handler(5);
@@ -191,7 +191,7 @@ describe('badgeHandlers (config wiring)', () => {
       const { setupBadgeHandlers } = await import('./badgeHandlers.js');
       setupBadgeHandlers(fakeWindow(), fakeTray());
 
-      const unreadCfg = mockCreateSecureIPCHandler.mock.calls.find(
+      const unreadCfg = mockRegisterFastHandler.mock.calls.find(
         ([cfg]) => (cfg as { channel: string }).channel === 'unreadCount'
       )?.[0] as { handler: (v: number) => void };
       unreadCfg.handler(0);
@@ -201,18 +201,15 @@ describe('badgeHandlers (config wiring)', () => {
   });
 });
 
-// ─── Burst regression test (real ipcHelper + real IPCDeduplicator) ────────────
+// ─── Burst regression test (real ipcFastPath + ipcMain.on) ───────────────────
 // Asserts that two/many rapid identical payloads collapse to a single
-// downstream handler invocation via the withDeduplication wiring.
-
-describe('badgeHandlers (burst regression with real deduplicator)', () => {
+// downstream handler invocation via the inline last-value cache.
+describe('badgeHandlers (burst regression with real ipcFastPath)', () => {
   beforeEach(async () => {
     vi.resetModules();
     mockSetBadgeCount.mockClear();
     mockSetTrayUnread.mockClear();
-    const { destroyDeduplicator } = await import('../utils/ipcDeduplicator.js');
     const { getRateLimiter } = await import('../utils/rateLimiter.js');
-    destroyDeduplicator();
     getRateLimiter().resetAll();
   });
 
@@ -262,9 +259,7 @@ describe('badgeHandlers (burst regression with real deduplicator)', () => {
   it('collapses rapid identical FAVICON_CHANGED payloads into 1 downstream call', async () => {
     const { ipcMain } = await import('electron');
     const { setupBadgeHandlers } = await import('./badgeHandlers.js');
-    const { destroyDeduplicator } = await import('../utils/ipcDeduplicator.js');
 
-    destroyDeduplicator();
     const { getRateLimiter } = await import('../utils/rateLimiter.js');
     getRateLimiter().resetAll();
     setupBadgeHandlers(fakeWindow(), fakeTray());
@@ -282,6 +277,5 @@ describe('badgeHandlers (burst regression with real deduplicator)', () => {
     // setTrayUnread runs inside the handler body — should be called once
     expect(mockSetTrayUnread).toHaveBeenCalledTimes(1);
 
-    destroyDeduplicator();
   });
 });

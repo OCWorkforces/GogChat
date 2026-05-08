@@ -88,10 +88,6 @@ describe('cacheWarmer', () => {
           'resources/icons/normal/256.png',
           'resources/icons/offline/16.png',
           'resources/icons/offline/32.png',
-          'resources/icons/badge/16.png',
-          'resources/icons/badge/32.png',
-          'resources/icons/tray/iconUnreadTemplate.png',
-          'resources/icons/tray/iconUnreadTemplate@2x.png',
         ].sort()
       );
     });

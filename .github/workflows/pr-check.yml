@@ -39,3 +39,26 @@ jobs:
 
       - name: 'Architecture: Circular deps'
         run: bunx madge --circular --extensions ts src/
+
+      - name: 'Performance: Build production bundle'
+        run: bun run build:prod
+
+      - name: 'Performance: Headless startup capture'
+        run: node scripts/headless-startup.js
+        env:
+          HEADLESS_TIMEOUT_MS: '60000'
+          GOGCHAT_AUTO_QUIT_AFTER_MS: '12000'
+
+      - name: 'Performance: Budget gate'
+        run: node scripts/check-perf-budget.js performance-metrics.json
+
+      - name: 'Performance: Upload metrics artifact'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-metrics
+          path: |
+            performance-metrics.json
+            .perf-history.json
+          if-no-files-found: ignore
+          retention-days: 14

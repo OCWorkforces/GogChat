@@ -24,10 +24,12 @@ import {
 export { getMostRecentWindow };
 import { registerGlobalCleanups } from './registerGlobalCleanups.js';
 import { initializeStore } from '../config.js';
-import { warmInitialIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
+import { warmInitialIcons, warmSoonDeferredIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
 import { createTrackedInterval } from '../utils/resourceCleanup.js';
 import environment from '../../environment.js';
-import type { FeatureManager } from '../utils/featureManager.js';
+import { runPhase } from '../utils/featureRunner.js';
+import type { FeatureContext, FeatureCallbacks } from '../utils/featureConfigTypes.js';
+import { setSharedFeatureContext } from '../utils/featureContextStore.js';
 import type { WindowFactory } from '../../shared/types/window.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 
@@ -35,14 +37,14 @@ import { asAccountIndex } from '../../shared/types/branded.js';
  * Options for registerAppReady
  */
 interface AppReadyOptions {
-  /** The global feature manager instance */
-  featureManager: FeatureManager;
   /** Window factory for account window manager */
   windowFactory: WindowFactory;
   /** Callback to set the mainWindow reference in index.ts module scope */
   setMainWindow: (win: BrowserWindow | null) => void;
   /** Callback to get the mainWindow reference from index.ts module scope */
   getMainWindow: () => BrowserWindow | null;
+  /** Cleanup-task registrar (delegates to resourceCleanup) */
+  registerCleanupTask: (name: string, cleanup: () => void | Promise<void>) => void;
 }
 
 /**
@@ -52,7 +54,20 @@ interface AppReadyOptions {
  * Phases execute in order: security → critical → store → account windows → ui → deferred.
  */
 export function registerAppReady(options: AppReadyOptions): void {
-  const { featureManager, windowFactory, setMainWindow, getMainWindow } = options;
+  const { windowFactory, setMainWindow, getMainWindow, registerCleanupTask } = options;
+
+  // The runtime feature context is shared between phases (each phase mutates
+  // it via callbacks.updateContext, e.g., trayIcon → badgeIcons).
+  const context: FeatureContext = {};
+  const callbacks: FeatureCallbacks = {
+    setTrayIcon: () => {
+      // Tray icon registration is purely contextual now (consumed via context.trayIcon).
+    },
+    registerCleanupTask,
+    updateContext: (patch) => Object.assign(context, patch),
+  };
+  context.callbacks = callbacks;
+  setSharedFeatureContext(context);
 
   app
     .whenReady()
@@ -72,13 +87,13 @@ export function registerAppReady(options: AppReadyOptions): void {
       // Register global cleanups + security phase in parallel:
       // - registerGlobalCleanups: pure registration (no app.on, no network, no SafeStorage)
       // - security phase (cert pinning + permissions): independent of the cleanup registry
-      await Promise.all([registerGlobalCleanups(), featureManager.initializePhase('security')]);
+      await Promise.all([registerGlobalCleanups(), runPhase('security', context)]);
 
       // ===== CRITICAL PHASE + STORE INIT (parallel) =====
       // initializeStore requires app.ready + SafeStorage but NOT cert pinning or userAgent.
       // The critical phase (userAgent override) is sync and independent of store init.
       try {
-        await Promise.all([featureManager.initializePhase('critical'), initializeStore()]);
+        await Promise.all([runPhase('critical', context), initializeStore()]);
         log.info('[Main] Config store initialized');
       } catch (error: unknown) {
         log.error('[Main] Failed to initialize critical phase or store:', error);
@@ -99,6 +114,10 @@ export function registerAppReady(options: AppReadyOptions): void {
       account0Session.preconnect({ url: 'https://accounts.google.com', numSockets: 2 });
       account0Session.preconnect({ url: 'https://ssl.gstatic.com', numSockets: 1 });
       account0Session.preconnect({ url: 'https://fonts.gstatic.com', numSockets: 1 });
+      // Preconnect Google Chat domains for parallel TLS handshake on cold start
+      account0Session.preconnect({ url: 'https://chat.google.com', numSockets: 2 });
+      account0Session.preconnect({ url: 'https://hangouts.google.com', numSockets: 1 });
+      perfMonitor.mark('chat-preconnect', 'Chat backend preconnect initiated');
 
       // Create account-0 window (primary window)
       createAccountWindow(environment.appUrl, asAccountIndex(0));
@@ -111,11 +130,12 @@ export function registerAppReady(options: AppReadyOptions): void {
       setMainWindow(mainWindow);
 
       // Update feature context with mainWindow and account manager
-      featureManager.updateContext({ mainWindow, accountWindowManager });
+      context.mainWindow = mainWindow;
+      context.accountWindowManager = accountWindowManager;
       perfMonitor.mark('account-0-ready', 'Account-0 window ready');
 
       // ===== UI PHASE =====
-      await featureManager.initializePhase('ui');
+      await runPhase('ui', context);
 
       perfMonitor.mark('features-loaded', 'Critical features initialized');
       log.info('[Main] Critical features initialized');
@@ -127,20 +147,23 @@ export function registerAppReady(options: AppReadyOptions): void {
       // All other warmed icons are consumed by deferred-only features (tray, badges, inOnline).
       setImmediate(() => {
         warmInitialIcons();
+        warmSoonDeferredIcons();
 
         // visibility: sample per-renderer memory every 60s so later
         // optimization phases (B/C) can be measured. Tracked via resourceCleanup
         // so it is torn down on app shutdown.
-        createTrackedInterval(
-          () => {
-            perfMonitor.sampleAllRenderers(accountWindowManager);
-          },
-          60 * 1000,
-          'renderer-memory-sampling'
-        );
+        if (!app.isPackaged) {
+          createTrackedInterval(
+            () => {
+              perfMonitor.sampleAllRenderers(accountWindowManager);
+            },
+            60 * 1000,
+            'renderer-memory-sampling'
+          );
+        }
 
         void runDeferredPhase({
-          featureManager,
+          context,
           getMainWindow,
           isDev: environment.isDev,
         });

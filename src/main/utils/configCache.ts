@@ -18,7 +18,6 @@ interface CacheStats {
 
 interface CacheEntry {
   value: unknown;
-  timestamp: number;
 }
 
 /**
@@ -46,7 +45,7 @@ export function isCachedStore<T extends Record<string, unknown>>(
 export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>): CachedStore<T> {
   // In-memory cache
   const cache = new Map<string, CacheEntry>();
-  const CACHE_TTL_MS = 30_000; // 30 seconds
+  // TTL removed — cache invalidated by write-side (set/delete/clear). Config is main-process only with no IPC mutation.
   const CACHE_MAX_SIZE = 200;
   const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
 
@@ -66,17 +65,12 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
     // Check cache first
     if (cache.has(key as string)) {
       const entry = cache.get(key as string)!;
-      if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-        cache.delete(key as string);
-        log.debug(`[ConfigCache] Cache expired: ${String(key)}`);
-      } else {
-        stats.hits++;
-        log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
-        // LRU: move to end (most recently used) by re-inserting
-        cache.delete(key as string);
-        cache.set(key as string, entry);
-        return entry.value;
-      }
+      stats.hits++;
+      log.debug(`[ConfigCache] Cache hit: ${String(key)}`);
+      // LRU: move to end (most recently used) by re-inserting
+      cache.delete(key as string);
+      cache.set(key as string, entry);
+      return entry.value;
     }
     // Cache miss - read from store
     stats.misses++;
@@ -84,7 +78,7 @@ export function addCacheLayer<T extends Record<string, unknown>>(store: Store<T>
       defaultValue !== undefined
         ? originalGet(key as never, defaultValue as never)
         : originalGet(key as never);
-    cache.set(key as string, { value, timestamp: Date.now() });
+    cache.set(key as string, { value });
     log.debug(`[ConfigCache] Cache miss: ${String(key)}, value cached`);
     return value;
   };

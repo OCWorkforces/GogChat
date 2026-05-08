@@ -9,7 +9,8 @@
 
 import { app } from 'electron';
 import log from 'electron-log';
-import type { FeatureManager } from '../utils/featureManager.js';
+import { cleanupAll } from '../utils/featureRunner.js';
+import { getSharedFeatureContext } from '../utils/featureContextStore.js';
 import { destroyAccountWindowManager } from '../utils/accountWindowManager.js';
 import { destroyAllSingletons } from './singletonDestroyers.js';
 import { logShutdownDiagnostics } from './shutdownDiagnostics.js';
@@ -18,15 +19,13 @@ import { logShutdownDiagnostics } from './shutdownDiagnostics.js';
  * Register the application shutdown handler.
  *
  * Cleanup order:
- * 1. FeatureManager cleanup (reverse init order)
+ * 1. Feature cleanup via featureRunner (reverse init order)
  * 2. Account window manager destruction
  * 3. Singleton destruction (performance monitor, deduplicator, rate limiter, icon cache)
  * 4. Comprehensive cache statistics logging
  * 5. app.exit() to allow quit to proceed
  */
-export function registerShutdownHandler(deps: { featureManager: FeatureManager }): void {
-  const { featureManager } = deps;
-
+export function registerShutdownHandler(): void {
   app.on('before-quit', (event) => {
     event.preventDefault(); // Prevent immediate quit until cleanup is done
 
@@ -34,9 +33,9 @@ export function registerShutdownHandler(deps: { featureManager: FeatureManager }
       try {
         log.info('[Main] ========== Application Shutdown ==========');
 
-        // FeatureManager handles cleanup in reverse initialization order
+        // featureRunner handles cleanup in reverse initialization order
         log.info('[Main] Cleaning up feature resources...');
-        await featureManager.cleanup();
+        await cleanupAll(getSharedFeatureContext());
         log.info('[Main] Feature cleanup completed');
 
         // Cleanup account window manager AFTER feature cleanup
@@ -56,7 +55,7 @@ export function registerShutdownHandler(deps: { featureManager: FeatureManager }
         }
 
         // Log comprehensive cache statistics
-        await logShutdownDiagnostics(featureManager);
+        await logShutdownDiagnostics();
 
         log.info('[Main] =====================================================');
       } catch (error: unknown) {

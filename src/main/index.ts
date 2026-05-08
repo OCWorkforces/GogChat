@@ -6,10 +6,8 @@ import { enforceSingleInstance } from './features/singleInstance.js';
 import { setupDeepLinkListener } from './features/deepLinkHandler.js';
 import { registerCleanupTask } from './utils/resourceCleanup.js';
 
-import { getFeatureManager } from './utils/featureManager.js';
 import windowWrapper from './windowWrapper.js';
 
-import { registerAllFeatures } from './initializers/registerFeatures.js';
 import { registerShutdownHandler } from './initializers/registerShutdown.js';
 import { registerAppReady, getMostRecentWindow } from './initializers/registerAppReady.js';
 
@@ -42,14 +40,9 @@ let mainWindow: BrowserWindow | null = null;
 // Initialize performance monitoring
 perfMonitor.mark('app-start', 'App initialization started');
 
-// ===== Feature Registration =====
-const featureManager = getFeatureManager();
-
-// Delegate feature registration to initializer module
-registerAllFeatures(featureManager, {
-  setTrayIcon: () => {},
-  registerCleanupTask,
-});
+// Feature plan is generated at build time from src/main/initializers/*.spec.ts
+// (see scripts/featurePlanPlugin.js). featureRunner walks it at runtime — no
+// per-feature registration call lives here anymore.
 
 if (enforceSingleInstance()) {
   // Register deep link listener BEFORE app.ready (macOS fires open-url early)
@@ -57,18 +50,17 @@ if (enforceSingleInstance()) {
 
   // Delegate app.whenReady() logic to initializer module
   registerAppReady({
-    featureManager,
     windowFactory: { createWindow: windowWrapper },
     setMainWindow: (win) => {
       mainWindow = win;
     },
     getMainWindow: () => mainWindow,
+    registerCleanupTask,
   });
 }
 
 // ===== Shutdown Handler =====
-// Delegate shutdown handling to initializer module
-registerShutdownHandler({ featureManager });
+registerShutdownHandler();
 
 app.setAppUserModelId('com.electron.google-chat');
 

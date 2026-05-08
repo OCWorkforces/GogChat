@@ -37,6 +37,7 @@ import {
   stopSessionMaintenance,
 } from './accountSessionMaintenance.js';
 import { createTrackedTimeout } from './resourceCleanup.js';
+import { getAccountViewManager } from './accountViewManager.js';
 
 /**
  * Idle threshold after which a blurred or hidden non-primary
@@ -74,10 +75,13 @@ let accountWindowsWriteQueue: Promise<void> = Promise.resolve();
 function updateAccountWindows(
   updater: (current: AccountWindowsMap) => AccountWindowsMap
 ): Promise<void> {
-  accountWindowsWriteQueue = accountWindowsWriteQueue.then(() => {
-    const current = configGet('accountWindows') ?? {};
-    configSet('accountWindows', updater(current));
-  });
+  accountWindowsWriteQueue = accountWindowsWriteQueue
+    .then(() => {
+      const current = configGet('accountWindows') ?? {};
+      configSet('accountWindows', updater(current));
+    })
+    // Detach error from chain head to prevent rejection deadlock
+    .catch(() => {});
   return accountWindowsWriteQueue;
 }
 
@@ -533,52 +537,76 @@ export class AccountWindowManager implements IAccountWindowManager {
   }
 }
 
-// Singleton instance
+// Singleton instance — typed as the abstract interface so the BrowserWindow
+// path and the WebContentsView path are interchangeable behind the same
+// module-level helpers. Selection happens once on first access via the
+// `app.useWebContentsView` config flag.
 
-let accountWindowManager: AccountWindowManager | null = null;
+let accountManagerSingleton: IAccountWindowManager | null = null;
 
 /**
- * Get the global account window manager instance
+ * Get the global account window manager instance.
+ *
+ * Reads `app.useWebContentsView` from the config store (when initialized)
+ * to decide whether to construct the legacy {@link AccountWindowManager}
+ * (BrowserWindow per account) or the experimental WebContentsView-backed
+ * manager. Both satisfy {@link IAccountWindowManager}, so all consumers are
+ * agnostic to the choice.
  */
 export function getAccountWindowManager(factory?: WindowFactory): IAccountWindowManager {
-  if (!accountWindowManager) {
-    accountWindowManager = new AccountWindowManager(factory);
+  if (!accountManagerSingleton) {
+    let useViews = false;
+    try {
+      const appCfg = configGet('app');
+      useViews = appCfg?.useWebContentsView === true;
+    } catch {
+      // Store not yet initialized — leave default (false).
+    }
+    if (useViews) {
+      accountManagerSingleton = getAccountViewManager(factory);
+      log.info(
+        '[AccountWindowManager] Using WebContentsView backend (app.useWebContentsView=true)'
+      );
+    } else {
+      accountManagerSingleton = new AccountWindowManager(factory);
+    }
   }
-  return accountWindowManager;
+  return accountManagerSingleton;
 }
 
 /**
- * Destroy the account window manager singleton
+ * Destroy the account window manager singleton (whichever backend is active).
  */
 export function destroyAccountWindowManager(): void {
-  if (accountWindowManager) {
-    accountWindowManager.destroyAll();
-    accountWindowManager = null;
+  if (accountManagerSingleton) {
+    accountManagerSingleton.destroyAll();
+    accountManagerSingleton = null;
     log.info('[AccountWindowManager] Manager destroyed');
   }
 }
 
 /**
- * Convenience function: Get the most recently created account window
- * Shorthand for getAccountWindowManager().getMostRecentWindow()
+ * Convenience function: Get the most recently created account window.
+ * Routes to whichever backend is active.
  */
 export function getMostRecentWindow(): BrowserWindow | null {
-  if (!accountWindowManager) return null;
-  return accountWindowManager.getMostRecentWindow();
+  if (!accountManagerSingleton) return null;
+  return accountManagerSingleton.getMostRecentWindow();
 }
 
 /**
- * Convenience function: Get the BrowserWindow for a specific account index
- * Shorthand for getAccountWindowManager().getAccountWindow(accountIndex)
+ * Convenience function: Get the BrowserWindow for a specific account index.
+ * For the WebContentsView backend, this returns the SHARED host window when
+ * the account's view exists.
  */
 export function getWindowForAccount(accountIndex: AccountIndex): BrowserWindow | null {
-  if (!accountWindowManager) return null;
-  return accountWindowManager.getAccountWindow(accountIndex);
+  if (!accountManagerSingleton) return null;
+  return accountManagerSingleton.getAccountWindow(accountIndex);
 }
 
 export function getAccountIndex(window: BrowserWindow): AccountIndex | null {
-  if (!accountWindowManager) return null;
-  return accountWindowManager.getAccountIndex(window);
+  if (!accountManagerSingleton) return null;
+  return accountManagerSingleton.getAccountIndex(window);
 }
 
 /**
@@ -590,6 +618,6 @@ export function createAccountWindow(url: string, accountIndex: AccountIndex): Br
 }
 
 export function getAccountForWebContents(webContentsId: WebContentsId): AccountIndex | null {
-  if (!accountWindowManager) return null;
-  return accountWindowManager.getAccountForWebContents(webContentsId);
+  if (!accountManagerSingleton) return null;
+  return accountManagerSingleton.getAccountForWebContents(webContentsId);
 }

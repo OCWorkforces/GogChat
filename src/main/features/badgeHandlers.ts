@@ -15,8 +15,8 @@ import type { BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
 import { FAVICON_PATTERNS, ICON_TYPES, IPC_CHANNELS, RATE_LIMITS } from '../../shared/constants.js';
 import type { IconType } from '../../shared/types/domain.js';
-import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import { deduplicationPatterns } from '../utils/ipcDeduplicationPatterns.js';
+import { registerFastHandler } from '../utils/ipcFastPath.js';
+
 import { validateFaviconURL } from '../../shared/urlValidators.js';
 import { validateUnreadCount } from '../../shared/dataValidators.js';
 import { getIconCache } from '../utils/iconCache.js';
@@ -69,19 +69,18 @@ export function setupBadgeHandlers(window: BrowserWindow, trayIcon: Tray): Badge
   // Track current tray icon type to avoid redundant updates
   let currentTrayIconType: IconType = ICON_TYPES.OFFLINE;
 
-  // ⚡ OPTIMIZATION: payload-aware deduplication via createSecureIPCHandler.
-  // Rapid identical favicon changes (e.g., during page load) collapse to one execution.
-  const faviconCleanup = createSecureIPCHandler({
+  // ⚡ FAST PATH: sync ipcMain.on handler (no Promise allocation per call).
+  // Inline last-value short-circuit replaces payload-aware dedup since rapid
+  // identical favicon URLs (e.g., during page load) should collapse to one update.
+  let lastFaviconHref: string | undefined;
+  const faviconCleanup = registerFastHandler<string>({
     channel: IPC_CHANNELS.FAVICON_CHANGED,
-    validator: validateFaviconURL,
     rateLimit: RATE_LIMITS.IPC_FAVICON,
-    description: 'Badge favicon changed',
-    withDeduplication: {
-      keyFn: (channel, validatedHref) =>
-        deduplicationPatterns.byChannelAndFirstArg(channel, validatedHref),
-      windowMs: 150,
-    },
+    validator: validateFaviconURL,
     handler: (validatedHref) => {
+      if (validatedHref === lastFaviconHref) return;
+      lastFaviconHref = validatedHref;
+
       // Determine icon type
       const type = decideIcon(validatedHref);
 
@@ -102,19 +101,18 @@ export function setupBadgeHandlers(window: BrowserWindow, trayIcon: Tray): Badge
     },
   });
 
-  // ⚡ OPTIMIZATION: payload-aware deduplication via createSecureIPCHandler.
-  // Rapid identical unread-count updates (e.g., burst of incoming messages) collapse to one.
-  const unreadCleanup = createSecureIPCHandler({
+  // ⚡ FAST PATH: sync ipcMain.on handler (no Promise allocation per call).
+  // Inline last-value short-circuit replaces payload-aware dedup since rapid
+  // identical unread-count updates (e.g., burst of incoming messages) collapse to one.
+  let lastUnreadCount: number | undefined;
+  const unreadCleanup = registerFastHandler<number>({
     channel: IPC_CHANNELS.UNREAD_COUNT,
-    validator: validateUnreadCount,
     rateLimit: RATE_LIMITS.IPC_UNREAD_COUNT,
-    description: 'Badge unread count updated',
-    withDeduplication: {
-      keyFn: (channel, validatedCount) =>
-        deduplicationPatterns.byChannelAndFirstArg(channel, validatedCount),
-      windowMs: 100,
-    },
+    validator: validateUnreadCount,
     handler: (validatedCount) => {
+      if (validatedCount === lastUnreadCount) return;
+      lastUnreadCount = validatedCount;
+
       // Update badge icon (platform-specific)
       updateBadgeIcon(window, validatedCount);
 

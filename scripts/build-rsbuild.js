@@ -16,6 +16,7 @@ import { createRsbuild, loadConfig } from '@rsbuild/core';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { generateFeaturePlan } from './featurePlanPlugin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -290,6 +291,9 @@ function trackBuildHistory(libDir) {
 async function build() {
   try {
     const startTime = Date.now();
+    // Codegen: emit src/main/generated/featurePlan.ts from .spec.ts files
+    // BEFORE entry-point discovery so the freshly generated module is included.
+    generateFeaturePlan({ projectRoot: path.join(__dirname, '..') });
     // Get all entry points, split by preload vs main
     const { allEntries, preloadEntries, mainEntries } = getEntryPoints();
     console.log(`[Build] Found ${Object.keys(allEntries).length} TypeScript files to compile`);

@@ -4,10 +4,11 @@
  * and improve startup performance
  * ⚡ OPTIMIZATION: Insertion-order LRU eviction matching configCache.ts pattern.
  *
- * DISJOINTNESS INVARIANT: INITIAL_ICON_PATHS (warmed during critical path) and
+ * DISJOINTNESS INVARIANT: INITIAL_ICON_PATHS (warmed during critical path),
+ * SOON_DEFERRED_ICON_PATHS (warmed immediately after on setImmediate), and
  * ADDITIONAL_ICON_PATHS in cacheWarmer.ts (warmed at 8s idle) MUST be disjoint
  * complements covering all preloaded icons exactly once. Do not duplicate paths
- * across these two sets — adding to one requires removing from the other.
+ * across these three sets — adding to one requires removing from the others.
  */
 
 import type { NativeImage } from 'electron';
@@ -26,6 +27,20 @@ export const INITIAL_ICON_PATHS = [
   'resources/icons/tray/iconTemplate.png', // Tray icon (light/dark mode)
   'resources/icons/tray/iconTemplate@2x.png', // Tray icon Retina
   'resources/icons/normal/16.png', // Favicon size
+] as const;
+
+/**
+ * Icons preloaded immediately after the critical path on setImmediate.
+ * These are needed soon (tray unread state, notification badges) but not for
+ * first paint, so they are deferred slightly to keep the critical path lean.
+ *
+ * INVARIANT: Must be disjoint from INITIAL_ICON_PATHS and ADDITIONAL_ICON_PATHS.
+ */
+export const SOON_DEFERRED_ICON_PATHS = [
+  'resources/icons/tray/iconUnreadTemplate.png',
+  'resources/icons/tray/iconUnreadTemplate@2x.png',
+  'resources/icons/badge/16.png',
+  'resources/icons/badge/32.png',
 ] as const;
 
 /**

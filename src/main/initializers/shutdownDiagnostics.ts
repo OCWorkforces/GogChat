@@ -8,7 +8,7 @@
 import log from 'electron-log';
 import { session } from 'electron';
 import type Store from 'electron-store';
-import type { FeatureManager } from '../utils/featureManager.js';
+import { getSummary as getFeatureSummary } from '../utils/featureRunner.js';
 import { getIconCache } from '../utils/iconCache.js';
 import { getStore } from '../config.js';
 import type { CachedStore } from '../utils/configCache.js';
@@ -30,7 +30,7 @@ function isCachedStore(store: Store<StoreType>): store is CachedStore<StoreType>
  * Log comprehensive cache statistics on app quit.
  * Provides visibility into cache performance for optimization.
  */
-export async function logShutdownDiagnostics(featureManager: FeatureManager): Promise<void> {
+export async function logShutdownDiagnostics(): Promise<void> {
   try {
     // Icon Cache Statistics
     const iconCache = getIconCache();
@@ -105,13 +105,11 @@ export async function logShutdownDiagnostics(featureManager: FeatureManager): Pr
     }
 
     // Feature Manager Statistics
-    const summary = featureManager.getSummary();
-    log.info('[Main] --- Feature Manager Statistics ---');
+    const summary = getFeatureSummary();
+    log.info('[Main] --- Feature Runner Statistics ---');
     log.info(`[Main]   Total features: ${summary.total}`);
     log.info(`[Main]   Initialized: ${summary.initialized}`);
-    log.info(`[Main]   Failed: ${summary.failed}`);
-    log.info(`[Main]   Pending: ${summary.pending}`);
-    log.info(`[Main]   Total init time: ${summary.totalTime}ms`);
+    log.info(`[Main]   By phase: security=${summary.byPhase.security}, critical=${summary.byPhase.critical}, ui=${summary.byPhase.ui}, deferred=${summary.byPhase.deferred}`);
 
     // Per-account disk cache sizes (diagnostics only).
     try {
