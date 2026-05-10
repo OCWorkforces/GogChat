@@ -1,8 +1,8 @@
 import { BrowserWindow } from 'electron';
 import os from 'os';
-import { getPackageInfo } from '../utils/packageInfo.js';
+import { getPackageInfo } from '../utils/platform/packageInfo.js';
 import { registerMenuAction } from './menuActionRegistry.js';
-import { getIconCache } from '../utils/iconCache.js';
+import { getIconCache } from '../utils/platform/iconCache.js';
 let aboutWindow: BrowserWindow | null = null;
 
 function buildAboutHtml(auraIconDataUrl: string): string {
@@ -84,7 +84,7 @@ export default function showAboutPanel(mainWindow: BrowserWindow): void {
   aboutWindow.setAlwaysOnTop(true, 'floating');
   aboutWindow.setMenuBarVisibility(false);
 
-  aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  void aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
   aboutWindow.once('ready-to-show', () => {
     aboutWindow?.show();

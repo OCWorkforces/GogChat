@@ -25,7 +25,7 @@ vi.mock('electron', () => ({
   NativeImage: {},
 }));
 
-vi.mock('../utils/iconCache', () => ({
+vi.mock('../utils/platform/iconCache', () => ({
   getIconCache: vi.fn().mockReturnValue({
     getIcon: vi.fn().mockReturnValue({}),
   }),

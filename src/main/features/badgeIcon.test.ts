@@ -27,7 +27,7 @@ const faviconCleanup = vi.fn();
 const unreadCleanup = vi.fn();
 const setupBadgeHandlers = vi.fn(() => ({ faviconCleanup, unreadCleanup }));
 
-vi.mock('./badgeHandlers.js', () => ({
+vi.mock('../utils/platform/badgeHelpers.js', () => ({
   setupBadgeHandlers: (...args: unknown[]) =>
     setupBadgeHandlers(...(args as Parameters<typeof setupBadgeHandlers>)),
 }));

@@ -79,7 +79,7 @@ vi.mock('../../shared/urlValidators.js', () => ({
 }));
 
 // Mock accountWindowManager
-vi.mock('../utils/accountWindowManager.js', () => ({
+vi.mock('../utils/account/accountWindowManager.js', () => ({
   getAccountWindowManager: () => ({
     isBootstrap: vi.fn().mockReturnValue(false),
     markAsBootstrap: vi.fn(),
@@ -104,7 +104,7 @@ vi.mock('./bootstrapPromotion.js', () => ({
 }));
 
 // Mock resourceCleanup for createTrackedInterval
-vi.mock('../utils/resourceCleanup.js', () => ({
+vi.mock('../utils/lifecycle/resourceCleanup.js', () => ({
   createTrackedInterval: vi.fn().mockReturnValue({} as NodeJS.Timeout),
 }));
 

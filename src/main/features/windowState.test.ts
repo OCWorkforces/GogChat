@@ -125,7 +125,7 @@ vi.mock('../config.js', () => ({
   configSet: vi.fn((key: string, value: unknown) => storeMock.set(key, value)),
 }));
 
-vi.mock('../utils/accountWindowManager.js', () => ({
+vi.mock('../utils/account/accountWindowManager.js', () => ({
   getWindowForAccount: getWindowForAccountMock,
 }));
 

@@ -39,7 +39,7 @@ test.describe('Multi-Account Management', () => {
     // Verify the account window manager is tracking windows
     const managerState = await electronApp.evaluate(() => {
       // Access the global account window manager via require
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       const mgr = getAccountWindowManager();
 
       return {
@@ -92,7 +92,7 @@ test.describe('Multi-Account Management', () => {
       const webContentsId = primaryWindow.webContents.id;
 
       // Access the global account window manager
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       const mgr = getAccountWindowManager();
 
       const accountIndex = mgr.getAccountForWebContents(webContentsId);
@@ -111,7 +111,7 @@ test.describe('Multi-Account Management', () => {
   test('should handle bootstrap window lifecycle', async ({ electronApp }) => {
     // Verify bootstrap tracking methods exist and work
     const bootstrapState = await electronApp.evaluate(() => {
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       const mgr = getAccountWindowManager();
 
       // Check initial bootstrap accounts (should be empty or have account 0 marked)
@@ -157,7 +157,7 @@ test.describe('Multi-Account Management', () => {
   }) => {
     // Get initial account count
     const initialCount = await electronApp.evaluate(() => {
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       return getAccountWindowManager().getAccountCount();
     });
 
@@ -173,7 +173,7 @@ test.describe('Multi-Account Management', () => {
 
     // Manager should still track the window (close to tray doesn't destroy)
     const afterCloseCount = await electronApp.evaluate(() => {
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       return getAccountWindowManager().getAccountCount();
     });
 
@@ -183,7 +183,7 @@ test.describe('Multi-Account Management', () => {
   test('should handle getMostRecentWindow correctly', async ({ electronApp }) => {
     // Verify most recent window tracking works
     const recentWindowInfo = await electronApp.evaluate(() => {
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       const mgr = getAccountWindowManager();
 
       const mostRecent = mgr.getMostRecentWindow();
@@ -201,7 +201,7 @@ test.describe('Multi-Account Management', () => {
   test('should get account webContents correctly', async ({ electronApp }) => {
     // Verify getting webContents for an account works
     const webContentsInfo = await electronApp.evaluate(() => {
-      const { getAccountWindowManager } = require('../../src/main/utils/accountWindowManager');
+      const { getAccountWindowManager } = require('../../src/main/utils/account/accountWindowManager');
       const mgr = getAccountWindowManager();
 
       const webContents = mgr.getAccountWebContents(0);

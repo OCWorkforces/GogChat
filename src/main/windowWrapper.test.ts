@@ -61,17 +61,17 @@ vi.mock('./config', () => ({
   },
 }));
 
-vi.mock('./utils/iconCache', () => ({
+vi.mock('./utils/platform/iconCache', () => ({
   getIconCache: vi.fn().mockReturnValue({
     getIcon: vi.fn().mockReturnValue({ isEmpty: vi.fn().mockReturnValue(false) }),
   }),
 }));
 
-vi.mock('./utils/mediaAccess', () => ({
+vi.mock('./utils/security/mediaAccess', () => ({
   checkAndRequestMediaAccess: vi.fn().mockResolvedValue(true),
   showDeniedPermissionDialog: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('./utils/windowUtils', () => ({
+vi.mock('./utils/platform/windowUtils', () => ({
   getWindowDefaults: vi.fn().mockReturnValue({
     hideMenuBar: false,
     startHidden: false,
@@ -274,7 +274,7 @@ describe('windowWrapper', () => {
 
   describe('media permission handling', () => {
     it('grants media permission when camera and microphone are allowed', async () => {
-      const { checkAndRequestMediaAccess } = await import('./utils/mediaAccess');
+      const { checkAndRequestMediaAccess } = await import('./utils/security/mediaAccess');
       vi.mocked(checkAndRequestMediaAccess).mockResolvedValue(true);
 
       createWindow('https://chat.google.com');
@@ -289,7 +289,7 @@ describe('windowWrapper', () => {
     });
 
     it('denies media permission when camera access is denied', async () => {
-      const { checkAndRequestMediaAccess } = await import('./utils/mediaAccess');
+      const { checkAndRequestMediaAccess } = await import('./utils/security/mediaAccess');
       vi.mocked(checkAndRequestMediaAccess).mockImplementation((type) =>
         Promise.resolve(type !== 'camera')
       );
@@ -304,7 +304,7 @@ describe('windowWrapper', () => {
 
     it('shows denied dialog when camera access is denied', async () => {
       const { checkAndRequestMediaAccess, showDeniedPermissionDialog } =
-        await import('./utils/mediaAccess');
+        await import('./utils/security/mediaAccess');
       const { systemPreferences } = await import('electron');
       vi.mocked(checkAndRequestMediaAccess).mockImplementation((type) =>
         Promise.resolve(type !== 'camera')

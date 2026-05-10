@@ -1,4 +1,4 @@
-import { app, shell } from 'electron';
+import { app } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/urlValidators.js';
@@ -8,9 +8,11 @@ import {
   createAccountWindow,
   getMostRecentWindow,
   getWindowForAccount,
-} from '../utils/accountWindowManager.js';
-import { addTrackedListener } from '../utils/resourceCleanup.js';
+} from '../utils/account/accountWindowManager.js';
+import { addTrackedListener } from '../utils/lifecycle/resourceCleanup.js';
+import { openExternal } from '../utils/security/shellWrapper.js';
 import { registerMenuAction } from './menuActionRegistry.js';
+import { asType } from '../../shared/typeUtils.js';
 
 let pendingDeepLinkUrl: string | null = null;
 let openUrlListenerRegistered = false;
@@ -89,7 +91,7 @@ function openInDefaultBrowser(url: string): void {
   try {
     const sanitizedUrl = validateExternalURL(url);
     log.info(`[DeepLink] Opening external URL in default browser: ${sanitizeUrlForLog(url)}`);
-    void shell.openExternal(sanitizedUrl);
+    void openExternal(sanitizedUrl);
   } catch (error: unknown) {
     log.error('[DeepLink] Failed to open external URL:', error);
   }
@@ -118,9 +120,9 @@ export function setupDeepLinkListener(): void {
   // Cast needed: addTrackedListener uses a generic EventTarget interface
   // while Electron's app has strongly-typed overloads
   addTrackedListener(
-    app as Parameters<typeof addTrackedListener>[0],
+    asType<Parameters<typeof addTrackedListener>[0]>(app),
     'open-url',
-    handler as Parameters<typeof addTrackedListener>[2],
+    asType<Parameters<typeof addTrackedListener>[2]>(handler),
     'DeepLink open-url'
   );
 

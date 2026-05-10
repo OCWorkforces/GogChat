@@ -1,6 +1,6 @@
 import { setUpdateNotification, checkForUpdates } from 'electron-update-notifier';
 import { configGet } from '../config.js';
-import { createTrackedInterval, createTrackedTimeout } from '../utils/resourceCleanup.js';
+import { createTrackedInterval, createTrackedTimeout } from '../utils/lifecycle/resourceCleanup.js';
 
 let interval: ReturnType<typeof setInterval> | null = null;
 

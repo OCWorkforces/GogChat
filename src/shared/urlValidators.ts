@@ -4,6 +4,9 @@
  */
 
 import { WHITELISTED_HOSTS, DEEP_LINK } from './constants.js';
+import { asType } from './typeUtils.js';
+import type { ValidatedURL } from './types/branded.js';
+import { asValidatedURL } from './types/branded.js';
 
 /**
  * Safely parse a URL string into a URL object.
@@ -69,7 +72,7 @@ export function validateFaviconURL(href: unknown): string {
  * @returns Sanitized URL string
  * @throws Error if URL is unsafe
  */
-export function validateExternalURL(url: unknown): string {
+export function validateExternalURL(url: unknown): ValidatedURL {
   // Type check
   if (typeof url !== 'string') {
     throw new Error('URL must be a string');
@@ -107,10 +110,10 @@ export function validateExternalURL(url: unknown): string {
     }
   }
 
-  return parsed.toString();
+  return asValidatedURL(parsed.toString());
 }
 
-export function validateAppleSystemPreferencesURL(url: unknown): string {
+export function validateAppleSystemPreferencesURL(url: unknown): ValidatedURL {
   if (typeof url !== 'string') {
     throw new Error('System Settings URL must be a string');
   }
@@ -126,7 +129,7 @@ export function validateAppleSystemPreferencesURL(url: unknown): string {
     throw new Error('Unapproved System Settings URL');
   }
 
-  return url;
+  return asValidatedURL(url);
 }
 
 /**
@@ -141,7 +144,7 @@ function isWhitelistedHostInternal(parsed: URL, currentHost: string): boolean {
   }
 
   // Check against whitelist
-  return (WHITELISTED_HOSTS as readonly string[]).includes(hostname);
+  return asType<readonly string[]>(WHITELISTED_HOSTS).includes(hostname);
 }
 
 /**
@@ -169,7 +172,7 @@ export function isWhitelistedHost(url: string, currentHost: string): boolean {
  * @returns Sanitized https://chat.google.com/... URL
  * @throws Error if URL is invalid, not a recognized scheme, or targets a non-allowed host
  */
-export function validateDeepLinkURL(url: unknown): string {
+export function validateDeepLinkURL(url: unknown): ValidatedURL {
   // Type check
   if (typeof url !== 'string') {
     throw new Error('Deep link URL must be a string');
@@ -229,7 +232,7 @@ export function validateDeepLinkURL(url: unknown): string {
     throw new Error(`Deep link path not allowed: ${parsed.pathname}`);
   }
 
-  return parsed.toString();
+  return asValidatedURL(parsed.toString());
 }
 
 /**

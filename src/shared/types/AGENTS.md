@@ -1,6 +1,6 @@
 # src/shared/types/ — Cross-Process Type Contracts
 
-**Generated:** 2026-05-08
+**Generated:** 2026-05-10
 
 Canonical TypeScript types shared between main, preload, and renderer processes. All types are `export`-only — no runtime logic, no side effects. Import directly from each file (no barrel re-exports).
 

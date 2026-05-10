@@ -42,7 +42,7 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-vi.mock('../utils/secureFlags.js', () => ({
+vi.mock('../utils/security/secureFlags.js', () => ({
   getDisableCertPinning: getDisableCertPinningMock,
 }));
 

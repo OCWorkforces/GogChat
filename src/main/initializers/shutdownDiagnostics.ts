@@ -8,22 +8,23 @@
 import log from 'electron-log';
 import { session } from 'electron';
 import type Store from 'electron-store';
-import { getSummary as getFeatureSummary } from '../utils/featureRunner.js';
-import { getIconCache } from '../utils/iconCache.js';
+import { getSummary as getFeatureSummary } from '../utils/lifecycle/featureRunner.js';
+import { getIconCache } from '../utils/platform/iconCache.js';
 import { getStore } from '../config.js';
-import type { CachedStore } from '../utils/configCache.js';
-import { getRateLimiter } from '../utils/rateLimiter.js';
-import { getDeduplicator } from '../utils/ipcDeduplicator.js';
-import { getAccountWindowManager } from '../utils/accountWindowManager.js';
+import type { CachedStore } from '../utils/config/configCache.js';
+import { getRateLimiter } from '../utils/ipc/rateLimiter.js';
+import { getDeduplicator } from '../utils/ipc/ipcDeduplicator.js';
+import { getAccountWindowManager } from '../utils/account/accountWindowManager.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 import { toPartition } from '../../shared/types/branded.js';
 import type { StoreType } from '../../shared/types/config.js';
+import { asType } from '../../shared/typeUtils.js';
 
 /**
  * Type guard to check if a store has cache enabled
  */
 function isCachedStore(store: Store<StoreType>): store is CachedStore<StoreType> {
-  return typeof (store as CachedStore<StoreType>).getCacheStats === 'function';
+  return typeof asType<CachedStore<StoreType>>(store).getCacheStats === 'function';
 }
 
 /**
@@ -109,7 +110,9 @@ export async function logShutdownDiagnostics(): Promise<void> {
     log.info('[Main] --- Feature Runner Statistics ---');
     log.info(`[Main]   Total features: ${summary.total}`);
     log.info(`[Main]   Initialized: ${summary.initialized}`);
-    log.info(`[Main]   By phase: security=${summary.byPhase.security}, critical=${summary.byPhase.critical}, ui=${summary.byPhase.ui}, deferred=${summary.byPhase.deferred}`);
+    log.info(
+      `[Main]   By phase: security=${summary.byPhase.security}, critical=${summary.byPhase.critical}, ui=${summary.byPhase.ui}, deferred=${summary.byPhase.deferred}`
+    );
 
     // Per-account disk cache sizes (diagnostics only).
     try {

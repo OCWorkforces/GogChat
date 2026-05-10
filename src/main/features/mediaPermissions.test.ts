@@ -15,12 +15,12 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-vi.mock('../utils/mediaAccess.js', () => ({
+vi.mock('../utils/security/mediaAccess.js', () => ({
   checkAndRequestMediaAccess: vi.fn(),
 }));
 
 import log from 'electron-log';
-import { checkAndRequestMediaAccess } from '../utils/mediaAccess.js';
+import { checkAndRequestMediaAccess } from '../utils/security/mediaAccess.js';
 import mediaPermissionsInit, { cleanupMediaPermissions } from './mediaPermissions';
 
 const mockCheckAndRequest = checkAndRequestMediaAccess as Mock;

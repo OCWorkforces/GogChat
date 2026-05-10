@@ -4,8 +4,8 @@
  */
 
 import log from 'electron-log';
-import type { FeatureContext } from '../utils/featureConfigTypes.js';
-import { checkAndRequestMediaAccess } from '../utils/mediaAccess.js';
+import type { FeatureContext } from '../utils/lifecycle/featureConfigTypes.js';
+import { checkAndRequestMediaAccess } from '../utils/security/mediaAccess.js';
 
 export default async (_context: FeatureContext): Promise<void> => {
   try {

@@ -261,7 +261,7 @@ test.describe('IPC Security', () => {
   test('should deduplicate rapid identical requests', async ({ electronApp }) => {
     // Verify deduplication mechanism exists and tracks stats
     const dedupStats = await electronApp.evaluate(() => {
-      const { getDeduplicator } = require('../../src/main/utils/ipcDeduplicator');
+      const { getDeduplicator } = require('../../src/main/utils/ipc/ipcDeduplicator');
       const deduplicator = getDeduplicator();
 
       return {
@@ -278,7 +278,7 @@ test.describe('IPC Security', () => {
   test('should handle rate limiter stats', async ({ electronApp }) => {
     // Verify rate limiter is tracking statistics
     const rateLimitStats = await electronApp.evaluate(() => {
-      const { getRateLimiter } = require('../../src/main/utils/rateLimiter');
+      const { getRateLimiter } = require('../../src/main/utils/ipc/rateLimiter');
       const rateLimiter = getRateLimiter();
 
       // Get all stats

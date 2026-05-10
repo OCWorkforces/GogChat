@@ -1,6 +1,6 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-05-08
+**Generated:** 2026-05-10
 
 27+ self-contained feature modules. All registered declaratively in `../initializers/{security,ui,deferred}.spec.ts` (`FeatureSpec[]` arrays). The build-time plugin (`scripts/featurePlanPlugin.js`) compiles specs into `../generated/featurePlan.ts`; `featureRunner` walks that plan at runtime. Lazy features use dynamic `import()` inside their spec's `init` — deferred chunks land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
@@ -28,11 +28,10 @@ Each feature is declared as a `FeatureSpec` entry in a `*.spec.ts` file: `{ name
 | `singleInstance.ts`     | `ui`       | none; receives `{ accountWindowManager }` context      |
 | `deepLinkHandler.ts`    | `ui`       | none; receives `{ accountWindowManager }` context; `getAccountIndexFromUrl` returns branded `AccountIndex` via `asAccountIndex()` |
 | `bootstrapPromotion.ts` | `deferred` | none (webContents events); moved from ui phase |
-| `trayIcon.ts`           | `deferred` | none; exports `setTrayUnread()` for badgeHandlers to toggle tray unread dot |
-| `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`, `helpMenuBuilder` |
-| `helpMenuBuilder.ts`    | `deferred` | none; builds Help submenu (relaunch/reset); used by appMenu |
+| `trayIcon.ts`           | `deferred` | none; reads tray state from `utils/platform/trayIconState.ts` (which exports `setTrayUnread()` used by badgeHandlers) |
+| `appMenu.ts`            | `deferred` | `SEARCH_SHORTCUT` (sends); uses `menuActionRegistry`; delegates Help submenu to `utils/platform/helpMenuBuilder.ts` |
 | `badgeIcon.ts`          | `deferred` | none; delegates to `badgeHandlers`                     |
-| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens via `registerFastHandler` from `ipcFastPath.ts` — skips Promise alloc on hot channels); decideIcon uses `assertNever()` for exhaustive `IconType` switch + updateBadgeIcon + calls `setTrayUnread`; rate limiting + validation preserved |
+| `badgeHandlers.ts`      | `deferred` | `FAVICON_CHANGED`, `UNREAD_COUNT` (listens via `registerFastHandler` from `ipcFastPath.ts` — skips Promise alloc on hot channels); decideIcon uses `assertNever()` for exhaustive `IconType` switch + updateBadgeIcon + calls `setTrayUnread` from `utils/platform/trayIconState.ts`; rate limiting + validation preserved |
 | `windowState.ts`        | `deferred` | none; uses `accountWindowManager`                      |
 | `passkeySupport.ts`     | `deferred` | `PASSKEY_AUTH_FAILED` (listens, 1/30s)                 |
 | `handleNotification.ts` | `deferred` | `NOTIFICATION_SHOW` (listens)                          |
@@ -46,7 +45,6 @@ Each feature is declared as a `FeatureSpec` entry in a `*.spec.ts` file: `{ name
 | `aboutPanel.ts`         | on-demand  | none; self-registers in `menuActionRegistry`, called from appMenu |
 | `cdpTelemetry.ts`       | `deferred` | none; local-only Chrome DevTools Protocol RUM metrics; persists via `cdpMetrics` util; killable via `secureFlags.disableCdpTelemetry` |
 | `menuActionRegistry.ts` | utility    | none; registry for feature-provided menu actions (moved from utils/) |
-| `deepLinkUtils.ts`      | utility    | none; deep link URL extraction from argv (moved from utils/)        |
 
 ## MENU ACTION REGISTRY
 
@@ -100,9 +98,8 @@ Deferred features use dynamic `import()` inside the spec's `init` → `lib/chunk
 
 | File | Lines | Notes |
 | --- | --- | --- |
-| `appMenu.ts` | 190 | Slim orchestrator; delegates Help to `helpMenuBuilder` |
+| `appMenu.ts` | 190 | Slim orchestrator; delegates Help to `utils/platform/helpMenuBuilder.ts` |
 | `badgeHandlers.ts`      | 119 | Favicon/unread IPC + decideIcon + updateBadgeIcon + tray unread; `withDeduplication` on both channels |
-| `helpMenuBuilder.ts` | 136 | Help submenu, relaunchApp, resetAppAndRestart |
 | `externalLinks.ts`      | 297 | URL validation, account routing |
 | `certificatePinning.ts` | 215 | Cert validation before app.ready; validation cache keyed by `hostname:fingerprint` |
 | `deepLinkHandler.ts` | 172 | Protocol registration, deep linking |
@@ -111,7 +108,7 @@ Deferred features use dynamic `import()` inside the spec's `init` → `lib/chunk
 | `inOnline.ts`           | 149 | Online status monitoring |
 | `badgeIcon.ts` | 43 | Thin init; wires `badgeHandlers` |
 | `passkeySupport.ts` | 122 | Passkey auth event handling |
-| `trayIcon.ts` | 113 | System tray icon + menu + `setTrayUnread()` toggle |
+| `trayIcon.ts` | 113 | System tray icon + menu; `setTrayUnread()` lives in `utils/platform/trayIconState.ts` |
 | `appUpdates.ts` | 78 | Auto-update check |
 | `openAtLogin.ts` | 74 | Auto-launch self-registers in menuActionRegistry |
 | `userAgent.ts` | 71 | Custom user-agent override |
@@ -124,4 +121,3 @@ Deferred features use dynamic `import()` inside the spec's `init` → `lib/chunk
 | `mediaPermissions.ts` | 36 | Camera/mic TCC permission check |
 | `contextMenu.ts` | 36 | Right-click context menu |
 || `menuActionRegistry.ts` | 64 | Typed `MenuActionMap` registry + `registerMenuAction<K>`/`getMenuAction<K>` generics (moved from utils/) |
-| `deepLinkUtils.ts` | 27 | Deep link URL extraction from argv (moved from utils/) |

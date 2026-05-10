@@ -1,5 +1,5 @@
 import type { BrowserWindow, HandlerDetails } from 'electron';
-import { dialog, shell } from 'electron';
+import { dialog } from 'electron';
 import log from 'electron-log';
 import { URL_PATTERNS, TIMING } from '../../shared/constants.js';
 import {
@@ -7,15 +7,16 @@ import {
   isWhitelistedHost,
   isGoogleAuthUrl,
 } from '../../shared/urlValidators.js';
-import { createTrackedInterval } from '../utils/resourceCleanup.js';
-import { watchBootstrapAccount } from '../utils/bootstrapWatcher.js';
+import { createTrackedInterval } from '../utils/lifecycle/resourceCleanup.js';
+import { watchBootstrapAccount } from '../utils/account/bootstrapWatcher.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 import {
   createAccountWindow,
   getAccountIndex,
   getWindowForAccount,
   getAccountWindowManager,
-} from '../utils/accountWindowManager.js';
+} from '../utils/account/accountWindowManager.js';
+import { openExternal } from '../utils/security/shellWrapper.js';
 import { registerMenuAction } from './menuActionRegistry.js';
 
 let guardAgainstExternalLinks = true;
@@ -179,7 +180,7 @@ export default (window: BrowserWindow) => {
           try {
             // Sanitize URL before opening
             const sanitizedURL = validateExternalURL(url);
-            void shell.openExternal(sanitizedURL);
+            void openExternal(sanitizedURL);
             log.info('[ExternalLinks] Opened external URL:', sanitizedURL);
           } catch (error: unknown) {
             log.error('[ExternalLinks] Failed to open external URL:', error);
@@ -214,7 +215,7 @@ export default (window: BrowserWindow) => {
       setImmediate(() => {
         try {
           const sanitizedURL = validateExternalURL(url);
-          void shell.openExternal(sanitizedURL);
+          void openExternal(sanitizedURL);
           log.info('[ExternalLinks] will-navigate: Opened external URL:', sanitizedURL);
         } catch (error: unknown) {
           log.error('[ExternalLinks] will-navigate: Failed to open external URL:', error);

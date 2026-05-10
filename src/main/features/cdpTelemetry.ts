@@ -17,11 +17,12 @@
 
 import type { WebContents } from 'electron';
 import log from 'electron-log';
-import { getDisableCdpTelemetry } from '../utils/secureFlags.js';
-import { createTrackedInterval } from '../utils/resourceCleanup.js';
-import * as cdpMetrics from '../utils/cdpMetrics.js';
+import { getDisableCdpTelemetry } from '../utils/security/secureFlags.js';
+import { createTrackedInterval } from '../utils/lifecycle/resourceCleanup.js';
+import * as cdpMetrics from '../utils/lifecycle/cdpMetrics.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
+import { asType } from '../../shared/typeUtils.js';
 
 /** Sampling cadence — 30s balances signal density against CDP overhead. */
 const SAMPLE_INTERVAL_MS = 30_000;
@@ -100,9 +101,9 @@ async function setupCdpTelemetry(accountWC: WebContents): Promise<boolean> {
       void (async () => {
         if (!accountWC.debugger.isAttached()) return;
         try {
-          const reply = (await accountWC.debugger.sendCommand(
-            'Performance.getMetrics'
-          )) as PerformanceGetMetricsReply;
+          const reply = asType<PerformanceGetMetricsReply>(
+            await accountWC.debugger.sendCommand('Performance.getMetrics')
+          );
           cdpMetrics.recordMetrics(TARGET_ACCOUNT_INDEX, flattenMetrics(reply));
         } catch (error: unknown) {
           // Sampling failure is non-fatal — log at debug to avoid noise.

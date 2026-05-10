@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['**/*.test.ts'],
+    include: ['**/*.test.ts', 'scripts/**/*.test.js'],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
@@ -44,7 +44,7 @@ export default defineConfig({
         'src/main/features/reportExceptions.ts',
         // Files with 0% coverage due to V8 instrumentation limitations or pure types
         'src/environment.ts',
-        'src/main/utils/cleanupTypes.ts',
+        'src/main/utils/lifecycle/cleanupTypes.ts',
         'src/shared/validators.ts',
       ],
       thresholds: {

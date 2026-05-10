@@ -4,12 +4,12 @@ import {
   getWindowDefaults,
   attachEventLogging,
   attachHealthMonitoring,
-} from './utils/windowUtils.js';
+} from './utils/platform/windowUtils.js';
 import log from 'electron-log';
-import { getIconCache } from './utils/iconCache.js';
-import { installPermissionHandlers } from './utils/permissionHandler.js';
-import { installHeaderFix } from './utils/cspHeaderHandler.js';
-import { installBenignWarningFilter } from './utils/benignLogFilter.js';
+import { getIconCache } from './utils/platform/iconCache.js';
+import { installPermissionHandlers } from './utils/security/permissionHandler.js';
+import { installHeaderFix } from './utils/security/cspHeaderHandler.js';
+import { installBenignWarningFilter } from './utils/ipc/benignLogFilter.js';
 import { configGet, configSet } from './config.js';
 
 installBenignWarningFilter();

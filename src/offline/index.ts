@@ -1,4 +1,5 @@
 ((window: Window) => {
+  // eslint-disable-next-line no-restricted-syntax -- offline page cannot import from shared/
   const btn = window.document.getElementById('retry-btn') as HTMLButtonElement;
   const MAX_AUTO_ATTEMPT_COUNT = 100;
   let attemptCount = 0;

@@ -1,9 +1,9 @@
 import { app } from 'electron';
 import log from 'electron-log';
 import { getMenuAction } from './menuActionRegistry.js';
-import { extractDeepLinkFromArgv } from './deepLinkUtils.js';
+import { extractDeepLinkFromArgv } from '../utils/account/deepLinkUtils.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
-import { getMostRecentWindow } from '../utils/accountWindowManager.js';
+import { getMostRecentWindow } from '../utils/account/accountWindowManager.js';
 
 const enforceSingleInstance = (): boolean => {
   const gotTheLock = app.requestSingleInstanceLock();

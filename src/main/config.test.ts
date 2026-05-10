@@ -29,7 +29,7 @@ vi.mock('electron-log', () => ({
 }));
 
 // Mock packageInfo to avoid file system access
-vi.mock('./utils/packageInfo', () => ({
+vi.mock('./utils/platform/packageInfo', () => ({
   getPackageInfo: vi.fn(() => ({
     name: 'gogchat',
     productName: 'GogChat',
@@ -44,13 +44,13 @@ vi.mock('./utils/packageInfo', () => ({
 }));
 
 // Mock configCache to return store as-is (no caching in tests)
-vi.mock('./utils/configCache', () => ({
+vi.mock('./utils/config/configCache', () => ({
   addCacheLayer: vi.fn((store) => store),
   isCachedStore: vi.fn(() => false),
 }));
 
 // Mock encryptionKey module
-vi.mock('./utils/encryptionKey', () => ({
+vi.mock('./utils/security/encryptionKey', () => ({
   getOrCreateEncryptionKey: vi.fn(async () => ({
     key: 'test-encryption-key-hex-string',
     migrationPending: false,
@@ -153,20 +153,21 @@ describe('initializeStore', () => {
 
   it('should call getOrCreateEncryptionKey', async () => {
     const { initializeStore } = await import('./config');
-    const { getOrCreateEncryptionKey } = await import('./utils/encryptionKey');
+    const { getOrCreateEncryptionKey } = await import('./utils/security/encryptionKey');
     await initializeStore();
     expect(getOrCreateEncryptionKey).toHaveBeenCalledOnce();
   });
 
   it('should not call needsMigration separately (migrationPending comes from getOrCreateEncryptionKey)', async () => {
     const { initializeStore } = await import('./config');
-    const { needsMigration } = await import('./utils/encryptionKey');
+    const { needsMigration } = await import('./utils/security/encryptionKey');
     await initializeStore();
     expect(needsMigration).not.toHaveBeenCalled();
   });
 
   it('should perform migration when getOrCreateEncryptionKey signals migrationPending', async () => {
-    const { getOrCreateEncryptionKey, completeMigration } = await import('./utils/encryptionKey');
+    const { getOrCreateEncryptionKey, completeMigration } =
+      await import('./utils/security/encryptionKey');
     vi.mocked(getOrCreateEncryptionKey).mockResolvedValue({
       key: 'test-encryption-key-hex-string',
       migrationPending: true,
@@ -183,7 +184,8 @@ describe('initializeStore', () => {
   });
 
   it('should continue with legacy store if completeMigration returns null', async () => {
-    const { getOrCreateEncryptionKey, completeMigration } = await import('./utils/encryptionKey');
+    const { getOrCreateEncryptionKey, completeMigration } =
+      await import('./utils/security/encryptionKey');
     const _log = (await import('electron-log')).default;
     vi.mocked(getOrCreateEncryptionKey).mockResolvedValue({
       key: 'test-encryption-key-hex-string',
@@ -200,7 +202,8 @@ describe('initializeStore', () => {
   });
 
   it('should handle migration error gracefully and continue with legacy key', async () => {
-    const { getOrCreateEncryptionKey, completeMigration } = await import('./utils/encryptionKey');
+    const { getOrCreateEncryptionKey, completeMigration } =
+      await import('./utils/security/encryptionKey');
     const log = (await import('electron-log')).default;
     vi.mocked(getOrCreateEncryptionKey).mockResolvedValue({
       key: 'test-encryption-key-hex-string',
@@ -220,7 +223,8 @@ describe('initializeStore', () => {
   });
 
   it('should skip migration when migrationPending is false', async () => {
-    const { getOrCreateEncryptionKey, completeMigration } = await import('./utils/encryptionKey');
+    const { getOrCreateEncryptionKey, completeMigration } =
+      await import('./utils/security/encryptionKey');
     vi.mocked(getOrCreateEncryptionKey).mockResolvedValue({
       key: 'test-encryption-key-hex-string',
       migrationPending: false,
@@ -233,7 +237,8 @@ describe('initializeStore', () => {
   });
 
   it('should migrate all data entries from old store to new store', async () => {
-    const { getOrCreateEncryptionKey, completeMigration } = await import('./utils/encryptionKey');
+    const { getOrCreateEncryptionKey, completeMigration } =
+      await import('./utils/security/encryptionKey');
     vi.mocked(getOrCreateEncryptionKey).mockResolvedValue({
       key: 'test-encryption-key-hex-string',
       migrationPending: true,
@@ -272,7 +277,7 @@ describe('validateAndUpdateCacheVersion', () => {
     mockStore.has.mockReturnValue(false);
     mockStore.store = {};
     // Reset isCachedStore mock to default (false) in case a prior test changed it
-    const { isCachedStore } = await import('./utils/configCache');
+    const { isCachedStore } = await import('./utils/config/configCache');
     vi.mocked(isCachedStore).mockReturnValue(false);
     vi.resetModules();
   });
@@ -340,7 +345,7 @@ describe('validateAndUpdateCacheVersion', () => {
   });
 
   it('should call clearCache on CachedStore when version changes', async () => {
-    const { isCachedStore } = await import('./utils/configCache');
+    const { isCachedStore } = await import('./utils/config/configCache');
     vi.mocked(isCachedStore).mockReturnValue(true);
 
     const clearCacheMock = vi.fn();
@@ -564,7 +569,7 @@ describe('Cache layer behavior in config', () => {
   });
 
   it('should skip cache layer in test environment (NODE_ENV=test)', async () => {
-    const { addCacheLayer } = await import('./utils/configCache');
+    const { addCacheLayer } = await import('./utils/config/configCache');
     const { initializeStore } = await import('./config');
     await initializeStore();
 

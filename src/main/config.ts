@@ -1,13 +1,13 @@
 import type { StoreType, StoreKeyPaths } from '../shared/types/config.js';
 import Store from 'electron-store';
-import { addCacheLayer, isCachedStore, type CachedStore } from './utils/configCache.js';
+import { addCacheLayer, isCachedStore, type CachedStore } from './utils/config/configCache.js';
 import log from 'electron-log';
-import { getPackageInfo } from './utils/packageInfo.js';
-import { getOrCreateEncryptionKey, completeMigration } from './utils/encryptionKey.js';
+import { getPackageInfo } from './utils/platform/packageInfo.js';
+import { getOrCreateEncryptionKey, completeMigration } from './utils/security/encryptionKey.js';
 
-import { schema, CACHE_VERSION } from './utils/configSchema.js';
-import { ConfigError } from './utils/errors.js';
-import { asUnsafe } from '../shared/typeUtils.js';
+import { schema, CACHE_VERSION } from './utils/config/configSchema.js';
+import { ConfigError } from './utils/lifecycle/errors.js';
+import { asType, asUnsafe } from '../shared/typeUtils.js';
 
 /**
  * Initialize encrypted store
@@ -60,7 +60,7 @@ export async function initializeStore(): Promise<Store<StoreType> | CachedStore<
 
         // Import data into new store
         for (const [key, value] of Object.entries(allData)) {
-          store.set(key as keyof StoreType, value);
+          store.set(asType<keyof StoreType>(key), value);
         }
         log.info('[Config] Migration to SafeStorage encryption complete');
       }
@@ -150,10 +150,10 @@ export function getStore(): Store<StoreType> | CachedStore<StoreType> {
 
 // Create a proxy object that lazy-loads the store
 // This maintains backward compatibility with existing code
-const storeProxy = new Proxy({} as Store<StoreType> | CachedStore<StoreType>, {
+const storeProxy = new Proxy(asType<Store<StoreType> | CachedStore<StoreType>>({}), {
   get(_target, prop) {
     const store = getStore();
-    const value = store[prop as keyof typeof store];
+    const value = store[asType<keyof typeof store>(prop)];
     // Bind methods to the actual store instance to preserve 'this' context
     if (typeof value === 'function') {
       return value.bind(store);
@@ -200,9 +200,11 @@ export function configGet<K extends StoreKeyPaths<StoreType>>(
   // `K extends StoreKeyPaths<StoreType>` is wider than the runtime-accepted union, so
   // the typed key collapses to `never` at the call boundary. Validation is structural
   // (StoreKeyPaths) — the cast bridges the proxy variance only.
-  return getStore().get(
-    asUnsafe<never>(key, 'electron-store .get() overload variance vs StoreKeyPaths dot-notation')
-  ) as PathValue<StoreType, K> | undefined;
+  return asType<PathValue<StoreType, K> | undefined>(
+    getStore().get(
+      asUnsafe<never>(key, 'electron-store .get() overload variance vs StoreKeyPaths dot-notation')
+    )
+  );
 }
 
 /**

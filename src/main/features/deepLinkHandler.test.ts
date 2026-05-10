@@ -34,13 +34,13 @@ vi.mock('../../shared/urlValidators.js', () => ({
   validateExternalURL: vi.fn((url: string) => url),
 }));
 
-vi.mock('../utils/accountWindowManager', () => ({
+vi.mock('../utils/account/accountWindowManager', () => ({
   createAccountWindow: vi.fn(),
   getWindowForAccount: vi.fn().mockReturnValue(null),
   getMostRecentWindow: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock('../utils/resourceCleanup', () => ({
+vi.mock('../utils/lifecycle/resourceCleanup', () => ({
   addTrackedListener: vi.fn(),
 }));
 
@@ -54,15 +54,15 @@ import initDeepLinkHandler, {
   cleanupDeepLinkHandler,
   registerDeepLinkProtocol,
 } from './deepLinkHandler';
-import { extractDeepLinkFromArgv } from './deepLinkUtils';
+import { extractDeepLinkFromArgv } from '../utils/account/deepLinkUtils';
 import { app } from 'electron';
 import {
   createAccountWindow,
   getWindowForAccount,
   getMostRecentWindow,
-} from '../utils/accountWindowManager';
+} from '../utils/account/accountWindowManager';
 import { validateDeepLinkURL, validateExternalURL } from '../../shared/urlValidators.js';
-import { addTrackedListener } from '../utils/resourceCleanup';
+import { addTrackedListener } from '../utils/lifecycle/resourceCleanup';
 import log from 'electron-log';
 
 /**
@@ -454,7 +454,7 @@ describe('openInDefaultBrowser catch path', () => {
     const { setupDeepLinkListener: setupFresh } = mod;
 
     const validators = await import('../../shared/urlValidators.js');
-    const cleanup = await import('../utils/resourceCleanup');
+    const cleanup = await import('../utils/lifecycle/resourceCleanup');
 
     vi.mocked(validators.validateDeepLinkURL).mockImplementation((url: string) => url);
     vi.mocked(validators.validateExternalURL).mockImplementation(() => {

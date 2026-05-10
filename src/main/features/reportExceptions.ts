@@ -1,7 +1,7 @@
 import log from 'electron-log';
 import unhandled from 'electron-unhandled';
-import { openNewGitHubIssue, debugInfo } from '../utils/platformHelpers.js';
-import { getPackageInfo } from '../utils/packageInfo.js';
+import { openNewGitHubIssue, debugInfo } from '../utils/platform/platformHelpers.js';
+import { getPackageInfo } from '../utils/platform/packageInfo.js';
 
 export default (): void => {
   const packageJson = getPackageInfo();

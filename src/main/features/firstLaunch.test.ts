@@ -7,7 +7,7 @@ vi.mock('electron-log', () => ({
   default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('../utils/platformHelpers', () => ({
+vi.mock('../utils/platform/platformHelpers', () => ({
   isFirstAppLaunch: vi.fn().mockReturnValue(true),
 }));
 
@@ -18,7 +18,7 @@ vi.mock('../config', () => ({
 }));
 
 import firstLaunch from './firstLaunch';
-import { isFirstAppLaunch } from '../utils/platformHelpers';
+import { isFirstAppLaunch } from '../utils/platform/platformHelpers';
 
 describe('firstLaunch', () => {
   beforeEach(() => {

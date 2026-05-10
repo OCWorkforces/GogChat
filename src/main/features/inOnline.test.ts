@@ -45,6 +45,12 @@ vi.mock('electron', () => ({
     show: vi.fn(),
     on: vi.fn(),
   })),
+  ipcMain: {
+    on: vi.fn(),
+    removeListener: vi.fn(),
+    handle: vi.fn(),
+    removeHandler: vi.fn(),
+  },
 }));
 
 vi.mock('electron-log', () => ({
@@ -60,20 +66,20 @@ vi.mock('electron-log', () => ({
 const mockRateLimiter = {
   isAllowed: vi.fn().mockReturnValue(true),
 };
-vi.mock('../utils/rateLimiter.js', () => ({
+vi.mock('../utils/ipc/rateLimiter.js', () => ({
   getRateLimiter: () => mockRateLimiter,
 }));
 
 // Mock iconCache
 const mockGetIcon = vi.fn().mockReturnValue('/fake/icon.png');
-vi.mock('../utils/iconCache.js', () => ({
+vi.mock('../utils/platform/iconCache.js', () => ({
   getIconCache: () => ({ getIcon: mockGetIcon }),
 }));
 
-// Mock ipcHelper
-const mockCreateSecureIPCHandler = vi.fn().mockReturnValue(vi.fn());
-vi.mock('../utils/ipcHelper.js', () => ({
-  createSecureIPCHandler: mockCreateSecureIPCHandler,
+// Mock defineIPC
+const mockDefineIPC = vi.fn().mockReturnValue(vi.fn());
+vi.mock('../utils/ipc/defineIPC.js', () => ({
+  defineIPC: mockDefineIPC,
 }));
 
 // Mock path
@@ -86,7 +92,7 @@ describe('inOnline feature', () => {
     vi.clearAllMocks();
     vi.resetModules();
     mockRateLimiter.isAllowed.mockReturnValue(true);
-    mockCreateSecureIPCHandler.mockReturnValue(vi.fn());
+    mockDefineIPC.mockReturnValue(vi.fn());
     mockGetIcon.mockReturnValue('/fake/icon.png');
   });
 
@@ -94,13 +100,13 @@ describe('inOnline feature', () => {
 
   describe('default export (IPC setup)', () => {
     it('registers CHECK_IF_ONLINE handler', async () => {
-      mockCreateSecureIPCHandler.mockReturnValue(vi.fn());
+      mockDefineIPC.mockReturnValue(vi.fn());
       const win = makeFakeWindow() as unknown as Electron.BrowserWindow;
 
       const feature = await import('./inOnline.js');
       feature.default(win);
 
-      expect(mockCreateSecureIPCHandler).toHaveBeenCalledWith(
+      expect(mockDefineIPC).toHaveBeenCalledWith(
         expect.objectContaining({ channel: 'checkIfOnline' })
       );
     });
@@ -125,7 +131,7 @@ describe('inOnline feature', () => {
 
     it('calls cleanup function if registered', async () => {
       const cleanupFn = vi.fn();
-      mockCreateSecureIPCHandler.mockReturnValue(cleanupFn);
+      mockDefineIPC.mockReturnValue(cleanupFn);
 
       const win = makeFakeWindow() as unknown as Electron.BrowserWindow;
 
@@ -138,7 +144,7 @@ describe('inOnline feature', () => {
 
     it('is idempotent (can be called twice)', async () => {
       const cleanupFn = vi.fn();
-      mockCreateSecureIPCHandler.mockReturnValue(cleanupFn);
+      mockDefineIPC.mockReturnValue(cleanupFn);
 
       const win = makeFakeWindow() as unknown as Electron.BrowserWindow;
 
@@ -164,13 +170,13 @@ describe('inOnline feature', () => {
 
   describe('IPC handler configuration', () => {
     it('handler includes validator', async () => {
-      mockCreateSecureIPCHandler.mockReturnValue(vi.fn());
+      mockDefineIPC.mockReturnValue(vi.fn());
       const win = makeFakeWindow() as unknown as Electron.BrowserWindow;
 
       const feature = await import('./inOnline.js');
       feature.default(win);
 
-      expect(mockCreateSecureIPCHandler).toHaveBeenCalledWith(
+      expect(mockDefineIPC).toHaveBeenCalledWith(
         expect.objectContaining({
           channel: 'checkIfOnline',
           validator: expect.any(Function),
@@ -179,13 +185,13 @@ describe('inOnline feature', () => {
     });
 
     it('handler includes rate limiting', async () => {
-      mockCreateSecureIPCHandler.mockReturnValue(vi.fn());
+      mockDefineIPC.mockReturnValue(vi.fn());
       const win = makeFakeWindow() as unknown as Electron.BrowserWindow;
 
       const feature = await import('./inOnline.js');
       feature.default(win);
 
-      expect(mockCreateSecureIPCHandler).toHaveBeenCalledWith(
+      expect(mockDefineIPC).toHaveBeenCalledWith(
         expect.objectContaining({
           channel: 'checkIfOnline',
           rateLimit: expect.any(Number),

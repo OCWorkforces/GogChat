@@ -2,10 +2,10 @@ import type { BrowserWindow } from 'electron';
 import { Notification } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING, RATE_LIMITS } from '../../shared/constants.js';
-import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import { getRateLimiter } from '../utils/rateLimiter.js';
+import { defineIPC } from '../utils/ipc/defineIPC.js';
+import { getRateLimiter } from '../utils/ipc/rateLimiter.js';
 import { validateNotificationData } from '../../shared/dataValidators.js';
-import { createTrackedTimeout } from '../utils/resourceCleanup.js';
+import { createTrackedTimeout } from '../utils/lifecycle/resourceCleanup.js';
 
 let notificationShowCleanup: (() => void) | null = null;
 let notificationClickedCleanup: (() => void) | null = null;
@@ -23,7 +23,8 @@ export default (window: BrowserWindow) => {
   void getRateLimiter();
 
   // Handle notification creation
-  notificationShowCleanup = createSecureIPCHandler({
+  notificationShowCleanup = defineIPC({
+    kind: 'on',
     channel: IPC_CHANNELS.NOTIFICATION_SHOW,
     validator: validateNotificationData,
     rateLimit: RATE_LIMITS.IPC_NOTIFICATION,
@@ -104,7 +105,8 @@ export default (window: BrowserWindow) => {
   });
 
   // Handle notification click from preload (legacy support)
-  notificationClickedCleanup = createSecureIPCHandler({
+  notificationClickedCleanup = defineIPC({
+    kind: 'on',
     channel: IPC_CHANNELS.NOTIFICATION_CLICKED,
     validator: () => undefined,
     rateLimit: 5,

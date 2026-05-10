@@ -140,19 +140,19 @@ vi.mock('../../shared/dataValidators.js', () => ({
 }));
 
 const createSecureIPCHandlerMock = vi.fn();
-vi.mock('../utils/ipcHelper.js', () => ({
-  createSecureIPCHandler: createSecureIPCHandlerMock,
+vi.mock('../utils/ipc/defineIPC.js', () => ({
+  defineIPC: createSecureIPCHandlerMock,
 }));
 
 const getRateLimiterMock = vi.fn().mockReturnValue({
   isAllowed: vi.fn().mockReturnValue(true),
 });
-vi.mock('../utils/rateLimiter.js', () => ({
+vi.mock('../utils/ipc/rateLimiter.js', () => ({
   getRateLimiter: getRateLimiterMock,
 }));
 
 const createTrackedTimeoutMock = vi.fn();
-vi.mock('../utils/resourceCleanup.js', () => ({
+vi.mock('../utils/lifecycle/resourceCleanup.js', () => ({
   createTrackedTimeout: createTrackedTimeoutMock,
 }));
 

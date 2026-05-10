@@ -7,9 +7,10 @@ import type { BrowserWindow } from 'electron';
 import { dialog, shell } from 'electron';
 import log from 'electron-log';
 import { IPC_CHANNELS } from '../../shared/constants.js';
-import { createSecureIPCHandler } from '../utils/ipcHelper.js';
+import { defineIPC } from '../utils/ipc/defineIPC.js';
 import { isSafeObject, validatePasskeyFailureData } from '../../shared/dataValidators.js';
 import { validateAppleSystemPreferencesURL } from '../../shared/urlValidators.js';
+import { openExternal } from '../utils/security/shellWrapper.js';
 import store from '../config.js';
 
 let passkeySupportCleanup: (() => void) | null = null;
@@ -37,7 +38,8 @@ export default (window: BrowserWindow) => {
     return;
   }
 
-  passkeySupportCleanup = createSecureIPCHandler({
+  passkeySupportCleanup = defineIPC({
+    kind: 'on',
     channel: IPC_CHANNELS.PASSKEY_AUTH_FAILED,
     validator: parsePasskeyFailureData,
     rateLimit: 1 / 30,
@@ -78,7 +80,7 @@ export default (window: BrowserWindow) => {
 
           try {
             const validatedSettingsURL = validateAppleSystemPreferencesURL(settingsURL);
-            await shell.openExternal(validatedSettingsURL);
+            await openExternal(validatedSettingsURL);
             log.info('[Passkey Support] Opened System Settings');
           } catch (error: unknown) {
             log.error('[Passkey Support] Failed to open System Settings:', error);

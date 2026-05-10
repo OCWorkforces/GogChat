@@ -96,7 +96,7 @@ vi.mock('../../shared/constants', () => ({
   IPC_CHANNELS: { SEARCH_SHORTCUT: 'searchShortcut' },
 }));
 
-vi.mock('../utils/platformHelpers', () => ({
+vi.mock('../utils/platform/platformHelpers', () => ({
   openNewGitHubIssue: vi.fn(),
   debugInfo: vi.fn().mockReturnValue('platform: darwin'),
   getPackageInfo: vi.fn().mockReturnValue({
@@ -107,7 +107,7 @@ vi.mock('../utils/platformHelpers', () => ({
   }),
 }));
 
-vi.mock('../utils/packageInfo', () => ({
+vi.mock('../utils/platform/packageInfo', () => ({
   getPackageInfo: vi.fn().mockReturnValue({
     productName: 'GogChat',
     version: '1.0.0',
@@ -121,7 +121,7 @@ import { _getMenuAction } from './menuActionRegistry';
 import { Menu, app, _dialog, clipboard } from 'electron';
 import store from '../config';
 import { IPC_CHANNELS } from '../../shared/constants';
-import { openNewGitHubIssue } from '../utils/platformHelpers';
+import { openNewGitHubIssue } from '../utils/platform/platformHelpers';
 
 interface FakeWindow {
   hide: ReturnType<typeof vi.fn>;

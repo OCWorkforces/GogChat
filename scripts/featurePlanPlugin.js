@@ -10,7 +10,11 @@
  *
  * Parsing strategy: spec files have a strict shape (name/phase/dependencies as
  * literal strings/arrays inside `as const satisfies readonly FeatureSpec[]`).
- * We extract those fields with regex — no TS execution required.
+ * We parse them with the official TypeScript Compiler API
+ * (`ts.createSourceFile` + `ts.forEachChild`) and read the literal fields off
+ * the resulting AST. This is robust against nested braces, comments, template
+ * literals, and any whitespace variation that the previous regex-based parser
+ * could not safely handle.
  *
  * Exposed as both:
  *   - A standalone function `generateFeaturePlan({ projectRoot, write })`
@@ -22,6 +26,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import ts from 'typescript';
+import prettier from 'prettier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,85 +44,138 @@ const HEADER = `/**
 `;
 
 /**
- * Extract feature entries from a spec source file.
- * Returns array of { name, phase, dependencies, required }.
+ * Parse a `*.spec.ts` source string with the TypeScript Compiler API.
+ *
+ * Returns:
+ *   {
+ *     exportName: string,          // e.g. 'SECURITY_FEATURES'
+ *     entries:    Array<{ name, phase, dependencies?, required?, description? }>
+ *   }
+ *
+ * Throws if no top-level `export const NAME = [ ... ]` array literal is found.
+ *
+ * @param {string} source   - The TypeScript source text.
+ * @param {string} fileName - File name used for diagnostics (no I/O happens).
  */
-function parseSpecFile(source) {
-  const entries = [];
-  // Match each object literal inside the spec array:
-  //   { name: 'x', phase: 'y', ... }
-  // Object literals are delimited by balanced braces; we use a stateful walker
-  // because regex alone cannot handle nested braces (init bodies contain {}).
-  const arrayStart = source.search(/=\s*\[/);
-  if (arrayStart < 0) return entries;
-  let i = source.indexOf('[', arrayStart) + 1;
-  let depth = 0;
-  let objectStart = -1;
-  for (; i < source.length; i++) {
-    const ch = source[i];
-    if (ch === '{') {
-      if (depth === 0) objectStart = i;
-      depth++;
-    } else if (ch === '}') {
-      depth--;
-      if (depth === 0 && objectStart >= 0) {
-        const objSrc = source.slice(objectStart, i + 1);
-        const entry = extractTopLevelFields(objSrc);
-        if (entry && entry.name && entry.phase) entries.push(entry);
-        objectStart = -1;
+export function parseSpecSource(source, fileName = 'spec.ts') {
+  const sf = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true
+  );
+
+  let exportName;
+  let arrayLiteral;
+
+  // Walk only the top-level statements. We deliberately do NOT recurse with
+  // ts.forEachChild past the variable declaration we care about; nested object
+  // literals (inside init/cleanup bodies) are reached via the array-literal
+  // children below, never as standalone exports.
+  ts.forEachChild(sf, (stmt) => {
+    if (arrayLiteral) return;
+    if (!ts.isVariableStatement(stmt)) return;
+    const isExported = (stmt.modifiers || []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+    if (!isExported) return;
+
+    for (const decl of stmt.declarationList.declarations) {
+      if (!decl.initializer) continue;
+      if (!ts.isIdentifier(decl.name)) continue;
+
+      // Strip outer `expr as const satisfies readonly FeatureSpec[]` wrappers.
+      let init = decl.initializer;
+      while (
+        ts.isAsExpression(init) ||
+        ts.isSatisfiesExpression(init) ||
+        ts.isParenthesizedExpression(init) ||
+        ts.isTypeAssertionExpression(init)
+      ) {
+        init = init.expression;
       }
-    } else if (ch === ']' && depth === 0) {
-      break;
+      if (ts.isArrayLiteralExpression(init)) {
+        exportName = decl.name.text;
+        arrayLiteral = init;
+        return;
+      }
     }
+  });
+
+  if (!arrayLiteral || !exportName) {
+    throw new Error(`[featurePlanPlugin] No 'export const NAME = [ ... ]' array in ${fileName}`);
   }
-  return entries;
+
+  const entries = [];
+  for (const element of arrayLiteral.elements) {
+    if (!ts.isObjectLiteralExpression(element)) continue;
+    const entry = extractFeatureEntry(element);
+    if (entry && entry.name && entry.phase) entries.push(entry);
+  }
+
+  return { exportName, entries };
 }
 
-/** Extract `name`, `phase`, `required`, `dependencies` from a single object literal. */
-function extractTopLevelFields(objSrc) {
-  // Scoped to the top level: walk braces and only inspect property assignments
-  // at depth 1 (the object's own properties), not anything nested in init/cleanup.
+/**
+ * Extract `{ name, phase, required, dependencies, description }` from a single
+ * object literal AST node. Properties we don't care about (`init`, `cleanup`,
+ * unknown extension fields) are ignored — which is exactly why the AST
+ * approach is safer than regex: nested braces / template literals inside those
+ * bodies cannot confuse the walker.
+ */
+function extractFeatureEntry(objLiteral) {
   const result = {};
-  let depth = 0;
-  let i = 0;
-  // Skip opening brace
-  while (i < objSrc.length && objSrc[i] !== '{') i++;
-  i++;
-  depth = 1;
-  let propStart = i;
-  for (; i < objSrc.length; i++) {
-    const ch = objSrc[i];
-    if (ch === '{' || ch === '[' || ch === '(') depth++;
-    else if (ch === '}' || ch === ']' || ch === ')') depth--;
-    if (depth === 1 && ch === ',') {
-      maybeAssignProp(objSrc.slice(propStart, i), result);
-      propStart = i + 1;
-    }
-    if (depth === 0) {
-      maybeAssignProp(objSrc.slice(propStart, i), result);
-      break;
+  for (const prop of objLiteral.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const keyName = propertyKeyName(prop.name);
+    if (!keyName) continue;
+
+    switch (keyName) {
+      case 'name':
+      case 'phase':
+      case 'description': {
+        const literal = stringLiteralValue(prop.initializer);
+        if (literal !== undefined) result[keyName] = literal;
+        break;
+      }
+      case 'required': {
+        const init = prop.initializer;
+        if (init.kind === ts.SyntaxKind.TrueKeyword) result.required = true;
+        else if (init.kind === ts.SyntaxKind.FalseKeyword) result.required = false;
+        break;
+      }
+      case 'dependencies': {
+        const init = prop.initializer;
+        if (ts.isArrayLiteralExpression(init)) {
+          const deps = [];
+          for (const el of init.elements) {
+            const v = stringLiteralValue(el);
+            if (v !== undefined) deps.push(v);
+          }
+          result.dependencies = deps;
+        }
+        break;
+      }
+      default:
+        // Ignore init / cleanup / unknown extension fields.
+        break;
     }
   }
   return result;
 }
 
-function maybeAssignProp(snippet, out) {
-  // Match the simple assignments only; ignore init/cleanup/description.
-  const m = snippet.match(/^\s*(\w+)\s*:\s*([\s\S]+)$/);
-  if (!m) return;
-  const [, key, rawValue] = m;
-  const value = rawValue.trim();
-  if (key === 'name' || key === 'phase') {
-    const sm = value.match(/^['"]([^'"]+)['"]/);
-    if (sm) out[key] = sm[1];
-  } else if (key === 'required') {
-    out.required = /^true\b/.test(value);
-  } else if (key === 'dependencies') {
-    const am = value.match(/^\[([^\]]*)\]/);
-    if (am) {
-      out.dependencies = [...am[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]);
-    }
+function propertyKeyName(nameNode) {
+  if (ts.isIdentifier(nameNode)) return nameNode.text;
+  if (ts.isStringLiteral(nameNode) || ts.isNoSubstitutionTemplateLiteral(nameNode)) {
+    return nameNode.text;
   }
+  return undefined;
+}
+
+function stringLiteralValue(node) {
+  if (!node) return undefined;
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node.text;
+  }
+  return undefined;
 }
 
 /**
@@ -141,9 +200,7 @@ function batchByDependencies(entries, phase, knownNames) {
       const next = inPhase.find((x) => x.name === dep);
       if (next) visit(next);
       else if (!knownNames.has(dep)) {
-        throw new Error(
-          `[featurePlanPlugin] '${e.name}' depends on unknown feature '${dep}'`
-        );
+        throw new Error(`[featurePlanPlugin] '${e.name}' depends on unknown feature '${dep}'`);
       }
     }
     visiting.delete(e.name);
@@ -172,20 +229,20 @@ function batchByDependencies(entries, phase, knownNames) {
   return batches;
 }
 
-function emitPlan(specFiles, plan) {
+async function emitPlan(specFiles, plan) {
   const importLines = specFiles.map(
     ({ exportName, importPath }) => `import { ${exportName} } from '${importPath}';`
   );
   const phaseLines = PHASES.map((phase) => {
     const batches = plan[phase] || [];
     const inner = batches
-      .map((batch) => `    [${batch.map((name) => `get('${name}')`).join(', ')}]`)
-      .join(',\n');
-    return `  ${phase}: [\n${inner}\n  ]`;
+      .map((batch) => `[${batch.map((name) => `get('${name}')`).join(', ')}]`)
+      .join(', ');
+    return `  ${phase}: [${inner}]`;
   });
-  return [
+  const raw = [
     HEADER,
-    `import type { FeatureSpec, FeaturePriority } from '../utils/featureConfigTypes.js';`,
+    `import type { FeatureSpec, FeaturePriority } from '../utils/lifecycle/featureConfigTypes.js';`,
     ...importLines,
     ``,
     `const ALL_SPECS: readonly FeatureSpec[] = [`,
@@ -200,42 +257,34 @@ function emitPlan(specFiles, plan) {
     `};`,
     ``,
     `export const FEATURE_PLAN: Readonly<Record<FeaturePriority, readonly (readonly FeatureSpec[])[]>> = {`,
-    ...phaseLines.map((line, idx) => (idx < phaseLines.length - 1 ? `${line},` : `${line},`)),
+    ...phaseLines.map((line) => `${line},`),
     `};`,
     ``,
   ].join('\n');
+  return prettier.format(raw, {
+    parser: 'typescript',
+    printWidth: 100,
+    singleQuote: true,
+    semi: true,
+    trailingComma: 'all',
+  });
 }
 
 /**
- * Public entry point. Idempotent: writes only if content changed.
+ * Pure (no I/O) plan builder: parses every input spec source, validates
+ * uniqueness, runs per-phase topological batching, and emits the final
+ * `featurePlan.ts` source string. Used by `generateFeaturePlan` and exposed
+ * directly so tests can feed inline spec sources without touching the disk.
  *
- * @param {object} options
- * @param {string} options.projectRoot — repository root
- * @param {boolean} [options.write=true] — when false, returns the generated source without writing
- * @returns {{ outputPath: string, source: string, changed: boolean }}
+ * @param {Array<{ file: string, source: string }>} inputs
+ * @returns {{ source: string, plan: Record<string, string[][]>, allEntries: object[] }}
  */
-export function generateFeaturePlan({ projectRoot, write = true } = {}) {
-  const root = projectRoot || path.join(__dirname, '..');
-  const specsDir = path.join(root, 'src/main/initializers');
-  const outputDir = path.join(root, 'src/main/generated');
-  const outputPath = path.join(outputDir, 'featurePlan.ts');
-
-  const specFiles = fs
-    .readdirSync(specsDir)
-    .filter((f) => f.endsWith('.spec.ts'))
-    .sort()
-    .map((f) => {
-      const fullPath = path.join(specsDir, f);
-      const source = fs.readFileSync(fullPath, 'utf-8');
-      const exportMatch = source.match(/export\s+const\s+(\w+)\s*=\s*\[/);
-      if (!exportMatch) {
-        throw new Error(`[featurePlanPlugin] No 'export const NAME = [' in ${f}`);
-      }
-      const exportName = exportMatch[1];
-      const entries = parseSpecFile(source);
-      const importPath = `../initializers/${f.replace(/\.ts$/, '.js')}`;
-      return { file: f, exportName, importPath, entries };
-    });
+export async function buildPlanFromSources(inputs) {
+  const specFiles = inputs.map(({ file, source }) => {
+    const { exportName, entries } = parseSpecSource(source, file);
+    const importPath = `../initializers/${file.replace(/\.ts$/, '.js')}`;
+    return { file, exportName, importPath, entries };
+  });
 
   const allEntries = specFiles.flatMap((s) => s.entries);
   const knownNames = new Set(allEntries.map((e) => e.name));
@@ -256,7 +305,34 @@ export function generateFeaturePlan({ projectRoot, write = true } = {}) {
     );
   }
 
-  const source = emitPlan(specFiles, plan);
+  const source = await emitPlan(specFiles, plan);
+  return { source, plan, allEntries };
+}
+
+/**
+ * Public entry point. Idempotent: writes only if content changed.
+ *
+ * @param {object} options
+ * @param {string} options.projectRoot — repository root
+ * @param {boolean} [options.write=true] — when false, returns the generated source without writing
+ * @returns {{ outputPath: string, source: string, changed: boolean }}
+ */
+export async function generateFeaturePlan({ projectRoot, write = true } = {}) {
+  const root = projectRoot || path.join(__dirname, '..');
+  const specsDir = path.join(root, 'src/main/initializers');
+  const outputDir = path.join(root, 'src/main/generated');
+  const outputPath = path.join(outputDir, 'featurePlan.ts');
+
+  const inputs = fs
+    .readdirSync(specsDir)
+    .filter((f) => f.endsWith('.spec.ts'))
+    .sort()
+    .map((f) => ({
+      file: f,
+      source: fs.readFileSync(path.join(specsDir, f), 'utf-8'),
+    }));
+
+  const { source, plan, allEntries } = await buildPlanFromSources(inputs);
 
   fs.mkdirSync(outputDir, { recursive: true });
   let changed = true;
@@ -282,9 +358,9 @@ export function generateFeaturePlan({ projectRoot, write = true } = {}) {
 export const featurePlanPlugin = ({ projectRoot } = {}) => ({
   name: 'feature-plan-codegen',
   setup(api) {
-    const run = () => {
+    const run = async () => {
       try {
-        generateFeaturePlan({ projectRoot });
+        await generateFeaturePlan({ projectRoot });
       } catch (error) {
         // Rspack catches thrown errors during onBeforeBuild and surfaces them.
         console.error('[featurePlanPlugin]', error.message);

@@ -10,26 +10,30 @@
 
 import { app, session, type BrowserWindow } from 'electron';
 import log from 'electron-log';
-import { perfMonitor } from '../utils/performanceMonitor.js';
-import { initializeErrorHandler } from '../utils/errorHandler.js';
+import { perfMonitor } from '../utils/lifecycle/performanceMonitor.js';
+import { initializeErrorHandler } from '../utils/lifecycle/errorHandler.js';
 
 import {
   getAccountWindowManager,
   createAccountWindow,
   getWindowForAccount,
   getMostRecentWindow,
-} from '../utils/accountWindowManager.js';
+} from '../utils/account/accountWindowManager.js';
 // Re-exported so the thin index.ts orchestrator pulls window lookup from the
 // same initializer module surface used for app-ready wiring.
 export { getMostRecentWindow };
 import { registerGlobalCleanups } from './registerGlobalCleanups.js';
 import { initializeStore } from '../config.js';
-import { warmInitialIcons, warmSoonDeferredIcons, runDeferredPhase } from '../utils/cacheWarmer.js';
-import { createTrackedInterval } from '../utils/resourceCleanup.js';
+import {
+  warmInitialIcons,
+  warmSoonDeferredIcons,
+  runDeferredPhase,
+} from '../utils/account/cacheWarmer.js';
+import { createTrackedInterval } from '../utils/lifecycle/resourceCleanup.js';
 import environment from '../../environment.js';
-import { runPhase } from '../utils/featureRunner.js';
-import type { FeatureContext, FeatureCallbacks } from '../utils/featureConfigTypes.js';
-import { setSharedFeatureContext } from '../utils/featureContextStore.js';
+import { runPhase } from '../utils/lifecycle/featureRunner.js';
+import type { FeatureContext, FeatureCallbacks } from '../utils/lifecycle/featureConfigTypes.js';
+import { setSharedFeatureContext } from '../utils/lifecycle/featureContextStore.js';
 import type { WindowFactory } from '../../shared/types/window.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 

@@ -12,7 +12,8 @@
  * - configCache: Clears the config cache
  */
 
-import { getCleanupManager } from '../utils/resourceCleanup.js';
+import { getCleanupManager } from '../utils/lifecycle/resourceCleanup.js';
+import { asType } from '../../shared/typeUtils.js';
 
 /**
  * Register all built-in global cleanup callbacks.
@@ -28,11 +29,11 @@ export async function registerGlobalCleanups(): Promise<void> {
     { getIconCache: getIconCacheLazy },
     { clearConfigCache },
   ] = await Promise.all([
-    import('../utils/rateLimiter.js'),
-    import('../utils/ipcDeduplicator.js'),
-    import('../utils/ipcHelper.js'),
-    import('../utils/iconCache.js'),
-    import('../utils/configCache.js'),
+    import('../utils/ipc/rateLimiter.js'),
+    import('../utils/ipc/ipcDeduplicator.js'),
+    import('../utils/ipc/ipcHelper.js'),
+    import('../utils/platform/iconCache.js'),
+    import('../utils/config/configCache.js'),
   ]);
   manager.registerGlobalCleanupCallback('rateLimiter', destroyRateLimiter, 'Rate limiter');
   manager.registerGlobalCleanupCallback('deduplicator', destroyDeduplicator, 'Deduplicator');
@@ -47,10 +48,10 @@ export async function registerGlobalCleanups(): Promise<void> {
     'sessionMaintenance',
     () => {
       // Lazy require avoids module-load-time coupling per AGENTS.md pattern.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require('../utils/accountSessionMaintenance.js') as {
-        stopSessionMaintenance: () => void;
-      };
+      const mod = asType<{ stopSessionMaintenance: () => void }>(
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('../utils/account/accountSessionMaintenance.js')
+      );
       mod.stopSessionMaintenance();
     },
     'Session maintenance'
