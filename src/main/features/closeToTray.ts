@@ -1,8 +1,8 @@
 import type { BrowserWindow } from 'electron';
 import { app } from 'electron';
 import log from 'electron-log';
-import { platform } from '../utils/platformDetection.js';
-import { getAccountWindowManager } from '../utils/accountWindowManager.js';
+import { platform } from '../utils/platform/platformDetection.js';
+import { getAccountWindowManager } from '../utils/account/accountWindowManager.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
 

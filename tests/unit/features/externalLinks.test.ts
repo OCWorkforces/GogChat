@@ -47,7 +47,7 @@ vi.mock('../../../src/shared/validators', () => ({
 }));
 
 // ── resourceCleanup stub ─────────────────────────────────────────────────────
-vi.mock('../../../src/main/utils/resourceCleanup', () => ({
+vi.mock('../../../src/main/utils/lifecycle/resourceCleanup', () => ({
   createTrackedInterval: (cb: () => void, ms: number) => setInterval(cb, ms),
 }));
 
@@ -61,7 +61,7 @@ const mockIsBootstrap = vi.fn();
 const mockMarkAsBootstrap = vi.fn();
 const mockWatchBootstrapAccount = vi.fn();
 
-vi.mock('../../../src/main/utils/accountWindowManager', () => ({
+vi.mock('../../../src/main/utils/account/accountWindowManager', () => ({
   getAccountIndex: (...args: unknown[]) => mockGetAccountIndex(...args),
   getWindowForAccount: (...args: unknown[]) => mockGetWindowForAccount(...args),
   createAccountWindow: (...args: unknown[]) => mockCreateAccountWindow(...args),
@@ -71,7 +71,7 @@ vi.mock('../../../src/main/utils/accountWindowManager', () => ({
   }),
 }));
 
-vi.mock('../../../src/main/utils/bootstrapWatcher', () => ({
+vi.mock('../../../src/main/utils/account/bootstrapWatcher', () => ({
   watchBootstrapAccount: (...args: unknown[]) => mockWatchBootstrapAccount(...args),
 }));
 

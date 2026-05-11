@@ -5,12 +5,34 @@
  * both Bun and Node.js Vitest runners.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BrowserWindow } from 'electron';
+
+interface MockBrowserWindow {
+  loadURL: ReturnType<typeof vi.fn>;
+  show: ReturnType<typeof vi.fn>;
+  setAlwaysOnTop: ReturnType<typeof vi.fn>;
+  setMenuBarVisibility: ReturnType<typeof vi.fn>;
+  once: ReturnType<typeof vi.fn>;
+  focus: ReturnType<typeof vi.fn>;
+  restore: ReturnType<typeof vi.fn>;
+  isMinimized: ReturnType<typeof vi.fn>;
+  isDestroyed: ReturnType<typeof vi.fn>;
+  webContents: { url: string };
+}
+
+interface AboutPanelMockState {
+  instances: MockBrowserWindow[];
+}
+
+type GlobalWithMock = typeof globalThis & {
+  __aboutPanelMock?: AboutPanelMockState;
+};
 
 vi.mock('electron', () => {
-  const instances: any[] = [];
-  (globalThis as any).__aboutPanelMock = { instances };
+  const instances: MockBrowserWindow[] = [];
+  (globalThis as GlobalWithMock).__aboutPanelMock = { instances };
 
-  const BW = function MockBW(this: any) {
+  const BW = function MockBW(this: MockBrowserWindow) {
     this.loadURL = vi.fn();
     this.show = vi.fn();
     this.setAlwaysOnTop = vi.fn();
@@ -34,7 +56,7 @@ vi.mock('os', () => ({
   },
 }));
 
-vi.mock('../utils/packageInfo.js', () => ({
+vi.mock('../utils/platform/packageInfo.js', () => ({
   getPackageInfo: vi.fn().mockReturnValue({
     productName: 'GogChat',
     version: '1.0.0',
@@ -42,7 +64,7 @@ vi.mock('../utils/packageInfo.js', () => ({
   }),
 }));
 
-vi.mock('../utils/iconCache.js', () => ({
+vi.mock('../utils/platform/iconCache.js', () => ({
   getIconCache: vi.fn().mockReturnValue({
     getIcon: vi.fn().mockReturnValue({
       isEmpty: vi.fn().mockReturnValue(false),
@@ -55,9 +77,12 @@ async function loadAboutPanel() {
   return (await import('./aboutPanel')).default;
 }
 
-function getInstances(): any[] {
-  return (globalThis as any).__aboutPanelMock?.instances ?? [];
+function getInstances(): MockBrowserWindow[] {
+  return (globalThis as GlobalWithMock).__aboutPanelMock?.instances ?? [];
 }
+
+// Cast helper: the mock satisfies the BrowserWindow shape used by aboutPanel
+const asBrowserWindow = (win: { id: number }): BrowserWindow => win as unknown as BrowserWindow;
 
 describe('aboutPanel', () => {
   beforeEach(async () => {
@@ -65,19 +90,19 @@ describe('aboutPanel', () => {
     // Reload cached modules so aboutWindow starts fresh each test
     vi.resetModules();
     // Clear mock instances in-place (preserves closure link from mock factory)
-    const state = (globalThis as any).__aboutPanelMock;
+    const state = (globalThis as GlobalWithMock).__aboutPanelMock;
     if (state?.instances) state.instances.length = 0;
   });
 
   it('creates a BrowserWindow and loads aura icon HTML', async () => {
     const aboutPanel = await loadAboutPanel();
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
 
     const instances = getInstances();
     expect(instances).toHaveLength(1);
 
     // Decode the data URL (it's URL-encoded by encodeURIComponent)
-    const rawUrl: string = instances[0].loadURL.mock.calls[0][0];
+    const rawUrl: string = instances[0]!.loadURL.mock.calls[0][0];
     const decoded = decodeURIComponent(rawUrl.replace('data:text/html;charset=utf-8,', ''));
     expect(decoded).toContain('GogChat');
     expect(decoded).toContain('Test Author');
@@ -88,20 +113,20 @@ describe('aboutPanel', () => {
 
   it('sets always on top and hides menu bar', async () => {
     const aboutPanel = await loadAboutPanel();
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
 
     const instances = getInstances();
-    const win = instances[instances.length - 1];
+    const win = instances[instances.length - 1]!;
     expect(win.setAlwaysOnTop).toHaveBeenCalledWith(true, 'floating');
     expect(win.setMenuBarVisibility).toHaveBeenCalledWith(false);
   });
 
   it('shows window on ready-to-show event', async () => {
     const aboutPanel = await loadAboutPanel();
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
 
     const instances = getInstances();
-    const win = instances[instances.length - 1];
+    const win = instances[instances.length - 1]!;
     const readyCall = win.once.mock.calls.find((c: unknown[]) => c[0] === 'ready-to-show');
     expect(readyCall).toBeDefined();
     readyCall[1]();
@@ -110,34 +135,34 @@ describe('aboutPanel', () => {
 
   it('reuses existing window on second call', async () => {
     const aboutPanel = await loadAboutPanel();
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
 
     const count = getInstances().length;
     // Second call should reuse
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
     expect(getInstances()).toHaveLength(count);
   });
 
   it('creates new window when previous one is destroyed', async () => {
     const aboutPanel = await loadAboutPanel();
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
 
     const count = getInstances().length;
     // Simulate destroyed window
-    getInstances()[getInstances().length - 1].isDestroyed.mockReturnValue(true);
-    aboutPanel({ id: 1 } as any);
+    getInstances()[getInstances().length - 1]!.isDestroyed.mockReturnValue(true);
+    aboutPanel(asBrowserWindow({ id: 1 }));
     expect(getInstances()).toHaveLength(count + 1);
   });
 
   it('restores minimized window when reusing', async () => {
     const aboutPanel = await loadAboutPanel();
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
 
     const instances = getInstances();
-    const win = instances[instances.length - 1];
+    const win = instances[instances.length - 1]!;
     win.isMinimized.mockReturnValue(true);
 
-    aboutPanel({ id: 1 } as any);
+    aboutPanel(asBrowserWindow({ id: 1 }));
     expect(win.restore).toHaveBeenCalled();
     expect(win.focus).toHaveBeenCalled();
   });

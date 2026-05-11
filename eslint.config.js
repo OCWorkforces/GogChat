@@ -97,6 +97,31 @@ export default [
     },
   },
 
+  // Feature isolation: features must not import other features directly.
+  // Only `menuActionRegistry` is allowed for cross-feature communication.
+  // Test files are exempt (they may import features under test directly).
+  {
+    files: ['src/main/features/**/*.ts'],
+    ignores: [
+      'src/main/features/**/*.test.ts',
+      'src/main/features/menuActionRegistry.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['./*', '../features/*', '!./menuActionRegistry', '!./menuActionRegistry.js'],
+              message:
+                'Features must not import other features directly. Use menuActionRegistry for cross-feature communication, or import from utils/ or shared/.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // TypeScript test files configuration (without project requirement)
   {
     files: ['src/**/*.test.ts'],
@@ -307,9 +332,52 @@ export default [
   // typeUtils.ts owns the future asType<T>() helper; branded.ts intentionally creates branded values via internal `as`.
   // Test files (*.test.ts) are exempt as well — see Plan Task 2.
   {
-    files: ['src/shared/typeUtils.ts', 'src/shared/types/branded.ts', 'src/**/*.test.ts'],
+    files: ['src/shared/typeUtils.ts', 'src/shared/types/branded.ts', 'src/**/*.test.ts', 'src/main/utils/config/configCache.ts'],
     rules: {
       'no-restricted-syntax': 'off',
     },
   },
+
+  // Forbid raw `shell.openExternal` in src/main — must route through `openExternal()`
+  // wrapper at src/main/utils/security/shellWrapper.ts to enforce the ValidatedURL brand.
+  {
+    files: ['src/main/**/*.ts'],
+    ignores: ['src/main/utils/security/shellWrapper.ts', 'src/main/**/*.test.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'shell',
+          property: 'openExternal',
+          message:
+            "Do not call shell.openExternal directly. Import { openExternal } from 'src/main/utils/security/shellWrapper.js' — it enforces the ValidatedURL brand.",
+        },
+      ],
+    },
+  },
+
+  // Scripts configuration (Node.js environment for build tools)
+  {
+    files: ['scripts/**/*.{cjs,mjs,js}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearTimeout: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+    rules: {
+      'no-undef': 'error',
+    },
+  },
+
 ];

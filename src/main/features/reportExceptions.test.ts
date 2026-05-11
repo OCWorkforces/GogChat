@@ -11,12 +11,12 @@ vi.mock('electron-unhandled', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('../utils/platformHelpers', () => ({
+vi.mock('../utils/platform/platformHelpers', () => ({
   openNewGitHubIssue: vi.fn(),
   debugInfo: vi.fn().mockReturnValue('platform: darwin'),
 }));
 
-vi.mock('../utils/packageInfo', () => ({
+vi.mock('../utils/platform/packageInfo', () => ({
   getPackageInfo: vi.fn().mockReturnValue({
     productName: 'GogChat',
     version: '1.0.0',
@@ -27,8 +27,8 @@ vi.mock('../utils/packageInfo', () => ({
 
 import reportExceptions from './reportExceptions';
 import log from 'electron-log';
-import { openNewGitHubIssue } from '../utils/platformHelpers';
-import { getPackageInfo } from '../utils/packageInfo';
+import { openNewGitHubIssue } from '../utils/platform/platformHelpers';
+import { getPackageInfo } from '../utils/platform/packageInfo';
 import unhandled from 'electron-unhandled';
 
 describe('reportExceptions', () => {

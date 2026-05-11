@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-05-08
+**Generated:** 2026-05-10
 
-**Commit:** 3555423
+**Commit:** 573ff6f
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -30,39 +30,39 @@ resources/         # Icon variants (tray, normal, badge, offline)
 
 ## WHERE TO LOOK
 
-| Task                                    | Location                                                  | Notes                                                                                                                                    |
-| --------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| App init order                          | `src/main/index.ts` + `initializers/registerAppReady.ts` | Thin orchestrator; app.whenReady body in `registerAppReady.ts`                                                                           |
-| Feature specs (build-time plan)         | `src/main/initializers/{security,ui,deferred}.spec.ts`    | Declarative `FeatureSpec[]` arrays — consumed by `scripts/featurePlanPlugin.js`                                                          |
-| Feature plan codegen                    | `scripts/featurePlanPlugin.js`                            | Rsbuild plugin: parses `*.spec.ts`, topo-sorts, emits `src/main/generated/featurePlan.ts`                                                |
-| Feature runtime walker                  | `src/main/utils/featureRunner.ts`                         | `runPhase('security'|'critical'|'ui'|'deferred', ctx)` — no FeatureManager class                                                         |
-| Shutdown handler                        | `src/main/initializers/registerShutdown.ts`               | Graceful cleanup via `singletonDestroyers`                                                                                               |
-| Shutdown diagnostics                    | `src/main/initializers/shutdownDiagnostics.ts`            | Cache statistics logging                                                                                                                 |
-| Multi-account mgr (BrowserWindow path)  | `src/main/utils/accountWindowManager.ts`                  | Per-account windows + bootstrap; dispatches to `accountViewManager` when `useWebContentsView=true`                                       |
-| Multi-account mgr (WebContentsView path)| `src/main/utils/accountViewManager.ts`                    | Opt-in WebContentsView backend (`app.useWebContentsView` flag); single host BrowserWindow + per-account views                            |
-| Idle session maintenance                | `src/main/utils/accountSessionMaintenance.ts`             | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts                                                             |
-| Account mgr interface                   | `src/shared/types/window.ts`                              | `IAccountWindowManager` (22 methods)                                                                                                     |
-| Add new feature                         | `src/main/features/`                                      | See `features/AGENTS.md`                                                                                                                 |
-| Type narrowing helper                   | `src/shared/typeUtils.ts`                                 | `assertNever()` for exhaustive discriminated union switches (used in `featureRunner`, `badgeHandlers`)                                   |
-| Error class hierarchy                   | `src/shared/types/errors.ts` + `src/main/utils/errors.ts` | `GogChatError`, `IPCError`, `ConfigError`; use `{ cause }` chaining                                                                      |
-| IPC channel names                       | `src/shared/constants.ts`                                 | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type                                                                                 |
-| Input validators                        | `src/shared/dataValidators.ts`                            | Data validation (counts, booleans, objects)                                                                                              |
-| URL validators                          | `src/shared/urlValidators.ts`                             | URL whitelist + Google auth detection                                                                                                    |
-| Config schema                           | `src/shared/types/config.ts` + `src/main/config.ts`       | Update both; use `configGet`/`configSet` for access                                                                                      |
-| Encryption keys                         | `src/main/utils/encryptionKey.ts`                         | SafeStorage + legacy migration                                                                                                           |
-| Branded types                           | `src/shared/types/branded.ts`                             | `AccountIndex`, `FeatureNameBrand`, `WebContentsId`, `AccountPartition`, `ValidatedURL`; see `asAccountIndex()`, `toPartition()` helpers |
-| window.gogchat API                      | `src/preload/index.ts` + `src/shared/types/bridge.ts`     | `GogChatBridgeAPI`                                                                                                                       |
-| Build system                            | `scripts/build-rsbuild.js` + `rsbuild.config.js`          | Dual-pass                                                                                                                                |
-| CI/CD                                   | `.github/workflows/`                                      | pr-check + release                                                                                                                       |
-| DMG packaging                           | `mac/`                                                    | See `mac/AGENTS.md`                                                                                                                      |
-| Test helpers                            | `tests/helpers/electron-test.ts`                          | Playwright fixtures                                                                                                                      |
-| Electron mocks                          | `tests/mocks/electron.ts`                                 | For unit tests                                                                                                                           |
-| Log files                               | `~/Library/Logs/GogChat/main.log`                         | macOS path                                                                                                                               |
-| Secure flags (cert pinning kill switch) | `src/main/utils/secureFlags.ts`                           | `getDisableCertPinning()`/`setDisableCertPinning()`; macOS Keychain via safeStorage                                                      |
-| CDP RUM telemetry                       | `src/main/features/cdpTelemetry.ts` + `src/main/utils/cdpMetrics.ts` | Local-only Chrome DevTools Protocol metrics; killable via `secureFlags.disableCdpTelemetry`                                |
-| IPC fast path                           | `src/main/utils/ipcFastPath.ts`                           | Skips dedup/rate-limit for high-frequency low-risk channels                                                                              |
-| Config cache                            | `src/main/utils/configCache.ts`                           | Read-through cache; **no TTL** — invalidated by `set`/`delete`/`clear` only                                                              |
-| Perf budget gate (CI)                   | `scripts/check-perf-budget.js` + `scripts/headless-startup.js` | Headless run produces `performance-metrics.json` → 9 metrics checked, gated subset fails CI                                       |
+| Task                                     | Location                                                             | Notes                                                                                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---- | ------------------------------------------- |
+| App init order                           | `src/main/index.ts` + `initializers/registerAppReady.ts`             | Thin orchestrator; app.whenReady body in `registerAppReady.ts`                                                                           |
+| Feature specs (build-time plan)          | `src/main/initializers/{security,ui,deferred}.spec.ts`               | Declarative `FeatureSpec[]` arrays — consumed by `scripts/featurePlanPlugin.js`                                                          |
+| Feature plan codegen                     | `scripts/featurePlanPlugin.js`                                       | Rsbuild plugin: parses `*.spec.ts`, topo-sorts, emits `src/main/generated/featurePlan.ts`                                                |
+| Feature runtime walker                   | `src/main/utils/featureRunner.ts`                                    | `runPhase('security'                                                                                                                     | 'critical' | 'ui' | 'deferred', ctx)` — no FeatureManager class |
+| Shutdown handler                         | `src/main/initializers/registerShutdown.ts`                          | Graceful cleanup via `singletonDestroyers`                                                                                               |
+| Shutdown diagnostics                     | `src/main/initializers/shutdownDiagnostics.ts`                       | Cache statistics logging                                                                                                                 |
+| Multi-account mgr (BrowserWindow path)   | `src/main/utils/accountWindowManager.ts`                             | Per-account windows + bootstrap; dispatches to `accountViewManager` when `useWebContentsView=true`                                       |
+| Multi-account mgr (WebContentsView path) | `src/main/utils/accountViewManager.ts`                               | Opt-in WebContentsView backend (`app.useWebContentsView` flag); single host BrowserWindow + per-account views                            |
+| Idle session maintenance                 | `src/main/utils/accountSessionMaintenance.ts`                        | `getAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts                                                             |
+| Account mgr interface                    | `src/shared/types/window.ts`                                         | `IAccountWindowManager` (22 methods)                                                                                                     |
+| Add new feature                          | `src/main/features/`                                                 | See `features/AGENTS.md`                                                                                                                 |
+| Type narrowing helper                    | `src/shared/typeUtils.ts`                                            | `assertNever()` for exhaustive discriminated union switches (used in `featureRunner`, `badgeHandlers`)                                   |
+| Error class hierarchy                    | `src/shared/types/errors.ts` + `src/main/utils/errors.ts`            | `GogChatError`, `IPCError`, `ConfigError`; use `{ cause }` chaining                                                                      |
+| IPC channel names                        | `src/shared/constants.ts`                                            | `IPC_CHANNELS as const satisfies`; `IPCChannelName` type                                                                                 |
+| Input validators                         | `src/shared/dataValidators.ts`                                       | Data validation (counts, booleans, objects)                                                                                              |
+| URL validators                           | `src/shared/urlValidators.ts`                                        | URL whitelist + Google auth detection                                                                                                    |
+| Config schema                            | `src/shared/types/config.ts` + `src/main/config.ts`                  | Update both; use `configGet`/`configSet` for access                                                                                      |
+| Encryption keys                          | `src/main/utils/encryptionKey.ts`                                    | SafeStorage + legacy migration                                                                                                           |
+| Branded types                            | `src/shared/types/branded.ts`                                        | `AccountIndex`, `FeatureNameBrand`, `WebContentsId`, `AccountPartition`, `ValidatedURL`; see `asAccountIndex()`, `toPartition()` helpers |
+| window.gogchat API                       | `src/preload/index.ts` + `src/shared/types/bridge.ts`                | `GogChatBridgeAPI`                                                                                                                       |
+| Build system                             | `scripts/build-rsbuild.js` + `rsbuild.config.js`                     | Dual-pass                                                                                                                                |
+| CI/CD                                    | `.github/workflows/`                                                 | pr-check + release                                                                                                                       |
+| DMG packaging                            | `mac/`                                                               | See `mac/AGENTS.md`                                                                                                                      |
+| Test helpers                             | `tests/helpers/electron-test.ts`                                     | Playwright fixtures                                                                                                                      |
+| Electron mocks                           | `tests/mocks/electron.ts`                                            | For unit tests                                                                                                                           |
+| Log files                                | `~/Library/Logs/GogChat/main.log`                                    | macOS path                                                                                                                               |
+| Secure flags (cert pinning kill switch)  | `src/main/utils/secureFlags.ts`                                      | `getDisableCertPinning()`/`setDisableCertPinning()`; macOS Keychain via safeStorage                                                      |
+| CDP RUM telemetry                        | `src/main/features/cdpTelemetry.ts` + `src/main/utils/cdpMetrics.ts` | Local-only Chrome DevTools Protocol metrics; killable via `secureFlags.disableCdpTelemetry`                                              |
+| IPC fast path                            | `src/main/utils/ipcFastPath.ts`                                      | Skips dedup/rate-limit for high-frequency low-risk channels                                                                              |
+| Config cache                             | `src/main/utils/configCache.ts`                                      | Read-through cache; **no TTL** — invalidated by `set`/`delete`/`clear` only                                                              |
+| Perf budget gate (CI)                    | `scripts/check-perf-budget.js` + `scripts/headless-startup.js`       | Headless run produces `performance-metrics.json` → 9 metrics checked, gated subset fails CI                                              |
 
 ## CRITICAL BUILD ARCHITECTURE
 
@@ -205,7 +205,7 @@ bun run hooks:install  # Install git pre-push hook
 | `scripts/check-perf-budget.js`            | 371   | CI perf budget gate — 9 metrics, gated subset fails build                                   |
 | `src/main/utils/performanceMonitor.ts`    | 374   | Startup timing markers, memory snapshots, per-renderer sampling                             |
 | `src/main/utils/resourceCleanup.ts`       | 331   | Tracked intervals/timeouts/listeners + lazy cleanup                                         |
-| `scripts/featurePlanPlugin.js`            | 299   | Build-time feature plan codegen (parses *.spec.ts, topo-sorts, emits featurePlan.ts)        |
+| `scripts/featurePlanPlugin.js`            | 299   | Build-time feature plan codegen (parses \*.spec.ts, topo-sorts, emits featurePlan.ts)       |
 | `scripts/headless-startup.js`             | 208   | CI headless run — produces performance-metrics.json for budget gate                         |
 | `scripts/build-rsbuild.js`                | 386   | Dual-build orchestrator                                                                     |
 | `src/main/utils/accountWindowManager.ts`  | 532   | Multi-account BrowserWindow + hydrate/dehydrate state machine                               |

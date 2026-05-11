@@ -8,11 +8,11 @@
  * any HTTP request.
  */
 
-import { perfMonitor } from '../utils/performanceMonitor.js';
+import { perfMonitor } from '../utils/lifecycle/performanceMonitor.js';
 import setupCertificatePinning, {
   cleanupCertificatePinning,
 } from '../features/certificatePinning.js';
-import type { FeatureSpec } from '../utils/featureConfigTypes.js';
+import type { FeatureSpec } from '../utils/lifecycle/featureConfigTypes.js';
 
 export const SECURITY_FEATURES = [
   {
@@ -35,7 +35,7 @@ export const SECURITY_FEATURES = [
     description: 'Unhandled exception reporting',
     init: async () => {
       const module = await import('../features/reportExceptions.js');
-      await module.default();
+      module.default();
     },
   },
   {

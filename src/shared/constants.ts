@@ -3,6 +3,8 @@
  * This prevents typos and makes refactoring easier
  */
 
+import { asType } from './typeUtils.js';
+
 /**
  * IPC Channel names for communication between main and renderer processes
  */
@@ -130,7 +132,7 @@ export const DEEP_LINK = {
   /** Maximum URL length for deep links */
   MAX_URL_LENGTH: 2048,
   /** Allowed path prefixes for deep link navigation */
-  ALLOWED_PATH_PREFIXES: ['/room/', '/dm/', '/space/'] as readonly string[],
+  ALLOWED_PATH_PREFIXES: asType<readonly string[]>(['/room/', '/dm/', '/space/']),
 } as const satisfies Record<string, string | number | readonly string[]>;
 
 /**

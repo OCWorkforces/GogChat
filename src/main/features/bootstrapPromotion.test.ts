@@ -84,7 +84,7 @@ vi.mock('electron-log', () => ({
 // We'll override the return value of getAccountWindowManager per test.
 const getAccountWindowManagerMock = vi.fn();
 
-vi.mock('../utils/accountWindowManager.js', () => ({
+vi.mock('../utils/account/accountWindowManager.js', () => ({
   getAccountWindowManager: getAccountWindowManagerMock,
 }));
 

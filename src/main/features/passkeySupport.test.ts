@@ -16,7 +16,7 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-vi.mock('../utils/rateLimiter.js', () => ({
+vi.mock('../utils/ipc/rateLimiter.js', () => ({
   getRateLimiter: () => ({
     isAllowed: isAllowedMock,
   }),

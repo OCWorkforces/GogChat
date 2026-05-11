@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import log from 'electron-log';
 import { IPC_CHANNELS, TIMING } from '../../shared/constants.js';
-import { createSecureIPCHandler } from '../utils/ipcHelper.js';
-import { getIconCache } from '../utils/iconCache.js';
+import { defineIPC } from '../utils/ipc/defineIPC.js';
+import { getIconCache } from '../utils/platform/iconCache.js';
 
 let checkIfOnlineCleanup: (() => void) | null = null;
 
@@ -98,13 +98,14 @@ const checkForInternet = async (window: BrowserWindow) => {
  */
 export default (_window: BrowserWindow) => {
   // Add rate limiting to prevent connectivity check spam
-  checkIfOnlineCleanup = createSecureIPCHandler({
+  checkIfOnlineCleanup = defineIPC({
+    kind: 'on',
     channel: IPC_CHANNELS.CHECK_IF_ONLINE,
     validator: () => undefined,
     rateLimit: 1,
     deduplicate: true,
     description: 'Connectivity check',
-    handler: (_data: undefined, event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => {
+    handler: (_data, event) => {
       if (!('reply' in event)) {
         return;
       }

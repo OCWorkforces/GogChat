@@ -9,6 +9,8 @@
  * openAtLogin.ts, aboutPanel.ts, and externalLinks.ts.
  */
 
+import { asType } from '../../shared/typeUtils.js';
+
 /**
  * Typed map of all known menu action IDs to their handler signatures.
  * Add an entry here whenever a new menu action is registered.
@@ -53,7 +55,7 @@ export function registerMenuAction<K extends MenuActionId>(id: K, action: MenuAc
  * Returns undefined if no action registered (defensive — feature may not have loaded).
  */
 export function getMenuAction<K extends MenuActionId>(id: K): MenuAction<K> | undefined {
-  return actions.get(id) as MenuAction<K> | undefined;
+  return asType<MenuAction<K> | undefined>(actions.get(id));
 }
 
 /**

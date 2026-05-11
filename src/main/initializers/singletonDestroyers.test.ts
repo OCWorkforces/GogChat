@@ -19,19 +19,19 @@ const {
   mockDestroyPerformanceMonitor: vi.fn(),
 }));
 
-vi.mock('../utils/iconCache.js', () => ({
+vi.mock('../utils/platform/iconCache.js', () => ({
   destroyIconCache: mockDestroyIconCache,
 }));
 
-vi.mock('../utils/ipcDeduplicator.js', () => ({
+vi.mock('../utils/ipc/ipcDeduplicator.js', () => ({
   destroyDeduplicator: mockDestroyDeduplicator,
 }));
 
-vi.mock('../utils/rateLimiter.js', () => ({
+vi.mock('../utils/ipc/rateLimiter.js', () => ({
   destroyRateLimiter: mockDestroyRateLimiter,
 }));
 
-vi.mock('../utils/performanceMonitor.js', () => ({
+vi.mock('../utils/lifecycle/performanceMonitor.js', () => ({
   destroyPerformanceMonitor: mockDestroyPerformanceMonitor,
 }));
 

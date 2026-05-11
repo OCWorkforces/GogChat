@@ -1,7 +1,7 @@
 {
   "name": "gogchat",
   "productName": "GogChat",
-  "version": "3.12.13",
+  "version": "3.12.14",
   "description": "Unofficial Google Chat desktop client built with Electron and Rust.",
   "private": true,
   "repository": "https://github.com/OCWorkforces/GogChat",
@@ -33,6 +33,7 @@
     "format:fix": "prettier --write \"src/**/*.{ts,js,json}\" \"scripts/**/*.js\" \"*.{json,md}\"",
     "lint:all": "bash ./scripts/lint.sh",
     "lint:all:fix": "bash ./scripts/lint.sh --fix",
+    "check:doc-claims": "bun scripts/check-doc-claims.js",
     "hooks:install": "bash ./scripts/install-hooks.sh",
     "pack:mac:arm64": "electron-builder --mac --arm64 --dir",
     "build:mac": "bash ./build-macOS-dmg.sh --environment production",

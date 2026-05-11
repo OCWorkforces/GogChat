@@ -15,19 +15,19 @@ vi.mock('electron-log', () => ({
   },
 }));
 
-vi.mock('../utils/rateLimiter.js', () => ({
+vi.mock('../utils/ipc/rateLimiter.js', () => ({
   getRateLimiter: () => ({
     isAllowed: isAllowedMock,
   }),
 }));
 
-vi.mock('../utils/iconCache.js', () => ({
+vi.mock('../utils/platform/iconCache.js', () => ({
   getIconCache: () => ({
     getIcon: vi.fn(() => ({})),
   }),
 }));
 
-vi.mock('../utils/ipcDeduplicator.js', () => ({
+vi.mock('../utils/ipc/ipcDeduplicator.js', () => ({
   getDeduplicator: () => ({
     deduplicate: async (_key: string, fn: () => Promise<void>) => {
       await fn();

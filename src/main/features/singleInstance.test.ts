@@ -71,12 +71,12 @@ vi.mock('electron-log', () => ({
 }));
 
 const getMostRecentWindowMock = vi.fn();
-vi.mock('../utils/accountWindowManager.js', () => ({
+vi.mock('../utils/account/accountWindowManager.js', () => ({
   getMostRecentWindow: getMostRecentWindowMock,
 }));
 
 const extractDeepLinkFromArgvMock = vi.fn();
-vi.mock('./deepLinkUtils.js', () => ({
+vi.mock('../utils/account/deepLinkUtils.js', () => ({
   extractDeepLinkFromArgv: extractDeepLinkFromArgvMock,
 }));
 

@@ -1,10 +1,10 @@
 import type { BrowserWindow } from 'electron';
 import { app } from 'electron';
-import { perfMonitor } from './utils/performanceMonitor.js';
+import { perfMonitor } from './utils/lifecycle/performanceMonitor.js';
 
 import { enforceSingleInstance } from './features/singleInstance.js';
 import { setupDeepLinkListener } from './features/deepLinkHandler.js';
-import { registerCleanupTask } from './utils/resourceCleanup.js';
+import { registerCleanupTask } from './utils/lifecycle/resourceCleanup.js';
 
 import windowWrapper from './windowWrapper.js';
 

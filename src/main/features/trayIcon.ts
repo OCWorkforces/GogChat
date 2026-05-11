@@ -1,26 +1,10 @@
-import type { BrowserWindow, NativeImage } from 'electron';
+import type { BrowserWindow } from 'electron';
 import { app, Menu, Tray } from 'electron';
 import log from 'electron-log';
-import { getIconCache } from '../utils/iconCache.js';
+import { getTrayIconImage, setTrayInstance } from '../utils/platform/trayIconState.js';
 
 // Store tray icon reference for cleanup
 let trayIconInstance: Tray | null = null;
-
-/**
- * Get the tray icon image from the icon cache
- * Uses macOS Template naming convention for automatic light/dark mode support
- * @returns NativeImage for the tray icon
- */
-function getTrayIconImage(): NativeImage {
-  // macOS uses Template images for automatic dark/light mode adaptation
-  // The file must be named with 'Template' suffix
-  return getIconCache().getIcon('resources/icons/tray/iconTemplate.png');
-}
-
-function getTrayUnreadImage(): NativeImage {
-  // Monochrome Template image with a filled dot — macOS auto-tints for light/dark
-  return getIconCache().getIcon('resources/icons/tray/iconUnreadTemplate.png');
-}
 
 export default (window: BrowserWindow) => {
   const trayIcon = getTrayIconImage();
@@ -74,6 +58,10 @@ export default (window: BrowserWindow) => {
   // macOS: Click on tray icon shows the window
   trayIconInstance.on('click', handleOpenClick);
 
+  // Publish the instance so utils/platform/trayIconState.ts (consumed by badge
+  // helpers) can toggle the tray unread dot without a feature→feature import.
+  setTrayInstance(trayIconInstance);
+
   return trayIconInstance;
 };
 
@@ -89,25 +77,11 @@ export function cleanupTrayIcon(): void {
       trayIconInstance = null;
     }
 
+    // Clear shared tray-state reference so badge helpers no-op until next init.
+    setTrayInstance(null);
+
     log.info('[TrayIcon] Tray icon cleaned up');
   } catch (error: unknown) {
     log.error('[TrayIcon] Failed to cleanup tray icon:', error);
   }
-}
-
-/**
- * Update the tray icon to reflect unread message state.
- * Swaps between the default Template icon and the unread-dot Template icon.
- * No-ops if state is unchanged to prevent redundant redraws.
- */
-let currentTrayUnread: boolean | null = null;
-
-export function setTrayUnread(hasUnread: boolean): void {
-  if (!trayIconInstance || trayIconInstance.isDestroyed()) return;
-  if (currentTrayUnread === hasUnread) return;
-
-  currentTrayUnread = hasUnread;
-  const image = hasUnread ? getTrayUnreadImage() : getTrayIconImage();
-  trayIconInstance.setImage(image);
-  log.debug(`[TrayIcon] Tray icon updated — unread: ${String(hasUnread)}`);
 }

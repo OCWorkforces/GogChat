@@ -8,8 +8,8 @@
 
 import type { BrowserWindow, Tray } from 'electron';
 import log from 'electron-log';
-import { toErrorMessage } from '../utils/errorUtils.js';
-import { setupBadgeHandlers } from './badgeHandlers.js';
+import { toErrorMessage } from '../utils/lifecycle/errorUtils.js';
+import { setupBadgeHandlers } from '../utils/platform/badgeHelpers.js';
 
 let faviconChangedCleanup: (() => void) | null = null;
 let unreadCountCleanup: (() => void) | null = null;

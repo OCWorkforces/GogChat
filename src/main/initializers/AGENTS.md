@@ -1,6 +1,6 @@
 # src/main/initializers/ — App Lifecycle Initializers
 
-**Generated:** 2026-05-08
+**Generated:** 2026-05-10
 
 Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is now declarative (`*.spec.ts` files) and resolved at build time. Shutdown is handled separately.
 

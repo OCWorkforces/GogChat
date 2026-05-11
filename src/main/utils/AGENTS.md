@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-05-08
+**Generated:** 2026-05-10
 
 ~50 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`. Feature lifecycle moved out of utils: build-time plan in `../generated/featurePlan.ts`, runtime walker in `featureRunner.ts`, context in `featureContextStore.ts`.
 
@@ -64,7 +64,7 @@
 `bootstrapTracker.ts` → used by `accountWindowManager.ts`.
 `permissionHandler.ts` / `cspHeaderHandler.ts` / `benignLogFilter.ts` / `windowUtils.ts` → used by `windowWrapper.ts`.
 `accountWindowManager.ts` implements `IAccountWindowManager` from `shared/types/window.ts`; dispatches to `accountViewManager.ts` when `app.useWebContentsView=true`.
-Menu action registry + deepLinkUtils live in `../features/`, NOT here.
+Menu action registry lives in `../features/`. `deepLinkUtils.ts` lives at `utils/account/`; `helpMenuBuilder.ts` and `trayIconState.ts` (with `setTrayUnread`) live at `utils/platform/`.
 
 ## KEY PATTERNS
 

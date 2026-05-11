@@ -6,7 +6,7 @@
 import type { Certificate } from 'electron';
 import { app } from 'electron';
 import log from 'electron-log';
-import { getDisableCertPinning } from '../utils/secureFlags.js';
+import { getDisableCertPinning } from '../utils/security/secureFlags.js';
 
 /**
  * Google root certificate issuers we trust
@@ -107,14 +107,14 @@ let certificateErrorHandler:
  *
  * Eviction: Map preserves insertion order, so the first key returned by `keys()` is
  * the oldest. When size reaches MAX, drop that one. Same canonical pattern as
- * `utils/configCache.ts`.
+ * `utils/config/configCache.ts`.
  */
 const VALIDATION_CACHE_MAX = 100;
 const validationCache = new Map<string, boolean>();
 
 /**
  * Check if certificate pinning is disabled via the secure flags store.
- * Backed by `safeStorage` (authenticated encryption) — see `utils/secureFlags.ts`.
+ * Backed by `safeStorage` (authenticated encryption) — see `utils/security/secureFlags.ts`.
  * Safe to call before `app.ready`; defaults to `false` on any failure.
  */
 function isCertPinningDisabled(): boolean {
@@ -165,7 +165,7 @@ export default function setupCertificatePinning(): void {
     const isValid = issuerValid && validityValid;
 
     // Store result before invoking callback. Evict oldest entry (insertion order)
-    // when at capacity — same pattern as utils/configCache.ts.
+    // when at capacity — same pattern as utils/config/configCache.ts.
     if (validationCache.size >= VALIDATION_CACHE_MAX) {
       const oldestKey = validationCache.keys().next().value;
       if (oldestKey !== undefined) {

@@ -81,7 +81,7 @@ const mockManager = {
   isDehydrated: vi.fn(() => false),
   dehydrateAccount: vi.fn(),
 };
-vi.mock('../utils/accountWindowManager.js', () => ({
+vi.mock('../utils/account/accountWindowManager.js', () => ({
   getAccountWindowManager: vi.fn(() => mockManager),
 }));
 
@@ -89,7 +89,7 @@ vi.mock('../utils/accountWindowManager.js', () => ({
 const mockPlatform = {
   isMac: true,
 };
-vi.mock('../utils/platformDetection.js', () => ({
+vi.mock('../utils/platform/platformDetection.js', () => ({
   platform: mockPlatform,
 }));
 

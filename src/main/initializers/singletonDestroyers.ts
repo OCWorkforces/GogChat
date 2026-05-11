@@ -6,10 +6,10 @@
  * minimal import surface.
  */
 
-import { destroyIconCache } from '../utils/iconCache.js';
-import { destroyRateLimiter } from '../utils/rateLimiter.js';
-import { destroyDeduplicator } from '../utils/ipcDeduplicator.js';
-import { destroyPerformanceMonitor } from '../utils/performanceMonitor.js';
+import { destroyIconCache } from '../utils/platform/iconCache.js';
+import { destroyRateLimiter } from '../utils/ipc/rateLimiter.js';
+import { destroyDeduplicator } from '../utils/ipc/ipcDeduplicator.js';
+import { destroyPerformanceMonitor } from '../utils/lifecycle/performanceMonitor.js';
 
 /**
  * Destroy all tracked singleton instances.

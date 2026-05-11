@@ -4,7 +4,7 @@
  * CI Performance Regression Gate (PI1)
  *
  * Reads a `performance-metrics.json` file produced by GogChat at startup
- * (see `src/main/utils/cacheWarmer.ts → runDevPostDeferred`) and compares
+ * (see `src/main/utils/account/cacheWarmer.ts → runDevPostDeferred`) and compares
  * 9 metrics against fixed budgets. Exits 1 if any **gated** metric fails.
  * Prints GitHub Actions annotations (`::error` / `::warning`) so failures
  * surface inline on PRs.

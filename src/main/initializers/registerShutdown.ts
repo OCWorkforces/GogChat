@@ -9,9 +9,9 @@
 
 import { app } from 'electron';
 import log from 'electron-log';
-import { cleanupAll } from '../utils/featureRunner.js';
-import { getSharedFeatureContext } from '../utils/featureContextStore.js';
-import { destroyAccountWindowManager } from '../utils/accountWindowManager.js';
+import { cleanupAll } from '../utils/lifecycle/featureRunner.js';
+import { getSharedFeatureContext } from '../utils/lifecycle/featureContextStore.js';
+import { destroyAccountWindowManager } from '../utils/account/accountWindowManager.js';
 import { destroyAllSingletons } from './singletonDestroyers.js';
 import { logShutdownDiagnostics } from './shutdownDiagnostics.js';
 

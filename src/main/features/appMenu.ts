@@ -4,7 +4,7 @@ import store, { configGet } from '../config.js';
 import environment from '../../environment.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import { getMenuAction } from './menuActionRegistry.js';
-import { buildHelpSubMenu, relaunchApp } from './helpMenuBuilder.js';
+import { buildHelpSubMenu, relaunchApp } from '../utils/platform/helpMenuBuilder.js';
 
 export default (window: BrowserWindow) => {
   const menuItems = Menu.buildFromTemplate([

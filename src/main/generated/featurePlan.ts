@@ -6,7 +6,7 @@
  * `featureRunner` walks at startup.
  */
 
-import type { FeatureSpec, FeaturePriority } from '../utils/featureConfigTypes.js';
+import type { FeatureSpec, FeaturePriority } from '../utils/lifecycle/featureConfigTypes.js';
 import { DEFERRED_FEATURES } from '../initializers/deferred.spec.js';
 import { SECURITY_FEATURES } from '../initializers/security.spec.js';
 import { UI_FEATURES } from '../initializers/ui.spec.js';
@@ -24,19 +24,26 @@ const get = (name: string): FeatureSpec => {
   return spec;
 };
 
-export const FEATURE_PLAN: Readonly<Record<FeaturePriority, readonly (readonly FeatureSpec[])[]>> = {
-  security: [
-    [get('certificatePinning'), get('reportExceptions'), get('mediaPermissions')]
-  ],
-  critical: [
-    [get('userAgent')]
-  ],
-  ui: [
-    [get('singleInstance'), get('deepLinkHandler')]
-  ],
-  deferred: [
-    [get('trayIcon'), get('bootstrapPromotion'), get('openAtLogin'), get('appUpdates'), get('firstLaunch'), get('enforceMacOSAppLocation'), get('passkeySupport'), get('handleNotification'), get('contextMenu'), get('inOnline'), get('cdpTelemetry')],
-    [get('badgeIcons'), get('windowState'), get('externalLinks'), get('closeToTray')],
-    [get('appMenu')]
-  ],
-};
+export const FEATURE_PLAN: Readonly<Record<FeaturePriority, readonly (readonly FeatureSpec[])[]>> =
+  {
+    security: [[get('certificatePinning'), get('reportExceptions'), get('mediaPermissions')]],
+    critical: [[get('userAgent')]],
+    ui: [[get('singleInstance'), get('deepLinkHandler')]],
+    deferred: [
+      [
+        get('trayIcon'),
+        get('bootstrapPromotion'),
+        get('openAtLogin'),
+        get('appUpdates'),
+        get('firstLaunch'),
+        get('enforceMacOSAppLocation'),
+        get('passkeySupport'),
+        get('handleNotification'),
+        get('contextMenu'),
+        get('inOnline'),
+        get('cdpTelemetry'),
+      ],
+      [get('badgeIcons'), get('windowState'), get('externalLinks'), get('closeToTray')],
+      [get('appMenu')],
+    ],
+  };

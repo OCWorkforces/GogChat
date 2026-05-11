@@ -6,7 +6,7 @@
  */
 
 import overrideUserAgent from '../features/userAgent.js';
-import type { FeatureSpec } from '../utils/featureConfigTypes.js';
+import type { FeatureSpec } from '../utils/lifecycle/featureConfigTypes.js';
 
 export const UI_FEATURES = [
   {

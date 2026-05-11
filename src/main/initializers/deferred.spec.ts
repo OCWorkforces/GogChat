@@ -8,8 +8,9 @@
  */
 
 import type { BrowserWindow, Tray } from 'electron';
-import { createTrackedTimeout } from '../utils/resourceCleanup.js';
-import type { FeatureSpec } from '../utils/featureConfigTypes.js';
+import { createTrackedTimeout } from '../utils/lifecycle/resourceCleanup.js';
+import { IPC_CHANNELS } from '../../shared/constants.js';
+import type { FeatureSpec } from '../utils/lifecycle/featureConfigTypes.js';
 
 export const DEFERRED_FEATURES = [
   // System: tray icon — load first; other features depend on it
@@ -30,6 +31,9 @@ export const DEFERRED_FEATURES = [
     phase: 'deferred',
     dependencies: ['trayIcon'],
     description: 'Badge/overlay icon for unread count',
+    ipcChannels: {
+      listen: [IPC_CHANNELS.FAVICON_CHANGED, IPC_CHANNELS.UNREAD_COUNT],
+    },
     init: async ({ mainWindow, trayIcon }) => {
       if (!mainWindow || !trayIcon) return;
       const module = await import('../features/badgeIcon.js');
@@ -42,7 +46,7 @@ export const DEFERRED_FEATURES = [
     description: 'Bootstrap window promotion after first login',
     init: async () => {
       const module = await import('../features/bootstrapPromotion.js');
-      await module.default();
+      module.default();
     },
   },
   {
@@ -61,7 +65,7 @@ export const DEFERRED_FEATURES = [
     description: 'Auto-launch on system startup',
     init: async (context) => {
       const module = await import('../features/openAtLogin.js');
-      await module.default(context);
+      module.default(context);
     },
   },
   {
@@ -70,7 +74,7 @@ export const DEFERRED_FEATURES = [
     description: 'Update notification system',
     init: async () => {
       const module = await import('../features/appUpdates.js');
-      await module.default();
+      module.default();
     },
   },
   {
@@ -79,7 +83,7 @@ export const DEFERRED_FEATURES = [
     description: 'First launch logging',
     init: async () => {
       const module = await import('../features/firstLaunch.js');
-      await module.default();
+      module.default();
     },
   },
   {
@@ -87,7 +91,7 @@ export const DEFERRED_FEATURES = [
     phase: 'deferred',
     description: 'macOS app location enforcement',
     init: async () => {
-      const module = await import('../utils/platformHelpers.js');
+      const module = await import('../utils/platform/platformHelpers.js');
       module.enforceMacOSAppLocation();
     },
   },
@@ -97,6 +101,9 @@ export const DEFERRED_FEATURES = [
     phase: 'deferred',
     dependencies: ['openAtLogin', 'externalLinks'],
     description: 'Application menu',
+    ipcChannels: {
+      emit: [IPC_CHANNELS.SEARCH_SHORTCUT],
+    },
     init: async ({ mainWindow }) => {
       if (!mainWindow) return;
       const module = await import('../features/appMenu.js');
@@ -107,6 +114,9 @@ export const DEFERRED_FEATURES = [
     name: 'passkeySupport',
     phase: 'deferred',
     description: 'Passkey/WebAuthn support',
+    ipcChannels: {
+      listen: [IPC_CHANNELS.PASSKEY_AUTH_FAILED],
+    },
     init: async ({ mainWindow }) => {
       if (!mainWindow) return;
       const module = await import('../features/passkeySupport.js');
@@ -117,6 +127,9 @@ export const DEFERRED_FEATURES = [
     name: 'handleNotification',
     phase: 'deferred',
     description: 'Native notification handler',
+    ipcChannels: {
+      listen: [IPC_CHANNELS.NOTIFICATION_SHOW, IPC_CHANNELS.NOTIFICATION_CLICKED],
+    },
     init: async ({ mainWindow }) => {
       if (!mainWindow) return;
       const module = await import('../features/handleNotification.js');
@@ -162,6 +175,10 @@ export const DEFERRED_FEATURES = [
     name: 'inOnline',
     phase: 'deferred',
     description: 'Internet connectivity monitoring',
+    ipcChannels: {
+      listen: [IPC_CHANNELS.CHECK_IF_ONLINE],
+      emit: [IPC_CHANNELS.ONLINE_STATUS],
+    },
     init: async ({ mainWindow }) => {
       if (!mainWindow) return;
       const module = await import('../features/inOnline.js');

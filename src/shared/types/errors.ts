@@ -2,7 +2,7 @@
  * Typed error codes for GogChat domain errors.
  *
  * These codes accompany {@link GogChatError} subclasses (see
- * `src/main/utils/errors.ts`) and give callers a stable, programmatic
+ * `src/main/utils/lifecycle/errors.ts`) and give callers a stable, programmatic
  * identifier independent of human-readable error messages.
  *
  * @module shared/types/errors

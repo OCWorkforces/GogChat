@@ -4,7 +4,7 @@ import store, { configGet } from '../config.js';
 import { TIMING } from '../../shared/constants.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
-import { getWindowForAccount } from '../utils/accountWindowManager.js';
+import { getWindowForAccount } from '../utils/account/accountWindowManager.js';
 
 // Store handlers for cleanup
 let debouncedSaveHandler: ReturnType<typeof debounce<() => void>> | null = null;
