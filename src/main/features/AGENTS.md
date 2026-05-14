@@ -1,8 +1,8 @@
 # src/main/features/ — Feature Modules
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
-27+ self-contained feature modules. All registered declaratively in `../initializers/{security,ui,deferred}.spec.ts` (`FeatureSpec[]` arrays). The build-time plugin (`scripts/featurePlanPlugin.js`) compiles specs into `../generated/featurePlan.ts`; `featureRunner` walks that plan at runtime. Lazy features use dynamic `import()` inside their spec's `init` — deferred chunks land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
+23 self-contained feature modules. All registered declaratively in `../initializers/{security,ui,deferred}.spec.ts` (`FeatureSpec[]` arrays). The build-time plugin (`scripts/featurePlanPlugin.js`) compiles specs into `../generated/featurePlan.ts`; `featureRunner` walks that plan at runtime. Lazy features use dynamic `import()` inside their spec's `init` — deferred chunks land in `lib/chunks/`. Supports multi-account via bootstrap window promotion. No re-exports anywhere; imports go to source modules directly.
 
 ## FEATURE CONTRACT
 

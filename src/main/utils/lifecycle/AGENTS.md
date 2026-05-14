@@ -1,6 +1,6 @@
 # LM — src/main/utils/lifecycle/ — Feature Runtime & Lifecycle
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 Core infrastructure for feature execution, error handling, performance monitoring, and resource cleanup. `featureRunner.ts` walks the build-time plan; everything else supports it. All singletons expose `getXxx()`/`destroyXxx()`.
 

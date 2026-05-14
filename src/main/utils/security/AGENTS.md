@@ -1,6 +1,6 @@
 # SC — src/main/utils/security/ — Security & Permissions
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 Defense-in-depth security subsystem: certificate pinning for Google domains, CSP header enforcement, SafeStorage-backed encryption keys (macOS Keychain), permission handling (camera/mic TCC), and kill switches via secure flags. Kill switches use `safeStorage` (Keychain), **NOT** `electron-store`.
 

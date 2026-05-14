@@ -1,6 +1,6 @@
 # PF — src/main/utils/platform/ — Platform Detection, Menus, Icons, Windows
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 macOS-specific platform utilities: tray icon state, badge manipulation, Help menu building, platform detection, window geometry. Depends on `electron.app`, `electron.Menu`, `electron.Tray`, `electron.nativeImage`.
 

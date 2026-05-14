@@ -1,6 +1,6 @@
 # AC — src/main/utils/account/ — Multi-Account Window Management
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 The account subsystem manages per-account BrowserWindows, session partitions, bootstrap promotion, caching, deep link routing, and idle session maintenance. Implements `IAccountWindowManager` (22 methods) from `../../shared/types/window.ts`. All account indices use branded `AccountIndex` type.
 
