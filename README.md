@@ -1,158 +1,186 @@
 # GogChat
 
-A secure, feature-rich desktop application for GogChat with native OS integrations and enterprise-grade security.
+GogChat is an unofficial macOS desktop wrapper for Google Chat, built with Electron and TypeScript. It loads `https://mail.google.com/chat/u/0` in isolated Electron sessions, adds native desktop integrations, and keeps the main-process startup path small through build-time feature planning.
+
+> **Platform:** macOS on Apple Silicon (`arm64`, M1 or later).
 
 ## Features
 
-✨ **Native Desktop Experience**
+### Desktop integration
 
-- System tray integration
-- Native notifications
-- Auto-launch on startup
+- System tray icon with close-to-tray behavior
+- Native notification handling
+- Application menu and search shortcut integration
+- Auto-launch at login
 - Window state persistence
-- Keyboard shortcuts
-- Multi-account sessions with per-account isolation
-- Idle window memory management (hydrate/dehydrate)
+- Context menu support
+- Deep-link handling and single-instance enforcement
+- Update notifications
 
-🔒 **Enterprise-Grade Security**
+### Multi-account runtime
 
-- Process isolation & sandboxing
-- AES-256-GCM data encryption
-- Certificate pinning (MITM prevention)
-- Input validation & rate limiting
-- Content Security Policy
-- Zero production vulnerabilities
+- Per-account `persist:account-N` Electron session partitions for cookie isolation
+- Multi-account windows managed by `accountWindowManager`
+- Bootstrap login window promotion after authentication
+- Opt-in `WebContentsView` account backend behind the `app.useWebContentsView` config flag
+- Idle account session maintenance for cache cleanup
 
-⚡ **Performance Optimized**
+### Security
 
-- Lazy loading for faster startup
-- MutationObserver (90% CPU reduction)
-- Icon caching
-- Debounced disk I/O
+- `contextIsolation: true`, `sandbox: true`, and `nodeIntegration: false`
+- Certificate pinning for Google domains, with a safeStorage-backed kill switch
+- AES-256-GCM encrypted `electron-store` configuration
+- macOS safeStorage / Keychain support for security-sensitive flags and encryption-key migration
+- URL whitelist validation for navigation and external links
+- IPC channel constants, validators, rate limiting, and structured error handling
+- Content Security Policy header handling for embedded Google Chat pages
 
-## Download
+### Performance and observability
 
-Get the latest release:
+- Rsbuild/Rspack bundling with a single main-process entry and lazy deferred chunks
+- Non-blocking deferred feature phase after the first window is ready
+- Icon cache warmup and tiered icon loading
+- DNS/TCP/TLS preconnect for Google Chat-related hosts
+- Renderer V8 heap cap via `GOGCHAT_V8_HEAP_CAP_MB` (default: 512 MB)
+- Local-only CDP RUM telemetry, killable via secure flag
+- CI performance budget gate using headless startup metrics
 
-- **macOS (Apple Silicon M1+)**: [Download .dmg](https://github.com/OCWorkforces/GogChat/releases/latest)
+## Architecture
 
-> **Requirement:** Apple Silicon (M1 or later) is required.
+GogChat is not structured like a default Electron starter app. The app uses a dual-build pipeline and declarative feature lifecycle.
+
+```text
+src/
+├── main/              # Electron main process
+│   ├── features/      # Feature modules
+│   ├── initializers/  # App lifecycle + declarative feature specs
+│   ├── generated/     # Build-generated feature plan; do not edit by hand
+│   └── utils/         # Window/session/config/IPC/performance utilities
+├── preload/           # Sandbox-compatible CommonJS preload scripts
+├── shared/            # Cross-process constants, validators, and types
+└── offline/           # Offline fallback assets copied into lib/offline
+```
+
+### Feature lifecycle
+
+Feature registration is declarative:
+
+1. Feature specs live in `src/main/initializers/{security,ui,deferred}.spec.ts`.
+2. `scripts/featurePlanPlugin.js` parses those specs during the build.
+3. The plugin topologically sorts dependencies into batches and emits `src/main/generated/featurePlan.ts`.
+4. `src/main/utils/lifecycle/featureRunner.ts` walks the generated plan at runtime.
+
+New features should be added as feature modules under `src/main/features/` and declared in the appropriate spec file. Do not register features in `src/main/index.ts`, and do not hand-edit generated files.
+
+### Build system
+
+`scripts/build-rsbuild.js` runs two Rsbuild passes:
+
+1. **Main process:** ESM, `electron-main` target, single entry at `src/main/index.ts`.
+2. **Preload scripts:** CommonJS, `electron-renderer` target, one entry per `src/preload/**/*.ts` file.
+
+The preload build must remain CommonJS because Electron sandboxed preload scripts cannot load ESM. The preload pass also keeps `cleanDistPath: false` so it does not wipe the main-process output.
 
 ## Development
 
 ### Prerequisites
 
-- Bun >= 1.3.11 (Node.js >= 22.0.0)
+- macOS on Apple Silicon
+- Node.js `>=22.0.0`
+- Bun `>=1.3.13` (repository package manager: `bun@1.3.14`)
 
 ### Setup
 
 ```bash
-# Install dependencies
 bun install
-
-# Install git hooks (pre-push linting)
 bun run hooks:install
+```
 
-# Run in development mode
+### Common commands
+
+```bash
+# Build development output
+bun run build:dev
+
+# Build production output
+bun run build:prod
+
+# Watch development build
+bun run build:watch
+
+# Build production output and launch Electron
 bun run start
 
-# Run tests
+# Type-check the project
+bun run typecheck
+
+# Run Vitest
+bun run test
+
+# Run Vitest once
 bun run test:run
 
-# Build for macOS
-bun run build:mac  # ARM64 DMG
-```
-
-### Testing
-
-```bash
-# Run unit tests
-bun run test:run
-
-# Run tests with coverage
+# Run coverage
 bun run test:coverage
 
-# Run tests in watch mode
-bun run test
-```
+# Run ESLint + Prettier checks
+bun run lint:all
 
-### Git Hooks
-
-The project includes a pre-push hook that runs linting checks before allowing code to be pushed. This ensures code quality and consistency across the team.
-
-```bash
-# Install git hooks
-bun run hooks:install
-
-# The pre-push hook will automatically run:
-# - ESLint checks
-# - Prettier formatting checks
-
-# If linting fails, the push will be blocked
-# Fix issues manually or run:
+# Auto-fix lint/format issues
 bun run lint:all:fix
-```
 
-**How it works:**
-
-- Pre-push hook runs `bun run lint:all` before every push
-- If linting passes ✅, push proceeds
-- If linting fails ❌, push is blocked and you'll see specific errors
-- Hooks are stored in `scripts/hooks/` and can be version controlled
-
-### Building Installers
-
-```bash
-# Build ARM64 DMG (production)
+# Build an ARM64 macOS DMG
 bun run build:mac
 ```
 
-## CI/CD
+## Testing and quality gates
 
-This project uses GitHub Actions for automated building and testing:
+- Unit tests are run with Vitest.
+- Playwright is available for Electron-oriented tests.
+- `bun run typecheck` runs `tsc -b`.
+- `bun run lint:all` runs the combined ESLint and Prettier checks.
+- `bun run check:doc-claims` validates documented claims that are covered by repository checks.
+- CI also checks circular dependencies with `madge` and runs the performance budget gate from `scripts/check-perf-budget.js` against `performance-metrics.json` produced by `scripts/headless-startup.js`.
 
-- **Build Workflow**: Runs on every push and PR, builds for macOS (ARM64)
-- **Release Workflow**: Automatically creates releases when tags are pushed
-- **Platform**: macOS Apple Silicon (arm64)
-
-### Creating a Release
+## Packaging and releases
 
 ```bash
-# Tag a new version
-git tag v3.12.3
-git push origin v3.0.7
+# Production DMG
+bun run build:mac
 
-# GitHub Actions will automatically:
-# 1. Run tests
-# 2. Build for all platforms
-# 3. Create a GitHub release
-# 4. Upload installers as release assets
+# Development DMG
+bun run build:mac:dev
+
+# electron-builder mac package flow
+bun run package
 ```
 
-## Security
+Release automation runs on GitHub Actions for `main` and `v*` tags. The release workflow builds the production bundle, creates a tag from `package.json` when running on `main`, packages the macOS app, and uploads `dist/*.dmg` as release assets.
 
-This application implements multiple layers of security:
+Notarization is handled by the electron-builder hooks when Apple credentials are available through the release environment.
 
-- Context isolation & sandbox mode
-- AES-256-GCM encryption for config data
-- SSL certificate pinning
-- Input validation & rate limiting
-- Content Security Policy
+## Project conventions
 
-For detailed security information, see [SECURITY.md](SECURITY.md).
+- Use Bun for dependency and script execution.
+- Keep preload output CommonJS and sandbox-compatible.
+- Add lifecycle features through `initializers/*.spec.ts`, not `index.ts`.
+- Use shared IPC constants from `src/shared/constants.ts`.
+- Validate and rate-limit IPC handlers.
+- Use `configGet` / `configSet` for encrypted config access.
+- Store security-sensitive kill switches in `secureFlags.ts`, not regular config.
+- Import type-only symbols with `import type`.
+- Avoid barrel files and direct feature-to-feature imports.
 
-## Tech Stack
+## Tech stack
 
-| Layer    | Tech             |
-| -------- | ---------------- |
-| Runtime  | Electron 41      |
-| Language | TypeScript 6.0   |
-| Build    | Rsbuild (Rspack) |
-| Test     | Vitest 4         |
-
-## Contact
-
-If you have any questions or encounter issues, feel free to reach out to [kennydizi@ocworkforces.com](mailto:kennydizi@ocworkforces.com)
+| Layer           | Technology           |
+| --------------- | -------------------- |
+| Runtime         | Electron 42          |
+| Language        | TypeScript 6         |
+| Package manager | Bun 1.3              |
+| Build           | Rsbuild / Rspack     |
+| Tests           | Vitest 4, Playwright |
+| Packaging       | electron-builder     |
 
 ## License
 
