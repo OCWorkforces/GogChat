@@ -97,7 +97,17 @@ export function registerAppReady(options: AppReadyOptions): void {
       // initializeStore requires app.ready + SafeStorage but NOT cert pinning or userAgent.
       // The critical phase (userAgent override) is sync and independent of store init.
       try {
-        await Promise.all([runPhase('critical', context), initializeStore()]);
+        await Promise.all([
+          runPhase('critical', context),
+          (async () => {
+            perfMonitor.mark('store-init-start', 'Config store init started');
+            try {
+              await initializeStore();
+            } finally {
+              perfMonitor.mark('store-init-end', 'Config store init completed');
+            }
+          })(),
+        ]);
         log.info('[Main] Config store initialized');
       } catch (error: unknown) {
         log.error('[Main] Failed to initialize critical phase or store:', error);
@@ -113,15 +123,25 @@ export function registerAppReady(options: AppReadyOptions): void {
       // Expanded set covers: chat app shell (mail.google.com), auth flow (accounts.google.com),
       // and static asset/font CDNs (ssl.gstatic.com for icons/scripts, fonts.gstatic.com for font binaries).
       // All preconnects are session-scoped and must use the same partition as the account-0 window.
+      //
+      // Kill switch: GOGCHAT_DISABLE_PRECONNECT=1 disables all preconnects so the CI perf harness
+      // (and local benchmarking) can A/B-measure the cold-start contribution of preconnect warmup.
+      // Defaults to enabled — leave the env var unset to preserve current behavior.
+      const preconnectDisabled = process.env['GOGCHAT_DISABLE_PRECONNECT'] === '1';
       const account0Session = session.fromPartition('persist:account-0');
-      account0Session.preconnect({ url: 'https://mail.google.com', numSockets: 2 });
-      account0Session.preconnect({ url: 'https://accounts.google.com', numSockets: 2 });
-      account0Session.preconnect({ url: 'https://ssl.gstatic.com', numSockets: 1 });
-      account0Session.preconnect({ url: 'https://fonts.gstatic.com', numSockets: 1 });
-      // Preconnect Google Chat domains for parallel TLS handshake on cold start
-      account0Session.preconnect({ url: 'https://chat.google.com', numSockets: 2 });
-      account0Session.preconnect({ url: 'https://hangouts.google.com', numSockets: 1 });
-      perfMonitor.mark('chat-preconnect', 'Chat backend preconnect initiated');
+      if (!preconnectDisabled) {
+        account0Session.preconnect({ url: 'https://mail.google.com', numSockets: 2 });
+        account0Session.preconnect({ url: 'https://accounts.google.com', numSockets: 2 });
+        account0Session.preconnect({ url: 'https://ssl.gstatic.com', numSockets: 1 });
+        account0Session.preconnect({ url: 'https://fonts.gstatic.com', numSockets: 1 });
+        // Preconnect Google Chat domains for parallel TLS handshake on cold start
+        account0Session.preconnect({ url: 'https://chat.google.com', numSockets: 2 });
+        account0Session.preconnect({ url: 'https://hangouts.google.com', numSockets: 1 });
+        perfMonitor.mark('chat-preconnect', 'Chat backend preconnect initiated');
+      } else {
+        log.info('[Main] Preconnect disabled via GOGCHAT_DISABLE_PRECONNECT=1');
+        perfMonitor.mark('chat-preconnect-skipped', 'Preconnect disabled by env toggle');
+      }
 
       // Create account-0 window (primary window)
       createAccountWindow(environment.appUrl, asAccountIndex(0));
@@ -137,6 +157,19 @@ export function registerAppReady(options: AppReadyOptions): void {
       context.mainWindow = mainWindow;
       context.accountWindowManager = accountWindowManager;
       perfMonitor.mark('account-0-ready', 'Account-0 window ready');
+
+      // Account-0 content-loaded marker — fires when the initial Google Chat page
+      // load completes (did-finish-load on the main frame). This is the accurate
+      // first-paint signal; account-0-ready only reflects window construction.
+      // One-shot via webContents.once so navigations don't re-mark.
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const wc = mainWindow.webContents;
+        if (!wc.isDestroyed()) {
+          wc.once('did-finish-load', () => {
+            perfMonitor.mark('account-0-content-loaded', 'Account-0 initial page load completed');
+          });
+        }
+      }
 
       // ===== UI PHASE =====
       await runPhase('ui', context);
