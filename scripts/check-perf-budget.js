@@ -115,6 +115,52 @@ const BUDGETS = [
     describe: 'last entry of .build-history.json',
     extract: () => lastBuildTimeMs(),
   },
+  // ---------------------------------------------------------------------------
+  // Wave-0 additive budgets (introduced for content-paint / store / deferred /
+  // IPC visibility). New metrics start as WARN-only until measurement maturity
+  // is established. `contentFirstPaint` is the only addition currently gated
+  // because the underlying `did-finish-load` event is robust on Electron 41.
+  // ---------------------------------------------------------------------------
+  {
+    name: 'contentFirstPaint',
+    budget: 4000,
+    unit: 'ms',
+    gated: true,
+    describe: 'app-ready → account-0-content-loaded (did-finish-load)',
+    extract: (m) => diffMarkers(m, 'app-ready', 'account-0-content-loaded'),
+  },
+  {
+    name: 'storeInit',
+    budget: 250,
+    unit: 'ms',
+    gated: false, // WARN only — first appearance, no historical baseline
+    describe: 'store-init-start → store-init-end',
+    extract: (m) => diffMarkers(m, 'store-init-start', 'store-init-end'),
+  },
+  {
+    name: 'deferredBatchAggregate',
+    budget: 1500,
+    unit: 'ms',
+    gated: false, // WARN only — batch composition shifts as features change
+    describe: 'deferred-features-start → all-features-loaded',
+    extract: (m) => diffMarkers(m, 'deferred-features-start', 'all-features-loaded'),
+  },
+  {
+    name: 'memoryGrowth',
+    budget: 50 * MB,
+    unit: 'MB',
+    gated: false, // WARN only — placeholder until growth-tracking is wired
+    describe: 'last memorySnapshot.heapUsed − first memorySnapshot.heapUsed',
+    extract: (m) => memoryGrowth(m, 'heapUsed'),
+  },
+  {
+    name: 'ipcLatencyP50',
+    budget: 5,
+    unit: 'ms',
+    gated: false, // WARN only — placeholder; extractor returns null until IPC sampling exports
+    describe: 'placeholder for future ipc-latency.p50 export',
+    extract: (m) => ipcLatencyP50(m),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -136,6 +182,41 @@ function lastMemoryField(metrics, field) {
   const last = snaps[snaps.length - 1];
   const v = last?.[field];
   return typeof v === 'number' ? v : null;
+}
+
+function memoryGrowth(metrics, field) {
+  const snaps = metrics?.memorySnapshots;
+  if (!Array.isArray(snaps) || snaps.length < 2) return null;
+  const first = snaps[0]?.[field];
+  const last = snaps[snaps.length - 1]?.[field];
+  if (typeof first !== 'number' || typeof last !== 'number') return null;
+  return Math.max(0, last - first);
+}
+
+/**
+ * Placeholder extractor for IPC p50 latency.
+ *
+ * Reads `metrics.ipcLatency.p50` if the runtime ever exports it; otherwise
+ * returns null so the budget reports SKIP rather than failing CI. This keeps
+ * the budget visible and additive without coupling the gate to telemetry that
+ * does not yet exist.
+ */
+function ipcLatencyP50(metrics) {
+  const ipc = metrics?.ipcLatency;
+  if (ipc && typeof ipc === 'object') {
+    const v = ipc.p50;
+    if (typeof v === 'number') return v;
+  }
+
+  const samples = metrics?.ipcLatencySamples;
+  if (!Array.isArray(samples) || samples.length === 0) return null;
+  const values = samples
+    .map((sample) => sample?.durationMs)
+    .filter((value) => typeof value === 'number' && Number.isFinite(value))
+    .sort((a, b) => a - b);
+  if (values.length === 0) return null;
+  const mid = Math.floor(values.length / 2);
+  return values.length % 2 === 0 ? (values[mid - 1] + values[mid]) / 2 : values[mid];
 }
 
 function uniqueRendererCount(metrics) {

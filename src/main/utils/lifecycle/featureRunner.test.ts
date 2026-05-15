@@ -22,6 +22,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FeatureContext, FeaturePriority, FeatureSpec } from './featureConfigTypes.js';
 
+const perfMarkMock = vi.hoisted(() => vi.fn());
+
 // ─── Static mocks (apply to every dynamic import below) ───────────────────────
 
 vi.mock('electron-log', () => ({
@@ -30,6 +32,12 @@ vi.mock('electron-log', () => ({
     warn: vi.fn(),
     debug: vi.fn(),
     error: vi.fn(),
+  },
+}));
+
+vi.mock('./performanceMonitor.js', () => ({
+  perfMonitor: {
+    mark: perfMarkMock,
   },
 }));
 
@@ -238,6 +246,48 @@ describe('featureRunner', () => {
       await phasePromise;
 
       expect(events).toEqual(['a:start', 'a:end', 'b:start']);
+    });
+
+    it('emits deferred batch timing markers around each deferred batch', async () => {
+      const plan: Plan = {
+        ...emptyPlan(),
+        deferred: [
+          [makeSpec({ name: 'a', phase: 'deferred' })],
+          [makeSpec({ name: 'b', phase: 'deferred' }), makeSpec({ name: 'c', phase: 'deferred' })],
+        ],
+      };
+      const runner = await loadRunnerWithPlan(plan);
+
+      await runner.runPhase('deferred', {});
+
+      expect(perfMarkMock).toHaveBeenCalledWith(
+        'deferred:batch:1:start',
+        'Deferred batch 1/2 starting (1 feature(s))'
+      );
+      expect(perfMarkMock).toHaveBeenCalledWith(
+        'deferred:batch:1:end',
+        'Deferred batch 1/2 completed'
+      );
+      expect(perfMarkMock).toHaveBeenCalledWith(
+        'deferred:batch:2:start',
+        'Deferred batch 2/2 starting (2 feature(s))'
+      );
+      expect(perfMarkMock).toHaveBeenCalledWith(
+        'deferred:batch:2:end',
+        'Deferred batch 2/2 completed'
+      );
+    });
+
+    it('does not emit batch timing markers for non-deferred phases', async () => {
+      const plan: Plan = {
+        ...emptyPlan(),
+        ui: [[makeSpec({ name: 'uiFeature', phase: 'ui' })]],
+      };
+      const runner = await loadRunnerWithPlan(plan);
+
+      await runner.runPhase('ui', {});
+
+      expect(perfMarkMock).not.toHaveBeenCalled();
     });
   });
 

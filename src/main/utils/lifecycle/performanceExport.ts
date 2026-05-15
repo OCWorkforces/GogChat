@@ -30,6 +30,8 @@ export function exportPerformanceMetrics(
   monitor: PerformanceMonitorReader,
   outputPath?: string
 ): PerformanceMetrics {
+  const ipcLatencySamples = monitor.getIpcLatencySamples();
+  const memoryLatencySamples = monitor.getMemoryLatencySamples();
   const metrics: PerformanceMetrics = {
     startupTime: monitor.getTotalElapsed(),
     markers: monitor.getMetrics(),
@@ -40,6 +42,14 @@ export function exportPerformanceMetrics(
     timestamp: new Date().toISOString(),
     appVersion: app.getVersion(),
   };
+  // Only include latency arrays when present — keeps export shape
+  // backward compatible with consumers that don't expect these fields.
+  if (ipcLatencySamples.length > 0) {
+    metrics.ipcLatencySamples = ipcLatencySamples;
+  }
+  if (memoryLatencySamples.length > 0) {
+    metrics.memoryLatencySamples = memoryLatencySamples;
+  }
 
   if (outputPath) {
     try {

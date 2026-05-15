@@ -30,11 +30,12 @@ Key functions: `waitForIPC(app, channel, timeout?)`, `sendIPCFromMain(app, chann
 Mock classes: `MockBrowserWindow` (static registry: `getAllWindows()`, `fromId()`), `MockApp` (with `.dock`), `MockIpcMain`, `MockIpcRenderer`, `MockWebContents`, `MockSession`, `MockMenu`, `MockTray`, `MockDialog`, `MockShell`, `MockNativeImage`.
 
 **Vitest usage pattern:**
+
 ```typescript
-vi.mock('electron', () => electronMock);  // MUST be before any Electron imports
+vi.mock('electron', () => electronMock); // MUST be before any Electron imports
 
 beforeEach(() => {
-  electronMock.reset();    // resets instances + call history
+  electronMock.reset(); // resets instances + call history
   vi.clearAllMocks();
 });
 ```
@@ -43,22 +44,22 @@ beforeEach(() => {
 
 ## PERFORMANCE THRESHOLDS
 
-| Metric               | Max    |
-| -------------------- | ------ |
-| App launch           | 2000ms |
-| Window ready         | 1500ms |
-| First paint          | 1000ms |
-| Memory baseline      | 150MB  |
-| Memory after nav     | 200MB  |
-| IPC response         | 100ms  |
-| CPU idle             | 5%     |
-| JS bundle            | 1MB    |
+| Metric           | Max    |
+| ---------------- | ------ |
+| App launch       | 2000ms |
+| Window ready     | 1500ms |
+| First paint      | 1000ms |
+| Memory baseline  | 150MB  |
+| Memory after nav | 200MB  |
+| IPC response     | 100ms  |
+| CPU idle         | 5%     |
+| JS bundle        | 1MB    |
 
 Coverage thresholds (vitest.config.ts): statements 94%, branches 92%, functions 94%, lines 94%. Current run: ~1743 tests across the colocated unit suites + integration/e2e/perf tiers (down from 1930 after the perf pass dropped legacy `featureManager` tests).
 
 ## CI PERF BUDGET GATE
 
-`scripts/headless-startup.js` launches Electron in headless mode and writes `performance-metrics.json` (9 metrics: app launch, window ready, first paint, memory baseline, memory after nav, IPC response, CPU idle, JS bundle size, deferred phase duration). `scripts/check-perf-budget.js` reads that file and compares against the thresholds above. A gated subset (launch / window ready / first paint / memory baseline) **fails the build** on regression; the rest are informational. Wired into `pr-check.yml`.
+`scripts/headless-startup.js` launches Electron in headless mode and writes `performance-metrics.json` (14 budget checks: the original startup/bundle/runtime metrics plus Wave-0 `contentFirstPaint`, `storeInit`, `deferredBatchAggregate`, `memoryGrowth`, and `ipcLatencyP50`). `scripts/check-perf-budget.js` reads that file and compares against thresholds. The gated subset (launch / window ready / first paint / content first paint / memory baseline / renderer count / bundle sizes) **fails the build** on regression; new Wave-0 store/deferred/memory/IPC metrics are warn-only until baselines mature. Wired into `pr-check.yml` with `GOGCHAT_PERF_RUNS=5` median aggregation.
 
 ## ANTI-PATTERNS
 

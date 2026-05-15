@@ -60,6 +60,41 @@ export interface RendererMemorySnapshot {
 }
 
 /**
+ * Single IPC round-trip latency sample. Captured opportunistically by
+ * instrumented IPC handlers (Wave 0 primitive — recorders are wired in
+ * later waves). Backward-compatible: consumers may ignore the field.
+ */
+export interface IPCLatencySample {
+  /** Milliseconds since perf monitor start when the sample was recorded. */
+  timestamp: number;
+  /** IPC channel name (must be a registered `IPCChannelName` at call sites). */
+  channel: string;
+  /** Measured duration in milliseconds (handler entry → response/return). */
+  durationMs: number;
+  /** Optional renderer/account context used to slice latency by account. */
+  accountIndex?: number;
+  /** Optional discriminator for handler kind (`on` / `reply` / `invoke`). */
+  kind?: 'on' | 'reply' | 'invoke' | 'fast';
+}
+
+/**
+ * Single memory-pressure latency sample. Used to track the wall-clock cost
+ * of memory-related operations (e.g. `clearCodeCaches`, hydrate/dehydrate)
+ * so later waves can budget them. Backward-compatible: consumers may ignore
+ * the field.
+ */
+export interface MemoryLatencySample {
+  /** Milliseconds since perf monitor start when the sample was recorded. */
+  timestamp: number;
+  /** Operation label (e.g. `'clearCodeCaches'`, `'dehydrateAccount'`). */
+  operation: string;
+  /** Measured duration in milliseconds. */
+  durationMs: number;
+  /** Optional account index for per-account memory ops. */
+  accountIndex?: number;
+}
+
+/**
  * Performance metrics export interface
  */
 export interface PerformanceMetrics {
@@ -67,6 +102,16 @@ export interface PerformanceMetrics {
   markers: Record<string, number>;
   memorySnapshots: MemorySnapshot[];
   rendererSnapshots: RendererMemorySnapshot[];
+  /**
+   * Optional IPC latency samples recorded during the run. Optional so older
+   * exports / external readers without this field remain valid.
+   */
+  ipcLatencySamples?: IPCLatencySample[];
+  /**
+   * Optional memory-operation latency samples recorded during the run.
+   * Optional so older exports / external readers without this field remain valid.
+   */
+  memoryLatencySamples?: MemoryLatencySample[];
   targetMet: boolean;
   warnings: string[];
   timestamp: string;
@@ -94,4 +139,16 @@ export interface PerformanceMonitorReader {
     peak: MemorySnapshot;
   } | null;
   getRendererSnapshots(): RendererMemorySnapshot[];
+  /**
+   * Internal accessor for the IPC latency samples list. Default implementations
+   * may return an empty array if no samples were recorded.
+   * @internal
+   */
+  getIpcLatencySamples(): IPCLatencySample[];
+  /**
+   * Internal accessor for the memory latency samples list. Default implementations
+   * may return an empty array if no samples were recorded.
+   * @internal
+   */
+  getMemoryLatencySamples(): MemoryLatencySample[];
 }
