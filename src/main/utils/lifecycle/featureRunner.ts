@@ -12,6 +12,7 @@
 import log from 'electron-log';
 import { FEATURE_PLAN } from '../../generated/featurePlan.js';
 import type { FeatureContext, FeaturePriority, FeatureSpec } from './featureConfigTypes.js';
+import { perfMonitor } from './performanceMonitor.js';
 import { asType } from '../../../shared/typeUtils.js';
 
 const PHASES: readonly FeaturePriority[] = ['security', 'critical', 'ui', 'deferred'];
@@ -33,10 +34,29 @@ export async function runPhase(phase: FeaturePriority, context: FeatureContext):
 
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i]!;
+    const batchNumber = i + 1;
     log.debug(
-      `[FeatureRunner] Batch ${i + 1}/${batches.length}: ${batch.map((s) => s.name).join(', ')}`
+      `[FeatureRunner] Batch ${batchNumber}/${batches.length}: ${batch.map((s) => s.name).join(', ')}`
     );
+    // Emit per-batch markers only for the `deferred` phase. Naming is
+    // script-extractable: `${phase}:batch:${N}:(start|end)` with N starting
+    // at 1. Restricted to deferred to keep marker volume bounded and to
+    // mirror the phase whose budget we want to slice. Other phases retain
+    // the existing single phase-level log line.
+    const emitBatchMarkers = phase === 'deferred';
+    if (emitBatchMarkers) {
+      perfMonitor.mark(
+        `${phase}:batch:${batchNumber}:start`,
+        `Deferred batch ${batchNumber}/${batches.length} starting (${batch.length} feature(s))`
+      );
+    }
     await Promise.all(batch.map((spec) => runFeature(spec, context)));
+    if (emitBatchMarkers) {
+      perfMonitor.mark(
+        `${phase}:batch:${batchNumber}:end`,
+        `Deferred batch ${batchNumber}/${batches.length} completed`
+      );
+    }
   }
 
   log.info(`[FeatureRunner] Phase '${phase}' completed in ${Date.now() - phaseStart}ms`);
