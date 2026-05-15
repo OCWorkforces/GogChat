@@ -1,8 +1,8 @@
 # GogChat — Project Knowledge Base
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
-**Commit:** 573ff6f
+**Commit:** c7a1b7a
 **Branch:** refactor/codebase-improvement
 
 ## OVERVIEW
@@ -14,7 +14,7 @@ Electron desktop wrapper for Google Chat (`https://mail.google.com/chat/u/0`). T
 ```
 src/
 ├── main/          # Electron main process (features, initializers, utils)
-│   ├── features/  # 27+ self-contained feature modules (incl. cdpTelemetry)
+│   ├── features/  # 23 self-contained feature modules (incl. cdpTelemetry)
 │   ├── initializers/ # *.spec.ts feature plans + app-ready + shutdown + diagnostics
 │   ├── generated/ # Build-time featurePlan.ts (do NOT edit by hand)
 │   └── utils/     # ~50 utility modules (singletons, helpers, types)
@@ -193,7 +193,7 @@ bun run hooks:install  # Install git pre-push hook
 - Unit tests colocated with source (`*.test.ts`); integration/e2e in `tests/`
 - CI: GitHub Actions — `pr-check.yml` + `release.yml`
 - CI gates: madge circular deps (enforcing), import count (enforcing), coverage (informational)
-- Coverage: 97.97% statements (1930 tests, 87 test files)
+- Coverage: ~97% statements (~1743 tests, 82 test files)
 - Build history tracked in `.build-history.json` (last 20 builds)
 
 ## COMPLEXITY CENTERS (200+ lines)
@@ -208,7 +208,6 @@ bun run hooks:install  # Install git pre-push hook
 | `scripts/featurePlanPlugin.js`            | 299   | Build-time feature plan codegen (parses \*.spec.ts, topo-sorts, emits featurePlan.ts)       |
 | `scripts/headless-startup.js`             | 208   | CI headless run — produces performance-metrics.json for budget gate                         |
 | `scripts/build-rsbuild.js`                | 386   | Dual-build orchestrator                                                                     |
-| `src/main/utils/accountWindowManager.ts`  | 532   | Multi-account BrowserWindow + hydrate/dehydrate state machine                               |
 | `src/shared/urlValidators.ts`             | 336   | URL whitelist validation, Google auth URL detection                                         |
 | `src/main/utils/ipcHelper.ts`             | 316   | Secure IPC handler factories                                                                |
 | `src/main/utils/ipcDeduplicator.ts`       | 307   | IPC request deduplication (100ms window)                                                    |

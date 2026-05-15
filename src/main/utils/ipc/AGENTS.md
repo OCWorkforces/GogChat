@@ -1,6 +1,6 @@
 # IP — src/main/utils/ipc/ — IPC Infrastructure
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 Secure IPC handler factories, request deduplication, rate limiting, one-way fast paths, and common validators. All channels typed via `IPC_CHANNELS` from `../../shared/constants.ts`. Every handler follows: rate limit → validate → handle → catch.
 

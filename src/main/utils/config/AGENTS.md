@@ -1,6 +1,6 @@
 # CF — src/main/utils/config/ — Configuration Access & Schema
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 Encrypted configuration backed by `electron-store` with AES-256-GCM. Typed accessors (`configGet`/`configSet`) enforce `StoreKeyPaths` type safety. Read-through cache with no TTL — invalidated only by set/delete/clear. Schema validation at startup.
 

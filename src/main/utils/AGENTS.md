@@ -1,6 +1,6 @@
 # src/main/utils/ — Main Process Utilities
 
-**Generated:** 2026-05-10
+**Generated:** 2026-05-14
 
 ~50 utility modules. All singletons follow `getXxx()` / `destroyXxx()`. `resourceCleanup.ts` uses lazy `require()` to avoid coupling. Cleanup callbacks registered via `registerBuiltInGlobalCleanups()` (lives in `../initializers/registerGlobalCleanups.ts`). Singleton destroyers + shutdown diagnostics also live in `../initializers/`. Feature lifecycle moved out of utils: build-time plan in `../generated/featurePlan.ts`, runtime walker in `featureRunner.ts`, context in `featureContextStore.ts`.
 
