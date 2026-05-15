@@ -48,6 +48,7 @@ jobs:
         env:
           HEADLESS_TIMEOUT_MS: '60000'
           GOGCHAT_AUTO_QUIT_AFTER_MS: '12000'
+          GOGCHAT_PERF_RUNS: '5'
 
       - name: 'Performance: Budget gate'
         run: node scripts/check-perf-budget.js performance-metrics.json
