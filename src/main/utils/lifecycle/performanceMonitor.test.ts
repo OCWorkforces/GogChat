@@ -740,6 +740,67 @@ describe('PerformanceMonitor', () => {
 
       vi.useRealTimers();
     });
+
+    it('records IPC latency samples, exports them, and enforces FIFO cap', () => {
+      const monitor = getPerformanceMonitor();
+
+      for (let i = 0; i < 1001; i++) {
+        monitor.recordIpcLatency(`channel-${i}`, i, { accountIndex: i % 3, kind: 'on' });
+      }
+
+      const metrics = monitor.exportToJSON();
+      expect(metrics.ipcLatencySamples).toHaveLength(1000);
+      expect(metrics.ipcLatencySamples![0]).toEqual({
+        timestamp: expect.any(Number),
+        channel: 'channel-1',
+        durationMs: 1,
+        accountIndex: 1,
+        kind: 'on',
+      });
+      expect(metrics.ipcLatencySamples![999]!.channel).toBe('channel-1000');
+    });
+
+    it('records memory latency samples, exports them, and enforces FIFO cap', () => {
+      const monitor = getPerformanceMonitor();
+
+      for (let i = 0; i < 501; i++) {
+        monitor.recordMemoryLatency(`operation-${i}`, i, { accountIndex: i % 2 });
+      }
+
+      const metrics = monitor.exportToJSON();
+      expect(metrics.memoryLatencySamples).toHaveLength(500);
+      expect(metrics.memoryLatencySamples![0]).toEqual({
+        timestamp: expect.any(Number),
+        operation: 'operation-1',
+        durationMs: 1,
+        accountIndex: 1,
+      });
+      expect(metrics.memoryLatencySamples![499]!.operation).toBe('operation-500');
+    });
+
+    it('does not record latency samples when monitoring is disabled', () => {
+      const monitor = getPerformanceMonitor();
+      monitor.setEnabled(false);
+
+      monitor.recordIpcLatency('channel', 1, { kind: 'fast' });
+      monitor.recordMemoryLatency('operation', 1);
+
+      const metrics = monitor.exportToJSON();
+      expect(metrics.ipcLatencySamples).toBeUndefined();
+      expect(metrics.memoryLatencySamples).toBeUndefined();
+    });
+
+    it('clears latency sample buffers on reset', () => {
+      const monitor = getPerformanceMonitor();
+      monitor.recordIpcLatency('channel', 1, { kind: 'invoke' });
+      monitor.recordMemoryLatency('operation', 2);
+
+      monitor.reset();
+
+      const metrics = monitor.exportToJSON();
+      expect(metrics.ipcLatencySamples).toBeUndefined();
+      expect(metrics.memoryLatencySamples).toBeUndefined();
+    });
   });
 
   describe('renderer memory tracking', () => {

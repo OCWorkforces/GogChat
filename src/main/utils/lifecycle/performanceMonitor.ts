@@ -19,6 +19,8 @@ import environment from '../../../environment.js';
 import { exportPerformanceMetrics, logPerformanceSummary } from './performanceExport.js';
 import { PERFORMANCE_TARGETS } from './performanceTypes.js';
 import type {
+  IPCLatencySample,
+  MemoryLatencySample,
   MemorySnapshot,
   PerformanceMetrics,
   RendererMemorySnapshot,
@@ -33,10 +35,16 @@ class PerformanceMonitor {
   private markers: Map<string, number> = new Map();
   private memorySnapshots: MemorySnapshot[] = [];
   private rendererSnapshots: RendererMemorySnapshot[] = [];
+  private ipcLatencySamples: IPCLatencySample[] = [];
+  private memoryLatencySamples: MemoryLatencySample[] = [];
   private warnings: string[] = [];
   private readonly MAX_SNAPSHOTS = 100;
   // 60s sampling interval → ~1000 snapshots covers ~17 hours of runtime
   private readonly MAX_RENDERER_SNAPSHOTS = 1000;
+  // IPC latency: high-frequency channels can flood; cap with FIFO eviction.
+  private readonly MAX_IPC_LATENCY_SAMPLES = 1000;
+  // Memory ops are infrequent; a smaller cap is sufficient.
+  private readonly MAX_MEMORY_LATENCY_SAMPLES = 500;
   private readonly MAX_WARNINGS = 50;
   private enabled: boolean = true;
   private readonly isDev: boolean;
@@ -297,6 +305,74 @@ class PerformanceMonitor {
   }
 
   /**
+   * Record an IPC handler-latency sample. Optional Wave 0 primitive — callers
+   * pass the channel name, measured duration in ms, and any per-call context.
+   * No-op when monitoring is disabled. Buffer is FIFO-capped at
+   * `MAX_IPC_LATENCY_SAMPLES` to keep memory bounded on hot channels.
+   */
+  recordIpcLatency(
+    channel: string,
+    durationMs: number,
+    options: { accountIndex?: number; kind?: IPCLatencySample['kind'] } = {}
+  ): void {
+    if (!this.enabled) return;
+    const sample: IPCLatencySample = {
+      timestamp: Date.now() - this.startTime,
+      channel,
+      durationMs,
+    };
+    if (options.accountIndex !== undefined) sample.accountIndex = options.accountIndex;
+    if (options.kind !== undefined) sample.kind = options.kind;
+    if (this.ipcLatencySamples.length >= this.MAX_IPC_LATENCY_SAMPLES) {
+      this.ipcLatencySamples.shift();
+    }
+    this.ipcLatencySamples.push(sample);
+  }
+
+  /**
+   * Record a memory-operation latency sample (e.g. `clearCodeCaches`,
+   * `dehydrateAccount`). No-op when monitoring is disabled. Buffer is
+   * FIFO-capped at `MAX_MEMORY_LATENCY_SAMPLES`.
+   */
+  recordMemoryLatency(
+    operation: string,
+    durationMs: number,
+    options: { accountIndex?: number } = {}
+  ): void {
+    if (!this.enabled) return;
+    const sample: MemoryLatencySample = {
+      timestamp: Date.now() - this.startTime,
+      operation,
+      durationMs,
+    };
+    if (options.accountIndex !== undefined) sample.accountIndex = options.accountIndex;
+    if (this.memoryLatencySamples.length >= this.MAX_MEMORY_LATENCY_SAMPLES) {
+      this.memoryLatencySamples.shift();
+    }
+    this.memoryLatencySamples.push(sample);
+  }
+
+  /**
+   * Internal accessor for the IPC latency samples list. Used by
+   * `performanceExport` helpers and satisfies
+   * {@link PerformanceMonitorReader.getIpcLatencySamples}.
+   * @internal
+   */
+  getIpcLatencySamples(): IPCLatencySample[] {
+    return this.ipcLatencySamples;
+  }
+
+  /**
+   * Internal accessor for the memory latency samples list. Used by
+   * `performanceExport` helpers and satisfies
+   * {@link PerformanceMonitorReader.getMemoryLatencySamples}.
+   * @internal
+   */
+  getMemoryLatencySamples(): MemoryLatencySample[] {
+    return this.memoryLatencySamples;
+  }
+
+  /**
    * Internal accessor for the enabled flag. Used by `performanceExport` helpers.
    * @internal
    */
@@ -336,6 +412,8 @@ class PerformanceMonitor {
     this.markers.clear();
     this.memorySnapshots = [];
     this.rendererSnapshots = [];
+    this.ipcLatencySamples = [];
+    this.memoryLatencySamples = [];
     this.warnings = [];
     this.startTime = Date.now();
     this.captureMemorySnapshot('reset');
