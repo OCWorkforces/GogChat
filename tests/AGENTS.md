@@ -1,81 +1,44 @@
-# tests/ — Test Suite
+# Tests Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-4 test tiers: **unit** (Vitest, colocated with source), **integration** (Playwright+Electron, multi-module), **e2e** (Playwright+Electron, user workflows), **performance** (Playwright, regression). Electron cannot parallelize — `workers: 1`.
+Tests cover unit, integration, e2e, and performance behavior for an Electron app. Use `bun` commands only.
 
-## STRUCTURE
+## Commands
 
-```
-tests/
-├── unit/features/          # 3 files — isolated module tests with vi.mock()
-├── integration/            # 3 files — real Electron, multi-module IPC flows
-├── e2e/                    # 1 file  — complete user workflows (288 lines)
-├── performance/            # 1 file  — startup/memory/CPU regressions
-├── helpers/electron-test.ts    # Playwright fixtures + IPC helpers (344 lines)
-├── mocks/electron.ts           # Mock Electron APIs for Vitest (556 lines)
-└── polyfill-crypto.cjs          # Node.js crypto polyfill for test env (Node 24+)
+```bash
+bun run test
+bun run test:run
+bun run test:coverage
+bun run typecheck
+bun run build:prod
 ```
 
-Colocated unit tests: `src/main/features/*.test.ts` (~20), `src/main/utils/*.test.ts` (~15), `src/preload/*.test.ts` (6), `src/shared/*.test.ts` (2), `src/main/config.test.ts` (1).
+## Test tiers
 
-## HELPERS (`electron-test.ts`)
+- Unit: Vitest, colocated `*.test.ts` and `tests/unit/features`.
+- Integration/e2e/performance: Playwright/Electron helpers under `tests/`.
+- E2E config: `playwright.config.ts` uses `testDir: './tests/e2e'`, `workers: 1`, timeout 60000, retries 0.
+- Coverage thresholds in `vitest.config.ts`: statements 94, branches 92, functions 94, lines 94.
 
-Always import `test` and `expect` from here — not from `@playwright/test`.
+## Electron test helpers
 
-Key functions: `waitForIPC(app, channel, timeout?)`, `sendIPCFromMain(app, channel, data?)`, `checkSecuritySettings(app)`, `goOffline(page)`, `goOnline(page)`, `mockNetworkResponse(page, url, response)`, `pressShortcut(page, shortcut)`, `cleanupTestData(app)`, `getAppInfo(app)`, `getWindowState(page)`, `isFeatureEnabled(app, feature)`, `waitForText(page, text)`, `takeScreenshot(page, name)`, `getMainProcessLogs(app)`.
+- Import fixtures from `tests/helpers/electron-test.ts`, not directly from `@playwright/test`.
+- Use `tests/mocks/electron.ts` for Electron mocks.
+- Reset with `electronMock.reset()` and `vi.clearAllMocks()` between cases.
+- Keep `tests/polyfill-crypto.cjs` loaded for crypto-dependent unit tests.
 
-## MOCKS (`electron.ts`)
+## What to test
 
-Mock classes: `MockBrowserWindow` (static registry: `getAllWindows()`, `fromId()`), `MockApp` (with `.dock`), `MockIpcMain`, `MockIpcRenderer`, `MockWebContents`, `MockSession`, `MockMenu`, `MockTray`, `MockDialog`, `MockShell`, `MockNativeImage`.
+- Startup/spec changes: generated feature plan and phase ordering.
+- IPC changes: validation, rate limiting, dedup behavior, success and failure paths.
+- Account changes: partition persistence, auth-page protection, switching, dehydration.
+- Preload changes: bridge validation and subscription cleanup.
+- Security changes: URL validation, shell wrapper usage, CSP exceptions, permission/media paths.
 
-**Vitest usage pattern:**
+## Anti-patterns
 
-```typescript
-vi.mock('electron', () => electronMock); // MUST be before any Electron imports
-
-beforeEach(() => {
-  electronMock.reset(); // resets instances + call history
-  vi.clearAllMocks();
-});
-```
-
-`createElectronMock()` factory + `electronMock` singleton both exported.
-
-## PERFORMANCE THRESHOLDS
-
-| Metric           | Max    |
-| ---------------- | ------ |
-| App launch       | 2000ms |
-| Window ready     | 1500ms |
-| First paint      | 1000ms |
-| Memory baseline  | 150MB  |
-| Memory after nav | 200MB  |
-| IPC response     | 100ms  |
-| CPU idle         | 5%     |
-| JS bundle        | 1MB    |
-
-Coverage thresholds (vitest.config.ts): statements 94%, branches 92%, functions 94%, lines 94%. Current run: ~1743 tests across the colocated unit suites + integration/e2e/perf tiers (down from 1930 after the perf pass dropped legacy `featureManager` tests).
-
-## CI PERF BUDGET GATE
-
-`scripts/headless-startup.js` launches Electron in headless mode and writes `performance-metrics.json` (14 budget checks: the original startup/bundle/runtime metrics plus Wave-0 `contentFirstPaint`, `storeInit`, `deferredBatchAggregate`, `memoryGrowth`, and `ipcLatencyP50`). `scripts/check-perf-budget.js` reads that file and compares against thresholds. The gated subset (launch / window ready / first paint / content first paint / memory baseline / renderer count / bundle sizes) **fails the build** on regression; new Wave-0 store/deferred/memory/IPC metrics are warn-only until baselines mature. Wired into `pr-check.yml` with `GOGCHAT_PERF_RUNS=5` median aggregation.
-
-## ANTI-PATTERNS
-
-- **NEVER** put `vi.mock()` after imports — Vitest hoisting required
-- **NEVER** hardcode timeouts — use `waitForIPC()` / `waitForSelector()`
-- **NEVER** skip `electronMock.reset()` + `vi.clearAllMocks()` in `beforeEach`
-- **NEVER** launch Electron manually — use fixtures from `electron-test.ts`
-- **NEVER** run multiple Electron workers — use `workers: 1`
-- **NEVER** import from `@playwright/test` directly in integration/e2e — use `electron-test.ts`
-- **NEVER** add `polyfill-crypto.cjs` changes without verifying Node 24+ compat
-- **NEVER** install fake timers after creating the subject under test — `vi.useFakeTimers()` MUST precede any object that calls `setInterval`/`setTimeout` internally (e.g. `rateLimiter`)
-
-## INTERNAL TEST HELPERS (electron-test.ts)
-
-- `import.meta.dirname` used for ESM `__dirname` compat (Node 22+)
-- Playwright import is wrapped in try/catch for graceful skip when `@playwright/test` is not installed
-- `getWindowState()` accesses `(window as any).electronWindow` — Electron exposes this bridge
-- `isFeatureEnabled()` calls `require('electron-store')` directly (bypasses `configGet`/`configSet` intentionally — test-only read path)
-- `checkSecuritySettings()` reads `webContents.getWebPreferences()` directly via `electronApp.evaluate()`
+- Do not delete failing tests to pass.
+- Do not bypass app helpers with raw Playwright fixtures in Electron tests.
+- Do not hardcode generated feature-plan output when a spec-level assertion works.
+- Do not make e2e tests order-dependent; workers are one today but tests should remain isolated.

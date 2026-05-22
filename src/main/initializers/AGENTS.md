@@ -1,89 +1,49 @@
-# src/main/initializers/ — App Lifecycle Initializers
+# Main Initializers Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-Extracted from `index.ts` to keep the app entry point a thin orchestrator. Feature registration is now declarative (`*.spec.ts` files) and resolved at build time. Shutdown is handled separately.
+This directory is the canonical home for app startup/shutdown sequencing and build-time feature specs.
 
-## FILES
+## Files
 
-| File                           | Lines | Purpose                                                                                                |
-| ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------ |
-| `security.spec.ts`             | ~50   | Declarative `SECURITY_FEATURES` array (FeatureSpec[]); runs before `app.whenReady`                     |
-| `ui.spec.ts`                   | ~60   | Declarative `UI_FEATURES` array; runs inside `app.whenReady` after window creation                     |
-| `deferred.spec.ts`             | ~120  | Declarative `DEFERRED_FEATURES` array; runs in `setImmediate` after first paint                        |
-| `registerAppReady.ts`          | ~140  | `app.whenReady` orchestration; drives phases via `featureRunner` (no longer `featureManager`)          |
-| `registerGlobalCleanups.ts`    | 39    | Lazy-required cleanup callback registration                                                            |
-| `registerShutdown.ts`          | 70    | `before-quit` handler; calls `cleanupAll(featureRunner)` then singleton destroyers                     |
-| `shutdownDiagnostics.ts`       | 115   | Cache statistics logging                                                                               |
-| `singletonDestroyers.ts`       | 29    | Aggregated singleton destroy calls                                                                     |
+- `registerAppReady.ts` - owns `app.whenReady()` sequencing.
+- `registerShutdown.ts` - async shutdown path before `app.exit()`.
+- `security.spec.ts`, `ui.spec.ts`, `deferred.spec.ts` - declarative startup plan input.
+- `initializerTypes.ts` - initializer contracts.
 
-**Deleted in performance pass (2026-05-08):**
+## Feature plan contract
 
-- `registerFeatures.ts` (entry point, 36 lines)
-- `registerSecurityFeatures.ts` (43 lines)
-- `registerUIFeatures.ts` (68 lines)
-- `registerDeferredFeatures.ts` (28 lines)
-- `registerDeferredSystemFeatures.ts` (113 lines)
-- `registerDeferredWindowFeatures.ts` (70 lines)
-- `registerDeferredNetworkFeatures.ts` (45 lines)
-- `featureHelpers.ts` (47 lines)
+- Specs use `as const satisfies readonly FeatureSpec[]`.
+- Edit specs, not `src/main/generated/featurePlan.ts`.
+- Build-time parsing happens in `scripts/featurePlanPlugin.js`.
+- Runtime execution happens in `src/main/utils/lifecycle/featureRunner.ts`.
+- Shared feature runtime state is in `src/main/utils/lifecycle/featureContextStore.ts`.
+- Use `dependsOn` for ordering. Avoid relying on lexical or array position.
 
-Replaced by `*.spec.ts` declarative specs + build-time codegen.
+## Startup phases
 
-## FEATURE SPEC FILES
+1. Security before network.
+2. Critical before account bootstrap completes.
+3. UI after account manager/window state exists.
+4. Deferred after first-window work.
 
-Each `*.spec.ts` exports a typed `readonly FeatureSpec[]` (`as const satisfies`). A `FeatureSpec` declares: `name`, `phase`, optional `dependencies`, optional `required`, `description`, `init(ctx)`, optional `cleanup(ctx)`.
+Keep the phase boundary meaningful. If a feature can wait, keep it deferred.
 
-```typescript
-export const SECURITY_FEATURES = [
-  {
-    name: 'certificatePinning',
-    phase: 'security',
-    required: true,
-    init: () => setupCertificatePinning(),
-    cleanup: () => cleanupCertificatePinning(),
-  },
-  // ...
-] as const satisfies readonly FeatureSpec[];
-```
+## Shutdown
 
-Phase distribution: security (3) → critical (1) → ui (2) → deferred (~15+ incl. `cdpTelemetry`).
+Shutdown order is intentional:
 
-## BUILD-TIME CODEGEN
+1. `cleanupAll(ctx)` in reverse initialization order.
+2. Destroy account window manager.
+3. Run shutdown diagnostics.
+4. Destroy singleton utilities.
+5. `app.exit()`.
 
-`scripts/featurePlanPlugin.js` (Rsbuild plugin) reads the three `*.spec.ts` files and emits `src/main/generated/featurePlan.ts` containing `FEATURE_PLAN: Record<FeaturePriority, readonly (readonly FeatureSpec[])[]>`. Topological sort + dependency batching happens **at build time**, not runtime. The 485-line `featureManager` class is gone.
+Never introduce a second shutdown owner or call `app.quit()` from cleanup code.
 
-## RUNTIME
+## Anti-patterns
 
-- `src/main/utils/featureRunner.ts` (~109 lines) walks `FEATURE_PLAN` per phase. Within a phase, batches run sequentially; specs in a batch run in parallel via `Promise.all`. Tracks initialized specs for reverse-order `cleanupAll`.
-- `src/main/utils/featureContextStore.ts` (~22 lines) holds the live `FeatureContext` for any feature that needs to read `mainWindow` / `accountWindowManager` post-init.
-
-## registerAppReady.ts
-
-Drives the lifecycle:
-
-1. `runPhase('security', ctx)` — before window creation
-2. Create main window, set context via `featureContextStore.update(...)`
-3. `runPhase('critical', ctx)` + `runPhase('ui', ctx)`
-4. `setImmediate(() => runPhase('deferred', ctx))` — non-blocking
-
-## registerShutdown.ts
-
-**Cleanup order**:
-
-1. `cleanupAll(ctx)` — reverse init order via `featureRunner`
-2. `destroyAccountWindowManager()`
-3. `runShutdownDiagnostics()` — delegates to `shutdownDiagnostics.ts`
-4. `destroyAllSingletons()` — perfMonitor → deduplicator → rateLimiter → iconCache (via `singletonDestroyers.ts`)
-5. `app.exit()`
-
-**Cache statistics** (logged from `shutdownDiagnostics.ts`): icon cache, config cache, IPC deduplicator, rate limiter.
-
-## ANTI-PATTERNS
-
-- **Never** add feature registrations in `index.ts` — add a new entry to the relevant `*.spec.ts`
-- **Never** import a feature module statically inside `*.spec.ts` (except security/critical) — use dynamic `import()` in the spec's `init`; the build-time plugin keeps phase batches lean
-- **Never** edit `src/main/generated/featurePlan.ts` by hand — it is regenerated on every build
-- **Never** reorder shutdown steps — `cleanupAll` MUST precede window manager destruction
-- **Never** access `mainWindow` from a feature's module scope — read it from the `FeatureContext` argument or `featureContextStore.get()`
-- **Never** add inline feature logic — delegate to a feature module's default export
+- No runtime feature registration manager.
+- No hand-edits to generated feature plans.
+- No direct BrowserWindow/account logic inside specs.
+- No bare timers in initializer code; use lifecycle tracked resources.

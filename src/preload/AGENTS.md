@@ -1,56 +1,38 @@
-# src/preload/ — Preload Scripts
+# Preload Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-Bridge between Electron main process and GogChat renderer. 8 scripts compiled as **CJS** (required, `sandbox: true` blocks ESM). All loaded via `index.ts` except `overrideNotifications.ts`.
+The preload is sandboxed and built as CommonJS because Electron sandboxed preloads cannot load ESM. It exposes a narrow, validated bridge to Google Chat pages.
 
-## SCRIPTS
+## Build/runtime constraints
 
-| File                       | Purpose                                                    | Direction     |
-| -------------------------- | ---------------------------------------------------------- | ------------- |
-| `index.ts`                 | `contextBridge` → `window.gogchat` API                     | —             |
-| `disableWebAuthn.ts`       | Disables `navigator.credentials` via property override     | —             |
-| `faviconChanged.ts`        | MutationObserver on `link[rel*=icon]` → favicon changes; 75ms trailing-edge debounce (H1) | renderer→main |
-| `unreadCount.ts`           | Scoped MutationObservers on `.RuSDjb` badge containers (not full body subtree); lightweight body-level childList watcher detects insertions/removals (M4) | renderer→main |
-| `passkeyMonitor.ts`        | Wraps `navigator.credentials.*`; reports WebAuthn failures | renderer→main |
-| `searchShortcut.ts`        | Cmd+K focus handler on search input                        | main→renderer |
-| `offline.ts`               | Online/offline bridge; redirect on reconnect               | bidirectional |
-| `overrideNotifications.ts` | Separate preload (`contextIsolation:false`); click handler | renderer→main |
+- Keep preload output CJS and imports compatible with `.js` paths.
+- Do not remove the preload build `cleanDistPath: false` behavior; main and preload builds share output.
+- No Node/config access from preload. Use IPC.
+- No raw `ipcRenderer` exposure through `contextBridge`.
+- Bare debounce timers are acceptable here; main-process tracked timer helpers are unavailable in the sandbox.
 
-## WINDOW.gogchat API (`GogChatBridgeAPI`)
+## Bridge surface
 
-Defined in `../shared/types/bridge.ts`. Renderer→main (5): `sendUnreadCount`, `sendFaviconChanged`, `sendNotificationClicked`, `checkIfOnline`, `reportPasskeyFailure`. Main→renderer (2): `onSearchShortcut`, `onOnlineStatus` (both return unsubscribe fn). All outgoing data validated via `../shared/dataValidators.ts` and `../shared/urlValidators.ts`. No re-exports, all imports direct to source modules.
+`GogChatBridgeAPI` exposes send methods for unread count, favicon changes, notification clicks, online checks, and passkey auth failures, plus subscriptions for search shortcut and online status.
 
-## CRITICAL: `overrideNotifications.ts`
+- Validate outgoing data before `ipcRenderer.send`.
+- Return unsubscribe functions for subscriptions.
+- Do not expose generic invoke/send helpers.
 
-Loaded **separately** via `webPreferences.additionalPreloadScripts` with `contextIsolation: false`. **NEVER** import in `index.ts` — must load in different context. Only exception to `contextIsolation: true`.
+## DOM behavior
 
-## CRITICAL: `disableWebAuthn.ts`
+- DOM observation uses `MutationObserver`.
+- `disableWebAuthn.ts` must be imported first in `src/preload/index.ts`, before any other preload module, to neutralize `navigator.credentials` before Google scripts run.
+- Keep selectors and timing constants in shared constants where practical.
 
-Sets `navigator.credentials = undefined` via `Object.defineProperty` to prevent WebAuthn/U2F auth issues in Google Chat. Side-effect module — imported in `index.ts`. Logs success or warning if property is non-configurable. Tested with jsdom (`disableWebAuthn.test.ts`).
+## Notification override
 
-## DOM OBSERVATION
+- `overrideNotifications.ts` is an intentional separate preload with `contextIsolation: false`.
+- Do not import it from `index.ts`.
+- `newNotify` must remain an ES5-style function, not an arrow, because it emulates the Notification constructor.
+- It uses `asUnsafe` only with documented runtime checks and validates notification data before handoff.
 
-All DOM monitoring uses `MutationObserver` — no polling. `faviconChanged`: observes `<head>`, childList + attributes; **75ms trailing-edge debounce** collapses rapid favicon swaps. `unreadCount`: scoped observers on `.RuSDjb` badge containers (not `document.body` subtree) — reduces CPU by ~90%; lightweight body-level childList watcher handles container insertion/removal. Always clean up on `beforeunload`.
+## Tests
 
-## ADDING NEW PRELOAD SCRIPT
-
-1. Create `newFeature.ts` — use `ipcRenderer` (not `contextBridge`)
-2. Add `import './newFeature.js'` to `index.ts` (`.js` extension — built CJS)
-3. Add IPC channel to `../shared/constants.ts`
-4. If exposing to renderer, extend `GogChatBridgeAPI` in `../shared/types/bridge.ts`
-
-## ANTI-PATTERNS
-
-- **NEVER** import `overrideNotifications.ts` from `index.ts` — wrong context
-- **NEVER** poll with `setInterval` — use MutationObserver
-- **NEVER** skip cleanup on `beforeunload` — memory leak
-- **NEVER** bypass validators before `ipcRenderer.send`
-- **NEVER** import `overrideNotifications.ts` from `index.ts` — wrong context
-- **NEVER** poll with `setInterval` — use MutationObserver
-- **NEVER** skip cleanup on `beforeunload` — use the standard cleanup pattern: `window.addEventListener('beforeunload', () => { observer?.disconnect(); clearTimeout(debounceTimer); unsubscribe?.(); })`
-- **NEVER** bypass validators before `ipcRenderer.send` — defense-in-depth (preload-side validation catches bad data even before main-side `createSecureIPCHandler` runs; especially critical in `overrideNotifications.ts` which runs with `contextIsolation: false`)
-- **NEVER** change preload build to ESM — `sandbox: true` requires CJS
-- **NEVER** call `configGet`/`configSet` from preload — no Node.js access; use `ipcRenderer.invoke`
-- **NEVER** convert the `newNotify` function in `overrideNotifications.ts` to an ES6 arrow function — must remain ES5 `function` keyword for correct `this` binding and `new` semantics
-- **NEVER** change the import order in `index.ts` — `disableWebAuthn.ts` MUST run first (before any Google auth scripts); `overrideNotifications.ts` is NOT imported here (loaded separately with different context)
+Keep coverage around `index.test.ts`, unread count, favicon changes, notification overrides, passkey monitoring, and WebAuthn disabling when touching preload behavior.
