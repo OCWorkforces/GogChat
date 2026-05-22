@@ -1,25 +1,32 @@
-# CF — src/main/utils/config/ — Configuration Access & Schema
+# Config Utilities Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-Encrypted configuration backed by `electron-store` with AES-256-GCM. Typed accessors (`configGet`/`configSet`) enforce `StoreKeyPaths` type safety. Read-through cache with no TTL — invalidated only by set/delete/clear. Schema validation at startup.
+This directory owns typed electron-store access and read-through caching for app config.
 
-## FILES
+## Boundaries
 
-| File | Lines | Purpose |
-| --- | --- | --- |
-| `configCache.ts` | ~30 | Read-through cache; `get(key)` / `set(key, value)` / `delete(key)` / `clear()`; no TTL — explicit invalidation only |
-| `configSchema.ts` | ~40 | Zod-based schema validation at startup; ensures store shape matches `StoreType` from `../../shared/types/config.ts`; migration helpers |
-| `index.ts` | ~15 | Re-exports `configGet`/`configSet` from `../../config.ts` with type-safe `StoreKeyPaths` generic |
+- Shared config shape lives in `src/shared/types/config.ts`.
+- Main-process schema/defaults/accessors live in `src/main/config.ts`.
+- Cache helpers here are for normal app config only.
+- SafeStorage-backed security flags live in `src/main/utils/security/secureFlags.ts`, not config.
 
-## KEY EXPORTS
+## Cache behavior
 
-- `configGet<K extends StoreKeyPaths>(key: K): StoreType[K]` — typed getter
-- `configSet<K extends StoreKeyPaths>(key: K, value: StoreType[K]): void` — typed setter (auto-persists + cache invalidates)
-- `configCache.clear()` — full cache bust (used during shutdown/destroy)
+- Config cache has no TTL.
+- Invalidate on explicit set/delete/clear operations.
+- Do not add runtime file watchers for config changes.
+- Keep defaults aligned with schema and shared types.
 
-## KEY PATTERNS
+## Change workflow
 
-- **Never access store directly**: Always use `configGet()`/`configSet()`. Direct `store.get(...) as T` is forbidden by ESLint.
-- **Security flags excluded**: Cert pinning kill switch, CDP telemetry toggle live in `secureFlags.ts` (SafeStorage), NOT in StoreType.
-- **No runtime config watches**: Changes require explicit `configSet` call. No reactive/observable pattern.
+1. Add the field to shared `AppConfig`.
+2. Add validation/defaults in `src/main/config.ts`.
+3. Add typed accessor/mutation helpers if needed.
+4. Update tests for schema, defaults, and cache invalidation.
+
+## Anti-patterns
+
+- No security kill switches in config.
+- No untyped key access from feature code.
+- No implicit config migration hidden in a getter.

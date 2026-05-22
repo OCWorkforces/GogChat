@@ -1,51 +1,40 @@
-# scripts/ — Build & Development Tools
+# Scripts Guide
 
-**Generated:** 2026-05-14 | **Commit:** c7a1b7a
+**Parent:** `../AGENTS.md`
 
-Build system, linting, and development tooling. Dual-build architecture is the most critical component — main outputs ESM, preload outputs CJS (required by `sandbox: true`).
+Scripts drive the dual Rsbuild pipeline, feature-plan generation, packaging, notarization, icon assets, hooks, and performance gates.
 
-## FILES
+## Key scripts
 
-| File                             | Purpose                                                |
-| -------------------------------- | ------------------------------------------------------ |
-| `build-rsbuild.js`               | Dual-build orchestrator: ESM main + CJS preload        |
-| `lint.sh`                        | Combined ESLint + Prettier runner (uses `bunx`)        |
-| `notarize.cjs`                   | Apple notarization hook (electron-builder `afterSign`) |
-| `after-pack.cjs`                 | ARM64 binary stripping + locale removal                |
-| `remove-locales.js`              | Removes non-EN locales from asar                       |
-| `generate-google-chat-icons.mjs` | Generates all icon variants via `sharp` + SVG math     |
-| `install-hooks.sh`               | Installs git pre-push hook                             |
-| `hooks/pre-push`                 | Blocks push if lint fails (no `--fix` — user must fix) |
+- `build-rsbuild.js` - builds ESM main and CJS preload, copies offline assets, and preserves preload output with `cleanDistPath: false`.
+- `featurePlanPlugin.js` - parses initializer specs with the TypeScript compiler API, unwraps `as const satisfies`, topologically batches dependencies, and idempotently writes `src/main/generated/featurePlan.ts`.
+- `check-perf-budget.js` - checks startup/perf metrics, writes `.perf-history.json`, and optionally updates `.perf-baseline.json`.
+- `headless-startup.js` - runs Electron headless with metrics export and stable-poll detection; supports `GOGCHAT_PERF_RUNS` median aggregation.
+- `notarize.cjs` - uses notarytool with `APPLE_ID`, `APPLE_APP_PASSWORD`, and `APPLE_TEAM_ID`.
+- `after-pack.cjs` and `remove-locales.js` - strip unused binaries/locales during packaging.
+- `hooks/pre-push` - blocks pushes on lint/check failures.
 
-## DUAL-BUILD ARCHITECTURE
+## Build invariants
 
-`build-rsbuild.js` runs TWO Rsbuild passes:
+- Do not convert the preload build to ESM.
+- Do not remove `cleanDistPath: false`; otherwise one Rsbuild pass can delete the other output.
+- Do not modify offline asset output paths unless `src/offline/AGENTS.md` contracts are updated too.
+- Do not replace the feature-plan plugin with runtime registration.
 
-1. **Main** — ESM, `electron-main` target, output `lib/main/*.js` + `lib/chunks/*.chunk.js`
-2. **Preload** — CJS, `electron-renderer` target, `cleanDistPath: false` (MANDATORY — prevents wiping pass 1)
+## Feature-plan plugin rules
 
-Pass 1 also includes `copyOfflineAssets()` which copies `src/offline/index.html` + `index.css` to `lib/offline/`. Entry scanning: all `src/**/*.ts` except `*.test.ts`; preload split by `src/preload/**` path.
+- It intentionally ignores implementation `init`/`cleanup` bodies and reads declarative spec metadata.
+- Dependency sorting is greedy by batch; preserve deterministic output.
+- Export pure helpers such as `buildPlanFromSources` for tests.
 
-## BUILD HISTORY
+## Performance scripts
 
-`.build-history.json` tracks last 20 builds (size, chunk count, trends, diff from previous).
+- Headless startup uses env such as `NODE_ENV=development`, `GOGCHAT_EXPORT_METRICS=1`, `GOGCHAT_AUTO_QUIT_AFTER_MS=12000`, and `CI=1`.
+- CI may set `HEADLESS_TIMEOUT_MS=60000` and `GOGCHAT_PERF_RUNS=5`.
+- Keep gated vs warn-only perf budget behavior explicit.
 
-## NOTARIZATION
+## Packaging
 
-Requires `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`. Uses `notarytool` (NOT `altool`). Bundle ID: `com.ocworkforcess.${appName.toLowerCase()}`. Gracefully skips when `CSC_IDENTITY_AUTO_DISCOVERY=false`.
-
-## AFTER-PACK HOOK
-
-macOS ARM64 only. Strips debug symbols from Electron Framework + 4 Helpers + main executable. Removes non-`en.lproj`/`en-US.lproj`/`en_US.lproj` locales. Reports final bundle size in MB.
-
-## ICON GENERATOR
-
-`bun scripts/generate-google-chat-icons.mjs` — outputs `resources/icons/{tray,normal,badge,offline}/*.png` + `mac.icns` via `sharp` + `iconutil`. Uses `APP_GEOMETRY` + `TRAY_GEOMETRY` constants for SVG math, `buildBadgeDot()` for notification dot, `buildMultiColorContent()` for 4-color treatment, `generateIcns()` (macOS-only via `iconutil`).
-
-## ANTI-PATTERNS
-
-- **NEVER** remove `cleanDistPath: false` from preload config
-- **NEVER** change preload to ESM — sandbox requires CJS
-- **NEVER** run electron-builder without building first
-- **NEVER** skip `--fix` when lint fails before push
-- **NEVER** modify `copyOfflineAssets()` output paths — `src/offline/index.html` references `../../lib/offline/index.js`
+- macOS DMG/package behavior is also documented in `mac/AGENTS.md`.
+- Never call packaging scripts without building first.
+- Do not log secrets from signing/notarization environment variables.

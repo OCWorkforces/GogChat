@@ -1,29 +1,32 @@
-# AC — src/main/utils/account/ — Multi-Account Window Management
+# Account Utilities Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-The account subsystem manages per-account BrowserWindows, session partitions, bootstrap promotion, caching, deep link routing, and idle session maintenance. Implements `IAccountWindowManager` (22 methods) from `../../shared/types/window.ts`. All account indices use branded `AccountIndex` type.
+This directory owns multi-account window/view backends and per-account session partition behavior.
 
-## FILES
+## Backends
 
-| File | Lines | Purpose |
-| --- | --- | --- |
-| `accountWindowManager.ts` | 532 | Core `IAccountWindowManager`; per-account BrowserWindows + session partitions; hydrate/dehydrate state machine; dispatches to `accountViewManager` when `useWebContentsView=true` |
-| `accountViewManager.ts` | 569 | Opt-in WebContentsView backend; single host BrowserWindow + per-account views; gated by `app.useWebContentsView` config; largest utility module |
-| `accountWindowRegistry.ts` | 255 | Window registration, lookup by WebContentsId/partition, z-order tracking, event forwarding |
-| `accountWindowsStore.ts` | ~80 | In-memory state store for account window metadata; partition → BrowserWindow mapping |
-| `bootstrapTracker.ts` | ~60 | Tracks bootstrap windows through auth flow; coordinates `markAsBootstrap()` / `promoteToAccount()` |
-| `bootstrapWatcher.ts` | ~75 | Watches bootstrap windows for auth completion; triggers promotion via `accountWindowManager`; timeout handling |
-| `deepLinkUtils.ts` | ~40 | Extracts `AccountIndex` from deep link URLs; `getAccountIndexFromUrl()` returns branded type via `asAccountIndex()` |
-| `accountRouter.ts` | ~50 | Routes URLs to correct account partition; checks `isGoogleAuthUrl()` before `loadURL()` to avoid interrupting auth |
-| `accountSessionMaintenance.ts` | ~90 | `getAccountActivityTracker()` / `destroyAccountActivityTracker()`; periodic `clearCodeCaches()` on idle accounts |
-| `cacheWarmer.ts` | ~70 | 3-tier icon path warming (INITIAL → SOON_DEFERRED → IDLE_DEFERRED); disjoint warmup sets; 8s idle trigger |
-| `index.ts` | 1 | Barrel re-export of all above |
+- `accountWindowManager.ts` is the default BrowserWindow-per-account backend.
+- `accountViewManager.ts` is the opt-in WebContentsView host backend selected by `app.useWebContentsView`.
+- Both implement `IAccountWindowManager` from `src/shared/types/window.ts`.
+- Shared routing/registry/bootstrap helpers live in `accountRouter.ts`, `accountWindowRegistry.ts`, `bootstrapTracker.ts`, `bootstrapWatcher.ts`, `accountSessionMaintenance.ts`, `cacheWarmer.ts`, and `deepLinkUtils.ts`.
 
-## KEY PATTERNS
+## Session contract
 
-- **Account identity**: All account references use branded `AccountIndex` (non-negative integer), never raw numbers. Convert with `asAccountIndex()`.
-- **Partition scheme**: Each account gets `persist:account-N` session partition for cookie isolation. Built via `toPartition()`.
-- **Bootstrap flow**: Login windows are temporary bootstrap → promoted to full account windows after auth via `bootstrapPromotion.ts` (feature).
-- **View manager opt-in**: When `app.useWebContentsView=true`, `accountWindowManager` delegates rendering to `accountViewManager` (WebContentsView API).
-- **Deep link guard**: **NEVER** call `loadURL()` on a bootstrap window without first checking `isGoogleAuthUrl()` — interrupts OAuth flow.
+- Use branded helpers: `asAccountIndex()`, `toPartition()`, and `asWebContentsId()`.
+- Account partitions are `persist:account-N`; do not switch to in-memory partitions.
+- Never interrupt Google auth pages with `loadURL`; check `isGoogleAuthUrl()` first.
+- Preserve account 0 and bootstrap accounts during dehydration.
+
+## Dehydration differences
+
+- BrowserWindow dehydration may destroy a window, but must preserve the partition/session.
+- WebContentsView dehydration hides/throttles the view; it does not destroy per-account sessions.
+- Keep backend-specific behavior behind the shared manager contract whenever possible.
+
+## Change checklist
+
+- If behavior is user-visible, update both backends or document why one is intentionally different.
+- Keep bootstrap promotion compatible with `src/main/initializers/registerAppReady.ts` and lifecycle context storage.
+- Add/update tests around auth pages, partition persistence, active account switching, and dehydration.
+- Do not add Google Chat URL assumptions here; use validators from `src/shared/urlValidators.ts`.

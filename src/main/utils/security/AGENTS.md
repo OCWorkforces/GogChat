@@ -1,25 +1,39 @@
-# SC — src/main/utils/security/ — Security & Permissions
+# Security Utilities Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-Defense-in-depth security subsystem: certificate pinning for Google domains, CSP header enforcement, SafeStorage-backed encryption keys (macOS Keychain), permission handling (camera/mic TCC), and kill switches via secure flags. Kill switches use `safeStorage` (Keychain), **NOT** `electron-store`.
+This directory contains main-process security wrappers and kill-switch storage. It supplements feature-level certificate pinning and shared URL validation.
 
-## FILES
+## Core rules
 
-| File | Lines | Purpose |
-| --- | --- | --- |
-| `secureFlags.ts` | ~65 | Kill switches via `safeStorage` (macOS Keychain): `getDisableCertPinning()`/`setDisableCertPinning()`, `disableCdpTelemetry`. **NOT stored in electron-store.** |
-| `encryptionKey.ts` | ~80 | SafeStorage + legacy deterministic key fallback + migration. Provides keys for `electron-store` AES-256-GCM config encryption. |
-| `permissionHandler.ts` | ~40 | Permission handler: only allows `notifications`, `media`, `mediaKeySystem`, `geolocation`. All others denied. |
-| `mediaAccess.ts` | ~30 | macOS camera/mic TCC permission checks; feature-gated via `mediaPermissions` feature. |
-| `cspHeaderHandler.ts` | ~35 | `webRequest.onHeadersReceived` — strips COEP/COOP/frame-ancestors for benign hosts. |
-| `shellWrapper.ts` | ~20 | Safe `shell.openExternal()` wrapper that validates URLs through `validateExternalURL()` from `../../shared/urlValidators.ts`. |
-| `index.ts` | 1 | Barrel re-export of all above |
+- Certificate pinning setup is in `src/main/features/certificatePinning.ts` and runs before network use.
+- Secure kill switches live in `secureFlags.ts` using SafeStorage at `<userData>/secure-flags.enc`; they are not electron-store config.
+- `encryptionKey.ts` must be used only after `app.whenReady()`.
+- External navigation must pass through `src/shared/urlValidators.ts` and `shellWrapper.ts`.
+- Main code must never call `shell.openExternal()` directly.
 
-## SECURITY LAYERS
+## CSP and webview constraints
 
-- **Certificate pinning**: Enabled for all Google domains. Kill switch: `secureFlags.disableCertPinning` (Keychain-stored, NOT electron-store).
-- **CSP enforcement**: `onHeadersReceived` strips `Cross-Origin-Embedder-Policy`/`Cross-Origin-Opener-Policy` for benign hosts to avoid breaking Google Chat.
-- **Permission lockdown**: Only `notifications`, `media`, `mediaKeySystem`, and `geolocation` are permitted. Everything else denied by default.
-- **Encryption**: Config stored in `electron-store` with AES-256-GCM. Key derived from SafeStorage (macOS Keychain). Legacy deterministic key supported for migration.
-- **External URLs**: **NEVER** call `shell.openExternal()` without first validating via `validateExternalURL()` from `../../shared/urlValidators.ts`.
+- `cspHeaderHandler.ts` performs targeted COEP/COOP stripping for Google domains.
+- It strips `frame-ancestors`/XFO only for benign hosts such as `accounts.google.com` and `ogs.google.com`.
+- Do not wholesale replace Google CSP.
+- `docs/windowWrapper-history.md` explains why `webSecurity:false` and CSP exceptions exist; read it before changing webview/network rules.
+
+## Permissions and media
+
+- `permissionHandler.ts` allowlists only expected permissions such as notifications, mediaKeySystem, and geolocation.
+- `mediaAccess.ts` deduplicates macOS TCC prompts and returns false in CI/headless contexts.
+
+## Certificate pinning gotchas
+
+- Pinning covers Google/gstatic/googleapis/googleusercontent domains.
+- Validation cache keys must include both hostname and fingerprint.
+- Kill switches (`disableCertPinning`, `disableCdpTelemetry`) default to safe false behavior on read/decrypt errors.
+
+## Anti-patterns
+
+- No unvalidated URL handoff to Electron shell APIs.
+- No config-store security flags.
+- No direct reads of secure-flags or encryption-key files; always go through `secureFlags.ts` / `encryptionKey.ts`.
+- No broad CSP rewrite to “make Chat work”.
+- No new permission without a narrow host/use-case explanation and tests.

@@ -1,33 +1,36 @@
-# src/shared/types/ — Cross-Process Type Contracts
+# Shared Types Guide
 
-**Generated:** 2026-05-14
+**Parent:** `../AGENTS.md`
 
-Canonical TypeScript types shared between main, preload, and renderer processes. All types are `export`-only — no runtime logic, no side effects. Import directly from each file (no barrel re-exports).
+This directory defines contracts crossing main, preload, tests, and shared validators.
 
-## FILES
+## Important files
 
-| File | Lines | Key Exports | Used By |
-| --- | --- | --- | --- |
-| `branded.ts` | 68 | `Branded<T, Brand>`, `ValidatedURL`, `AccountIndex`, `AccountPartition`, `FeatureNameBrand`, `WebContentsId`, `asValidatedURL`, `asAccountIndex`, `toPartition` | `urlValidators.ts`, `ipcHelper.ts`, `accountWindowManager.ts`, `featureRunner.ts` |
-| `bridge.ts` | 28 | `GogChatBridgeAPI`, `declare global { Window.gogchat }` | `src/preload/index.ts`, renderer |
-| `config.ts` | 60 | `AppConfig` (incl. `notificationPermissionRequested: boolean`, `useWebContentsView?: boolean` opt-in flag for WebContentsView backend), `StoreMetadata`, `StoreType` (security flags NOT stored here — see `secureFlags.ts`), `StoreKeyPaths` | `src/main/config.ts`, `configCache.ts`, `configSchema.ts` |
-| `domain.ts` | 92 | `IconType`, `IconState` (discriminated union), `PasskeyErrorType` union, `UnreadCountData`, `FaviconData`, `OnlineStatusData`, `PasskeyFailureData` (all readonly) | features, utils, preload |
-| `ipc.ts` | 95 | `IPCHandler<T>`, `ValidatedIPCMessage<T,C>`, `RateLimitEntry`, `IPCResponse<T>`, `IPCChannelPayloadMap`, `IPCResponsePayloadMap`, `ChannelRequest<C>`, `ChannelResponse<C>` template literal types | `ipcHelper.ts`, `ipcDeduplicator.ts` |
-| `window.ts` | 84 | `IAccountWindowManager` (22 methods, `AccountIndex`-typed), `WindowFactory`, `WindowBounds`, `AccountWindowsMap` | `accountWindowManager.ts`, features |
-| `errors.ts` | 26 | `ErrorCode` union (14 codes: `IPC_RATE_LIMITED`, `IPC_INVALID_PAYLOAD`, `ENCRYPTION_FAILED`, `CONFIG_READ_FAILED`, ...) | `src/main/utils/errors.ts` (`GogChatError`, `IPCError`, `ConfigError`) |
+- `branded.ts` - allowed branded casts and helpers such as `asValidatedURL`, `asAccountIndex`, `toPartition`, and `asWebContentsId`.
+- `bridge.ts` - preload-exposed API surface.
+- `config.ts` - shared config shape.
+- `domain.ts` - app domain payload types.
+- `errors.ts` - typed error codes and app error shapes.
+- `ipc.ts` - IPC payload/response maps.
+- `window.ts` - `IAccountWindowManager` and account window contracts.
 
-## KEY PATTERNS
+## Rules
 
-- **Branded types**: `ValidatedURL` uses `Branded<string, 'ValidatedURL'>` to enforce validation at the type level — raw strings won't satisfy the type. Use `asValidatedURL(s)` to assert a validated string. Additional brands: `AccountIndex` (non-negative integer slot), `AccountPartition` (`persist:account-N`), `FeatureNameBrand` (registered feature names), `WebContentsId`. Use `asAccountIndex()` and `toPartition()` helpers for safe construction.
-- **Config types**: `StoreType` defines the full store shape. `StoreKeyPaths` is a path type for `configGet`/`configSet` type safety (in `src/main/config.ts`). Schema lives in `src/main/config.ts`. **Never** call `store.get(...) as T` directly — use `configGet<K>(key)`. Security-sensitive flags (e.g. cert pinning kill switch) live in `secureFlags.ts` (safeStorage), NOT in StoreType.
-- **Window interface**: `IAccountWindowManager` is the contract between main process implementation and feature consumers. 22 methods — add new window operations here. T12/M3 added `dehydrateAccount`/`hydrateAccount`/`isDehydrated` for idle window memory release while preserving `persist:account-N` partition.
-- **IPC types**: Generic `IPCHandler<T>` and `IPCResponse<T>` ensure type-safe IPC channels. `IPCChannelPayloadMap` uses computed keys `[IPC_CHANNELS.X]` — add new channel payload types here. `ValidatedIPCMessage.channel` is typed as `IPCChannelName`.
-- **Branded error codes**: `ErrorCode` is a string literal union of 14 stable identifiers consumed by the `GogChatError` hierarchy in `src/main/utils/errors.ts`. Throw typed subclasses (`IPCError`, `ConfigError`) with `{ cause }` chaining instead of bare `Error`; the `code` field stays type-checked across producers and consumers.
+- Keep files type-only unless a runtime helper is explicitly needed for branding/validation.
+- Use `import type` where possible.
+- Do not import from `src/main` or `src/preload`.
+- Do not add a barrel export.
+- Keep `ErrorCode` exhaustive when adding app error cases.
 
-## ANTI-PATTERNS
+## Adding a branded type
 
-- **Never** add runtime logic — types only
-- **Never** create barrel/index files — import directly from each file
-- **Never** import from `src/main/` or `src/preload/` — this is a dependency leaf
-- **Never** use `any` — use `unknown` or proper branded types
-- **Never** duplicate types that exist in a sibling file — re-export from the original
+1. Define the brand here.
+2. Add one narrow constructor/helper that validates or documents the boundary.
+3. Use the helper at system boundaries; do not scatter bare `value as Brand` casts.
+
+## Adding IPC types
+
+1. Add payload and response types.
+2. Extend `IPCChannelPayloadMap` / response maps.
+3. Update bridge types in `bridge.ts` if renderer-facing.
+4. Keep validators in shared validator files, not in type-only modules.
