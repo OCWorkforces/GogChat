@@ -131,4 +131,4 @@ Nested guides supplement this root and are intentionally more specific:
 - `tests/AGENTS.md`
 - `mac/AGENTS.md`
 
-Low-score `docs/` and `.github/workflows/` are covered here plus `scripts/AGENTS.md` and `mac/AGENTS.md`; add local AGENTS files there only if new agent-critical conventions appear.
+Low-score `docs/` and `.github/workflows/` are covered here plus `scripts/AGENTS.md` and `mac/AGENTS.md`; add local AGENTS files there only if new agent-critical conventions appear. `resources/` has its own guide for icon variants, generation, and packaging.

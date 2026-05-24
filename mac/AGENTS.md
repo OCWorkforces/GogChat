@@ -29,6 +29,7 @@ bun run package
 ## Asset rules
 
 - Keep DMG background/icons aligned with generated icon assets from `scripts/`.
+- Use `resources/AGENTS.md` for icon variant names and generation rules before changing packaged icons.
 - Packaging assets include `electron-builder.yml`, `electron-builder.sign.yml`, and `entitlements.mac*.plist`.
 - Do not edit files inside a mounted DMG as the source of truth.
 - Do not add Intel-specific assumptions unless product support changes.

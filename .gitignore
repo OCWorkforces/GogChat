@@ -58,3 +58,4 @@ tsconfig.tsbuildinfo
 /.cocoindex_code/
 test-results/
 .opencode/
+.omo/
