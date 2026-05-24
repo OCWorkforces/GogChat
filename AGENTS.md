@@ -130,7 +130,7 @@ Write the minimum code that solves the stated problem. Nothing speculative.
 
 - No features beyond what was asked.
 - No abstractions for single-use code.
-- No "flexibility" or "configurability" that was not requested.
+- No `flexibility` or `configurability` that was not requested.
 - No error handling for scenarios that cannot happen given current contracts.
 - If a 200-line solution could be 50 lines, rewrite it. Ask: would a senior engineer call this overcomplicated?
 
@@ -138,7 +138,7 @@ Write the minimum code that solves the stated problem. Nothing speculative.
 
 Touch only what the request requires. Clean up only the mess your own changes created.
 
-- Do not "improve" adjacent code, comments, or formatting while editing.
+- Do not `improve` adjacent code, comments, or formatting while editing.
 - Do not refactor code that is not broken, even if you would write it differently.
 - Match the existing style of the file you are editing.
 - If you spot unrelated dead code or issues, mention them in the final message as observations; do not delete or fix them.
@@ -151,9 +151,9 @@ Define success criteria up front, then loop until they verify. Strong criteria l
 
 Transform tasks into verifiable goals:
 
-- "Add validation" -> write tests for invalid inputs, then make them pass.
-- "Fix the bug" -> write a test that reproduces it, then make it pass.
-- "Refactor X" -> ensure the same tests pass before and after.
+- `Add validation` -> write tests for invalid inputs, then make them pass.
+- `Fix the bug` -> write a test that reproduces it, then make it pass.
+- `Refactor X` -> ensure the same tests pass before and after.
 
 For multi-step tasks, state a brief plan with a verification check per step:
 
