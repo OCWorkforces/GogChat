@@ -518,6 +518,30 @@ describe('IPCDeduplicator', () => {
       ded.destroy();
     });
 
+    it('refreshes an expired key at the end of cleanup order', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('refresh', fn);
+      vi.advanceTimersByTime(150);
+      await ded.deduplicate('middle', fn);
+      vi.advanceTimersByTime(60);
+
+      expect(ded.getCacheSize()).toBe(1);
+
+      await ded.deduplicate('refresh', fn);
+      expect(ded.getCacheSize()).toBe(2);
+
+      vi.advanceTimersByTime(150);
+      expect(ded.getCacheSize()).toBe(1);
+
+      vi.advanceTimersByTime(60);
+      expect(ded.getCacheSize()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+
+      ded.destroy();
+    });
+
     it('destroy() cancels the pending timer', async () => {
       const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
       const fn = vi.fn().mockResolvedValue('result');
@@ -554,6 +578,49 @@ describe('IPCDeduplicator', () => {
       expect(vi.getTimerCount()).toBe(1);
       expect(ded.getCacheSize()).toBe(1);
       expect(fn).toHaveBeenCalledTimes(1);
+
+      ded.destroy();
+    });
+
+    it('does not rescan cache or reschedule when a cleanup timer is already pending', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('k1', fn);
+      expect(vi.getTimerCount()).toBe(1);
+
+      // Spy on clearTimeout to detect reschedule attempts.
+      const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+      // Burst of inserts with distinct keys; timer is already pending and valid.
+      for (let i = 0; i < 20; i++) {
+        await ded.deduplicate(`burst-${i}`, fn);
+      }
+
+      // No clearTimeout should have been called — pending timer must stand.
+      expect(clearSpy).not.toHaveBeenCalled();
+      // Still exactly one active timer.
+      expect(vi.getTimerCount()).toBe(1);
+
+      clearSpy.mockRestore();
+      ded.destroy();
+    });
+
+    it('schedules a fresh timer for a new insert after the pending timer fires', async () => {
+      const ded = new IPCDeduplicator({ windowMs: 100, maxCacheSize: 10, debug: false });
+      const fn = vi.fn().mockResolvedValue('result');
+
+      await ded.deduplicate('first', fn);
+      expect(vi.getTimerCount()).toBe(1);
+
+      // Let pending timer fire; cache empties; no timer remains.
+      vi.advanceTimersByTime(250);
+      expect(ded.getCacheSize()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+
+      // A subsequent insert must schedule a new cleanup timer.
+      await ded.deduplicate('second', fn);
+      expect(vi.getTimerCount()).toBe(1);
 
       ded.destroy();
     });

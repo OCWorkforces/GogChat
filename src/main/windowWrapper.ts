@@ -14,6 +14,12 @@ import { configGet, configSet } from './config.js';
 
 installBenignWarningFilter();
 
+// Module-level in-memory guard preventing duplicate Notification permission
+// scheduling within the same process. The persisted config flag remains the
+// cross-process gate; this guard collapses same-tick multi-window bursts so
+// only one silent Notification and one configSet are issued.
+let notificationPermissionScheduled = false;
+
 /**
  * Parse the account index from a session partition string of the form
  * `persist:account-N`. Returns 0 (default) when the partition is not present
@@ -73,20 +79,36 @@ export default (url: string, partition?: string): BrowserWindow => {
   // first .show(). Gate behind a persisted flag so the TCC prompt and XPC round-trip
   // only happen once — subsequent launches and additional account windows skip entirely.
   // Wrapped in setImmediate so it never blocks loadURL on the critical path.
-  if (Notification.isSupported() && !configGet('app.notificationPermissionRequested')) {
-    setImmediate(() => {
-      const permNotification = new Notification({
-        title: 'GogChat',
-        body: 'Notifications enabled',
-        silent: true,
+  if (
+    Notification.isSupported() &&
+    !notificationPermissionScheduled &&
+    !configGet('app.notificationPermissionRequested')
+  ) {
+    notificationPermissionScheduled = true;
+    try {
+      setImmediate(() => {
+        try {
+          const permNotification = new Notification({
+            title: 'GogChat',
+            body: 'Notifications enabled',
+            silent: true,
+          });
+          permNotification.on('show', () => {
+            permNotification.close();
+          });
+          permNotification.show();
+          configSet('app.notificationPermissionRequested', true);
+          log.info('[Notification] Triggered macOS notification permission request at startup');
+        } catch (err) {
+          notificationPermissionScheduled = false;
+          throw err;
+        }
       });
-      permNotification.on('show', () => {
-        permNotification.close();
-      });
-      permNotification.show();
-      configSet('app.notificationPermissionRequested', true);
-      log.info('[Notification] Triggered macOS notification permission request at startup');
-    });
+    } catch (err) {
+      // Release the guard if scheduling itself fails before configSet runs.
+      notificationPermissionScheduled = false;
+      throw err;
+    }
   }
 
   window.once('ready-to-show', () => {

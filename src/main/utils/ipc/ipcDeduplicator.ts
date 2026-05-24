@@ -37,7 +37,6 @@ type CacheEntryAny = CacheEntry<unknown>;
 export class IPCDeduplicator {
   private cache = new Map<string, CacheEntryAny>();
   private cleanupTimeout: NodeJS.Timeout | null = null;
-  private nextCleanupAt: number | null = null;
   private config: Required<DeduplicationConfig>;
   private stats = {
     deduplicatedCount: 0,
@@ -89,6 +88,11 @@ export class IPCDeduplicator {
     // Clean cache if too large
     if (this.cache.size >= this.config.maxCacheSize) {
       this.cleanOldEntries();
+    }
+
+    if (existing) {
+      // Refresh expired keys at the end of insertion order for cleanup scheduling.
+      this.cache.delete(key);
     }
 
     // Create new promise
@@ -171,13 +175,17 @@ export class IPCDeduplicator {
       clearTimeout(this.cleanupTimeout);
       this.cleanupTimeout = null;
     }
-    this.nextCleanupAt = null;
   }
 
   /**
-   * Schedule the next cleanup to fire at the soonest expiring entry's deadline.
-   * Cancels and reschedules if the new soonest expiry is earlier than the pending one.
-   * Does nothing when the cache is empty.
+   * Schedule a cleanup timer if none is currently pending.
+   *
+   * Timestamps are monotonic and Map iteration is insertion-ordered, so the
+   * first entry is always the oldest. Any later insert has an expiry no
+   * earlier than the pending timer's deadline, so the pending timer is
+   * always sufficient: when it fires it cleans whatever has expired and
+   * reschedules itself if entries remain. There is no need to rescan the
+   * full cache on every insert.
    */
   private scheduleNextCleanup(): void {
     if (this.cache.size === 0) {
@@ -185,40 +193,22 @@ export class IPCDeduplicator {
       return;
     }
 
+    // A pending timer already covers the soonest expiry — leave it alone.
+    if (this.cleanupTimeout !== null) {
+      return;
+    }
+
+    // Use the oldest entry (first inserted) to compute the next deadline.
+    const oldest = this.cache.values().next().value;
+    if (!oldest) {
+      return;
+    }
     const expirationMs = this.config.windowMs * 2;
-    let earliestExpiry = Infinity;
-    for (const entry of this.cache.values()) {
-      const expiresAt = entry.timestamp + expirationMs;
-      if (expiresAt < earliestExpiry) {
-        earliestExpiry = expiresAt;
-      }
-    }
-
-    if (!Number.isFinite(earliestExpiry)) {
-      return;
-    }
-
-    // If a timer is already scheduled and fires no later than the new expiry, keep it.
-    if (
-      this.cleanupTimeout !== null &&
-      this.nextCleanupAt !== null &&
-      this.nextCleanupAt <= earliestExpiry
-    ) {
-      return;
-    }
-
-    // Cancel any existing timer; new soonest expiry is earlier.
-    if (this.cleanupTimeout) {
-      clearTimeout(this.cleanupTimeout);
-      this.cleanupTimeout = null;
-    }
-
+    const earliestExpiry = oldest.timestamp + expirationMs;
     const delay = Math.max(0, earliestExpiry - Date.now());
-    this.nextCleanupAt = earliestExpiry;
     this.cleanupTimeout = createTrackedTimeout(
       () => {
         this.cleanupTimeout = null;
-        this.nextCleanupAt = null;
         this.cleanOldEntries();
         // Reschedule if entries remain
         if (this.cache.size > 0) {

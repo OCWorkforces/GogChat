@@ -1,0 +1,45 @@
+# Resources Guide
+
+**Parent:** `../AGENTS.md`
+
+`resources/` contains all packaged static assets: icon variants, app icons, and offline fallback graphics. Runtime access is always via `process.resourcesPath` (packaged) or `app.getAppPath()` (dev), through `iconCache.ts` and `platform/` helpers.
+
+## Icon tree
+
+```
+resources/icons/
+  aura/      - About panel hero graphic, 16/32/48/64/256 px
+  badge/     - Unread badge overlays, 16/32/48/64/256 px
+  normal/    - App/dock icons, 16/32/48/64/256 px + mac.icns + scalable.svg
+  offline/   - Offline page graphic, 16/32/48/64/256 px
+  tray/      - Menu bar Template icons, 22/44 px + unread variants
+```
+
+## Generation
+
+Use `bun scripts/generate-google-chat-icons.mjs`. Do not hand-edit individual generated PNG, ICNS, or SVG variants. The script creates all five variant directories, tray Template icons at 22/44 px, app-size icons per `APP_SIZES`, and generates `mac.icns` via macOS `iconutil`. Run the generator after any icon design change.
+
+## Naming conventions
+
+- Tray Template icons must have a `Template` suffix: `iconTemplate.png`, `iconUnreadTemplate.png`.
+- Retina variants use `@2x` suffix: `iconTemplate@2x.png`.
+- Offline, badge, aura, and normal icons use plain numeric sizes.
+
+## Runtime paths
+
+Icon cache loads paths relative to `resources/`:
+
+- Packaged: `process.resourcesPath` + `resources/icons/normal/256.png`
+- Dev: `app.getAppPath()` + `resources/icons/normal/256.png`
+
+`iconCache.ts` manages initial and deferred warmup. `cacheWarmer.ts` schedules idle-tier warming. The three path sets (`INITIAL_ICON_PATHS`, `SOON_DEFERRED_ICON_PATHS`, `ADDITIONAL_ICON_PATHS`) must remain disjoint; update tests if path sets change.
+
+## Packaging
+
+`electron-builder.yml` copies `resources/` as `extraResources` outside the ASAR archive. DMG and mac app icons reference `resources/icons/normal/mac.icns`. The offline fallback page references `resources/icons/normal/scalable.svg`.
+
+## Anti-patterns
+
+- No ad-hoc rename or hand-edit of generated icon files.
+- No moving icons into startup paths without updating `iconCache.ts` warmup tiers and tests.
+- No changing output paths without updating `electron-builder.yml` extraResources, `src/offline/index.html` SVG reference, and `scripts/AGENTS.md` build invariants.

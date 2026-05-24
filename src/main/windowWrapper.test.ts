@@ -36,7 +36,15 @@ vi.mock('electron', () => ({
     return win;
   }),
   Notification: Object.assign(
-    vi.fn().mockImplementation(() => ({ on: vi.fn(), show: vi.fn(), close: vi.fn() })),
+    vi.fn(function MockNotification(this: {
+      on: ReturnType<typeof vi.fn>;
+      show: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+    }) {
+      this.on = vi.fn();
+      this.show = vi.fn();
+      this.close = vi.fn();
+    }),
     { isSupported: vi.fn().mockReturnValue(false) }
   ),
   systemPreferences: {
@@ -48,18 +56,23 @@ vi.mock('electron-log', () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-vi.mock('./config', () => ({
-  default: {
-    get: vi.fn((key: string) => {
-      const defaults: Record<string, unknown> = {
-        'app.hideMenuBar': false,
-        'app.startHidden': false,
-        'app.disableSpellChecker': false,
-      };
-      return defaults[key];
+vi.mock('./config', () => {
+  const defaults: Record<string, unknown> = {
+    'app.hideMenuBar': false,
+    'app.startHidden': false,
+    'app.disableSpellChecker': false,
+    'app.notificationPermissionRequested': false,
+  };
+  return {
+    default: {
+      get: vi.fn((key: string) => defaults[key]),
+    },
+    configGet: vi.fn((key: string) => defaults[key]),
+    configSet: vi.fn((key: string, value: unknown) => {
+      defaults[key] = value;
     }),
-  },
-}));
+  };
+});
 
 vi.mock('./utils/platform/iconCache', () => ({
   getIconCache: vi.fn().mockReturnValue({
@@ -392,6 +405,34 @@ describe('windowWrapper', () => {
     it('falls back to disabled when partition string is malformed', () => {
       createWindow('https://chat.google.com', 'persist:something-else');
       expect(getPrefs().backgroundThrottling).toBe(false);
+    });
+  });
+
+  describe('notification permission gating', () => {
+    it('schedules at most one Notification request and one configSet for same-tick window creations', async () => {
+      const electron = await import('electron');
+      const config = await import('./config');
+      const NotificationCtor = electron.Notification as unknown as ReturnType<typeof vi.fn> & {
+        isSupported: ReturnType<typeof vi.fn>;
+      };
+      NotificationCtor.isSupported.mockReturnValue(true);
+      vi.mocked(config.configGet).mockReturnValue(false);
+      NotificationCtor.mockClear();
+      vi.mocked(config.configSet).mockClear();
+
+      createWindow('https://chat.google.com', 'persist:account-0');
+      createWindow('https://chat.google.com', 'persist:account-1');
+      createWindow('https://chat.google.com', 'persist:account-2');
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(NotificationCtor).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(config.configSet)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(config.configSet)).toHaveBeenCalledWith(
+        'app.notificationPermissionRequested',
+        true
+      );
     });
   });
 });
