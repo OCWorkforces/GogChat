@@ -112,7 +112,56 @@ Runtime/toolchain constraints:
 - Never add bare `setTimeout`/`setInterval` in main; use tracked resource helpers.
 - Never create feature logic in `src/main/index.ts`.
 - Never open external URLs without shared URL validation.
-- Prefer small, local fixes. Do not refactor while fixing a bug.
+
+## Working principles
+
+These apply to every change in this repo, whether you implement it yourself or delegate.
+
+### Think before coding
+
+- State assumptions explicitly. If uncertain, ask one precise question instead of guessing.
+- If multiple interpretations of the request exist, surface them; do not pick silently.
+- If a simpler approach exists than what was described, say so and push back when warranted.
+- If something is unclear, stop and name what is confusing. Do not hide confusion behind speculative code.
+
+### Simplicity first
+
+Write the minimum code that solves the stated problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that was not requested.
+- No error handling for scenarios that cannot happen given current contracts.
+- If a 200-line solution could be 50 lines, rewrite it. Ask: would a senior engineer call this overcomplicated?
+
+### Surgical changes
+
+Touch only what the request requires. Clean up only the mess your own changes created.
+
+- Do not "improve" adjacent code, comments, or formatting while editing.
+- Do not refactor code that is not broken, even if you would write it differently.
+- Match the existing style of the file you are editing.
+- If you spot unrelated dead code or issues, mention them in the final message as observations; do not delete or fix them.
+- Remove imports, variables, and functions that *your* changes orphaned. Leave pre-existing dead code alone unless asked.
+- The test for every changed line: does it trace directly to the user's request?
+
+### Goal-driven execution
+
+Define success criteria up front, then loop until they verify. Strong criteria let you work independently; weak ones ("make it work") force constant clarification.
+
+Transform tasks into verifiable goals:
+
+- "Add validation" -> write tests for invalid inputs, then make them pass.
+- "Fix the bug" -> write a test that reproduces it, then make it pass.
+- "Refactor X" -> ensure the same tests pass before and after.
+
+For multi-step tasks, state a brief plan with a verification check per step:
+
+```text
+1. [Step] -> verify: [check]
+2. [Step] -> verify: [check]
+3. [Step] -> verify: [check]
+```
 
 ## Current AGENTS hierarchy
 
