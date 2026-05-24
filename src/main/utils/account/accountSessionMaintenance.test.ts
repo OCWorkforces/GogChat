@@ -201,6 +201,61 @@ describe('AccountActivityTracker', () => {
       expect(t.getIdleAccounts(0)).toEqual([]);
     });
   });
+
+  describe('classifyIdleAccounts', () => {
+    it('returns three empty tiers when no accounts are tracked', () => {
+      const t = new AccountActivityTracker();
+      const r = t.classifyIdleAccounts({ t1: 1, t2: 2, t3: 3 });
+      expect(r).toEqual({ tier1: [], tier2: [], tier3: [] });
+    });
+
+    it('places each account in every tier whose threshold it has crossed', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0); // will be idle SIX_HOURS → all three tiers
+      vi.advanceTimersByTime(SIX_HOURS - TWO_HOURS);
+      t.recordActivity(1); // will be idle TWO_HOURS → tier1 + tier2
+      vi.advanceTimersByTime(TWO_HOURS - THIRTY_MIN);
+      t.recordActivity(2); // will be idle THIRTY_MIN → tier1 only
+      vi.advanceTimersByTime(THIRTY_MIN);
+
+      const r = t.classifyIdleAccounts({
+        t1: THIRTY_MIN,
+        t2: TWO_HOURS,
+        t3: SIX_HOURS,
+      });
+      expect(r.tier1.sort()).toEqual([0, 1, 2]);
+      expect(r.tier2.sort()).toEqual([0, 1]);
+      expect(r.tier3.sort()).toEqual([0]);
+    });
+
+    it('excludes excludeIndices from all tiers', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      t.recordActivity(1);
+      t.recordActivity(2);
+      vi.advanceTimersByTime(SIX_HOURS);
+
+      const r = t.classifyIdleAccounts(
+        { t1: THIRTY_MIN, t2: TWO_HOURS, t3: SIX_HOURS },
+        new Set([1])
+      );
+      expect(r.tier1.sort()).toEqual([0, 2]);
+      expect(r.tier2.sort()).toEqual([0, 2]);
+      expect(r.tier3.sort()).toEqual([0, 2]);
+    });
+
+    it('omits accounts that have not crossed any threshold', () => {
+      const t = new AccountActivityTracker();
+      t.recordActivity(0);
+      vi.advanceTimersByTime(THIRTY_MIN - 1);
+      const r = t.classifyIdleAccounts({
+        t1: THIRTY_MIN,
+        t2: TWO_HOURS,
+        t3: SIX_HOURS,
+      });
+      expect(r).toEqual({ tier1: [], tier2: [], tier3: [] });
+    });
+  });
 });
 
 describe('startSessionMaintenance / stopSessionMaintenance', () => {
@@ -257,10 +312,11 @@ describe('startSessionMaintenance / stopSessionMaintenance', () => {
     expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
   });
 
-  it('skips bootstrap accounts', () => {
+  it('skips bootstrap accounts via the exclusion set without per-tier isBootstrap re-checks', () => {
     const tracker = new AccountActivityTracker();
     const isBootstrap = vi.fn((idx: number) => idx === 1);
-    const manager = makeManager({ isBootstrap });
+    const getBootstrapAccounts = vi.fn().mockReturnValue([1]);
+    const manager = makeManager({ isBootstrap, getBootstrapAccounts });
     tracker.recordActivity(0);
     tracker.recordActivity(1);
     startSessionMaintenance(tracker, manager);
@@ -270,7 +326,9 @@ describe('startSessionMaintenance / stopSessionMaintenance', () => {
     expect(mockFromPartition).toHaveBeenCalledWith('persist:account-0');
     expect(mockFromPartition).not.toHaveBeenCalledWith('persist:account-1');
     expect(mockClearCodeCaches).toHaveBeenCalledTimes(1);
-    expect(isBootstrap).toHaveBeenCalledWith(1);
+    // Exclusion comes from getBootstrapAccounts — not from per-tier isBootstrap checks.
+    expect(getBootstrapAccounts).toHaveBeenCalled();
+    expect(isBootstrap).not.toHaveBeenCalled();
   });
 
   it('clears caches for multiple idle accounts on a single tick', () => {

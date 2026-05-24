@@ -83,6 +83,43 @@ export class AccountActivityTracker {
   }
 
   /**
+   * Classify all tracked accounts by idle-tier in a single pass.
+   *
+   * Returns three index lists: indices idle past each provided threshold.
+   * An account idle past `t3` is also reported in `t1` and `t2` lists.
+   * Accounts in `excludeIndices` are filtered out from all tiers.
+   *
+   * This is a logic-efficiency helper for callers that need to evaluate the
+   * same activity map against several thresholds on the same tick — it avoids
+   * walking the map once per threshold.
+   */
+  classifyIdleAccounts(
+    thresholds: { t1: number; t2: number; t3: number },
+    excludeIndices?: Set<AccountIndex>
+  ): { tier1: AccountIndex[]; tier2: AccountIndex[]; tier3: AccountIndex[] } {
+    const now = Date.now();
+    const tier1: AccountIndex[] = [];
+    const tier2: AccountIndex[] = [];
+    const tier3: AccountIndex[] = [];
+    for (const [accountIndex, lastTime] of this.lastActivity) {
+      if (excludeIndices?.has(accountIndex)) {
+        continue;
+      }
+      const idleFor = now - lastTime;
+      if (idleFor >= thresholds.t1) {
+        tier1.push(accountIndex);
+      }
+      if (idleFor >= thresholds.t2) {
+        tier2.push(accountIndex);
+      }
+      if (idleFor >= thresholds.t3) {
+        tier3.push(accountIndex);
+      }
+    }
+    return { tier1, tier2, tier3 };
+  }
+
+  /**
    * Drop all recorded activity. Used by the singleton destroyer.
    */
   clear(): void {
@@ -99,7 +136,7 @@ let pressureHandler: (() => void) | null = null;
  * Start the periodic maintenance scheduler.
  *
  * Every 5 minutes, every account that has been idle for >= 30 minutes (and is
- * NOT a bootstrap window per `manager.isBootstrap(i)`) has its V8 code cache
+ * NOT reported as a bootstrap account by `manager.getBootstrapAccounts()`) has its V8 code cache
  * cleared via `session.fromPartition('persist:account-N').clearCodeCaches()`.
  *
  * Calling this while a scheduler is already running is a no-op.
@@ -117,12 +154,24 @@ export function startSessionMaintenance(
       // accounts must never have their caches touched mid-auth.
       const bootstrapAccounts = new Set<AccountIndex>(manager.getBootstrapAccounts());
 
+      // Single-pass classification of all idle accounts across the three tiers.
+      // Bootstrap accounts are excluded by the set, so per-tier `isBootstrap`
+      // re-checks are unnecessary inside the loops below.
+      const {
+        tier1: idleAccounts,
+        tier2: twoHourIdle,
+        tier3: sixHourIdle,
+      } = tracker.classifyIdleAccounts(
+        {
+          t1: IDLE_THRESHOLD_MS,
+          t2: HTTP_CACHE_IDLE_THRESHOLD_MS,
+          t3: SERVICE_WORKER_IDLE_THRESHOLD_MS,
+        },
+        bootstrapAccounts
+      );
+
       // ── Tier 1 — V8 code cache (idle >= 30 min) ─────────────────────
-      const idleAccounts = tracker.getIdleAccounts(IDLE_THRESHOLD_MS, bootstrapAccounts);
       for (const accountIndex of idleAccounts) {
-        if (manager.isBootstrap(accountIndex)) {
-          continue;
-        }
         try {
           const partition = toPartition(accountIndex);
           void session.fromPartition(partition).clearCodeCaches({ urls: [] });
@@ -138,11 +187,7 @@ export function startSessionMaintenance(
       }
 
       // ── Tier 2 — Full HTTP cache (idle >= 2 hours) ────────
-      const twoHourIdle = tracker.getIdleAccounts(HTTP_CACHE_IDLE_THRESHOLD_MS, bootstrapAccounts);
       for (const accountIndex of twoHourIdle) {
-        if (manager.isBootstrap(accountIndex)) {
-          continue;
-        }
         try {
           const partition = toPartition(accountIndex);
           void session
@@ -166,14 +211,7 @@ export function startSessionMaintenance(
       }
 
       // ── Tier 3 — Service worker storage (idle >= 6 hours) ─
-      const sixHourIdle = tracker.getIdleAccounts(
-        SERVICE_WORKER_IDLE_THRESHOLD_MS,
-        bootstrapAccounts
-      );
       for (const accountIndex of sixHourIdle) {
-        if (manager.isBootstrap(accountIndex)) {
-          continue;
-        }
         try {
           const partition = toPartition(accountIndex);
           void session
