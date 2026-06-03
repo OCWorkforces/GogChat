@@ -18,6 +18,122 @@ vi.mock('electron-log', () => ({
   },
 }));
 
+// Mock electron-store with an in-memory implementation so tests do not load
+// Electron's binary marker (node_modules/electron/path.txt) in environments
+// where it is not provisioned (e.g. ELECTRON_SKIP_BINARY_DOWNLOAD=1).
+vi.mock('electron-store', () => {
+  interface SchemaProp {
+    type?: string;
+    default?: unknown;
+    properties?: Record<string, SchemaProp>;
+  }
+  interface MockStoreOptions {
+    name?: string;
+    projectName?: string;
+    schema?: Record<string, SchemaProp>;
+  }
+
+  const computeDefaults = (schema?: Record<string, SchemaProp>): Record<string, unknown> => {
+    const result: Record<string, unknown> = {};
+    if (!schema) return result;
+    for (const [key, prop] of Object.entries(schema)) {
+      if (prop.default !== undefined) {
+        result[key] = prop.default;
+      } else if (prop.type === 'object' && prop.properties) {
+        const nested = computeDefaults(prop.properties);
+        if (Object.keys(nested).length > 0) result[key] = nested;
+      }
+    }
+    return result;
+  };
+
+  const getPath = (obj: Record<string, unknown>, path: string): unknown => {
+    const parts = path.split('.');
+    let cur: unknown = obj;
+    for (const part of parts) {
+      if (cur && typeof cur === 'object' && part in (cur as Record<string, unknown>)) {
+        cur = (cur as Record<string, unknown>)[part];
+      } else {
+        return undefined;
+      }
+    }
+    return cur;
+  };
+
+  const setPath = (obj: Record<string, unknown>, path: string, value: unknown): void => {
+    const parts = path.split('.');
+    const last = parts[parts.length - 1];
+    if (last === undefined) return;
+    let cur: Record<string, unknown> = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (part === undefined) return;
+      const next = cur[part];
+      if (!next || typeof next !== 'object') {
+        cur[part] = {};
+      }
+      cur = cur[part] as Record<string, unknown>;
+    }
+    cur[last] = value;
+  };
+
+  const deletePath = (obj: Record<string, unknown>, path: string): void => {
+    const parts = path.split('.');
+    const last = parts[parts.length - 1];
+    if (last === undefined) return;
+    let cur: Record<string, unknown> = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (part === undefined) return;
+      const next = cur[part];
+      if (!next || typeof next !== 'object') return;
+      cur = next as Record<string, unknown>;
+    }
+    delete cur[last];
+  };
+
+  class MockStore {
+    private data: Record<string, unknown> = {};
+    private defaults: Record<string, unknown>;
+
+    constructor(options: MockStoreOptions = {}) {
+      this.defaults = computeDefaults(options.schema);
+    }
+
+    get(key: string, defaultValue?: unknown): unknown {
+      const stored = getPath(this.data, key);
+      if (stored !== undefined) return stored;
+      const schemaDefault = getPath(this.defaults, key);
+      if (schemaDefault !== undefined) return schemaDefault;
+      return defaultValue;
+    }
+
+    set(keyOrValues: string | Record<string, unknown>, value?: unknown): void {
+      if (typeof keyOrValues === 'string') {
+        setPath(this.data, keyOrValues, value);
+        return;
+      }
+      for (const [k, v] of Object.entries(keyOrValues)) {
+        setPath(this.data, k, v);
+      }
+    }
+
+    delete(key: string): void {
+      deletePath(this.data, key);
+    }
+
+    clear(): void {
+      this.data = {};
+    }
+
+    get store(): Record<string, unknown> {
+      return { ...this.defaults, ...this.data };
+    }
+  }
+
+  return { default: MockStore };
+});
+
 describe('ConfigCache', () => {
   let store: Store<{ test: string; nested: { value: number } }>;
   let cachedStore: CachedStore<{ test: string; nested: { value: number } }>;

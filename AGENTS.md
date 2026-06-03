@@ -37,35 +37,35 @@ bun run build:mac
 
 Runtime/toolchain constraints:
 
-- Node `>=22.0.0`; Bun `>=1.3.13`; package manager `bun@1.3.14`.
+- Node `>=24.16.0 <25.0.0`; Bun `>=1.3.13`; package manager `bun@1.3.14`.
 - Electron `^42.2.0`.
 - TypeScript strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noUncheckedSideEffectImports`, `noUnusedLocals`, and `noUnusedParameters`.
 - Prettier: 100 columns, single quotes, semicolons, trailing commas ES5, LF.
 
 ## Where to look
 
-| Task | Start here | Notes |
-| --- | --- | --- |
-| App entry | `src/main/index.ts` | Thin orchestrator only. Do not add feature logic here. |
-| App-ready sequence | `src/main/initializers/registerAppReady.ts` | Owns `app.whenReady()` work. |
-| Feature specs | `src/main/initializers/{security,ui,deferred}.spec.ts` | Declarative `FeatureSpec[]`; edit these to add/reorder features. |
-| Feature codegen | `scripts/featurePlanPlugin.js` | Parses specs and topo-sorts dependency batches at build time. |
-| Runtime feature runner | `src/main/utils/lifecycle/featureRunner.ts` | Runs security/critical/ui/deferred phases. |
-| Shared feature context | `src/main/utils/lifecycle/featureContextStore.ts` | Stores `mainWindow` and account manager after bootstrap. |
-| Shutdown | `src/main/initializers/registerShutdown.ts` | Async cleanup before `app.exit()`. |
-| BrowserWindow accounts | `src/main/utils/account/accountWindowManager.ts` | Default multi-account backend. |
-| WebContentsView accounts | `src/main/utils/account/accountViewManager.ts` | Opt-in backend behind `app.useWebContentsView`. |
-| Account contract | `src/shared/types/window.ts` | `IAccountWindowManager` boundary. |
-| IPC helpers | `src/main/utils/ipc/` | Rate limit, validate, dedup/fast-path, catch. |
-| IPC channel names | `src/shared/constants.ts` | Never hardcode channel strings. |
-| Preload bridge | `src/preload/index.ts` + `src/shared/types/bridge.ts` | Sandboxed CJS preload. No raw `ipcRenderer` exposure. |
-| URL validation | `src/shared/urlValidators.ts` | Navigation, external links, deep links, Google auth detection. |
-| Config | `src/shared/types/config.ts` + `src/main/config.ts` | Update schema and typed accessors together. |
-| Secure flags | `src/main/utils/security/secureFlags.ts` | SafeStorage-backed kill switches; not electron-store config. |
-| Error types | `src/shared/types/errors.ts` + `src/main/utils/lifecycle/errors.ts` | Prefer typed errors and `{ cause }`. |
-| Historical webview constraints | `docs/windowWrapper-history.md` | `webSecurity:false` and CSP exceptions are deliberate. |
-| Tests | `tests/AGENTS.md` | Unit/integration/e2e/perf guidance. |
-| Packaging | `mac/AGENTS.md` + `scripts/AGENTS.md` | DMG, signing, notarization, perf gates. |
+| Task                           | Start here                                                          | Notes                                                            |
+| ------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| App entry                      | `src/main/index.ts`                                                 | Thin orchestrator only. Do not add feature logic here.           |
+| App-ready sequence             | `src/main/initializers/registerAppReady.ts`                         | Owns `app.whenReady()` work.                                     |
+| Feature specs                  | `src/main/initializers/{security,ui,deferred}.spec.ts`              | Declarative `FeatureSpec[]`; edit these to add/reorder features. |
+| Feature codegen                | `scripts/featurePlanPlugin.js`                                      | Parses specs and topo-sorts dependency batches at build time.    |
+| Runtime feature runner         | `src/main/utils/lifecycle/featureRunner.ts`                         | Runs security/critical/ui/deferred phases.                       |
+| Shared feature context         | `src/main/utils/lifecycle/featureContextStore.ts`                   | Stores `mainWindow` and account manager after bootstrap.         |
+| Shutdown                       | `src/main/initializers/registerShutdown.ts`                         | Async cleanup before `app.exit()`.                               |
+| BrowserWindow accounts         | `src/main/utils/account/accountWindowManager.ts`                    | Default multi-account backend.                                   |
+| WebContentsView accounts       | `src/main/utils/account/accountViewManager.ts`                      | Opt-in backend behind `app.useWebContentsView`.                  |
+| Account contract               | `src/shared/types/window.ts`                                        | `IAccountWindowManager` boundary.                                |
+| IPC helpers                    | `src/main/utils/ipc/`                                               | Rate limit, validate, dedup/fast-path, catch.                    |
+| IPC channel names              | `src/shared/constants.ts`                                           | Never hardcode channel strings.                                  |
+| Preload bridge                 | `src/preload/index.ts` + `src/shared/types/bridge.ts`               | Sandboxed CJS preload. No raw `ipcRenderer` exposure.            |
+| URL validation                 | `src/shared/urlValidators.ts`                                       | Navigation, external links, deep links, Google auth detection.   |
+| Config                         | `src/shared/types/config.ts` + `src/main/config.ts`                 | Update schema and typed accessors together.                      |
+| Secure flags                   | `src/main/utils/security/secureFlags.ts`                            | SafeStorage-backed kill switches; not electron-store config.     |
+| Error types                    | `src/shared/types/errors.ts` + `src/main/utils/lifecycle/errors.ts` | Prefer typed errors and `{ cause }`.                             |
+| Historical webview constraints | `docs/windowWrapper-history.md`                                     | `webSecurity:false` and CSP exceptions are deliberate.           |
+| Tests                          | `tests/AGENTS.md`                                                   | Unit/integration/e2e/perf guidance.                              |
+| Packaging                      | `mac/AGENTS.md` + `scripts/AGENTS.md`                               | DMG, signing, notarization, perf gates.                          |
 
 ## Architecture invariants
 
@@ -142,7 +142,7 @@ Touch only what the request requires. Clean up only the mess your own changes cr
 - Do not refactor code that is not broken, even if you would write it differently.
 - Match the existing style of the file you are editing.
 - If you spot unrelated dead code or issues, mention them in the final message as observations; do not delete or fix them.
-- Remove imports, variables, and functions that *your* changes orphaned. Leave pre-existing dead code alone unless asked.
+- Remove imports, variables, and functions that _your_ changes orphaned. Leave pre-existing dead code alone unless asked.
 - The test for every changed line: does it trace directly to the user's request?
 
 ### Goal-driven execution

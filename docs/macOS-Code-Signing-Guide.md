@@ -366,12 +366,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '24.16.0'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.9
+          bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install

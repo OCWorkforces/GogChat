@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { median, mergeMedian } from './headless-startup.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { median, mergeMedian, resolveElectronBinary } from './headless-startup.js';
 
 describe('headless-startup median aggregation', () => {
   it('computes medians for odd and even numeric samples', () => {
@@ -53,5 +57,78 @@ describe('headless-startup median aggregation', () => {
     ]);
     expect(merged.aggregation).toEqual({ strategy: 'median', runs: 3, successfulRuns: 3 });
     expect(merged.timestamp).toBe('run-3');
+  });
+});
+
+describe('resolveElectronBinary', () => {
+  let tmpRoot;
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gogchat-resolve-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  function writeExecutable(filePath, contents = '#!/bin/sh\nexit 0\n') {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, contents);
+    fs.chmodSync(filePath, 0o755);
+  }
+
+  it('prefers the unpacked macOS Electron executable when its framework is present', () => {
+    const direct = path.join(
+      tmpRoot,
+      'node_modules',
+      'electron',
+      'dist',
+      'Electron.app',
+      'Contents',
+      'MacOS',
+      'Electron'
+    );
+    const framework = path.join(
+      tmpRoot,
+      'node_modules',
+      'electron',
+      'dist',
+      'Electron.app',
+      'Contents',
+      'Frameworks',
+      'Electron Framework.framework',
+      'Electron Framework'
+    );
+    const wrapper = path.join(tmpRoot, 'node_modules', '.bin', 'electron');
+    writeExecutable(direct);
+    writeExecutable(framework);
+    writeExecutable(wrapper);
+
+    expect(resolveElectronBinary(tmpRoot)).toBe(direct);
+  });
+
+  it('falls back to the wrapper when the direct executable exists but the framework is missing', () => {
+    const direct = path.join(
+      tmpRoot,
+      'node_modules',
+      'electron',
+      'dist',
+      'Electron.app',
+      'Contents',
+      'MacOS',
+      'Electron'
+    );
+    const wrapper = path.join(tmpRoot, 'node_modules', '.bin', 'electron');
+    writeExecutable(direct);
+    writeExecutable(wrapper);
+
+    expect(resolveElectronBinary(tmpRoot)).toBe(wrapper);
+  });
+
+  it('falls back to the wrapper when the direct executable is absent', () => {
+    const wrapper = path.join(tmpRoot, 'node_modules', '.bin', 'electron');
+    writeExecutable(wrapper);
+
+    expect(resolveElectronBinary(tmpRoot)).toBe(wrapper);
   });
 });
