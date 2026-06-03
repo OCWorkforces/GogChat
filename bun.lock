@@ -20,7 +20,7 @@
         "@playwright/test": "^1.60.0",
         "@rsbuild/core": "^2.0.10",
         "@rspack/core": "^2.0.6",
-        "@tsconfig/node24": "^24.0.4",
+        "@tsconfig/node26": "^26.0.0",
         "@types/auto-launch": "^5.0.5",
         "@types/throttle-debounce": "^5.0.2",
         "@typescript-eslint/eslint-plugin": "^8.60.1",
@@ -354,7 +354,7 @@
 
     "@ts-graphviz/core": ["@ts-graphviz/core@2.0.7", "", { "dependencies": { "@ts-graphviz/ast": "^2.0.7", "@ts-graphviz/common": "^2.1.5" } }, "sha512-w071DSzP94YfN6XiWhOxnLpYT3uqtxJBDYdh6Jdjzt+Ce6DNspJsPQgpC7rbts/B8tEkq0LHoYuIF/O5Jh5rPg=="],
 
-    "@tsconfig/node24": ["@tsconfig/node24@24.0.4", "", {}, "sha512-2A933l5P5oCbv6qSxHs7ckKwobs8BDAe9SJ/Xr2Hy+nDlwmLE1GhFh/g/vXGRZWgxBg9nX/5piDtHR9Dkw/XuA=="],
+    "@tsconfig/node26": ["@tsconfig/node26@26.0.0", "", {}, "sha512-AlW882moMu/JzvTVjdGqJEsrqD5nSWHiFD7Aeuw6Rb58S4Aig+09mDUFFlXJx/y6/y77NwGYLlqhWxvolcC0sw=="],
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.2", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-RoBvJ2X0wuKlWFIjrwffGw1IqZHKQqzIchKaadZZfnNpsAYp2mM0h36JtPCjNDAHGgYez/15uMBpfGwchhiMgg=="],
 

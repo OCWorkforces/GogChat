@@ -2,7 +2,7 @@
  * Crypto polyfill for test environment
  *
  * Ensures crypto/webcrypto APIs are available globally for tests.
- * Node.js 24+ has native crypto support, but we need to ensure it's
+ * Modern Node.js has native crypto support, but we need to ensure it's
  * available in the global scope for certain test scenarios.
  */
 
