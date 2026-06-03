@@ -86,7 +86,7 @@ The preload build must remain CommonJS because Electron sandboxed preload script
 ### Prerequisites
 
 - macOS on Apple Silicon
-- Node.js `>=26.0.0`
+- Node.js `>=24.16.0 <25.0.0`
 - Bun `>=1.3.13` (repository package manager: `bun@1.3.14`)
 
 ### Setup

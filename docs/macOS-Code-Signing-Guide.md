@@ -366,7 +366,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '26.3.0'
+          node-version: '24.16.0'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

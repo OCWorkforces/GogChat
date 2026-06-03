@@ -105,8 +105,8 @@ vi.mock('electron-store', () => ({
 const mockProcess = {
   platform: 'darwin',
   arch: 'arm64',
-  version: 'v26.3.0',
-  versions: { electron: '41.0.0', chrome: '130.0.0', node: '26.3.0', v8: '12.8.0' },
+  version: 'v24.16.0',
+  versions: { electron: '41.0.0', chrome: '130.0.0', node: '24.16.0', v8: '12.8.0' },
   getSystemVersion: vi.fn().mockReturnValue('23.0.0'),
 };
 
