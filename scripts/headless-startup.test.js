@@ -77,7 +77,37 @@ describe('resolveElectronBinary', () => {
     fs.chmodSync(filePath, 0o755);
   }
 
-  it('prefers the unpacked macOS Electron executable over the npm wrapper', () => {
+  it('prefers the unpacked macOS Electron executable when its framework is present', () => {
+    const direct = path.join(
+      tmpRoot,
+      'node_modules',
+      'electron',
+      'dist',
+      'Electron.app',
+      'Contents',
+      'MacOS',
+      'Electron'
+    );
+    const framework = path.join(
+      tmpRoot,
+      'node_modules',
+      'electron',
+      'dist',
+      'Electron.app',
+      'Contents',
+      'Frameworks',
+      'Electron Framework.framework',
+      'Electron Framework'
+    );
+    const wrapper = path.join(tmpRoot, 'node_modules', '.bin', 'electron');
+    writeExecutable(direct);
+    writeExecutable(framework);
+    writeExecutable(wrapper);
+
+    expect(resolveElectronBinary(tmpRoot)).toBe(direct);
+  });
+
+  it('falls back to the wrapper when the direct executable exists but the framework is missing', () => {
     const direct = path.join(
       tmpRoot,
       'node_modules',
@@ -92,7 +122,7 @@ describe('resolveElectronBinary', () => {
     writeExecutable(direct);
     writeExecutable(wrapper);
 
-    expect(resolveElectronBinary(tmpRoot)).toBe(direct);
+    expect(resolveElectronBinary(tmpRoot)).toBe(wrapper);
   });
 
   it('falls back to the wrapper when the direct executable is absent', () => {

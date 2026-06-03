@@ -47,24 +47,29 @@ function log(msg) {
 }
 
 export function resolveElectronBinary(root = repoRoot) {
-  // Prefer the unpacked macOS Electron executable directly so we avoid the npm
-  // wrapper, which requires `node_modules/electron/path.txt` and fails with
-  // ENOENT when that marker is missing in CI.
-  const tryPaths = [
-    path.join(
-      root,
-      'node_modules',
-      'electron',
-      'dist',
-      'Electron.app',
-      'Contents',
-      'MacOS',
-      'Electron'
-    ),
+  // Prefer the unpacked macOS app bundle directly, but only when its framework
+  // is present. dyld needs `Electron Framework.framework/Electron Framework`
+  // alongside the launcher; an installer that placed only the executable will
+  // crash with `Library not loaded: @rpath/Electron Framework.framework/...`.
+  const macAppRoot = path.join(root, 'node_modules', 'electron', 'dist', 'Electron.app');
+  const directExecutable = path.join(macAppRoot, 'Contents', 'MacOS', 'Electron');
+  const frameworkBinary = path.join(
+    macAppRoot,
+    'Contents',
+    'Frameworks',
+    'Electron Framework.framework',
+    'Electron Framework'
+  );
+  // `existsSync` follows symlinks, so a symlink into `Versions/A/...` resolves.
+  if (fs.existsSync(directExecutable) && fs.existsSync(frameworkBinary)) {
+    return directExecutable;
+  }
+
+  const wrapperPaths = [
     path.join(root, 'node_modules', '.bin', 'electron'),
     path.join(root, 'node_modules', '.bin', 'electron.cmd'),
   ];
-  for (const p of tryPaths) {
+  for (const p of wrapperPaths) {
     if (fs.existsSync(p)) return p;
   }
   return 'electron';

@@ -34,9 +34,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Electron binary
-        run: |
-          node node_modules/electron/install.js
-          test -x node_modules/electron/dist/Electron.app/Contents/MacOS/Electron || { echo 'Missing Electron executable'; exit 1; }
+        run: node scripts/install-electron-binary.js
 
       - name: Typecheck
         run: bun run typecheck
