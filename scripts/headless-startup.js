@@ -46,12 +46,23 @@ function log(msg) {
   process.stdout.write(`[headless-startup] ${msg}\n`);
 }
 
-function resolveElectronBinary() {
-  // Prefer the installed Electron binary directly so we avoid spawning bun/npm wrappers.
-  // electron's npm package exports the absolute path as default export.
+export function resolveElectronBinary(root = repoRoot) {
+  // Prefer the unpacked macOS Electron executable directly so we avoid the npm
+  // wrapper, which requires `node_modules/electron/path.txt` and fails with
+  // ENOENT when that marker is missing in CI.
   const tryPaths = [
-    path.join(repoRoot, 'node_modules', '.bin', 'electron'),
-    path.join(repoRoot, 'node_modules', '.bin', 'electron.cmd'),
+    path.join(
+      root,
+      'node_modules',
+      'electron',
+      'dist',
+      'Electron.app',
+      'Contents',
+      'MacOS',
+      'Electron'
+    ),
+    path.join(root, 'node_modules', '.bin', 'electron'),
+    path.join(root, 'node_modules', '.bin', 'electron.cmd'),
   ];
   for (const p of tryPaths) {
     if (fs.existsSync(p)) return p;
