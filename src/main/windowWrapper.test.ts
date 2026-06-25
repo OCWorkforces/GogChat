@@ -116,6 +116,11 @@ function wc() {
   return lastCreatedWindow!.webContents.session;
 }
 
+const TRUSTED_PERMISSION_DETAILS = {
+  requestingUrl: 'https://mail.google.com/chat/u/0/',
+} as const;
+const TRUSTED_REQUESTING_ORIGIN = 'https://mail.google.com';
+
 describe('windowWrapper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -229,11 +234,11 @@ describe('windowWrapper', () => {
       const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
       const cb = vi.fn();
 
-      handler({}, 'notifications', cb, {});
+      handler({}, 'notifications', cb, TRUSTED_PERMISSION_DETAILS);
       expect(cb).toHaveBeenCalledWith(true);
-      handler({}, 'mediaKeySystem', cb, {});
+      handler({}, 'mediaKeySystem', cb, TRUSTED_PERMISSION_DETAILS);
       expect(cb).toHaveBeenCalledWith(true);
-      handler({}, 'geolocation', cb, {});
+      handler({}, 'geolocation', cb, TRUSTED_PERMISSION_DETAILS);
       expect(cb).toHaveBeenCalledWith(true);
     });
 
@@ -261,9 +266,9 @@ describe('windowWrapper', () => {
       createWindow('https://chat.google.com');
 
       const eventTypes = lastCreatedWindow!.on.mock.calls.map((c: [string]) => c[0]);
-      ['show', 'hide', 'focus', 'blur', 'minimize', 'restore'].forEach((e) =>
-        expect(eventTypes).toContain(e)
-      );
+      ['show', 'hide', 'focus', 'blur', 'minimize', 'restore'].forEach((e) => {
+        expect(eventTypes).toContain(e);
+      });
 
       const onceTypes = lastCreatedWindow!.once.mock.calls.map((c: [string]) => c[0]);
       expect(onceTypes).toContain('ready-to-show');
@@ -281,7 +286,9 @@ describe('windowWrapper', () => {
         'render-process-gone',
         'unresponsive',
         'responsive',
-      ].forEach((e) => expect(wcEvents).toContain(e));
+      ].forEach((e) => {
+        expect(wcEvents).toContain(e);
+      });
     });
   });
 
@@ -294,7 +301,10 @@ describe('windowWrapper', () => {
       const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
       const cb = vi.fn();
 
-      await handler({}, 'media', cb, { mediaTypes: ['video', 'audio'] });
+      await handler({}, 'media', cb, {
+        ...TRUSTED_PERMISSION_DETAILS,
+        mediaTypes: ['video', 'audio'],
+      });
       // Flush microtasks — installPermissionRequestHandler uses void async IIFE,
       // so callback fires asynchronously after the outer handler returns.
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -311,7 +321,10 @@ describe('windowWrapper', () => {
       const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
       const cb = vi.fn();
 
-      await handler({}, 'media', cb, { mediaTypes: ['video', 'audio'] });
+      await handler({}, 'media', cb, {
+        ...TRUSTED_PERMISSION_DETAILS,
+        mediaTypes: ['video', 'audio'],
+      });
       expect(cb).toHaveBeenCalledWith(false);
     });
 
@@ -328,7 +341,10 @@ describe('windowWrapper', () => {
       const handler = wc().setPermissionRequestHandler.mock.calls[0][0];
       const cb = vi.fn();
 
-      await handler({}, 'media', cb, { mediaTypes: ['video'] });
+      await handler({}, 'media', cb, {
+        ...TRUSTED_PERMISSION_DETAILS,
+        mediaTypes: ['video'],
+      });
       expect(showDeniedPermissionDialog).toHaveBeenCalledWith(expect.anything(), 'camera');
     });
   });
@@ -346,7 +362,7 @@ describe('windowWrapper', () => {
       createWindow('https://chat.google.com');
       const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
 
-      expect(handler({}, 'media', '', { mediaType: 'video' })).toBe(true);
+      expect(handler({}, 'media', TRUSTED_REQUESTING_ORIGIN, { mediaType: 'video' })).toBe(true);
     });
 
     it('returns false for media video when TCC denied', async () => {
@@ -356,16 +372,16 @@ describe('windowWrapper', () => {
       createWindow('https://chat.google.com');
       const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
 
-      expect(handler({}, 'media', '', { mediaType: 'video' })).toBe(false);
+      expect(handler({}, 'media', TRUSTED_REQUESTING_ORIGIN, { mediaType: 'video' })).toBe(false);
     });
 
     it('returns true for non-media allowed permissions', () => {
       createWindow('https://chat.google.com');
       const handler = wc().setPermissionCheckHandler.mock.calls[0][0];
 
-      expect(handler({}, 'notifications', '', {})).toBe(true);
-      expect(handler({}, 'geolocation', '', {})).toBe(true);
-      expect(handler({}, 'mediaKeySystem', '', {})).toBe(true);
+      expect(handler({}, 'notifications', TRUSTED_REQUESTING_ORIGIN, {})).toBe(true);
+      expect(handler({}, 'geolocation', TRUSTED_REQUESTING_ORIGIN, {})).toBe(true);
+      expect(handler({}, 'mediaKeySystem', TRUSTED_REQUESTING_ORIGIN, {})).toBe(true);
     });
 
     it('returns false for non-allowed permissions', () => {
