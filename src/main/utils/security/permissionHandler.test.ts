@@ -32,6 +32,15 @@ const mockCheckMedia = checkAndRequestMediaAccess as Mock;
 const mockShowDenied = showDeniedPermissionDialog as Mock;
 const mockGetMediaStatus = systemPreferences.getMediaAccessStatus as Mock;
 
+const TRUSTED_PERMISSION_DETAILS = {
+  requestingUrl: 'https://mail.google.com/chat/u/0/',
+} as const;
+const UNTRUSTED_PERMISSION_DETAILS = {
+  requestingUrl: 'https://evil.example/chat/u/0/',
+} as const;
+const TRUSTED_REQUESTING_ORIGIN = 'https://mail.google.com';
+const UNTRUSTED_REQUESTING_ORIGIN = 'https://evil.example';
+
 function createMockWindow() {
   let requestHandler: (...args: unknown[]) => unknown;
   let checkHandler: (...args: unknown[]) => unknown;
@@ -65,7 +74,7 @@ describe('permissionHandler', () => {
       installPermissionRequestHandler(window);
 
       const callback = vi.fn();
-      await getRequestHandler()(null, 'notifications', callback, {});
+      await getRequestHandler()(null, 'notifications', callback, TRUSTED_PERMISSION_DETAILS);
       expect(callback).toHaveBeenCalledWith(true);
     });
 
@@ -74,7 +83,7 @@ describe('permissionHandler', () => {
       installPermissionRequestHandler(window);
 
       const callback = vi.fn();
-      await getRequestHandler()(null, 'mediaKeySystem', callback, {});
+      await getRequestHandler()(null, 'mediaKeySystem', callback, TRUSTED_PERMISSION_DETAILS);
       expect(callback).toHaveBeenCalledWith(true);
     });
 
@@ -83,8 +92,26 @@ describe('permissionHandler', () => {
       installPermissionRequestHandler(window);
 
       const callback = vi.fn();
-      await getRequestHandler()(null, 'geolocation', callback, {});
+      await getRequestHandler()(null, 'geolocation', callback, TRUSTED_PERMISSION_DETAILS);
       expect(callback).toHaveBeenCalledWith(true);
+    });
+
+    it('denies allowed non-media permissions from untrusted origins', async () => {
+      const { window, getRequestHandler } = createMockWindow();
+      installPermissionRequestHandler(window);
+
+      const callback = vi.fn();
+      await getRequestHandler()(null, 'notifications', callback, UNTRUSTED_PERMISSION_DETAILS);
+      expect(callback).toHaveBeenCalledWith(false);
+    });
+
+    it('denies allowed non-media permissions when the requesting origin is missing', async () => {
+      const { window, getRequestHandler } = createMockWindow();
+      installPermissionRequestHandler(window);
+
+      const callback = vi.fn();
+      await getRequestHandler()(null, 'notifications', callback, {});
+      expect(callback).toHaveBeenCalledWith(false);
     });
 
     it('denies unknown permissions', async () => {
@@ -105,6 +132,7 @@ describe('permissionHandler', () => {
 
       const callback = vi.fn();
       await getRequestHandler()(null, 'media', callback, {
+        ...TRUSTED_PERMISSION_DETAILS,
         mediaTypes: ['video', 'audio'],
       });
       // Flush microtasks — installPermissionRequestHandler uses void async IIFE,
@@ -125,6 +153,7 @@ describe('permissionHandler', () => {
 
       const callback = vi.fn();
       await getRequestHandler()(null, 'media', callback, {
+        ...TRUSTED_PERMISSION_DETAILS,
         mediaTypes: ['video'],
       });
 
@@ -141,6 +170,7 @@ describe('permissionHandler', () => {
 
       const callback = vi.fn();
       await getRequestHandler()(null, 'media', callback, {
+        ...TRUSTED_PERMISSION_DETAILS,
         mediaTypes: ['audio'],
       });
 
@@ -153,10 +183,24 @@ describe('permissionHandler', () => {
       installPermissionRequestHandler(window);
 
       const callback = vi.fn();
-      await getRequestHandler()(null, 'media', callback, {});
+      await getRequestHandler()(null, 'media', callback, TRUSTED_PERMISSION_DETAILS);
 
       // No media types requested → granted = true (nothing to deny)
       expect(callback).toHaveBeenCalledWith(true);
+      expect(mockCheckMedia).not.toHaveBeenCalled();
+    });
+
+    it('denies media permission from untrusted origins without prompting TCC', async () => {
+      const { window, getRequestHandler } = createMockWindow();
+      installPermissionRequestHandler(window);
+
+      const callback = vi.fn();
+      await getRequestHandler()(null, 'media', callback, {
+        ...UNTRUSTED_PERMISSION_DETAILS,
+        mediaTypes: ['video'],
+      });
+
+      expect(callback).toHaveBeenCalledWith(false);
       expect(mockCheckMedia).not.toHaveBeenCalled();
     });
   });
@@ -166,9 +210,23 @@ describe('permissionHandler', () => {
       const { window, getCheckHandler } = createMockWindow();
       installPermissionCheckHandler(window);
 
-      expect(getCheckHandler()(null, 'notifications', '', {})).toBe(true);
-      expect(getCheckHandler()(null, 'mediaKeySystem', '', {})).toBe(true);
-      expect(getCheckHandler()(null, 'geolocation', '', {})).toBe(true);
+      expect(getCheckHandler()(null, 'notifications', TRUSTED_REQUESTING_ORIGIN, {})).toBe(true);
+      expect(getCheckHandler()(null, 'mediaKeySystem', TRUSTED_REQUESTING_ORIGIN, {})).toBe(true);
+      expect(getCheckHandler()(null, 'geolocation', TRUSTED_REQUESTING_ORIGIN, {})).toBe(true);
+    });
+
+    it('returns false for allowed non-media permissions from untrusted origins', () => {
+      const { window, getCheckHandler } = createMockWindow();
+      installPermissionCheckHandler(window);
+
+      expect(getCheckHandler()(null, 'notifications', UNTRUSTED_REQUESTING_ORIGIN, {})).toBe(false);
+    });
+
+    it('returns false for allowed non-media permissions when the requesting origin is missing', () => {
+      const { window, getCheckHandler } = createMockWindow();
+      installPermissionCheckHandler(window);
+
+      expect(getCheckHandler()(null, 'notifications', '', {})).toBe(false);
     });
 
     it('returns false for disallowed permissions', () => {
@@ -184,7 +242,9 @@ describe('permissionHandler', () => {
       const { window, getCheckHandler } = createMockWindow();
       installPermissionCheckHandler(window);
 
-      const result = getCheckHandler()(null, 'media', '', { mediaType: 'video' });
+      const result = getCheckHandler()(null, 'media', TRUSTED_REQUESTING_ORIGIN, {
+        mediaType: 'video',
+      });
       expect(result).toBe(true);
       expect(mockGetMediaStatus).toHaveBeenCalledWith('camera');
     });
@@ -195,16 +255,34 @@ describe('permissionHandler', () => {
       const { window, getCheckHandler } = createMockWindow();
       installPermissionCheckHandler(window);
 
-      const result = getCheckHandler()(null, 'media', '', { mediaType: 'audio' });
+      const result = getCheckHandler()(null, 'media', TRUSTED_REQUESTING_ORIGIN, {
+        mediaType: 'audio',
+      });
       expect(result).toBe(false);
       expect(mockGetMediaStatus).toHaveBeenCalledWith('microphone');
+    });
+
+    it('returns false for media permission from untrusted origins without checking TCC', () => {
+      mockGetMediaStatus.mockReturnValue('granted');
+
+      const { window, getCheckHandler } = createMockWindow();
+      installPermissionCheckHandler(window);
+
+      const result = getCheckHandler()(null, 'media', UNTRUSTED_REQUESTING_ORIGIN, {
+        mediaType: 'video',
+      });
+
+      expect(result).toBe(false);
+      expect(mockGetMediaStatus).not.toHaveBeenCalled();
     });
 
     it('returns false for unknown media type', () => {
       const { window, getCheckHandler } = createMockWindow();
       installPermissionCheckHandler(window);
 
-      const result = getCheckHandler()(null, 'media', '', { mediaType: 'screen' });
+      const result = getCheckHandler()(null, 'media', TRUSTED_REQUESTING_ORIGIN, {
+        mediaType: 'screen',
+      });
       expect(result).toBe(false);
     });
   });

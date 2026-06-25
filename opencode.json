@@ -5,11 +5,6 @@
       "type": "local",
       "command": ["sentrux", "--mcp"],
       "enabled": true
-    },
-    "cocoindex-code": {
-      "type": "local",
-      "command": ["ccc", "mcp"],
-      "enabled": true
     }
   }
 }

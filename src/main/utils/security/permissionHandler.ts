@@ -1,7 +1,7 @@
 /**
  * Chromium-level permission request & check handlers for BrowserWindow sessions.
- * Handles media TCC integration (camera/microphone) on macOS and an allowlist
- * for non-media permissions (notifications, mediaKeySystem, geolocation).
+ * Handles media TCC integration (camera/microphone) on macOS and a trusted-origin
+ * allowlist for non-media permissions (notifications, mediaKeySystem, geolocation).
  */
 
 import { type BrowserWindow, systemPreferences } from 'electron';
@@ -9,18 +9,79 @@ import log from 'electron-log';
 import { checkAndRequestMediaAccess, showDeniedPermissionDialog } from './mediaAccess.js';
 import { asType } from '../../../shared/typeUtils.js';
 
-/** Non-media permissions that are always granted */
 const ALLOWED_PERMISSIONS = ['notifications', 'mediaKeySystem', 'geolocation'] as const;
+
+const TRUSTED_PERMISSION_ORIGINS = new Set([
+  'https://accounts.google.com',
+  'https://chat.google.com',
+  'https://mail.google.com',
+]);
+
+interface PermissionOriginDetails {
+  readonly requestingUrl?: string;
+  readonly securityOrigin?: string;
+  readonly embeddingOrigin?: string;
+}
+
+function parseOrigin(value: string | undefined): string | null {
+  if (value === undefined || value.trim().length === 0) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch (error: unknown) {
+    if (error instanceof TypeError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function isTrustedOrigin(value: string | undefined): boolean {
+  const origin = parseOrigin(value);
+  return origin !== null && TRUSTED_PERMISSION_ORIGINS.has(origin);
+}
+
+function readOriginDetails(details: unknown): PermissionOriginDetails {
+  if (details === null || typeof details !== 'object') {
+    return {};
+  }
+
+  return asType<PermissionOriginDetails>(details);
+}
+
+function isTrustedPermissionOrigin(
+  requestingOrigin: string | undefined,
+  details: unknown
+): boolean {
+  if (isTrustedOrigin(requestingOrigin)) {
+    return true;
+  }
+
+  const { requestingUrl, securityOrigin, embeddingOrigin } = readOriginDetails(details);
+  return (
+    isTrustedOrigin(requestingUrl) ||
+    isTrustedOrigin(securityOrigin) ||
+    isTrustedOrigin(embeddingOrigin)
+  );
+}
 
 /**
  * Install the asynchronous permission request handler on the window's session.
  * For 'media' permission: checks macOS TCC status before granting.
- * For non-media: uses a simple allowlist.
+ * For non-media: uses a trusted-origin allowlist.
  */
 export function installPermissionRequestHandler(window: BrowserWindow): void {
   window.webContents.session.setPermissionRequestHandler(
     (_webContents, permission, callback, details) => {
       void (async () => {
+        if (!isTrustedPermissionOrigin(undefined, details)) {
+          log.warn(`[Security] Permission denied for untrusted origin: ${permission}`);
+          callback(false);
+          return;
+        }
+
         if (permission === 'media') {
           const mediaTypes: string[] = asType<{ mediaTypes?: string[] }>(details).mediaTypes ?? [];
 
@@ -55,7 +116,6 @@ export function installPermissionRequestHandler(window: BrowserWindow): void {
           return;
         }
 
-        // Non-media permissions: simple allowlist (synchronous)
         if (asType<readonly string[]>(ALLOWED_PERMISSIONS).includes(permission)) {
           log.debug(`[Security] Permission granted: ${permission}`);
           callback(true);
@@ -74,7 +134,11 @@ export function installPermissionRequestHandler(window: BrowserWindow): void {
  */
 export function installPermissionCheckHandler(window: BrowserWindow): void {
   window.webContents.session.setPermissionCheckHandler(
-    (_webContents, permission, _requestingOrigin, details) => {
+    (_webContents, permission, requestingOrigin, details) => {
+      if (!isTrustedPermissionOrigin(requestingOrigin, details)) {
+        return false;
+      }
+
       if (permission === 'media') {
         const mediaType = asType<{ mediaType?: string }>(details).mediaType;
         if (mediaType === 'video') {
