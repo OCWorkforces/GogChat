@@ -25,12 +25,14 @@
 
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
-import ts from 'typescript';
 import prettier from 'prettier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const requireFromHere = createRequire(import.meta.url);
+const ts = requireFromHere('typescript');
 
 const PHASES = ['security', 'critical', 'ui', 'deferred'];
 
