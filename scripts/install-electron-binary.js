@@ -16,8 +16,6 @@ import { accessSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-import { downloadArtifact } from '@electron/get';
-
 const LOG_PREFIX = '[install-electron-binary]';
 const PLATFORM_PATH = 'Electron.app/Contents/MacOS/Electron';
 
@@ -124,14 +122,20 @@ function smokeTest(launcherPath) {
 }
 
 async function main() {
-  const electronPkg = require('../node_modules/electron/package.json');
-  const checksums = require('../node_modules/electron/checksums.json');
-  const version = electronPkg.version;
-
   const platform = process.env.npm_config_platform || process.platform;
   if (platform !== 'darwin') {
-    fail(`Unsupported platform: ${platform}. This installer only supports darwin.`);
+    log(
+      `Skipping macOS-only Electron binary installer for ${platform}; using upstream Electron install behavior.`
+    );
+    return;
   }
+
+  const [{ downloadArtifact }, electronPkg, checksums] = await Promise.all([
+    import('@electron/get'),
+    Promise.resolve(require('../node_modules/electron/package.json')),
+    Promise.resolve(require('../node_modules/electron/checksums.json')),
+  ]);
+  const version = electronPkg.version;
 
   const arch = resolveArch(platform);
   const cacheRoot = resolveCacheRoot();
