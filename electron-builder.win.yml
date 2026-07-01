@@ -1,0 +1,6 @@
+extends: electron-builder.yml
+
+protocols:
+  name: 'GogChat'
+  schemes:
+    - gogchat
