@@ -5,8 +5,10 @@ import environment from '../../environment.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import { getMenuAction } from './menuActionRegistry.js';
 import { buildHelpSubMenu, relaunchApp } from '../utils/platform/helpMenuBuilder.js';
+import { supports } from '../utils/platform/platformDetection.js';
 
 export default (window: BrowserWindow) => {
+  const autoLaunchSupported = supports.autoLaunch();
   const menuItems = Menu.buildFromTemplate([
     {
       label: 'File',
@@ -133,9 +135,11 @@ export default (window: BrowserWindow) => {
         {
           label: 'Auto Launch at Login',
           type: 'checkbox',
-          checked: configGet('app.autoLaunchAtLogin') ?? false,
+          enabled: autoLaunchSupported,
+          checked: autoLaunchSupported && (configGet('app.autoLaunchAtLogin') ?? false),
           click: (menuItem: Electron.MenuItem) => {
             void (async () => {
+              if (!autoLaunchSupported) return;
               const autoLaunchAction = getMenuAction('autoLaunch');
               if (!autoLaunchAction) return;
               const instance = autoLaunchAction.handler();

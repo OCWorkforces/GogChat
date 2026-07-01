@@ -37,14 +37,16 @@ vi.mock('electron-log', () => ({
   default: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { mockAboutHandler, mockAutoLaunchInstance, mockToggleGuardHandler } = vi.hoisted(() => ({
-  mockAboutHandler: vi.fn(),
-  mockAutoLaunchInstance: {
-    enable: vi.fn().mockResolvedValue(undefined),
-    disable: vi.fn().mockResolvedValue(undefined),
-  },
-  mockToggleGuardHandler: vi.fn(),
-}));
+const { mockAboutHandler, mockAutoLaunchInstance, mockAutoLaunchSupport, mockToggleGuardHandler } =
+  vi.hoisted(() => ({
+    mockAboutHandler: vi.fn(),
+    mockAutoLaunchInstance: {
+      enable: vi.fn().mockResolvedValue(undefined),
+      disable: vi.fn().mockResolvedValue(undefined),
+    },
+    mockAutoLaunchSupport: vi.fn(() => true),
+    mockToggleGuardHandler: vi.fn(),
+  }));
 
 vi.mock('./menuActionRegistry', () => ({
   getMenuAction: vi.fn((id: string) => {
@@ -116,6 +118,12 @@ vi.mock('../utils/platform/packageInfo', () => ({
   }),
 }));
 
+vi.mock('../utils/platform/platformDetection', () => ({
+  supports: {
+    autoLaunch: mockAutoLaunchSupport,
+  },
+}));
+
 import appMenu from './appMenu';
 import { _getMenuAction } from './menuActionRegistry';
 import { Menu, app, _dialog, clipboard } from 'electron';
@@ -164,6 +172,7 @@ function makeFakeWindow(): FakeWindow {
 describe('appMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAutoLaunchSupport.mockReturnValue(true);
   });
 
   it('builds and sets the application menu', () => {
@@ -266,6 +275,26 @@ describe('appMenu', () => {
     );
     expect(startHidden).toBeDefined();
     expect(startHidden.checked).toBe(false);
+  });
+
+  it('disables Auto Launch at Login when the platform does not support auto launch', () => {
+    mockAutoLaunchSupport.mockReturnValue(false);
+    const window = makeFakeWindow();
+    appMenu(window as BrowserWindow);
+
+    const template = Menu.buildFromTemplate.mock.calls[0][0] as MenuItemConstructorOptions[];
+    const prefsMenu = template.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Preferences'
+    );
+    const autoLaunch = prefsMenu.submenu.find(
+      (item: MenuItemConstructorOptions) => item.label === 'Auto Launch at Login'
+    );
+
+    expect(autoLaunch.enabled).toBe(false);
+    expect(autoLaunch.checked).toBe(false);
+    autoLaunch.click({ checked: true });
+    expect(mockAutoLaunchInstance.enable).not.toHaveBeenCalled();
+    expect(store.set).not.toHaveBeenCalledWith('app.autoLaunchAtLogin', true);
   });
 
   it('Preferences checkbox updates store on click', () => {
