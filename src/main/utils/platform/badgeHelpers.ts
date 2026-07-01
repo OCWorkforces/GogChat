@@ -27,6 +27,7 @@ import { registerFastHandler } from '../ipc/ipcFastPath.js';
 import { validateFaviconURL } from '../../../shared/urlValidators.js';
 import { validateUnreadCount } from '../../../shared/dataValidators.js';
 import { getIconCache } from './iconCache.js';
+import { platform } from './platformDetection.js';
 import { setTrayUnread } from './trayIconState.js';
 import { assertNever } from '../../../shared/typeUtils.js';
 
@@ -55,12 +56,13 @@ export const decideIcon = (href: string): IconType => {
 };
 
 /**
- * Update badge icon for macOS — uses dock badge to display unread count.
+ * Update badge icon for platforms with a supported app badge surface.
  */
 export const updateBadgeIcon = (_window: BrowserWindow, count: number): void => {
-  // macOS: Use dock badge
+  if (!platform.config.supportsDockBadge) return;
+
   app.setBadgeCount(count);
-  log.debug(`[BadgeIcon] Dock badge updated: ${count}`);
+  log.debug(`[BadgeIcon] App badge updated: ${count}`);
 };
 
 export interface BadgeHandlerCleanups {
@@ -91,11 +93,9 @@ export function setupBadgeHandlers(window: BrowserWindow, trayIcon: Tray): Badge
       // Determine icon type
       const type = decideIcon(validatedHref);
 
-      // macOS: Update tray icon to reflect unread state in addition to dock badge
-      setTrayUnread(type === ICON_TYPES.BADGE);
-
-      // Non-darwin: also swap tray image to the icon-type variant
-      if (process.platform !== 'darwin') {
+      if (platform.config.useTemplateTrayIcon) {
+        setTrayUnread(type === ICON_TYPES.BADGE);
+      } else {
         if (type !== currentTrayIconType) {
           currentTrayIconType = type;
           const icon = getIconCache().getIcon(`resources/icons/${type}/16.png`);

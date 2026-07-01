@@ -18,6 +18,10 @@ import type { IpcMainEvent } from 'electron';
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockSetBadgeCount = vi.fn();
+const mockPlatformState = vi.hoisted(() => ({
+  supportsDockBadge: true,
+  useTemplateTrayIcon: true,
+}));
 vi.mock('electron', () => ({
   app: { setBadgeCount: mockSetBadgeCount },
   BrowserWindow: vi.fn(),
@@ -49,6 +53,12 @@ vi.mock('./trayIconState.js', () => ({
   setTrayUnread: mockSetTrayUnread,
 }));
 
+vi.mock('./platformDetection.js', () => ({
+  platform: {
+    config: mockPlatformState,
+  },
+}));
+
 vi.mock('../../../shared/dataValidators.js', () => ({
   validateFaviconURL: vi.fn((url: string) => url),
   validateUnreadCount: vi.fn((count: number) => count),
@@ -76,6 +86,8 @@ describe('badgeHelpers (config wiring)', () => {
     mockSetBadgeCount.mockClear();
     mockGetIcon.mockReturnValue('/fake/icon.png');
     mockSetTrayUnread.mockClear();
+    mockPlatformState.supportsDockBadge = true;
+    mockPlatformState.useTemplateTrayIcon = true;
   });
 
   afterEach(() => {
@@ -96,6 +108,15 @@ describe('badgeHelpers (config wiring)', () => {
       const { updateBadgeIcon } = await import('./badgeHelpers.js');
       updateBadgeIcon(fakeWindow(), 7);
       expect(mockSetBadgeCount).toHaveBeenCalledWith(7);
+    });
+
+    it('does not claim a Windows taskbar badge when platform support is disabled', async () => {
+      mockPlatformState.supportsDockBadge = false;
+
+      const { updateBadgeIcon } = await import('./badgeHelpers.js');
+      updateBadgeIcon(fakeWindow(), 7);
+
+      expect(mockSetBadgeCount).not.toHaveBeenCalled();
     });
   });
 
@@ -150,9 +171,10 @@ describe('badgeHelpers (config wiring)', () => {
         ([cfg]) => (cfg as { channel: string }).channel === 'faviconChanged'
       )?.[0] as { handler: (v: string) => void };
 
-      faviconCfg.handler('https://x/y.ico');
-      faviconCfg.handler('https://x/y.ico');
-      faviconCfg.handler('https://x/y.ico');
+      mockSetTrayUnread.mockClear();
+      faviconCfg.handler('https://mail.google.com/favicon_chat_new_notif_r2.ico');
+      faviconCfg.handler('https://mail.google.com/favicon_chat_new_notif_r2.ico');
+      faviconCfg.handler('https://mail.google.com/favicon_chat_new_notif_r2.ico');
 
       // setTrayUnread runs inside the handler body — should be called once
       expect(mockSetTrayUnread).toHaveBeenCalledTimes(1);
@@ -198,6 +220,23 @@ describe('badgeHelpers (config wiring)', () => {
 
       expect(mockSetTrayUnread).toHaveBeenCalledWith(false);
     });
+
+    it('uses the favicon icon variant on Windows-style tray icons without template unread toggles', async () => {
+      mockPlatformState.useTemplateTrayIcon = false;
+      const tray = fakeTray();
+
+      const { setupBadgeHandlers } = await import('./badgeHelpers.js');
+      setupBadgeHandlers(fakeWindow(), tray);
+
+      const faviconCfg = mockRegisterFastHandler.mock.calls.find(
+        ([cfg]) => (cfg as { channel: string }).channel === 'faviconChanged'
+      )?.[0] as { handler: (v: string) => void };
+      faviconCfg.handler('https://mail.google.com/favicon_chat_r2.ico');
+
+      expect(mockSetTrayUnread).not.toHaveBeenCalled();
+      expect(mockGetIcon).toHaveBeenCalledWith(expect.stringMatching(/^resources\/icons\//));
+      expect(tray.setImage).toHaveBeenCalledWith('/fake/icon.png');
+    });
   });
 });
 
@@ -209,6 +248,8 @@ describe('badgeHelpers (burst regression with real ipcFastPath)', () => {
     vi.resetModules();
     mockSetBadgeCount.mockClear();
     mockSetTrayUnread.mockClear();
+    mockPlatformState.supportsDockBadge = true;
+    mockPlatformState.useTemplateTrayIcon = true;
     const { getRateLimiter } = await import('../ipc/rateLimiter.js');
     getRateLimiter().resetAll();
   });
