@@ -33,6 +33,11 @@ bun run lint:all:fix
 bun run check:doc-claims
 bun run start
 bun run build:mac
+bun run package:mac:release
+bun run package:win:x64
+bun run package:win:arm64
+bun run package:win:artifacts
+bun run package:win:signing-policy
 ```
 
 Runtime/toolchain constraints:
@@ -41,6 +46,17 @@ Runtime/toolchain constraints:
 - Electron `^42.2.0`.
 - TypeScript strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noUncheckedSideEffectImports`, `noUnusedLocals`, and `noUnusedParameters`.
 - Prettier: 100 columns, single quotes, semicolons, trailing commas ES5, LF.
+
+## Packaging guidance
+
+GogChat remains publicly documented as macOS on Apple Silicon. Windows release engineering/preparation is present, but it is not a public support claim. Do not say Windows is supported, released, ready, or available until clean packaged smoke evidence exists on Windows x64 and real Windows arm64.
+
+- `bun run package:mac:release` is the current macOS release package command. Preserve `build-macOS-dmg.sh` as a macOS-specific DMG path.
+- `bun run package:win:x64` and `bun run package:win:arm64` are guarded Windows package commands for native Windows CI packaging.
+- Windows setup artifacts must stay as separate NSIS installers: `${productName}-${version}-windows-x64-setup.exe` and `${productName}-${version}-windows-arm64-setup.exe`. Use `x64`, not `amd64`, in user-facing labels.
+- The release workflow packages x64 on `windows-latest` with AMD64 proof and arm64 on `windows-11-arm` with ARM64 proof.
+- Windows release publication requires a Windows Authenticode signing route through `WIN_CSC_LINK`/`WIN_CSC_KEY_PASSWORD` or explicit owner opt-in for unsigned Windows assets through `bun run package:win:signing-policy`.
+- The Windows electron-builder overlay registers only `gogchat`; the base macOS config may still include HTTPS protocol handling.
 
 ## Where to look
 
