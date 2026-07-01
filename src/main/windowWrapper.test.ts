@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Capture last window created by the BrowserWindow mock for test assertions
 let lastCreatedWindow: ReturnType<typeof Object> | null = null;
+const mockPlatformState = vi.hoisted(() => ({ isMac: true }));
 
 vi.mock('electron', () => ({
   app: {
@@ -110,6 +111,10 @@ vi.mock('./utils/platform/windowUtils', () => ({
   }),
 }));
 
+vi.mock('./utils/platform/platformDetection', () => ({
+  platform: mockPlatformState,
+}));
+
 import createWindow from './windowWrapper';
 
 function wc() {
@@ -125,6 +130,7 @@ describe('windowWrapper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lastCreatedWindow = null;
+    mockPlatformState.isMac = true;
     process.removeAllListeners('warning');
   });
 
@@ -446,6 +452,28 @@ describe('windowWrapper', () => {
       expect(NotificationCtor).toHaveBeenCalledTimes(1);
       expect(vi.mocked(config.configSet)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(config.configSet)).toHaveBeenCalledWith(
+        'app.notificationPermissionRequested',
+        true
+      );
+    });
+
+    it('does not trigger the macOS notification permission prompt on Windows', async () => {
+      mockPlatformState.isMac = false;
+      const electron = await import('electron');
+      const config = await import('./config');
+      const NotificationCtor = electron.Notification as unknown as ReturnType<typeof vi.fn> & {
+        isSupported: ReturnType<typeof vi.fn>;
+      };
+      NotificationCtor.isSupported.mockReturnValue(true);
+      vi.mocked(config.configGet).mockReturnValue(false);
+      NotificationCtor.mockClear();
+      vi.mocked(config.configSet).mockClear();
+
+      createWindow('https://chat.google.com', 'persist:account-0');
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(NotificationCtor).not.toHaveBeenCalled();
+      expect(vi.mocked(config.configSet)).not.toHaveBeenCalledWith(
         'app.notificationPermissionRequested',
         true
       );
