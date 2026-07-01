@@ -4,6 +4,7 @@ import { app } from 'electron';
 import store from '../config.js';
 import environment from '../../environment.js';
 import { registerMenuAction } from './menuActionRegistry.js';
+import { supports } from '../utils/platform/platformDetection.js';
 let autoLaunchInstance: AutoLaunch;
 
 const autoLaunch = (): AutoLaunch => {
@@ -24,6 +25,7 @@ const autoLaunch = (): AutoLaunch => {
 
 export default ({ mainWindow }: { mainWindow?: BrowserWindow | null }): void => {
   if (environment.isDev) return;
+  if (!supports.autoLaunch()) return;
 
   autoLaunchInstance = autoLaunch();
 
