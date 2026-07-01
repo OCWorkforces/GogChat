@@ -38,7 +38,7 @@ import {
   buildAccountWindowState,
   persistAccountWindowState,
   flushAccountWindowsWrites as _flushAccountWindowsWrites,
-  getAccountWindowState as _getAccountWindowState,
+  readAccountWindowState as _getAccountWindowState,
 } from './accountWindowsStore.js';
 import { createTrackedTimeout } from '../lifecycle/resourceCleanup.js';
 import { getAccountViewManager } from './accountViewManager.js';

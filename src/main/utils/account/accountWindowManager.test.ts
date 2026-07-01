@@ -220,8 +220,8 @@ vi.mock('../lifecycle/resourceCleanup.js', () => ({
       return id;
     }
   ),
-  createTrackedInterval: vi.fn(
-    (callback: () => void, delay: number): NodeJS.Timeout => setInterval(callback, delay)
+  createTrackedInterval: vi.fn((callback: () => void, delay: number): NodeJS.Timeout =>
+    setInterval(callback, delay)
   ),
 }));
 
@@ -836,9 +836,10 @@ describe('AccountWindowManager — state persistence', () => {
     m.saveAccountWindowState(asAccountIndex(0));
     await flushAccountWindowsWrites();
 
-    const stored = h.mockStore['accountWindows'] as
-      | Record<number, { bounds: unknown; isMaximized: boolean }>
-      | undefined;
+    const stored = h.mockStore['accountWindows'] as Record<
+      number,
+      { bounds: unknown; isMaximized: boolean }
+    >;
     expect(stored?.[0]).toEqual({
       bounds: { x: 5, y: 10, width: 1280, height: 720 },
       isMaximized: true,

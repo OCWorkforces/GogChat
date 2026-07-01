@@ -61,7 +61,7 @@ export function flushAccountWindowsWrites(): Promise<void> {
  * Read the persisted state for a single account. Returns `null` when
  * the map is missing or the account has no entry.
  */
-export function getAccountWindowState(accountIndex: AccountIndex): AccountWindowState | null {
+export function readAccountWindowState(accountIndex: AccountIndex): AccountWindowState | null {
   const all = configGet('accountWindows');
   return all?.[accountIndex] ?? null;
 }
