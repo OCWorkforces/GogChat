@@ -10,6 +10,7 @@
 import type { BrowserWindow, Tray } from 'electron';
 import type { IAccountWindowManager } from '../../../shared/types/window.js';
 import type { IPCChannelName } from '../../../shared/constants.js';
+import type { PlatformName } from '../platform/platformDetection.js';
 
 /**
  * Feature initialization priority/phase
@@ -55,6 +56,8 @@ export interface FeatureSpec {
   readonly required?: boolean;
   /** Names of features that must be initialized first */
   readonly dependencies?: readonly string[];
+  /** Platforms where this feature is allowed to initialize. Defaults to all platforms. */
+  readonly platforms?: readonly PlatformName[];
   /** Optional human-readable description for logs */
   readonly description?: string;
   /** Init function — receives the live FeatureContext */

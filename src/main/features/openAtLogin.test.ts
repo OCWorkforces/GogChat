@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let mockIsDev = false;
+const mockSupportsAutoLaunch = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock('electron', () => ({
   app: {
@@ -39,6 +40,12 @@ vi.mock('../../environment', () => ({
   },
 }));
 
+vi.mock('../utils/platform/platformDetection.js', () => ({
+  supports: {
+    autoLaunch: mockSupportsAutoLaunch,
+  },
+}));
+
 import openAtLogin from './openAtLogin';
 import store from '../config';
 import { app } from 'electron';
@@ -48,6 +55,7 @@ describe('openAtLogin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsDev = false;
+    mockSupportsAutoLaunch.mockReturnValue(true);
     vi.mocked(app.commandLine.hasSwitch).mockReturnValue(false);
   });
 
@@ -61,6 +69,15 @@ describe('openAtLogin', () => {
     vi.mocked(store.get).mockReturnValue(true);
     openAtLogin({ mainWindow: null });
     expect(AutoLaunch).toHaveBeenCalled();
+  });
+
+  it('does not create AutoLaunch when the active platform does not support it', () => {
+    mockSupportsAutoLaunch.mockReturnValue(false);
+    vi.mocked(store.get).mockReturnValue(true);
+
+    openAtLogin({ mainWindow: null });
+
+    expect(AutoLaunch).not.toHaveBeenCalled();
   });
 
   it('hides window when launched with --hidden flag', () => {

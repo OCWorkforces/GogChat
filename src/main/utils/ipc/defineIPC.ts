@@ -89,9 +89,7 @@ export interface DefineIPCInvokeConfig<T, R> extends DefineIPCBase<T> {
 
 /** Discriminated union accepted by `defineIPC`. */
 export type DefineIPCConfig<T, R = void> =
-  | DefineIPCOnConfig<T>
-  | DefineIPCReplyConfig<T, R>
-  | DefineIPCInvokeConfig<T, R>;
+  DefineIPCOnConfig<T> | DefineIPCReplyConfig<T, R> | DefineIPCInvokeConfig<T, R>;
 
 /** Cleanup function returned by `defineIPC` — removes the registered listener. */
 export type DefineIPCCleanup = () => void;

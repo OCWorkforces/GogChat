@@ -10,14 +10,14 @@
 resources/icons/
   aura/      - About panel hero graphic, 16/32/48/64/256 px
   badge/     - Unread badge overlays, 16/32/48/64/256 px
-  normal/    - App/dock icons, 16/32/48/64/256 px + mac.icns + scalable.svg
+  normal/    - App/dock icons, 16/32/48/64/256 px + mac.icns + win.ico + scalable.svg
   offline/   - Offline page graphic, 16/32/48/64/256 px
   tray/      - Menu bar Template icons, 22/44 px + unread variants
 ```
 
 ## Generation
 
-Use `bun scripts/generate-google-chat-icons.mjs`. Do not hand-edit individual generated PNG, ICNS, or SVG variants. The script creates all five variant directories, tray Template icons at 22/44 px, app-size icons per `APP_SIZES`, and generates `mac.icns` via macOS `iconutil`. Run the generator after any icon design change.
+Use `bun scripts/generate-google-chat-icons.mjs`. Do not hand-edit individual generated PNG, ICNS, ICO, or SVG variants. The script creates all five variant directories, tray Template icons at 22/44 px, app-size icons per `APP_SIZES`, generates `mac.icns` via macOS `iconutil`, and writes `normal/win.ico` from the generated normal PNG set. Run the generator after any icon design change.
 
 ## Naming conventions
 
@@ -36,7 +36,9 @@ Icon cache loads paths relative to `resources/`:
 
 ## Packaging
 
-`electron-builder.yml` copies `resources/` as `extraResources` outside the ASAR archive. DMG and mac app icons reference `resources/icons/normal/mac.icns`. The offline fallback page references `resources/icons/normal/scalable.svg`.
+`electron-builder.yml` copies `resources/` as `extraResources` outside the ASAR archive. DMG and mac app icons reference `resources/icons/normal/mac.icns`; guarded Windows release-engineering preparation references `resources/icons/normal/win.ico`. That Windows icon path is not a public support claim. The offline fallback page references `resources/icons/normal/scalable.svg`.
+
+Windows packaging, when used in CI preparation, emits separate NSIS setup files for x64 and arm64. Keep icon generation cross-platform, but do not add Windows support wording to resource docs until clean packaged smoke evidence exists on Windows x64 and real Windows arm64.
 
 ## Anti-patterns
 

@@ -67,7 +67,7 @@ extraResources:
   - from: resources
     to: resources
     filter:
-      - "**/*"
+      - '**/*'
 
 # Locale optimization - keep only English (backup to after-pack.cjs)
 electronLanguages:
@@ -80,13 +80,25 @@ afterSign: scripts/notarize.cjs
 mac:
   category: public.app-category.social-networking
   icon: resources/icons/normal/mac.icns
-  minimumSystemVersion: "11.0"
+  minimumSystemVersion: '11.0'
   target:
     - target: dmg
   gatekeeperAssess: false
   extendInfo:
-    NSCameraUsageDescription: "GogChat needs camera access for Google Meet and Huddle video calls."
-    NSMicrophoneUsageDescription: "GogChat needs microphone access for Google Meet and Huddle calls."
+    NSCameraUsageDescription: 'GogChat needs camera access for Google Meet and Huddle video calls.'
+    NSMicrophoneUsageDescription: 'GogChat needs microphone access for Google Meet and Huddle calls.'
+
+win:
+  icon: resources/icons/normal/win.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+
+nsis:
+  buildUniversalInstaller: false
+  artifactName: '${productName}-${version}-windows-${arch}-setup.${ext}'
 
 # DMG Configuration
 dmg:

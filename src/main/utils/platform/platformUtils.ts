@@ -1,14 +1,13 @@
-/**
- * macOS Platform utilities class
- * Provides tray icon creation, dock badge management, keyboard shortcuts,
- * window options, and feature support queries.
- */
-
 import type { BrowserWindow } from 'electron';
 import { app, nativeImage, Tray } from 'electron';
 import { join } from 'path';
 import { logger } from '../lifecycle/logger.js';
-import { MACOS_CONFIG, type PlatformConfig } from './platformDetection.js';
+import {
+  platform,
+  type PlatformFeature,
+  type PlatformShortcutMap,
+  type PlatformState,
+} from './platformDetection.js';
 
 // Resolve resource paths based on packaged vs dev mode
 // In packaged DMG: extraResources places resources/ at process.resourcesPath/resources/
@@ -17,121 +16,97 @@ const resourceBase = app.isPackaged ? process.resourcesPath : app.getAppPath();
 const resolveResourcePath = (...segments: string[]) => join(resourceBase, ...segments);
 
 /**
- * macOS Platform utilities class
+ * Platform utilities class
  */
 export class PlatformUtils {
   private readonly log = logger.feature('Platform');
 
-  /**
-   * Get the macOS app icon path
-   */
+  constructor(private readonly activePlatform: PlatformState = platform) {}
+
   getAppIconPath(): string {
-    return resolveResourcePath('resources/icons/normal/mac.icns');
+    return resolveResourcePath(
+      'resources/icons/normal',
+      this.activePlatform.config.appIconFileName
+    );
   }
 
-  /**
-   * Get the macOS tray icon path
-   * Uses Template for automatic dark/light mode adaptation
-   */
   getTrayIconPath(): string {
-    return resolveResourcePath('resources/icons/tray/iconTemplate.png');
+    return resolveResourcePath('resources/icons', this.activePlatform.config.trayIconFileName);
   }
 
-  /**
-   * Create a tray icon with macOS-specific configuration
-   */
   createTrayIcon(): Tray {
     const iconPath = this.getTrayIconPath();
     const icon = nativeImage.createFromPath(iconPath);
+    const { trayIconSize } = this.activePlatform.config;
 
-    // Resize icon for macOS tray
-    const resizedIcon = icon.resize({ width: 16, height: 16 });
+    const resizedIcon = icon.resize(trayIconSize);
 
     const tray = new Tray(resizedIcon);
 
-    // macOS specific: Ignore double-click events
-    tray.setIgnoreDoubleClickEvents(true);
+    if (this.activePlatform.config.ignoreTrayDoubleClickEvents) {
+      tray.setIgnoreDoubleClickEvents(true);
+    }
 
     return tray;
   }
 
-  /**
-   * Set dock badge on macOS
-   */
-  setBadge(window: BrowserWindow, count: number): void {
+  setBadge(_window: Pick<BrowserWindow, 'setOverlayIcon'>, count: number): void {
     try {
       if (count === 0) {
-        this.clearBadge(window);
+        this.clearBadge(_window);
         return;
       }
 
-      // macOS: Use dock badge
-      app.dock?.setBadge(count > 99 ? '99+' : count.toString());
+      if (this.activePlatform.config.supportsDockBadge) {
+        app.dock?.setBadge(count > 99 ? '99+' : count.toString());
+      } else if (this.activePlatform.config.supportsTaskbarBadge) {
+        app.setBadgeCount(count);
+      }
 
-      this.log.debug(`Dock badge set to ${count}`);
+      this.log.debug(`${this.activePlatform.name} badge set to ${count}`);
     } catch (error: unknown) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       this.log.error('Failed to set dock badge:', error);
     }
   }
 
-  /**
-   * Clear dock badge
-   */
-  clearBadge(_window: BrowserWindow): void {
+  clearBadge(_window: Pick<BrowserWindow, 'setOverlayIcon'>): void {
     try {
-      app.dock?.setBadge('');
-      this.log.debug('Dock badge cleared');
+      if (this.activePlatform.config.supportsDockBadge) {
+        app.dock?.setBadge('');
+      } else if (this.activePlatform.config.supportsTaskbarBadge) {
+        app.setBadgeCount(0);
+      }
+
+      this.log.debug(`${this.activePlatform.name} badge cleared`);
     } catch (error: unknown) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       this.log.error('Failed to clear dock badge:', error);
     }
   }
 
-  /**
-   * Get macOS keyboard shortcuts
-   */
-  getShortcuts(): Record<string, string> {
-    return {
-      quit: 'Cmd+Q',
-      preferences: 'Cmd+,',
-      reload: 'Cmd+R',
-      forceReload: 'Cmd+Shift+R',
-      toggleDevTools: 'Cmd+Option+I',
-      zoomIn: 'Cmd+Plus',
-      zoomOut: 'Cmd+-',
-      zoomReset: 'Cmd+0',
-      find: 'Cmd+F',
-      selectAll: 'Cmd+A',
-      copy: 'Cmd+C',
-      paste: 'Cmd+V',
-      cut: 'Cmd+X',
-      undo: 'Cmd+Z',
-      redo: 'Cmd+Shift+Z',
-    };
+  getShortcuts(): PlatformShortcutMap {
+    return this.activePlatform.config.shortcuts;
   }
 
-  /**
-   * Apply macOS-specific window options
-   */
   applyWindowOptions(options: Electron.BrowserWindowConstructorOptions): void {
-    // macOS specific window options
-    options.titleBarStyle = 'hiddenInset';
-    options.trafficLightPosition = { x: 16, y: 16 };
+    Object.assign(options, this.activePlatform.config.windowOptions);
   }
 
-  /**
-   * Check if a feature is supported on macOS
-   */
-  isFeatureSupported(feature: keyof PlatformConfig): boolean {
-    return Boolean(MACOS_CONFIG[feature]);
+  isFeatureSupported(feature: PlatformFeature): boolean {
+    return this.activePlatform.config[feature];
   }
 
-  /**
-   * Get macOS platform information for debugging
-   */
   getPlatformInfo(): Record<string, unknown> {
     return {
-      platform: 'darwin',
-      arch: process.arch,
+      platform: this.activePlatform.name,
+      arch: this.activePlatform.arch,
+      isMac: this.activePlatform.isMac,
+      isWindows: this.activePlatform.isWindows,
       version: process.getSystemVersion(),
       nodeVersion: process.version,
       electronVersion: process.versions.electron,
@@ -139,7 +114,7 @@ export class PlatformUtils {
       v8Version: process.versions.v8,
       locale: app.getLocale(),
       appVersion: app.getVersion(),
-      ...MACOS_CONFIG,
+      ...this.activePlatform.config,
     };
   }
 }

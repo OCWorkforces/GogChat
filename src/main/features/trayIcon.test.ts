@@ -25,9 +25,19 @@ vi.mock('electron', () => ({
   NativeImage: {},
 }));
 
-vi.mock('../utils/platform/iconCache', () => ({
-  getIconCache: vi.fn().mockReturnValue({
-    getIcon: vi.fn().mockReturnValue({}),
+const mockTrayInstance = {
+  setIgnoreDoubleClickEvents: vi.fn(),
+  setContextMenu: vi.fn(),
+  setToolTip: vi.fn(),
+  on: vi.fn(),
+  isDestroyed: vi.fn().mockReturnValue(false),
+  destroy: vi.fn(),
+};
+const mockCreateTrayIcon = vi.fn(() => mockTrayInstance);
+
+vi.mock('../utils/platform/platformUtils', () => ({
+  getPlatformUtils: () => ({
+    createTrayIcon: mockCreateTrayIcon,
   }),
 }));
 
@@ -37,7 +47,7 @@ vi.mock('electron-log', () => ({
 
 import createTrayIcon, { cleanupTrayIcon } from './trayIcon';
 import type { BrowserWindow } from 'electron';
-import { Tray, Menu } from 'electron';
+import { Menu } from 'electron';
 
 /**
  * Minimal window interface required by createTrayIcon
@@ -60,10 +70,7 @@ describe('trayIcon', () => {
   }
 
   function getLastTrayInstance() {
-    const calls = vi.mocked(Tray).mock.calls;
-    const lastCall = calls[calls.length - 1];
-    // The instance is the return value of the mock implementation
-    return lastCall ? vi.mocked(Tray).mock.results[calls.length - 1].value : null;
+    return mockTrayInstance;
   }
 
   it('creates a tray icon', () => {
@@ -72,11 +79,11 @@ describe('trayIcon', () => {
     expect(tray).toBeDefined();
   });
 
-  it('sets ignore double click events', () => {
+  it('creates the native tray through platform utilities', () => {
     const window = makeFakeWindow();
     createTrayIcon(window as BrowserWindow);
-    const tray = getLastTrayInstance()!;
-    expect(tray.setIgnoreDoubleClickEvents).toHaveBeenCalledWith(true);
+
+    expect(mockCreateTrayIcon).toHaveBeenCalledTimes(1);
   });
 
   it('sets tooltip', () => {

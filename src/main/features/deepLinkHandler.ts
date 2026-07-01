@@ -1,7 +1,11 @@
 import { app } from 'electron';
 import log from 'electron-log';
 import { DEEP_LINK } from '../../shared/constants.js';
-import { validateDeepLinkURL, validateExternalURL } from '../../shared/urlValidators.js';
+import {
+  isGoogleAuthUrl,
+  validateDeepLinkURL,
+  validateExternalURL,
+} from '../../shared/urlValidators.js';
 import type { IAccountWindowManager } from '../../shared/types/window.js';
 import { asAccountIndex } from '../../shared/types/branded.js';
 import {
@@ -9,6 +13,7 @@ import {
   getMostRecentWindow,
   getWindowForAccount,
 } from '../utils/account/accountWindowManager.js';
+import { extractDeepLinkFromArgv } from '../utils/account/deepLinkUtils.js';
 import { addTrackedListener } from '../utils/lifecycle/resourceCleanup.js';
 import { openExternal } from '../utils/security/shellWrapper.js';
 import { registerMenuAction } from './menuActionRegistry.js';
@@ -65,6 +70,14 @@ function navigateToUrl(url: string): void {
   const windowRef = getTargetWindow(url) ?? getMostRecentWindow();
   if (!windowRef || windowRef.isDestroyed()) {
     log.warn('[DeepLink] Cannot navigate — window unavailable');
+    return;
+  }
+
+  if (isGoogleAuthUrl(windowRef.webContents.getURL())) {
+    pendingDeepLinkUrl = url;
+    log.info('[DeepLink] Google auth in progress, buffering URL');
+    windowRef.show();
+    windowRef.focus();
     return;
   }
 
@@ -160,6 +173,10 @@ export default function initDeepLinkHandler(_context: {
   try {
     // No longer storing window reference - use dynamic lookup via account window manager
     registerDeepLinkProtocol();
+    const startupDeepLink = extractDeepLinkFromArgv(process.argv);
+    if (startupDeepLink) {
+      processDeepLink(startupDeepLink);
+    }
     processPendingDeepLink();
     log.info('[DeepLink] Deep link handler initialized');
 

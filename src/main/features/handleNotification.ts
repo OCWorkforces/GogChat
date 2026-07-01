@@ -19,6 +19,14 @@ const activeNotifications = new Map<
   }
 >();
 
+function restoreAndFocusWindow(window: BrowserWindow): void {
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  window.show();
+  window.focus();
+}
+
 export default (window: BrowserWindow) => {
   void getRateLimiter();
 
@@ -46,7 +54,7 @@ export default (window: BrowserWindow) => {
           try {
             // Bring window to focus if hidden or not focused
             if (!window.isVisible() || !window.isFocused()) {
-              window.show();
+              restoreAndFocusWindow(window);
               log.debug('[Notification] Window shown from notification click');
             }
           } catch (error: unknown) {
@@ -115,7 +123,7 @@ export default (window: BrowserWindow) => {
       try {
         // Bring window to focus if hidden or not focused
         if (!window.isVisible() || !window.isFocused()) {
-          window.show();
+          restoreAndFocusWindow(window);
           log.debug('[Notification] Window shown from notification click');
         }
       } catch (error: unknown) {

@@ -345,56 +345,49 @@ When you run with `--enable-code-sign`:
 5. **DMG is created:**
    - Final signed and notarized DMG in `dist/`
 
-### Step 7.3: Update GitHub Actions Workflow
+### Step 7.3: Release workflow integration
 
-Add code signing to your release workflow:
+The current release workflow is split into `prepare-release`, `build-mac`, `build-windows`, `verify-release-artifacts`, and one `publish-release` job. Add macOS signing credentials to the `build-mac` job. Do not add a separate upload step from the macOS signing guide, because publishing happens once after aggregate artifact verification.
 
 ```yaml
 # .github/workflows/release.yml
-name: Release
-
-on:
-  push:
-    tags:
-      - 'v*'
-
 jobs:
-  build-macos:
+  build-mac:
+    needs: prepare-release
+    if: needs.prepare-release.outputs.should_release == 'true'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.3.14"
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24.16.0'
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
 
-      - name: Install dependencies
-        run: bun install
+      - run: bun run build:prod
 
-      - name: Build signed DMG (arm64)
+      - name: Build macOS DMG
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-        run: |
-          # Decode certificate from base64
-          echo "$CSC_LINK" | base64 --decode > certificate.p12
-          export CSC_LINK="./certificate.p12"
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: bun run package:mac:release
 
-          ./build-macOS-dmg.sh --environment production --enable-code-sign
-
-      - name: Upload DMGs
-        uses: softprops/action-gh-release@v2
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: dist/*.dmg
+          name: release-macos-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
 ```
+
+Windows release engineering/preparation is handled by separate guarded jobs. It is not a public support claim. Windows release publication requires a Windows Authenticode signing route through `WIN_CSC_LINK`/`WIN_CSC_KEY_PASSWORD` or explicit owner opt-in for unsigned Windows assets through the signing policy gate, and support/publication claims require clean packaged smoke on Windows x64 and real Windows arm64.
 
 ---
 

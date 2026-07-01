@@ -11,6 +11,7 @@ import type { BrowserWindow, Tray } from 'electron';
 import { createTrackedTimeout } from '../utils/lifecycle/resourceCleanup.js';
 import { IPC_CHANNELS } from '../../shared/constants.js';
 import type { FeatureSpec } from '../utils/lifecycle/featureConfigTypes.js';
+import { SUPPORTED_PLATFORM_NAMES } from '../utils/platform/platformDetection.js';
 
 export const DEFERRED_FEATURES = [
   // System: tray icon — load first; other features depend on it
@@ -62,6 +63,7 @@ export const DEFERRED_FEATURES = [
   {
     name: 'openAtLogin',
     phase: 'deferred',
+    platforms: [SUPPORTED_PLATFORM_NAMES.macOS],
     description: 'Auto-launch on system startup',
     init: async (context) => {
       const module = await import('../features/openAtLogin.js');
@@ -89,6 +91,7 @@ export const DEFERRED_FEATURES = [
   {
     name: 'enforceMacOSAppLocation',
     phase: 'deferred',
+    platforms: [SUPPORTED_PLATFORM_NAMES.macOS],
     description: 'macOS app location enforcement',
     init: async () => {
       const module = await import('../utils/platform/platformHelpers.js');

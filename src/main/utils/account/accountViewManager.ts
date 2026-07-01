@@ -49,7 +49,7 @@ import { bootstrapDelegates } from './accountLifecycleHelpers.js';
 import {
   buildAccountWindowState,
   persistAccountWindowState,
-  getAccountWindowState as _getAccountWindowState,
+  readAccountWindowState as _getAccountWindowState,
 } from './accountWindowsStore.js';
 import { getIconCache } from '../platform/iconCache.js';
 import { installPermissionHandlers } from '../security/permissionHandler.js';

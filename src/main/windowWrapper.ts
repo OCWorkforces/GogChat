@@ -11,6 +11,7 @@ import { installPermissionHandlers } from './utils/security/permissionHandler.js
 import { installHeaderFix } from './utils/security/cspHeaderHandler.js';
 import { installBenignWarningFilter } from './utils/ipc/benignLogFilter.js';
 import { configGet, configSet } from './config.js';
+import { platform } from './utils/platform/platformDetection.js';
 
 installBenignWarningFilter();
 
@@ -80,6 +81,7 @@ export default (url: string, partition?: string): BrowserWindow => {
   // only happen once — subsequent launches and additional account windows skip entirely.
   // Wrapped in setImmediate so it never blocks loadURL on the critical path.
   if (
+    platform.isMac &&
     Notification.isSupported() &&
     !notificationPermissionScheduled &&
     !configGet('app.notificationPermissionRequested')

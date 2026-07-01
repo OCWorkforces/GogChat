@@ -54,6 +54,11 @@ vi.mock('node:fs/promises', () => ({
     mockFilePaths.add(filePath);
     return Promise.resolve();
   }),
+  unlink: vi.fn((filePath: string) => {
+    mockFiles.delete(filePath);
+    mockFilePaths.delete(filePath);
+    return Promise.resolve();
+  }),
 }));
 
 describe('Encryption Key Module', () => {
@@ -107,6 +112,18 @@ describe('Encryption Key Module', () => {
       expect(result.key).toBeDefined();
       expect(result.key).toHaveLength(64);
       expect(safeStorage.encryptString).toHaveBeenCalledWith(result.key);
+      expect(result.migrationPending).toBe(false);
+    });
+
+    it('should store a fresh Windows SafeStorage/DPAPI-backed key for later launches', async () => {
+      const { safeStorage } = await import('electron');
+      vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(true);
+
+      const { getOrCreateEncryptionKey } = await import('./encryptionKey');
+      const result = await getOrCreateEncryptionKey();
+
+      const keyFilePath = path.join('/fake/path/userData', 'encryption-key.enc');
+      expect(mockFiles.get(keyFilePath)?.toString()).toBe(`encrypted:${result.key}`);
       expect(result.migrationPending).toBe(false);
     });
 
@@ -228,6 +245,27 @@ describe('Encryption Key Module', () => {
       // Should fall back to legacy key, migration must NOT be pending
       // (SafeStorage failed — triggering migration here would corrupt data)
       expect(result.key).toBeDefined();
+      expect(result.key).toHaveLength(64);
+      expect(result.migrationPending).toBe(false);
+    });
+
+    it('should remove a tampered SafeStorage key before falling back to the legacy key', async () => {
+      const { safeStorage } = await import('electron');
+      const fs = await import('node:fs/promises');
+      vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(true);
+      vi.mocked(safeStorage.decryptString).mockImplementation(() => {
+        throw new Error('DPAPI tamper detected');
+      });
+
+      const keyFilePath = path.join('/fake/path/userData', 'encryption-key.enc');
+      mockFiles.set(keyFilePath, Buffer.from('tampered'));
+      mockFilePaths.add(keyFilePath);
+
+      const { getOrCreateEncryptionKey } = await import('./encryptionKey');
+      const result = await getOrCreateEncryptionKey();
+
+      expect(fs.unlink).toHaveBeenCalledWith(keyFilePath);
+      expect(mockFiles.has(keyFilePath)).toBe(false);
       expect(result.key).toHaveLength(64);
       expect(result.migrationPending).toBe(false);
     });

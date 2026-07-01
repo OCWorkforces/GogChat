@@ -132,6 +132,20 @@ describe('parseSpecSource – AST-based parser', () => {
     expect(exportName).toBe('Z');
     expect(entries[1].dependencies).toEqual(['a']);
   });
+
+  it('ignores platform metadata while preserving dependency metadata', () => {
+    const src = `
+      export const PLATFORM_FEATURES = [
+        { name: 'mac-only', phase: 'deferred', platforms: ['darwin'], init: () => {} },
+        { name: 'after', phase: 'deferred', dependencies: ['mac-only'], platforms: ['win32'], init: () => {} },
+      ] as const;
+    `;
+    const { entries } = parseSpecSource(src, 'platform.spec.ts');
+    expect(entries).toEqual([
+      { name: 'mac-only', phase: 'deferred' },
+      { name: 'after', phase: 'deferred', dependencies: ['mac-only'] },
+    ]);
+  });
 });
 
 describe('buildPlanFromSources – topo-sort and batching', () => {

@@ -16,6 +16,7 @@
  *   resources/icons/normal/64.png
  *   resources/icons/normal/256.png
  *   resources/icons/normal/mac.icns  (macOS app icon, 1024×1024 source)
+ *   resources/icons/normal/win.ico   (Windows app icon, generated from normal PNGs)
  *
  * App icons — badge state (speech bubble + red notification dot):
  *   resources/icons/badge/16.png
@@ -40,10 +41,11 @@
  */
 
 import sharp from 'sharp';
-import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, rmSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { createIcoBuffer } from './ico-writer.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
@@ -388,7 +390,7 @@ function trayUnreadIconSvg(s) {
   // clearly visible without overlapping the inner cutout.
   const dotCx = Number(scale(88));
   const dotCy = Number(scale(12));
-  const dotR  = Number(scale(s >= 36 ? 11 : 10)); // slightly larger on 2×
+  const dotR = Number(scale(s >= 36 ? 11 : 10)); // slightly larger on 2×
   const fmt = (n) => Number(n).toFixed(3);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
@@ -447,7 +449,6 @@ function auraIconSvg(s) {
   })}
 </svg>`;
 }
-
 
 /**
  * Scalable SVG for resources/icons/normal/scalable.svg.
@@ -514,6 +515,14 @@ async function generateIcns(png1024Buffer, outputPath) {
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
+}
+
+function generateIcoFromNormalPngs(outputPath) {
+  const images = APP_SIZES.map((size) => ({
+    size,
+    buffer: readFileSync(join(ICONS_DIR, 'normal', `${size}.png`)),
+  }));
+  writeFileSync(outputPath, createIcoBuffer(images));
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +616,17 @@ try {
   if (err.message.includes('iconutil')) {
     console.error('     (iconutil is macOS-only — skipped on non-macOS)');
   }
+  fail++;
+}
+
+// .ico app icon
+console.log('\nGenerating normal/win.ico (normal PNG set)...\n');
+try {
+  generateIcoFromNormalPngs(join(ICONS_DIR, 'normal', 'win.ico'));
+  console.log('  ✓  normal/win.ico');
+  ok++;
+} catch (err) {
+  console.error(`  ✗  normal/win.ico: ${err.message}`);
   fail++;
 }
 

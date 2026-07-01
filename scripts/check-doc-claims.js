@@ -7,8 +7,8 @@
  * Checks:
  *   1. Singleton compliance: every `export function getXxx` in src/main/utils
  *      should have a matching `export function destroyXxx` (with allowlist).
- *   2. Lazy require: src/main/utils/lifecycle/resourceCleanup.ts is documented to use
- *      lazy `require(...)` — verify at least one `require(` exists.
+ *   2. Lazy require: src/main/initializers/registerGlobalCleanups.ts is documented
+ *      to lazy-import cleanup owners — verify at least one `require(` exists.
  *   3. Branded type usage: `asValidatedURL` and `asFeatureName` should be
  *      imported somewhere outside their definition file.
  *   4. Feature-to-feature imports: no relative `from './sibling'` imports
@@ -129,17 +129,17 @@ function checkSingletonCompliance() {
   return { totalGetters, totalMatched };
 }
 
-// ── Check 2: resourceCleanup lazy require ────────────────────────────────────
-function checkResourceCleanupLazyRequire() {
-  const file = join(UTILS_DIR, 'lifecycle/resourceCleanup.ts');
+// ── Check 2: global cleanup lazy require ─────────────────────────────────────
+function checkGlobalCleanupLazyRequire() {
+  const file = join(ROOT, 'src/main/initializers/registerGlobalCleanups.ts');
   const src = readFileSync(file, 'utf8');
   // Strip line comments and block comments before checking.
   const stripped = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   if (!/\brequire\s*\(/.test(stripped)) {
     err(
       'LAZY_REQUIRE_MISSING',
-      `src/main/utils/lifecycle/resourceCleanup.ts has no \`require(...)\` calls, ` +
-        `but AGENTS.md claims it uses "lazy require() to avoid coupling".`
+      `src/main/initializers/registerGlobalCleanups.ts has no \`require(...)\` calls, ` +
+        `but AGENTS.md claims cleanup owners are lazy-imported to avoid startup coupling.`
     );
   }
 }
@@ -247,7 +247,7 @@ function checkFeatureSpecIpcChannels() {
 // ── Run all checks ───────────────────────────────────────────────────────────
 const t0 = Date.now();
 const { totalGetters, totalMatched } = checkSingletonCompliance();
-checkResourceCleanupLazyRequire();
+checkGlobalCleanupLazyRequire();
 checkBrandedTypeUsage();
 checkFeatureToFeatureImports();
 checkFeatureSpecIpcChannels();

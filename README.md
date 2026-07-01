@@ -131,6 +131,9 @@ bun run lint:all:fix
 
 # Build an ARM64 macOS DMG
 bun run build:mac
+
+# Build the current macOS release package without publishing
+bun run package:mac:release
 ```
 
 ## Testing and quality gates
@@ -145,17 +148,31 @@ bun run build:mac
 ## Packaging and releases
 
 ```bash
-# Production DMG
+# Production DMG, macOS-specific
 bun run build:mac
 
-# Development DMG
+# Development DMG, macOS-specific
 bun run build:mac:dev
 
-# electron-builder mac package flow
-bun run package
+# Current macOS release package flow, no publish side effect
+bun run package:mac:release
+
+# Windows release-engineering preparation only, not a public support claim
+bun run package:win:x64
+bun run package:win:arm64
+bun run package:win:artifacts
+bun run package:win:signing-policy
 ```
 
-Release automation runs on GitHub Actions for `main` and `v*` tags. The release workflow builds the production bundle, creates a tag from `package.json` when running on `main`, packages the macOS app, and uploads `dist/*.dmg` as release assets.
+Release automation runs on GitHub Actions for `main` and `v*` tags. The split workflow prepares the tag, packages macOS, runs native Windows CI packaging, verifies aggregated artifacts, and uses one `publish-release` job for release upload.
+
+The public platform remains macOS on Apple Silicon. Windows release engineering/preparation is guarded and is not a public support claim. Support or publication claims require clean packaged smoke evidence on Windows x64 and real Windows arm64 before any user-facing wording changes.
+
+Windows preparation uses separate NSIS installers named `${productName}-${version}-windows-x64-setup.exe` and `${productName}-${version}-windows-arm64-setup.exe`. Use `x64` in user-facing architecture labels, not `amd64`.
+
+Native Windows CI packaging uses `windows-latest` for x64 with an AMD64 runner proof and `windows-11-arm` for arm64 with an ARM64 runner proof. Windows release publication requires a Windows Authenticode signing route through `WIN_CSC_LINK`/`WIN_CSC_KEY_PASSWORD` or explicit owner opt-in for unsigned Windows assets through the existing signing policy gate.
+
+The Windows electron-builder overlay registers only the `gogchat` protocol. The base macOS config may still include HTTPS protocol handling for the macOS app.
 
 Notarization is handled by the electron-builder hooks when Apple credentials are available through the release environment.
 

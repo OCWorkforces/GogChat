@@ -29,14 +29,14 @@ function getLegacyEncryptionKey(): string {
 }
 
 /**
- * Get or create an encryption key using safeStorage (macOS Keychain).
+ * Get or create an encryption key using safeStorage (OS credential store).
  *
  * - If SafeStorage is available and key file exists → decrypt and return stored key
  * - If SafeStorage is available, key file missing, but config exists → migration needed, return legacy key
  * - If SafeStorage is available, fresh install → generate random 256-bit key, encrypt with SafeStorage, store
  * - If SafeStorage is unavailable → return deterministic legacy key
  *
- * MUST be called AFTER app.whenReady() on macOS for correct Keychain entry naming.
+ * MUST be called AFTER app.whenReady() so OS credential-store identity is stable.
  */
 export interface EncryptionKeyResult {
   key: string;
@@ -50,14 +50,14 @@ export interface EncryptionKeyResult {
 }
 
 /**
- * Get or create an encryption key using safeStorage (macOS Keychain).
+ * Get or create an encryption key using safeStorage (OS credential store).
  *
  * - If SafeStorage is available and key file exists → decrypt and return stored key
  * - If SafeStorage is available, key file missing, but config exists → migration needed, return legacy key
  * - If SafeStorage is available, fresh install → generate random 256-bit key, encrypt with SafeStorage, store
  * - If SafeStorage is unavailable → return deterministic legacy key
  *
- * MUST be called AFTER app.whenReady() on macOS for correct Keychain entry naming.
+ * MUST be called AFTER app.whenReady() so OS credential-store identity is stable.
  */
 export async function getOrCreateEncryptionKey(): Promise<EncryptionKeyResult> {
   // Try SafeStorage first (must be called after app.whenReady on macOS)
@@ -89,7 +89,7 @@ async function handleSafeStorageKey(): Promise<EncryptionKeyResult> {
     const encrypted = await fs.readFile(keyFilePath);
     try {
       const hexKey = safeStorage.decryptString(encrypted);
-      log.info('[EncryptionKey] Retrieved encryption key from Keychain');
+      log.info('[EncryptionKey] Retrieved encryption key from SafeStorage');
       return { key: hexKey, migrationPending: false };
     } catch (cause: unknown) {
       // Key file is stale (e.g., app identity changed). Remove it so
@@ -114,7 +114,7 @@ async function handleSafeStorageKey(): Promise<EncryptionKeyResult> {
   const newKey = randomBytes(32).toString('hex'); // 256-bit key as hex
   const encrypted = safeStorage.encryptString(newKey);
   await fs.writeFile(keyFilePath, encrypted);
-  log.info('[EncryptionKey] Generated new encryption key, stored in Keychain');
+  log.info('[EncryptionKey] Generated new encryption key, stored in SafeStorage');
   return { key: newKey, migrationPending: false };
 }
 
@@ -162,6 +162,6 @@ export async function completeMigration(): Promise<string | null> {
   const newKey = randomBytes(32).toString('hex');
   const encrypted = safeStorage.encryptString(newKey);
   await fs.writeFile(keyFilePath, encrypted);
-  log.info('[EncryptionKey] Migration complete — new key stored in Keychain');
+  log.info('[EncryptionKey] Migration complete — new key stored in SafeStorage');
   return newKey;
 }
