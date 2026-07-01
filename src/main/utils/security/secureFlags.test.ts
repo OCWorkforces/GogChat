@@ -1,5 +1,5 @@
 /**
- * Unit tests for secureFlags helper — safeStorage-backed `disableCertPinning`.
+ * Unit tests for secureFlags helper — OS safeStorage-backed security flags.
  *
  * Covers:
  * - getDisableCertPinning() returns false when file missing
@@ -157,6 +157,41 @@ describe('secureFlags', () => {
       const parsed = JSON.parse(decoded) as Record<string, unknown>;
       expect(parsed.futureFlag).toBe('keep');
       expect(parsed.disableCertPinning).toBe(true);
+    });
+  });
+
+  describe('disableCdpTelemetry', () => {
+    it('defaults to false when Windows DPAPI-backed safeStorage is unavailable', async () => {
+      const { safeStorage } = await import('electron');
+      mockFiles.set(
+        '/fake/userData/secure-flags.enc',
+        Buffer.from('enc:{"disableCdpTelemetry":true}')
+      );
+      vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValueOnce(false);
+
+      const { getDisableCdpTelemetry } = await import('./secureFlags.js');
+      expect(getDisableCdpTelemetry()).toBe(false);
+    });
+
+    it('defaults to false when the encrypted flags blob is tampered', async () => {
+      const { safeStorage } = await import('electron');
+      mockFiles.set('/fake/userData/secure-flags.enc', Buffer.from('tampered'));
+      vi.mocked(safeStorage.decryptString).mockImplementationOnce(() => {
+        throw new Error('DPAPI decrypt failed');
+      });
+
+      const { getDisableCdpTelemetry } = await import('./secureFlags.js');
+      expect(getDisableCdpTelemetry()).toBe(false);
+    });
+
+    it('round-trips a telemetry kill switch without changing cert pinning default', async () => {
+      const { setDisableCdpTelemetry, getDisableCdpTelemetry, getDisableCertPinning } =
+        await import('./secureFlags.js');
+
+      setDisableCdpTelemetry(true);
+
+      expect(getDisableCdpTelemetry()).toBe(true);
+      expect(getDisableCertPinning()).toBe(false);
     });
   });
 });

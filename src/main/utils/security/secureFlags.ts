@@ -1,6 +1,6 @@
 /**
  * Security-critical boolean flags persisted with authenticated encryption
- * via Electron `safeStorage` (macOS Keychain-backed).
+ * via Electron `safeStorage` (OS credential-store-backed).
  *
  * Why a dedicated helper?
  * -----------------------
@@ -11,7 +11,7 @@
  * pinning is silently disabled and MITM becomes possible.
  *
  * `safeStorage.encryptString()` provides authenticated encryption (the
- * payload is bound to the OS Keychain entry), so any tampering causes
+ * payload is bound to the OS credential-store entry), so any tampering causes
  * decryption to fail and we fall back to the safest default (`false`).
  *
  * Storage location: `<userData>/secure-flags.enc` — a single encrypted JSON
@@ -94,7 +94,7 @@ function writeSecureFlags(flags: SecureFlags): void {
  * Defaults to `false` (the safe default — pinning enabled) on any error,
  * including missing file, decryption failure, or unavailable safeStorage.
  *
- * Safe to call before `app.whenReady` on macOS — `safeStorage` is queried
+ * Safe to call before `app.whenReady` — `safeStorage` is queried
  * lazily and a missing file simply returns the default.
  */
 export function getDisableCertPinning(): boolean {
