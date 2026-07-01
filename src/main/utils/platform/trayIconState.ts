@@ -17,6 +17,7 @@
 import type { NativeImage, Tray } from 'electron';
 import log from 'electron-log';
 import { getIconCache } from './iconCache.js';
+import { platform } from './platformDetection.js';
 
 let trayInstance: Tray | null = null;
 let currentTrayUnread: boolean | null = null;
@@ -51,6 +52,7 @@ export function setTrayInstance(tray: Tray | null): void {
  * No-ops if state is unchanged or the tray instance is missing/destroyed.
  */
 export function setTrayUnread(hasUnread: boolean): void {
+  if (!platform.config.useTemplateTrayIcon) return;
   if (!trayInstance || trayInstance.isDestroyed()) return;
   if (currentTrayUnread === hasUnread) return;
 

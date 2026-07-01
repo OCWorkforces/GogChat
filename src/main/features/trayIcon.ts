@@ -1,15 +1,14 @@
-import type { BrowserWindow } from 'electron';
-import { app, Menu, Tray } from 'electron';
+import type { BrowserWindow, Tray } from 'electron';
+import { app, Menu } from 'electron';
 import log from 'electron-log';
-import { getTrayIconImage, setTrayInstance } from '../utils/platform/trayIconState.js';
+import { setTrayInstance } from '../utils/platform/trayIconState.js';
+import { getPlatformUtils } from '../utils/platform/platformUtils.js';
 
 // Store tray icon reference for cleanup
 let trayIconInstance: Tray | null = null;
 
 export default (window: BrowserWindow) => {
-  const trayIcon = getTrayIconImage();
-  trayIconInstance = new Tray(trayIcon);
-  trayIconInstance.setIgnoreDoubleClickEvents(true);
+  trayIconInstance = getPlatformUtils().createTrayIcon();
 
   const handleOpenClick = () => {
     if (window.isMinimized()) {
