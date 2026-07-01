@@ -10,6 +10,7 @@ import windowWrapper from './windowWrapper.js';
 
 import { registerShutdownHandler } from './initializers/registerShutdown.js';
 import { registerAppReady, getMostRecentWindow } from './initializers/registerAppReady.js';
+import { APP_IDENTITY } from '../shared/appIdentity.js';
 
 // Cap V8 heap per renderer (default 512MB, conservative for Google Chat SPA).
 // Must be set before app.ready per Electron docs. Replaces the previous anti-throttle
@@ -62,7 +63,7 @@ if (enforceSingleInstance()) {
 // ===== Shutdown Handler =====
 registerShutdownHandler();
 
-app.setAppUserModelId('com.electron.google-chat');
+app.setAppUserModelId(APP_IDENTITY.appId);
 
 app.on('window-all-closed', () => {
   app.exit();
