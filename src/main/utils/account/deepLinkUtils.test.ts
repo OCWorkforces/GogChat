@@ -24,12 +24,12 @@ describe('extractDeepLinkFromArgv', () => {
     expect(extractDeepLinkFromArgv(['/app', '--enable', url, '--flag'])).toBe(url);
   });
 
-  it('extracts https://chat.google.com URL', () => {
+  it('ignores https://chat.google.com URLs from argv because Windows only owns gogchat protocol argv', () => {
     const url = 'https://chat.google.com/room/abc';
-    expect(extractDeepLinkFromArgv(['/app', url])).toBe(url);
+    expect(extractDeepLinkFromArgv(['/app', url])).toBeNull();
   });
 
-  it('prefers gogchat:// over https://chat.google.com', () => {
+  it('extracts gogchat:// when https://chat.google.com is also present', () => {
     const gogchatUrl = 'gogchat://room/1';
     const httpsUrl = 'https://chat.google.com/room/1';
     expect(extractDeepLinkFromArgv(['/app', httpsUrl, gogchatUrl])).toBe(gogchatUrl);
