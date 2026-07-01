@@ -142,7 +142,7 @@ describe('release workflow publish-once contract', () => {
 
     expect(verifyJob).toContain('needs: [prepare-release, build-mac, build-windows]');
     expect(verifyJob).toContain(
-      'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0'
+      'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1'
     );
     expect(verifyJob).toContain('merge-multiple: true');
     expect(verifyJob).toContain('bun scripts/verify-release-artifacts.js');
@@ -155,7 +155,7 @@ describe('release workflow publish-once contract', () => {
     expect(workflow.match(/softprops\/action-gh-release@/g) ?? []).toHaveLength(1);
     expect(publishJob).toContain('needs: [prepare-release, verify-release-artifacts]');
     expect(publishJob).toContain(
-      'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0'
+      'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1'
     );
     expect(publishJob).toContain('tag_name: ${{ needs.prepare-release.outputs.tag_name }}');
     expect(publishJob).toContain('make_latest: true');
