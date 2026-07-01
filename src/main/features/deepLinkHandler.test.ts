@@ -30,6 +30,7 @@ vi.mock('electron-log', () => ({
 }));
 
 vi.mock('../../shared/urlValidators.js', () => ({
+  isGoogleAuthUrl: vi.fn((url: unknown) => url === 'https://accounts.google.com/signin/v2'),
   validateDeepLinkURL: vi.fn((url: string) => url),
   validateExternalURL: vi.fn((url: string) => url),
 }));
@@ -79,6 +80,7 @@ interface MockAppWithListeners {
  * Fake window mock for testing BrowserWindow interactions
  */
 interface FakeWindow {
+  webContents: { getURL: ReturnType<typeof vi.fn> };
   isDestroyed: ReturnType<typeof vi.fn>;
   loadURL: ReturnType<typeof vi.fn>;
   isMinimized: ReturnType<typeof vi.fn>;
@@ -93,6 +95,7 @@ function getAppListeners(): Record<string, Array<(...args: unknown[]) => void>> 
 
 function makeFakeWindow(): FakeWindow {
   return {
+    webContents: { getURL: vi.fn().mockReturnValue('https://chat.google.com/u/0/') },
     isDestroyed: vi.fn().mockReturnValue(false),
     loadURL: vi.fn().mockResolvedValue(undefined),
     isMinimized: vi.fn().mockReturnValue(false),
@@ -165,13 +168,13 @@ describe('deepLinkHandler', () => {
       expect(result).toBe('gogchat://chat.google.com/room/test');
     });
 
-    it('extracts https chat.google.com link from argv', () => {
+    it('ignores https chat.google.com argv because Windows protocol argv only handles gogchat://', () => {
       const result = extractDeepLinkFromArgv([
         'node',
         'app',
         'https://chat.google.com/u/0/room/test',
       ]);
-      expect(result).toBe('https://chat.google.com/u/0/room/test');
+      expect(result).toBeNull();
     });
 
     it('returns null when no deep link found', () => {
@@ -361,6 +364,21 @@ describe('deepLinkHandler', () => {
       // The buffered URL should have been navigated to
       expect(fakeWindow.loadURL).toHaveBeenCalled();
     });
+
+    it('processes a cold-start gogchat:// URL from argv during init', () => {
+      vi.mocked(validateDeepLinkURL).mockImplementation((url: string) => url);
+      vi.mocked(app.setAsDefaultProtocolClient).mockReturnValue(true);
+      const originalArgv = process.argv;
+      process.argv = ['GogChat.exe', 'gogchat://room/cold-start'];
+      const fakeWindow = makeFakeWindow();
+      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as FakeWindow);
+      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as FakeWindow);
+
+      initDeepLinkHandler({});
+
+      expect(fakeWindow.loadURL).toHaveBeenCalledWith('gogchat://room/cold-start');
+      process.argv = originalArgv;
+    });
   });
 
   describe('navigateToUrl window restore', () => {
@@ -376,6 +394,23 @@ describe('deepLinkHandler', () => {
       processDeepLink('gogchat://chat.google.com/room/test');
 
       expect(fakeWindow.restore).toHaveBeenCalled();
+      expect(fakeWindow.show).toHaveBeenCalled();
+      expect(fakeWindow.focus).toHaveBeenCalled();
+    });
+  });
+
+  describe('navigateToUrl auth-page protection', () => {
+    it('does not interrupt an active Google auth page with loadURL', () => {
+      vi.mocked(validateDeepLinkURL).mockImplementation((url: string) => url);
+
+      const fakeWindow = makeFakeWindow();
+      fakeWindow.webContents.getURL.mockReturnValue('https://accounts.google.com/signin/v2');
+      vi.mocked(getWindowForAccount).mockReturnValue(fakeWindow as FakeWindow);
+      vi.mocked(getMostRecentWindow).mockReturnValue(fakeWindow as FakeWindow);
+
+      processDeepLink('gogchat://chat.google.com/room/test');
+
+      expect(fakeWindow.loadURL).not.toHaveBeenCalled();
       expect(fakeWindow.show).toHaveBeenCalled();
       expect(fakeWindow.focus).toHaveBeenCalled();
     });
