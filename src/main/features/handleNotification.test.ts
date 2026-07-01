@@ -29,6 +29,8 @@ function makeFakeWindow() {
     focus: ReturnType<typeof vi.fn>;
     isVisible: ReturnType<typeof vi.fn>;
     isFocused: ReturnType<typeof vi.fn>;
+    isMinimized: ReturnType<typeof vi.fn>;
+    restore: ReturnType<typeof vi.fn>;
     _destroyed: boolean;
   };
 
@@ -45,6 +47,8 @@ function makeFakeWindow() {
   win.focus = vi.fn();
   win.isVisible = vi.fn().mockReturnValue(true);
   win.isFocused = vi.fn().mockReturnValue(true);
+  win.isMinimized = vi.fn().mockReturnValue(false);
+  win.restore = vi.fn();
 
   return win;
 }
@@ -260,6 +264,28 @@ describe('handleNotification feature', () => {
     notification.simulateClick();
 
     expect(fakeWindow.show).toHaveBeenCalled();
+  });
+
+  it('notification click restores and focuses a minimized Windows window', async () => {
+    fakeWindow.isVisible.mockReturnValue(false);
+    fakeWindow.isFocused.mockReturnValue(false);
+    fakeWindow.isMinimized.mockReturnValue(true);
+
+    const feature = await import('./handleNotification.js');
+    feature.default(fakeWindow as unknown as Electron.BrowserWindow);
+
+    const handlerConfig = createSecureIPCHandlerMock.mock.calls.find(
+      (call: unknown[]) => (call[0] as { channel: string }).channel === 'notificationShow'
+    )?.[0] as { handler: (data: unknown) => void };
+
+    handlerConfig.handler({ title: 'Test' });
+
+    const notification = FakeNotification.all[0];
+    notification.simulateClick();
+
+    expect(fakeWindow.restore).toHaveBeenCalled();
+    expect(fakeWindow.show).toHaveBeenCalled();
+    expect(fakeWindow.focus).toHaveBeenCalled();
   });
 
   it('notification click does not show window when already visible and focused', async () => {
