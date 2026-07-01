@@ -2,7 +2,7 @@
 
 **Parent:** `../AGENTS.md`
 
-`mac/` contains macOS packaging assets and DMG scripts for an Apple Silicon focused Electron app.
+`mac/` contains macOS packaging assets and DMG scripts for an Apple Silicon focused Electron app. Windows release engineering/preparation lives outside this directory and is not a public support claim.
 
 ## Commands
 
@@ -10,11 +10,13 @@
 bun run build:mac
 bun run build:mac:dev
 bun run package
+bun run package:mac:release
 ```
 
 ## DMG flow
 
 - `build-macOS-dmg.sh` requires `BUILD_ENV`; package scripts default it to production/dev as appropriate.
+- `build-macOS-dmg.sh` is mac-specific. Do not describe it as a Windows or cross-platform package path.
 - Build the app before packaging.
 - Mount, copy, sign/notarize when configured, detach, then verify artifacts.
 - Always force-detach mounted DMGs on failure paths.
@@ -33,6 +35,7 @@ bun run package
 - Packaging assets include `electron-builder.yml`, `electron-builder.sign.yml`, and `entitlements.mac*.plist`.
 - Do not edit files inside a mounted DMG as the source of truth.
 - Do not add Intel-specific assumptions unless product support changes.
+- Do not add Windows support claims here. Windows publication wording requires clean packaged smoke evidence on Windows x64 and real Windows arm64.
 
 ## Anti-patterns
 
