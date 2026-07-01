@@ -14,6 +14,8 @@ import { FEATURE_PLAN } from '../../generated/featurePlan.js';
 import type { FeatureContext, FeaturePriority, FeatureSpec } from './featureConfigTypes.js';
 import { perfMonitor } from './performanceMonitor.js';
 import { asType } from '../../../shared/typeUtils.js';
+import { asFeatureName } from '../../../shared/types/branded.js';
+import { platform } from '../platform/platformDetection.js';
 
 const PHASES: readonly FeaturePriority[] = ['security', 'critical', 'ui', 'deferred'];
 
@@ -90,19 +92,26 @@ export async function cleanupAll(context: FeatureContext): Promise<void> {
 }
 
 async function runFeature(spec: FeatureSpec, context: FeatureContext): Promise<void> {
+  const featureName = asFeatureName(spec.name);
+  const supportedPlatforms = spec.platforms;
+  if (supportedPlatforms && !supportedPlatforms.includes(platform.name)) {
+    log.info(`[FeatureRunner] ↷ ${featureName} skipped on ${platform.name}`);
+    return;
+  }
+
   const start = Date.now();
   try {
     await spec.init(context);
     initialized.push(spec);
     log.info(
-      `[FeatureRunner] ✓ ${spec.name} (${Date.now() - start}ms)${spec.description ? ` — ${spec.description}` : ''}`
+      `[FeatureRunner] ✓ ${featureName} (${Date.now() - start}ms)${spec.description ? ` — ${spec.description}` : ''}`
     );
   } catch (error) {
     if (spec.required) {
-      log.error(`[FeatureRunner] ✗ REQUIRED feature '${spec.name}' failed:`, error);
+      log.error(`[FeatureRunner] ✗ REQUIRED feature '${featureName}' failed:`, error);
       throw error;
     }
-    log.warn(`[FeatureRunner] ✗ optional feature '${spec.name}' failed:`, error);
+    log.warn(`[FeatureRunner] ✗ optional feature '${featureName}' failed:`, error);
   }
 }
 
