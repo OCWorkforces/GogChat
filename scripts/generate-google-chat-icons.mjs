@@ -3,7 +3,7 @@
  *
  * Creates all required icon variants:
  *
- * Tray icons (menu bar — macOS Template, monochrome):
+ * Tray icons (menu bar — macOS Template alpha masks for light/dark mode):
  *   resources/icons/tray/iconTemplate.png          (22×22, 1x) — default/idle
  *   resources/icons/tray/iconTemplate@2x.png       (44×44, 2x Retina) — default/idle
  *   resources/icons/tray/iconUnreadTemplate.png    (22×22, 1x) — unread messages
@@ -85,22 +85,22 @@ const APP_GEOMETRY = {
 };
 
 const TRAY_GEOMETRY = {
-  left: 7.5,
-  top: 8,
-  right: 92.5,
-  bottom: 76.5,
-  cornerRadius: 16,
-  cut: 14,
+  left: 4.5,
+  top: 4.5,
+  right: 95.5,
+  bottom: 80.5,
+  cornerRadius: 17,
+  cut: 14.5,
   tailBaseStart: 25,
-  tailNeckX: 10.5,
-  tailTipX: 7.2,
-  tailTipY: 92,
-  innerLeft: 23.5,
-  innerTop: 22,
-  innerRight: 77,
-  innerBottom: 60,
-  innerRadius: 9,
-  innerCut: 7.5,
+  tailNeckX: 10,
+  tailTipX: 4.5,
+  tailTipY: 96,
+  innerLeft: 21.5,
+  innerTop: 19.5,
+  innerRight: 79,
+  innerBottom: 62.5,
+  innerRadius: 9.5,
+  innerCut: 8,
 };
 
 // Ensure icon subdirectories exist
@@ -354,8 +354,8 @@ function buildBadgeDot(scale, opts = {}) {
 
 /**
  * Monochrome tray icon SVG (macOS Template image).
- * Black speech bubble with white inner region.
- * The OS handles light/dark menu bar tinting automatically.
+ * Black speech bubble alpha mask with a transparent inner cutout.
+ * The OS handles light/dark menu bar tinting automatically from opacity.
  *
  * @param {number} s - Canvas size in pixels (22 for 1×, 44 for 2×)
  */
@@ -363,19 +363,19 @@ function trayIconSvg(s) {
   const scale = (v) => ((v * s) / 100).toFixed(3);
   const outerPath = buildOuterBubble(scale, TRAY_GEOMETRY.cornerRadius, TRAY_GEOMETRY);
   const innerPath = buildInnerCutout(scale, TRAY_GEOMETRY.innerRadius, TRAY_GEOMETRY);
+  const maskPath = `${outerPath} ${innerPath}`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <!-- Black silhouette for macOS Template image — system tints for light/dark -->
-  <path d="${outerPath}" fill="${COLORS.black}"/>
-  <path d="${innerPath}" fill="${COLORS.white}"/>
+  <!-- Opaque pixels are the Template mask; transparent pixels remain cut out. -->
+  <path d="${maskPath}" fill="${COLORS.black}" fill-rule="evenodd"/>
 </svg>`;
 }
 /**
  * Monochrome tray icon with unread dot — macOS Template image.
  * Same speech bubble as trayIconSvg() plus a small filled circle in the
  * upper-right corner to signal unread messages.
- * The dot is a solid black circle (no white ring) — the Template system
- * handles coloring automatically for light/dark menu bars.
+ * The dot is a solid black circle (no white ring) in the same alpha mask.
+ * macOS tints the whole mask for light and dark menu bars.
  *
  * @param {number} s - Canvas size in pixels (22 for 1×, 44 for 2×)
  */
@@ -383,6 +383,7 @@ function trayUnreadIconSvg(s) {
   const scale = (v) => ((v * s) / 100).toFixed(3);
   const outerPath = buildOuterBubble(scale, TRAY_GEOMETRY.cornerRadius, TRAY_GEOMETRY);
   const innerPath = buildInnerCutout(scale, TRAY_GEOMETRY.innerRadius, TRAY_GEOMETRY);
+  const maskPath = `${outerPath} ${innerPath}`;
 
   // Unread dot: solid filled circle at upper-right of the bubble.
   // Coordinates in the 0–100 space matching TRAY_GEOMETRY.
@@ -394,10 +395,9 @@ function trayUnreadIconSvg(s) {
   const fmt = (n) => Number(n).toFixed(3);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <!-- Black silhouette for macOS Template image — system tints for light/dark -->
-  <path d="${outerPath}" fill="${COLORS.black}"/>
-  <path d="${innerPath}" fill="${COLORS.white}"/>
-  <!-- Unread dot — solid black, rendered as white in dark menu bar by Template system -->
+  <!-- Opaque pixels are the Template mask; transparent pixels remain cut out. -->
+  <path d="${maskPath}" fill="${COLORS.black}" fill-rule="evenodd"/>
+  <!-- Unread dot — solid Template mask pixel data, tinted by macOS. -->
   <circle cx="${fmt(dotCx)}" cy="${fmt(dotCy)}" r="${fmt(dotR)}" fill="${COLORS.black}"/>
 </svg>`;
 }
