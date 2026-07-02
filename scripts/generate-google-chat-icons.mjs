@@ -3,7 +3,7 @@
  *
  * Creates all required icon variants:
  *
- * Tray icons (menu bar — macOS Template alpha masks for light/dark mode):
+ * Tray icons (menu bar — white glyphs with transparent cutouts for dark mode):
  *   resources/icons/tray/iconTemplate.png          (22×22, 1x) — default/idle
  *   resources/icons/tray/iconTemplate@2x.png       (44×44, 2x Retina) — default/idle
  *   resources/icons/tray/iconUnreadTemplate.png    (22×22, 1x) — unread messages
@@ -353,9 +353,8 @@ function buildBadgeDot(scale, opts = {}) {
 }
 
 /**
- * Monochrome tray icon SVG (macOS Template image).
- * Black speech bubble alpha mask with a transparent inner cutout.
- * The OS handles light/dark menu bar tinting automatically from opacity.
+ * Monochrome tray icon SVG for the macOS menu bar.
+ * White speech bubble glyph with a transparent inner cutout.
  *
  * @param {number} s - Canvas size in pixels (22 for 1×, 44 for 2×)
  */
@@ -366,16 +365,15 @@ function trayIconSvg(s) {
   const maskPath = `${outerPath} ${innerPath}`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <!-- Opaque pixels are the Template mask; transparent pixels remain cut out. -->
-  <path d="${maskPath}" fill="${COLORS.black}" fill-rule="evenodd"/>
+  <!-- Visible pixels are white; transparent pixels remain cut out. -->
+  <path d="${maskPath}" fill="${COLORS.white}" fill-rule="evenodd"/>
 </svg>`;
 }
 /**
- * Monochrome tray icon with unread dot — macOS Template image.
+ * Monochrome tray icon with unread dot for the macOS menu bar.
  * Same speech bubble as trayIconSvg() plus a small filled circle in the
  * upper-right corner to signal unread messages.
- * The dot is a solid black circle (no white ring) in the same alpha mask.
- * macOS tints the whole mask for light and dark menu bars.
+ * The dot is a solid white circle (no ring), matching the tray glyph.
  *
  * @param {number} s - Canvas size in pixels (22 for 1×, 44 for 2×)
  */
@@ -395,10 +393,10 @@ function trayUnreadIconSvg(s) {
   const fmt = (n) => Number(n).toFixed(3);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <!-- Opaque pixels are the Template mask; transparent pixels remain cut out. -->
-  <path d="${maskPath}" fill="${COLORS.black}" fill-rule="evenodd"/>
-  <!-- Unread dot — solid Template mask pixel data, tinted by macOS. -->
-  <circle cx="${fmt(dotCx)}" cy="${fmt(dotCy)}" r="${fmt(dotR)}" fill="${COLORS.black}"/>
+  <!-- Visible pixels are white; transparent pixels remain cut out. -->
+  <path d="${maskPath}" fill="${COLORS.white}" fill-rule="evenodd"/>
+  <!-- Unread dot — solid white pixel data matching the tray glyph. -->
+  <circle cx="${fmt(dotCx)}" cy="${fmt(dotCy)}" r="${fmt(dotR)}" fill="${COLORS.white}"/>
 </svg>`;
 }
 
@@ -532,11 +530,11 @@ function generateIcoFromNormalPngs(outputPath) {
 const APP_SIZES = [16, 32, 48, 64, 256];
 
 const ICON_SPECS = [
-  // Tray icons — macOS Template (monochrome, system-tinted)
+  // Tray icons — macOS menu bar (white glyphs for dark mode)
   { path: 'tray/iconTemplate.png', generator: () => trayIconSvg(22), size: 22 },
   { path: 'tray/iconTemplate@2x.png', generator: () => trayIconSvg(44), size: 44 },
 
-  // Tray icon — unread state (macOS Template with filled dot at upper-right)
+  // Tray icon — unread state (white glyph with filled dot at upper-right)
   { path: 'tray/iconUnreadTemplate.png', generator: () => trayUnreadIconSvg(22), size: 22 },
   { path: 'tray/iconUnreadTemplate@2x.png', generator: () => trayUnreadIconSvg(44), size: 44 },
 
