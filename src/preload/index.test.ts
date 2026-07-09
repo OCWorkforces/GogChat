@@ -42,6 +42,7 @@ vi.mock('./offline.js', () => ({}));
 vi.mock('./passkeyMonitor.js', () => ({}));
 vi.mock('./searchShortcut.js', () => ({}));
 vi.mock('./unreadCount.js', () => ({}));
+vi.mock('./notificationBridge.js', () => ({}));
 
 import { contextBridge, ipcRenderer } from 'electron';
 import { validateUnreadCount, validatePasskeyFailureData } from '../shared/dataValidators.js';
