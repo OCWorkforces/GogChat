@@ -75,6 +75,7 @@ GogChat remains publicly documented as macOS on Apple Silicon. Windows release e
 | IPC helpers                    | `src/main/utils/ipc/`                                               | Rate limit, validate, dedup/fast-path, catch.                    |
 | IPC channel names              | `src/shared/constants.ts`                                           | Never hardcode channel strings.                                  |
 | Preload bridge                 | `src/preload/index.ts` + `src/shared/types/bridge.ts`               | Sandboxed CJS preload. No raw `ipcRenderer` exposure.            |
+| Web notification bridge        | `src/preload/notificationBridge.ts` + `src/main/features/handleNotification.ts` | Page `Notification` calls become validated native notifications. |
 | URL validation                 | `src/shared/urlValidators.ts`                                       | Navigation, external links, deep links, Google auth detection.   |
 | Config                         | `src/shared/types/config.ts` + `src/main/config.ts`                 | Update schema and typed accessors together.                      |
 | Secure flags                   | `src/main/utils/security/secureFlags.ts`                            | SafeStorage-backed kill switches; not electron-store config.     |
@@ -115,6 +116,7 @@ GogChat remains publicly documented as macOS on Apple Silicon. Windows release e
 - BrowserWindow defaults: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`.
 - IPC handlers must rate-limit, validate, handle, and catch. Dedup only where safe.
 - Use `IPC_CHANNELS`; never string-literal IPC channel names.
+- Google Chat web `Notification` calls are bridged from page world through `src/preload/notificationBridge.ts`; keep raw `ipcRenderer` isolated in preload and validate notification payloads before `NOTIFICATION_SHOW`.
 - Use `validateExternalURL()` and `shellWrapper.ts`; never call `shell.openExternal()` directly in main.
 - Certificate pinning covers Google domains; kill switches live in SafeStorage-backed secure flags.
 - Do not wholesale replace Google CSP. Existing COEP/COOP/frame-ancestors stripping is targeted and intentional.
