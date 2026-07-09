@@ -31,6 +31,7 @@
 - Do not call `shell.openExternal()` directly. Use `validateExternalURL()` and `utils/security/shellWrapper.ts`.
 - Never log credentials, OAuth tokens, cookies, or full Google auth URLs; strip or validate first.
 - Do not add raw timers/listeners in main. Use tracked helpers from `utils/lifecycle/resourceCleanup.ts`.
+- macOS notification permission prompting lives in `windowWrapper.ts`; persist `app.notificationPermissionRequested` only after Electron emits `show` for the startup notification, and clear the in-memory guard on `failed` so a later launch can retry.
 - Keep feature-to-feature imports out of `features/`, except the existing `menuActionRegistry.ts` decoupling point.
 - Keep typed errors and `{ cause }`; use shared `ErrorCode` when crossing module boundaries.
 

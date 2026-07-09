@@ -97,10 +97,15 @@ export default (url: string, partition?: string): BrowserWindow => {
           });
           permNotification.on('show', () => {
             permNotification.close();
+            configSet('app.notificationPermissionRequested', true);
+            notificationPermissionScheduled = false;
+            log.info('[Notification] Triggered macOS notification permission request at startup');
+          });
+          permNotification.on('failed', () => {
+            notificationPermissionScheduled = false;
+            log.warn('[Notification] macOS notification permission request failed at startup');
           });
           permNotification.show();
-          configSet('app.notificationPermissionRequested', true);
-          log.info('[Notification] Triggered macOS notification permission request at startup');
         } catch (err) {
           notificationPermissionScheduled = false;
           throw err;
