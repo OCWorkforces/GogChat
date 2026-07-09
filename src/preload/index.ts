@@ -86,4 +86,5 @@ import './offline.js';
 import './passkeyMonitor.js';
 import './searchShortcut.js';
 import './unreadCount.js';
+import './notificationBridge.js';
 // Note: overrideNotifications needs special handling - loaded separately

@@ -10,11 +10,8 @@
  *
  * Parsing strategy: spec files have a strict shape (name/phase/dependencies as
  * literal strings/arrays inside `as const satisfies readonly FeatureSpec[]`).
- * We parse them with the official TypeScript Compiler API
- * (`ts.createSourceFile` + `ts.forEachChild`) and read the literal fields off
- * the resulting AST. This is robust against nested braces, comments, template
- * literals, and any whitespace variation that the previous regex-based parser
- * could not safely handle.
+ * We extract only that declarative metadata, ignoring implementation bodies so
+ * nested braces, comments, and template literals cannot affect feature order.
  *
  * Exposed as both:
  *   - A standalone function `generateFeaturePlan({ projectRoot, write })`
@@ -25,14 +22,14 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import prettier from 'prettier';
+import { parseSpecSource } from './featureSpecParser.js';
+
+export { parseSpecSource };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const requireFromHere = createRequire(import.meta.url);
-const ts = requireFromHere('typescript');
 
 const PHASES = ['security', 'critical', 'ui', 'deferred'];
 
@@ -44,141 +41,6 @@ const HEADER = `/**
  * \`featureRunner\` walks at startup.
  */
 `;
-
-/**
- * Parse a `*.spec.ts` source string with the TypeScript Compiler API.
- *
- * Returns:
- *   {
- *     exportName: string,          // e.g. 'SECURITY_FEATURES'
- *     entries:    Array<{ name, phase, dependencies?, required?, description? }>
- *   }
- *
- * Throws if no top-level `export const NAME = [ ... ]` array literal is found.
- *
- * @param {string} source   - The TypeScript source text.
- * @param {string} fileName - File name used for diagnostics (no I/O happens).
- */
-export function parseSpecSource(source, fileName = 'spec.ts') {
-  const sf = ts.createSourceFile(
-    fileName,
-    source,
-    ts.ScriptTarget.Latest,
-    /* setParentNodes */ true
-  );
-
-  let exportName;
-  let arrayLiteral;
-
-  // Walk only the top-level statements. We deliberately do NOT recurse with
-  // ts.forEachChild past the variable declaration we care about; nested object
-  // literals (inside init/cleanup bodies) are reached via the array-literal
-  // children below, never as standalone exports.
-  ts.forEachChild(sf, (stmt) => {
-    if (arrayLiteral) return;
-    if (!ts.isVariableStatement(stmt)) return;
-    const isExported = (stmt.modifiers || []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
-    if (!isExported) return;
-
-    for (const decl of stmt.declarationList.declarations) {
-      if (!decl.initializer) continue;
-      if (!ts.isIdentifier(decl.name)) continue;
-
-      // Strip outer `expr as const satisfies readonly FeatureSpec[]` wrappers.
-      let init = decl.initializer;
-      while (
-        ts.isAsExpression(init) ||
-        ts.isSatisfiesExpression(init) ||
-        ts.isParenthesizedExpression(init) ||
-        ts.isTypeAssertionExpression(init)
-      ) {
-        init = init.expression;
-      }
-      if (ts.isArrayLiteralExpression(init)) {
-        exportName = decl.name.text;
-        arrayLiteral = init;
-        return;
-      }
-    }
-  });
-
-  if (!arrayLiteral || !exportName) {
-    throw new Error(`[featurePlanPlugin] No 'export const NAME = [ ... ]' array in ${fileName}`);
-  }
-
-  const entries = [];
-  for (const element of arrayLiteral.elements) {
-    if (!ts.isObjectLiteralExpression(element)) continue;
-    const entry = extractFeatureEntry(element);
-    if (entry && entry.name && entry.phase) entries.push(entry);
-  }
-
-  return { exportName, entries };
-}
-
-/**
- * Extract `{ name, phase, required, dependencies, description }` from a single
- * object literal AST node. Properties we don't care about (`init`, `cleanup`,
- * unknown extension fields) are ignored — which is exactly why the AST
- * approach is safer than regex: nested braces / template literals inside those
- * bodies cannot confuse the walker.
- */
-function extractFeatureEntry(objLiteral) {
-  const result = {};
-  for (const prop of objLiteral.properties) {
-    if (!ts.isPropertyAssignment(prop)) continue;
-    const keyName = propertyKeyName(prop.name);
-    if (!keyName) continue;
-
-    switch (keyName) {
-      case 'name':
-      case 'phase':
-      case 'description': {
-        const literal = stringLiteralValue(prop.initializer);
-        if (literal !== undefined) result[keyName] = literal;
-        break;
-      }
-      case 'required': {
-        const init = prop.initializer;
-        if (init.kind === ts.SyntaxKind.TrueKeyword) result.required = true;
-        else if (init.kind === ts.SyntaxKind.FalseKeyword) result.required = false;
-        break;
-      }
-      case 'dependencies': {
-        const init = prop.initializer;
-        if (ts.isArrayLiteralExpression(init)) {
-          const deps = [];
-          for (const el of init.elements) {
-            const v = stringLiteralValue(el);
-            if (v !== undefined) deps.push(v);
-          }
-          result.dependencies = deps;
-        }
-        break;
-      }
-      default:
-        // Ignore init / cleanup / unknown extension fields.
-        break;
-    }
-  }
-  return result;
-}
-
-function propertyKeyName(nameNode) {
-  if (ts.isIdentifier(nameNode)) return nameNode.text;
-  if (ts.isStringLiteral(nameNode) || ts.isNoSubstitutionTemplateLiteral(nameNode)) {
-    return nameNode.text;
-  }
-  return undefined;
-}
-
-function stringLiteralValue(node) {
-  if (!node) return undefined;
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-    return node.text;
-  }
-  return undefined;
-}
 
 /**
  * Topologically sort entries within a single phase, returning batches.
