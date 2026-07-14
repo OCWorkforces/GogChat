@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 const ELECTRON_BUILDER_WIN_YML_PATH = path.join(PROJECT_ROOT, 'electron-builder.win.yml');
 const ELECTRON_BUILDER_YML_PATH = path.join(PROJECT_ROOT, 'electron-builder.yml');
+const ELECTRON_BUILDER_SIGN_YML_PATH = path.join(PROJECT_ROOT, 'electron-builder.sign.yml');
 const PACKAGE_JSON_PATH = path.join(PROJECT_ROOT, 'package.json');
 
 function readPackageJson() {
@@ -28,6 +29,10 @@ function readElectronBuilderWinConfig() {
   return fs.readFileSync(ELECTRON_BUILDER_WIN_YML_PATH, 'utf-8');
 }
 
+function readElectronBuilderSigningConfig() {
+  return fs.readFileSync(ELECTRON_BUILDER_SIGN_YML_PATH, 'utf-8');
+}
+
 describe('Windows package scaffold scripts', () => {
   it('preserves the existing macOS package script semantics', () => {
     expect(packageScript('package')).toBe(
@@ -35,11 +40,20 @@ describe('Windows package scaffold scripts', () => {
     );
   });
 
-  it('defines a publish-never macOS release package script without changing local packaging', () => {
+  it('defines a fail-closed signed and notarized macOS release package script', () => {
     expect(packageScript('package:mac:release')).toBe(
-      'BUILD_ENV=${BUILD_ENV:-production} bun run build:prod && BUILD_ENV=${BUILD_ENV:-production} electron-builder --mac --publish never'
+      'BUILD_ENV=${BUILD_ENV:-production} bun run build:prod && bun scripts/mac-release-signing.js --release && env -u MAC_CSC_LINK -u MAC_CSC_KEY_PASSWORD BUILD_ENV=${BUILD_ENV:-production} CSC_LINK="$MAC_CSC_LINK" CSC_KEY_PASSWORD="$MAC_CSC_KEY_PASSWORD" electron-builder --config electron-builder.sign.yml --mac --publish never'
     );
     expect(packageScript('package')).not.toContain('--publish never');
+  });
+
+  it('uses the signing overlay with hardened runtime and entitlements for macOS release packages', () => {
+    const config = readElectronBuilderSigningConfig();
+
+    expect(config).toContain('extends: electron-builder.yml');
+    expect(config).toContain('mac:\n  hardenedRuntime: true');
+    expect(config).toContain('entitlements: entitlements.mac.plist');
+    expect(config).toContain('entitlementsInherit: entitlements.mac.inherit.plist');
   });
 
   it('defines publish-never NSIS package scripts for Electron x64 and arm64', () => {

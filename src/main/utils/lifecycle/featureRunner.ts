@@ -52,7 +52,11 @@ export async function runPhase(phase: FeaturePriority, context: FeatureContext):
         `Deferred batch ${batchNumber}/${batches.length} starting (${batch.length} feature(s))`
       );
     }
-    await Promise.all(batch.map((spec) => runFeature(spec, context)));
+    const results = await Promise.allSettled(batch.map((spec) => runFeature(spec, context)));
+    const requiredFailure = results.find((result) => result.status === 'rejected');
+    if (requiredFailure?.status === 'rejected') {
+      throw requiredFailure.reason;
+    }
     if (emitBatchMarkers) {
       perfMonitor.mark(
         `${phase}:batch:${batchNumber}:end`,
@@ -69,22 +73,18 @@ export async function runAllPhases(context: FeatureContext): Promise<void> {
   for (const phase of PHASES) await runPhase(phase, context);
 }
 
-/** Run every spec's optional cleanup in reverse-init order, grouped per phase. */
+/** Run every spec's optional cleanup sequentially in reverse-init order. */
 export async function cleanupAll(context: FeatureContext): Promise<void> {
   log.info('[FeatureRunner] Starting feature cleanup');
-  const reversed = [...initialized].reverse();
-  const results = await Promise.allSettled(
-    reversed
-      .filter((s) => typeof s.cleanup === 'function')
-      .map(async (s) => {
-        await s.cleanup!(context);
-        log.debug(`[FeatureRunner] ✓ cleaned up ${s.name}`);
-      })
-  );
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i]!;
-    if (r.status === 'rejected') {
-      log.error(`[FeatureRunner] ✗ cleanup failed:`, r.reason);
+  for (const spec of [...initialized].reverse()) {
+    const cleanup = spec.cleanup;
+    if (!cleanup) continue;
+
+    try {
+      await cleanup(context);
+      log.debug(`[FeatureRunner] ✓ cleaned up ${spec.name}`);
+    } catch (error) {
+      log.error(`[FeatureRunner] ✗ cleanup failed:`, error);
     }
   }
   initialized.length = 0;

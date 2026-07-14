@@ -866,6 +866,38 @@ describe('ResourceCleanup', () => {
       expect(throwingFn).toHaveBeenCalled();
       expect(successFn).toHaveBeenCalled();
     });
+
+    it('awaits global cleanup callbacks in order and continues after a failure', async () => {
+      const { getCleanupManager } = await import('./resourceCleanup');
+      const manager = getCleanupManager();
+      const order: string[] = [];
+      let finishFirst: (() => void) | undefined;
+
+      manager.registerGlobalCleanupCallback('first', async () => {
+        order.push('first-start');
+        await new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        });
+        order.push('first-end');
+      });
+      manager.registerGlobalCleanupCallback('throwing', () => {
+        order.push('throwing');
+        throw new Error('global cleanup failed');
+      });
+      manager.registerGlobalCleanupCallback('third', () => {
+        order.push('third');
+      });
+
+      const cleanup = manager.cleanup({ includeGlobalResources: true });
+
+      await vi.waitFor(() => expect(order).toContain('first-start'));
+      expect(order).toEqual(['first-start']);
+      if (!finishFirst) throw new Error('first global cleanup did not start');
+      finishFirst();
+      await cleanup;
+
+      expect(order).toEqual(['first-start', 'first-end', 'throwing', 'third']);
+    });
   });
 
   // ========================================================================

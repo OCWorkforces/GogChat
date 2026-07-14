@@ -19,7 +19,7 @@ Features are self-contained startup/runtime units registered through initializer
    - `src/main/initializers/security.spec.ts`
    - `src/main/initializers/ui.spec.ts`
    - `src/main/initializers/deferred.spec.ts`
-3. Declare dependencies explicitly with `dependsOn`.
+3. Declare dependencies explicitly with `dependencies`.
 4. Run a build to regenerate `src/main/generated/featurePlan.ts`.
 
 Known dependencies include `badgeIcons -> trayIcon`, `windowState -> singleInstance/deepLinkHandler/bootstrapPromotion`, `appMenu -> openAtLogin/externalLinks`, `externalLinks -> bootstrapPromotion`, and `closeToTray -> trayIcon`.

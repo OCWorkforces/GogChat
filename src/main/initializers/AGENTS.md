@@ -18,7 +18,7 @@ This directory is the canonical home for app startup/shutdown sequencing and bui
 - Build-time parsing happens in `scripts/featurePlanPlugin.js`.
 - Runtime execution happens in `src/main/utils/lifecycle/featureRunner.ts`.
 - Shared feature runtime state is in `src/main/utils/lifecycle/featureContextStore.ts`.
-- Use `dependsOn` for ordering. Avoid relying on lexical or array position.
+- Use `dependencies` for ordering. Avoid relying on lexical or array position.
 
 ## Startup phases
 

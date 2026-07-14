@@ -39,6 +39,7 @@ import type {
 } from '../../../shared/types/window.js';
 import type { AccountIndex, WebContentsId } from '../../../shared/types/branded.js';
 import { asWebContentsId, toPartition } from '../../../shared/types/branded.js';
+import { isGoogleAuthUrl } from '../../../shared/urlValidators.js';
 import {
   markAsBootstrap as _markAsBootstrap,
   isBootstrap as _isBootstrap,
@@ -46,6 +47,11 @@ import {
   clearAllBootstrap,
 } from './bootstrapTracker.js';
 import { bootstrapDelegates } from './accountLifecycleHelpers.js';
+import {
+  getAccountActivityTracker,
+  startSessionMaintenance,
+  stopSessionMaintenance,
+} from './accountSessionMaintenance.js';
 import {
   buildAccountWindowState,
   persistAccountWindowState,
@@ -87,16 +93,27 @@ export class AccountViewManager implements IAccountWindowManager {
   private readonly views = new Map<AccountIndex, AccountViewEntry>();
   private readonly webContentsToAccountIndex = new Map<WebContentsId, AccountIndex>();
   private mostRecentAccountIndex: AccountIndex | null = null;
+  private maintenanceStarted = false;
   /**
    * Most recently presented partition string. Used purely for diagnostics
    * to understand which account "owned" the host window when an event fires.
    */
   private resizeHandler: (() => void) | null = null;
+  private activityHandler: (() => void) | null = null;
 
   constructor(_windowFactory?: WindowFactory) {
     // Reset shared bootstrap tracker so each manager instance starts clean,
     // matching the BrowserWindow path semantics.
     clearAllBootstrap();
+    this.startMaintenance();
+  }
+
+  private startMaintenance(): void {
+    if (this.maintenanceStarted) {
+      return;
+    }
+    startSessionMaintenance(getAccountActivityTracker(), this);
+    this.maintenanceStarted = true;
   }
 
   // ─── Host window lifecycle ────────────────────────────────────────────────
@@ -147,11 +164,16 @@ export class AccountViewManager implements IAccountWindowManager {
     window.on('leave-full-screen', onResize);
     this.resizeHandler = onResize;
 
-    window.on('focus', () => {
+    const recordActivity = (): void => {
       if (this.mostRecentAccountIndex !== null) {
-        // Already correct; no-op.
+        getAccountActivityTracker().recordActivity(this.mostRecentAccountIndex);
       }
-    });
+    };
+    window.on('focus', recordActivity);
+    window.on('blur', recordActivity);
+    window.on('show', recordActivity);
+    window.on('hide', recordActivity);
+    this.activityHandler = recordActivity;
 
     window.on('closed', () => {
       // Host window closing tears down everything — destroyAll cleans up.
@@ -210,6 +232,7 @@ export class AccountViewManager implements IAccountWindowManager {
    * view's webContents should use {@link getAccountWebContents}.
    */
   createAccountWindow(url: string, accountIndex: AccountIndex): BrowserWindow {
+    this.startMaintenance();
     const host = this.ensureHostWindow();
     const existing = this.views.get(accountIndex);
     if (existing) {
@@ -217,6 +240,10 @@ export class AccountViewManager implements IAccountWindowManager {
       // the front. Mirrors the routeAccountWindow semantics in the
       // BrowserWindow path.
       this.switchToAccount(accountIndex);
+      const currentUrl = existing.view.webContents.getURL();
+      if (_isBootstrap(accountIndex) && isGoogleAuthUrl(currentUrl)) {
+        return host;
+      }
       try {
         void existing.view.webContents.loadURL(url);
         existing.currentUrl = url;
@@ -290,6 +317,7 @@ export class AccountViewManager implements IAccountWindowManager {
     }
     entry.isVisible = true;
     this.mostRecentAccountIndex = accountIndex;
+    getAccountActivityTracker().recordActivity(accountIndex);
     this.layoutVisibleView();
 
     try {
@@ -317,6 +345,7 @@ export class AccountViewManager implements IAccountWindowManager {
       entry.isVisible = entry.accountIndex === accountIndex;
     }
     this.mostRecentAccountIndex = accountIndex;
+    getAccountActivityTracker().recordActivity(accountIndex);
     this.layoutVisibleView();
     if (this.hostWindow && !this.hostWindow.isDestroyed()) {
       if (!this.hostWindow.isVisible()) this.hostWindow.show();
@@ -418,6 +447,8 @@ export class AccountViewManager implements IAccountWindowManager {
   }
 
   destroyAll(): void {
+    stopSessionMaintenance();
+    this.maintenanceStarted = false;
     for (const accountIndex of Array.from(this.views.keys())) {
       this.unregisterAccount(accountIndex);
     }
@@ -427,10 +458,17 @@ export class AccountViewManager implements IAccountWindowManager {
         this.hostWindow.removeListener('enter-full-screen', this.resizeHandler);
         this.hostWindow.removeListener('leave-full-screen', this.resizeHandler);
       }
+      if (this.activityHandler) {
+        this.hostWindow.removeListener('focus', this.activityHandler);
+        this.hostWindow.removeListener('blur', this.activityHandler);
+        this.hostWindow.removeListener('show', this.activityHandler);
+        this.hostWindow.removeListener('hide', this.activityHandler);
+      }
       this.hostWindow.destroy();
     }
     this.hostWindow = null;
     this.resizeHandler = null;
+    this.activityHandler = null;
     this.mostRecentAccountIndex = null;
     clearAllBootstrap();
     logger.window.info('[AccountViewManager] Destroyed all views and host window');

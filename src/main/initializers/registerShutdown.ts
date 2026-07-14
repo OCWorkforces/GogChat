@@ -11,58 +11,55 @@ import { app } from 'electron';
 import log from 'electron-log';
 import { cleanupAll } from '../utils/lifecycle/featureRunner.js';
 import { getSharedFeatureContext } from '../utils/lifecycle/featureContextStore.js';
+import { getCleanupManager } from '../utils/lifecycle/resourceCleanup.js';
 import { destroyAccountWindowManager } from '../utils/account/accountWindowManager.js';
 import { destroyAllSingletons } from './singletonDestroyers.js';
 import { logShutdownDiagnostics } from './shutdownDiagnostics.js';
+
+async function runShutdownStage(name: string, cleanup: () => void | Promise<void>): Promise<void> {
+  try {
+    await cleanup();
+  } catch (error: unknown) {
+    log.error(`[Main] ${name} failed:`, error);
+  }
+}
 
 /**
  * Register the application shutdown handler.
  *
  * Cleanup order:
  * 1. Feature cleanup via featureRunner (reverse init order)
- * 2. Account window manager destruction
- * 3. Singleton destruction (performance monitor, deduplicator, rate limiter, icon cache)
+ * 2. Global resource cleanup
+ * 3. Account window manager destruction
  * 4. Comprehensive cache statistics logging
- * 5. app.exit() to allow quit to proceed
+ * 5. Singleton destruction (performance monitor, deduplicator, rate limiter, icon cache)
+ * 6. app.exit() to allow quit to proceed
  */
 export function registerShutdownHandler(): void {
+  let isShuttingDown = false;
+
   app.on('before-quit', (event) => {
     event.preventDefault(); // Prevent immediate quit until cleanup is done
+    if (isShuttingDown) return;
+    isShuttingDown = true;
 
     void (async () => {
-      try {
-        log.info('[Main] ========== Application Shutdown ==========');
+      log.info('[Main] ========== Application Shutdown ==========');
 
-        // featureRunner handles cleanup in reverse initialization order
-        log.info('[Main] Cleaning up feature resources...');
-        await cleanupAll(getSharedFeatureContext());
-        log.info('[Main] Feature cleanup completed');
+      log.info('[Main] Cleaning up feature resources...');
+      await runShutdownStage('Feature cleanup', () => cleanupAll(getSharedFeatureContext()));
+      await runShutdownStage('Global resource cleanup', () =>
+        getCleanupManager().cleanup({ includeGlobalResources: true, logDetails: true })
+      );
+      await runShutdownStage('Account window manager cleanup', destroyAccountWindowManager);
+      await runShutdownStage('Shutdown diagnostics', logShutdownDiagnostics);
+      await runShutdownStage('Singleton destruction', destroyAllSingletons);
 
-        // Cleanup account window manager AFTER feature cleanup
-        try {
-          destroyAccountWindowManager();
-          log.info('[Main] Account window manager cleaned up');
-        } catch (error: unknown) {
-          log.error('[Main] Account window manager cleanup failed:', error);
-        }
+      log.info('[Main] =====================================================');
+    })().finally(() => app.exit());
+  });
 
-        // Destroy singleton instances that have destroyXxx() but aren't called in normal shutdown
-        try {
-          destroyAllSingletons();
-          log.info('[Main] Singleton instances destroyed');
-        } catch (error: unknown) {
-          log.error('[Main] Singleton destruction failed:', error);
-        }
-
-        // Log comprehensive cache statistics
-        await logShutdownDiagnostics();
-
-        log.info('[Main] =====================================================');
-      } catch (error: unknown) {
-        log.error('[Main] Error during shutdown cleanup:', error);
-      } finally {
-        app.exit(); // Allow quit to proceed
-      }
-    })();
+  app.on('window-all-closed', () => {
+    app.quit();
   });
 }
