@@ -34,7 +34,7 @@ describe('notificationBridge', () => {
     await import('./notificationBridge.js');
 
     window.dispatchEvent(
-      new CustomEvent('__gogchatNotificationShow', {
+      new window.CustomEvent('__gogchatNotificationShow', {
         detail: {
           title: 'Alice',
           body: 'New message',
@@ -55,7 +55,9 @@ describe('notificationBridge', () => {
   it('installs the page-world Notification bridge through webFrame', async () => {
     await import('./notificationBridge.js');
 
-    expect(mockExecuteJavaScript).toHaveBeenCalledWith(expect.stringContaining('GogChatNotification'));
+    expect(mockExecuteJavaScript).toHaveBeenCalledWith(
+      expect.stringContaining('GogChatNotification')
+    );
   });
 
   it('rejects invalid notification payloads before IPC', async () => {
@@ -67,7 +69,7 @@ describe('notificationBridge', () => {
     await import('./notificationBridge.js');
 
     window.dispatchEvent(
-      new CustomEvent('__gogchatNotificationShow', {
+      new window.CustomEvent('__gogchatNotificationShow', {
         detail: {
           title: '<script>',
         },
