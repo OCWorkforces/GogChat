@@ -75,6 +75,13 @@ describe('release workflow publish-once contract', () => {
     expect(buildMacJob).toContain('bun-version: "1.3.14"');
     expect(buildMacJob).toContain("node-version: '24.16.0'");
     expect(buildMacJob).toContain('bun run package:mac:release');
+    expect(buildMacJob).toContain('MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}');
+    expect(buildMacJob).toContain('MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}');
+    expect(buildMacJob).toContain('APPLE_ID: ${{ secrets.APPLE_ID }}');
+    expect(buildMacJob).toContain('APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}');
+    expect(buildMacJob).toContain('APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}');
+    expect(buildMacJob).not.toContain('CSC_LINK: ${{ secrets.CSC_LINK }}');
+    expect(buildMacJob).not.toContain('CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}');
     expect(buildMacJob).not.toContain('bun run package -- --publish never');
     expect(buildMacJob).toContain('actions/upload-artifact@');
     expect(buildMacJob).not.toContain('softprops/action-gh-release');
@@ -133,6 +140,25 @@ describe('release workflow publish-once contract', () => {
     expect(buildWindowsJob).toContain('actions/upload-artifact@');
     expect(buildWindowsJob).not.toContain('softprops/action-gh-release');
     expect(buildWindowsJob).not.toMatch(/\b(amd64|ia32|universal)\b/);
+  });
+
+  it('verifies macOS artifact trust after packaging and before the DMG upload', () => {
+    const workflow = readReleaseWorkflow();
+    const buildMacJob = workflowJob(workflow, 'build-mac');
+    const buildWindowsJob = workflowJob(workflow, 'build-windows');
+    const verifyJob = workflowJob(workflow, 'verify-release-artifacts');
+    const verifierCommand = 'bun scripts/verify-mac-release-signing.js --dist dist';
+
+    expect(workflow.match(/verify-mac-release-signing\.js/g) ?? []).toHaveLength(1);
+    expect(buildMacJob).toContain(verifierCommand);
+    expect(buildMacJob.indexOf(verifierCommand)).toBeGreaterThan(
+      buildMacJob.indexOf('bun run package:mac:release')
+    );
+    expect(buildMacJob.indexOf(verifierCommand)).toBeLessThan(
+      buildMacJob.indexOf('actions/upload-artifact@')
+    );
+    expect(buildWindowsJob).not.toContain('verify-mac-release-signing.js');
+    expect(verifyJob).not.toContain('verify-mac-release-signing.js');
   });
 
   it('verifies aggregated artifacts before the single publish job uploads release assets', () => {

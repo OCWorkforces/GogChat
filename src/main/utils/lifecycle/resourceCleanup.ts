@@ -34,7 +34,10 @@ export class ResourceCleanupManager {
   private readonly log = logger.feature('ResourceCleanup');
   private isCleaningUp = false;
   private cleanupPromise: Promise<void> | null = null;
-  private globalCleanupCallbacks = new Map<string, { cleanup: () => void; label: string }>();
+  private globalCleanupCallbacks = new Map<
+    string,
+    { cleanup: () => void | Promise<void>; label: string }
+  >();
 
   /**
    * Register a cleanup task
@@ -83,7 +86,11 @@ export class ResourceCleanupManager {
    * Register a global cleanup callback
    * Replaces direct imports — util modules register their cleanup lazily
    */
-  registerGlobalCleanupCallback(id: string, cleanup: () => void, label?: string): void {
+  registerGlobalCleanupCallback(
+    id: string,
+    cleanup: () => void | Promise<void>,
+    label?: string
+  ): void {
     this.globalCleanupCallbacks.set(id, {
       cleanup,
       label: label ?? id,
@@ -200,7 +207,7 @@ export class ResourceCleanupManager {
 
     // Clean up global resources if requested
     if (config.includeGlobalResources) {
-      this.cleanupGlobalResources();
+      await this.cleanupGlobalResources();
     }
 
     const elapsed = Date.now() - startTime;
@@ -210,12 +217,12 @@ export class ResourceCleanupManager {
   /**
    * Clean up global application resources
    */
-  private cleanupGlobalResources(): void {
+  private async cleanupGlobalResources(): Promise<void> {
     this.log.debug('Cleaning up global resources...');
 
     for (const [_id, { cleanup, label }] of this.globalCleanupCallbacks) {
       try {
-        cleanup();
+        await cleanup();
         this.log.debug(`${label} cleaned up`);
       } catch (error: unknown) {
         this.log.debug(`Failed to cleanup ${label}:`, toErrorMessage(error));

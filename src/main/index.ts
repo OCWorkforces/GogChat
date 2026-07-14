@@ -65,10 +65,6 @@ registerShutdownHandler();
 
 app.setAppUserModelId(APP_IDENTITY.appId);
 
-app.on('window-all-closed', () => {
-  app.exit();
-});
-
 app.on('activate', () => {
   // Always get fresh window reference — mainWindow may be stale after account switches
   const windowToShow = getMostRecentWindow() ?? mainWindow;

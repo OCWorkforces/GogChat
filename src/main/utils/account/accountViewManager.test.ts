@@ -44,6 +44,7 @@ const h = vi.hoisted(() => {
     public throttling: boolean | null = null;
 
     public loadURL: ReturnType<typeof vi.fn>;
+    public getURL: ReturnType<typeof vi.fn>;
     public setBackgroundThrottling: ReturnType<typeof vi.fn>;
     public focus: ReturnType<typeof vi.fn>;
     public isDestroyed: ReturnType<typeof vi.fn>;
@@ -57,6 +58,7 @@ const h = vi.hoisted(() => {
         this.url = url;
         return Promise.resolve();
       });
+      this.getURL = vi.fn((): string => this.url);
       this.setBackgroundThrottling = vi.fn((allowed: boolean): void => {
         this.throttling = allowed;
       });
@@ -177,8 +179,17 @@ const h = vi.hoisted(() => {
   // Shared state used by mocks
   const mockStore: Record<string, unknown> = {};
   const bootstrapSet = new Set<number>();
+  const activityTracker = { recordActivity: vi.fn() };
 
-  return { MockWC, MockWebContentsView, MockBW, createdWindows, mockStore, bootstrapSet };
+  return {
+    MockWC,
+    MockWebContentsView,
+    MockBW,
+    createdWindows,
+    mockStore,
+    bootstrapSet,
+    activityTracker,
+  };
 });
 
 type MockWCInstance = InstanceType<typeof h.MockWC>;
@@ -265,6 +276,12 @@ vi.mock('../lifecycle/logger.js', () => ({
   },
 }));
 
+vi.mock('./accountSessionMaintenance.js', () => ({
+  startSessionMaintenance: vi.fn(),
+  stopSessionMaintenance: vi.fn(),
+  getAccountActivityTracker: vi.fn(() => h.activityTracker),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports under test (after vi.mock declarations are hoisted)
 // ---------------------------------------------------------------------------
@@ -286,6 +303,7 @@ import {
 } from './bootstrapTracker.js';
 import { installPermissionHandlers } from '../security/permissionHandler.js';
 import { installHeaderFix } from '../security/cspHeaderHandler.js';
+import { startSessionMaintenance, stopSessionMaintenance } from './accountSessionMaintenance.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -340,6 +358,12 @@ describe('AccountViewManager — construction', () => {
     expect(m).toBeInstanceOf(AccountViewManager);
     // Factory should NEVER be called by the view-based path
     expect(factory.createWindow).not.toHaveBeenCalled();
+  });
+
+  it('starts session maintenance with the view manager', () => {
+    const manager = new AccountViewManager();
+
+    expect(startSessionMaintenance).toHaveBeenCalledWith(h.activityTracker, manager);
   });
 });
 
@@ -437,6 +461,43 @@ describe('AccountViewManager — createAccountWindow', () => {
     // Both initial + re-navigation calls land on the same webContents
     expect(view.webContents.loadURL).toHaveBeenCalledWith('https://first/');
     expect(view.webContents.loadURL).toHaveBeenCalledWith('https://second/');
+  });
+
+  it('does not reload an existing bootstrap view during Google authentication', () => {
+    const m = new AccountViewManager();
+    m.createAccountWindow('https://accounts.google.com/signin', asAccountIndex(1));
+    m.markAsBootstrap(asAccountIndex(1));
+    const view = viewOf(m, 1);
+    view.webContents.url = 'https://accounts.google.com/signin/v2/challenge';
+    view.webContents.loadURL.mockClear();
+
+    m.createAccountWindow('https://mail.google.com/chat', asAccountIndex(1));
+
+    expect(view.webContents.loadURL).not.toHaveBeenCalled();
+  });
+
+  it('navigates an existing view when it is not on a Google authentication URL', () => {
+    const m = new AccountViewManager();
+    m.createAccountWindow('https://mail.google.com/chat/u/1', asAccountIndex(1));
+    const view = viewOf(m, 1);
+    view.webContents.loadURL.mockClear();
+
+    m.createAccountWindow('https://mail.google.com/chat/u/1?refresh=1', asAccountIndex(1));
+
+    expect(view.webContents.loadURL).toHaveBeenCalledWith(
+      'https://mail.google.com/chat/u/1?refresh=1'
+    );
+  });
+
+  it('records activity for view creation and host lifecycle events', () => {
+    const m = new AccountViewManager();
+    m.createAccountWindow('https://mail.google.com/chat/u/1', asAccountIndex(1));
+    expect(h.activityTracker.recordActivity).toHaveBeenCalledWith(1);
+
+    h.activityTracker.recordActivity.mockClear();
+    lastWindow().emit('focus');
+
+    expect(h.activityTracker.recordActivity).toHaveBeenCalledWith(1);
   });
 
   it('survives setBounds errors during layout (logs warn, does not throw)', () => {
@@ -821,6 +882,24 @@ describe('AccountViewManager — destroyAll', () => {
     expect(m.getAccountCount()).toBe(0);
     expect(host.destroy).toHaveBeenCalled();
     expect(host.destroyed).toBe(true);
+  });
+
+  it('stops session maintenance during cleanup', () => {
+    const m = new AccountViewManager();
+
+    m.destroyAll();
+
+    expect(stopSessionMaintenance).toHaveBeenCalled();
+  });
+
+  it('restarts session maintenance when a manager creates a view after cleanup', () => {
+    const m = new AccountViewManager();
+    m.destroyAll();
+    vi.clearAllMocks();
+
+    m.createAccountWindow('https://mail.google.com/chat/u/1', asAccountIndex(1));
+
+    expect(startSessionMaintenance).toHaveBeenCalledWith(h.activityTracker, m);
   });
 
   it('clears bootstrap tracker state', () => {

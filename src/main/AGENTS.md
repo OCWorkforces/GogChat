@@ -1,6 +1,6 @@
 # Main Process Guide
 
-**Parent:** `../../AGENTS.md`
+**Parent:** `../AGENTS.md`
 
 `src/main` is the Electron main process: startup orchestration, feature execution, BrowserWindow/WebContentsView account backends, app-level security, IPC handlers, and macOS integration.
 
@@ -41,7 +41,7 @@
 
 1. Implement the behavior in `features/` or a focused utility module.
 2. Add a `FeatureSpec` to exactly one initializer spec.
-3. Declare `dependsOn` instead of relying on array position.
+3. Declare `dependencies` instead of relying on array position.
 4. Run `bun run build:dev` or `bun run build:prod` to regenerate `generated/featurePlan.ts`.
 
 ### Add IPC

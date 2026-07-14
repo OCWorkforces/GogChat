@@ -26,7 +26,7 @@ const get = (name: string): FeatureSpec => {
 
 export const FEATURE_PLAN: Readonly<Record<FeaturePriority, readonly (readonly FeatureSpec[])[]>> =
   {
-    security: [[get('certificatePinning'), get('reportExceptions'), get('mediaPermissions')]],
+    security: [[get('reportExceptions'), get('mediaPermissions')]],
     critical: [[get('userAgent')]],
     ui: [[get('singleInstance'), get('deepLinkHandler')]],
     deferred: [
