@@ -45,6 +45,15 @@ describe('featurePlanPlugin – snapshot vs checked-in featurePlan.ts', () => {
     );
     expect(source).toBe(expected);
   });
+
+  it('omits the certificate override from the real security feature plan', async () => {
+    // Given the repository's declarative feature specs
+    // When the real generator builds the runtime plan without writing it
+    const { source } = await generateFeaturePlan({ projectRoot: PROJECT_ROOT, write: false });
+
+    // Then no certificate-error override feature is reachable at startup
+    expect(source).not.toContain('certificatePinning');
+  });
 });
 
 describe('parseSpecSource – AST-based parser', () => {
