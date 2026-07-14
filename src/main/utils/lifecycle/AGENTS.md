@@ -10,7 +10,7 @@ This directory owns runtime lifecycle mechanics: feature execution, shared featu
 - `featureConfigTypes.ts` defines feature init/cleanup contracts.
 - `featureContextStore.ts` stores account manager/window context after bootstrap.
 - `resourceCleanup.ts` owns tracked timers/listeners/cleanup tasks.
-- `registerGlobalCleanups.ts` lazily imports cleanup owners with `Promise.all` to avoid startup cycles.
+- `src/main/initializers/registerGlobalCleanups.ts` lazily imports cleanup owners with `Promise.all` to avoid startup cycles.
 - `performanceMonitor.ts` records bounded latency/FIFO samples and exports only non-empty metrics.
 - `errors.ts` maps lifecycle failures to typed app errors.
 - `cleanupTypes.ts` exists to break import cycles; keep it lightweight.
