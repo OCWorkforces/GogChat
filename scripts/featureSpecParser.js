@@ -158,7 +158,7 @@ function stringArrayValue(source) {
 
 function readStringLiteral(source, index) {
   const quote = source[index];
-  if (quote !== '\'' && quote !== '"' && quote !== '`') return undefined;
+  if (quote !== "'" && quote !== '"' && quote !== '`') return undefined;
 
   let value = '';
   for (let current = index + 1; current < source.length; current += 1) {
@@ -227,7 +227,7 @@ function skipTriviaAndLiterals(source, index) {
     const end = source.indexOf('*/', index + 2);
     return end === -1 ? source.length : end + 1;
   }
-  if (source[index] === '\'' || source[index] === '"' || source[index] === '`') {
+  if (source[index] === "'" || source[index] === '"' || source[index] === '`') {
     const literal = readStringLiteral(source, index);
     return literal ? literal.end - 1 : source.length;
   }
