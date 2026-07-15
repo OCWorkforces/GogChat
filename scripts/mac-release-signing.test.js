@@ -32,11 +32,11 @@ function combinedOutput(result) {
 }
 
 describe('macOS release signing preflight', () => {
-  it('rejects release mode when signing credentials are absent', () => {
+  it('allows unsigned release packaging when signing credentials are absent', () => {
     const result = releasePreflightResult({});
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('macOS signing credentials are required');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('producing an unsigned DMG');
   });
 
   it('rejects a partial signing credential pair without disclosing its value', () => {
@@ -48,7 +48,7 @@ describe('macOS release signing preflight', () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('macOS signing credentials are required');
+    expect(result.stderr).toContain('configured as a complete pair or both omitted');
     expect(combinedOutput(result)).not.toContain('fixture-partial-signing-link');
   });
 

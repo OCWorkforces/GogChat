@@ -82,6 +82,24 @@ describe('release workflow publish-once contract', () => {
     expect(buildMacJob).toContain('APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}');
     expect(buildMacJob).not.toContain('CSC_LINK: ${{ secrets.CSC_LINK }}');
     expect(buildMacJob).not.toContain('CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}');
+    expect(buildMacJob).toContain('- name: Determine macOS signing configuration');
+    expect(buildMacJob).toContain('id: mac-signing');
+    const macSigningPreflight = buildMacJob.slice(
+      buildMacJob.indexOf('- name: Determine macOS signing configuration'),
+      buildMacJob.indexOf('- name: Build macOS DMG')
+    );
+    expect(macSigningPreflight).toContain(
+      'if [[ -n "${MAC_CSC_LINK}" && -n "${MAC_CSC_KEY_PASSWORD}" ]]; then'
+    );
+    expect(macSigningPreflight).toContain('echo "signing_configured=true" >> "${GITHUB_OUTPUT}"');
+    expect(macSigningPreflight).toContain(
+      'elif [[ -z "${MAC_CSC_LINK}" && -z "${MAC_CSC_KEY_PASSWORD}" ]]; then'
+    );
+    expect(macSigningPreflight).toContain('echo "signing_configured=false" >> "${GITHUB_OUTPUT}"');
+    expect(macSigningPreflight).toContain(
+      'echo "macOS signing credentials must be configured as a complete pair or both omitted." >&2'
+    );
+    expect(macSigningPreflight).toContain('exit 1');
     expect(buildMacJob).not.toContain('bun run package -- --publish never');
     expect(buildMacJob).toContain('actions/upload-artifact@');
     expect(buildMacJob).not.toContain('softprops/action-gh-release');
@@ -142,7 +160,7 @@ describe('release workflow publish-once contract', () => {
     expect(buildWindowsJob).not.toMatch(/\b(amd64|ia32|universal)\b/);
   });
 
-  it('verifies macOS artifact trust after packaging and before the DMG upload', () => {
+  it('verifies signed macOS artifact trust after packaging and before the DMG upload', () => {
     const workflow = readReleaseWorkflow();
     const buildMacJob = workflowJob(workflow, 'build-mac');
     const buildWindowsJob = workflowJob(workflow, 'build-windows');
@@ -151,6 +169,7 @@ describe('release workflow publish-once contract', () => {
 
     expect(workflow.match(/verify-mac-release-signing\.js/g) ?? []).toHaveLength(1);
     expect(buildMacJob).toContain(verifierCommand);
+    expect(buildMacJob).toContain("if: steps.mac-signing.outputs.signing_configured == 'true'");
     expect(buildMacJob.indexOf(verifierCommand)).toBeGreaterThan(
       buildMacJob.indexOf('bun run package:mac:release')
     );

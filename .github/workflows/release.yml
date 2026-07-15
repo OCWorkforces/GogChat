@@ -72,6 +72,21 @@ jobs:
 
       - run: bun run build:prod
 
+      - name: Determine macOS signing configuration
+        id: mac-signing
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          if [[ -n "${MAC_CSC_LINK}" && -n "${MAC_CSC_KEY_PASSWORD}" ]]; then
+            echo "signing_configured=true" >> "${GITHUB_OUTPUT}"
+          elif [[ -z "${MAC_CSC_LINK}" && -z "${MAC_CSC_KEY_PASSWORD}" ]]; then
+            echo "signing_configured=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "macOS signing credentials must be configured as a complete pair or both omitted." >&2
+            exit 1
+          fi
+
       - name: Build macOS DMG
         run: bun run package:mac:release
         env:
@@ -82,6 +97,7 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
 
       - name: Verify macOS artifact trust
+        if: steps.mac-signing.outputs.signing_configured == 'true'
         run: bun scripts/verify-mac-release-signing.js --dist dist
 
       - name: Upload macOS DMG artifact

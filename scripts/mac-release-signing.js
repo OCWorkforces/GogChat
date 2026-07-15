@@ -15,9 +15,22 @@ function hasCredentials(env, names) {
   return names.every((name) => hasValue(env, name));
 }
 
+function credentialState(env, names) {
+  const configuredCount = names.filter((name) => hasValue(env, name)).length;
+  if (configuredCount === names.length) {
+    return 'complete';
+  }
+  if (configuredCount === 0) {
+    return 'absent';
+  }
+  return 'partial';
+}
+
 export function evaluateMacReleaseSigningPolicy(env) {
+  const signingState = credentialState(env, SIGNING_CREDENTIALS);
   return {
-    signingConfigured: hasCredentials(env, SIGNING_CREDENTIALS),
+    signingConfigured: signingState === 'complete',
+    signingState,
     notarizationConfigured: hasCredentials(env, NOTARIZATION_CREDENTIALS),
   };
 }
@@ -26,7 +39,7 @@ function usage() {
   return [
     'Usage: bun scripts/mac-release-signing.js --release',
     '',
-    'Release mode requires MAC_CSC_LINK/MAC_CSC_KEY_PASSWORD and APPLE_ID/APPLE_TEAM_ID/APPLE_APP_PASSWORD.',
+    'Release mode signs and notarizes with complete credentials, or produces an unsigned DMG when both signing credentials are absent.',
   ].join('\n');
 }
 
@@ -50,17 +63,20 @@ function runCli(argv) {
   }
 
   const policy = evaluateMacReleaseSigningPolicy(process.env);
-  if (!policy.signingConfigured) {
+  if (policy.signingState === 'partial') {
     console.error(
-      'macOS signing credentials are required. Configure MAC_CSC_LINK/MAC_CSC_KEY_PASSWORD.'
+      'macOS signing credentials must be configured as a complete pair or both omitted.'
     );
+    process.exit(1);
+  }
+  if (policy.signingState === 'absent') {
+    console.log('macOS signing credentials are absent; producing an unsigned DMG.');
+    return;
   }
   if (!policy.notarizationConfigured) {
     console.error(
       'Apple notarization credentials are required. Configure APPLE_ID/APPLE_TEAM_ID/APPLE_APP_PASSWORD.'
     );
-  }
-  if (!policy.signingConfigured || !policy.notarizationConfigured) {
     process.exit(1);
   }
 
