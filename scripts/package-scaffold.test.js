@@ -40,9 +40,16 @@ describe('Windows package scaffold scripts', () => {
     );
   });
 
-  it('defines a fail-closed signed and notarized macOS release package script', () => {
-    expect(packageScript('package:mac:release')).toBe(
-      'BUILD_ENV=${BUILD_ENV:-production} bun run build:prod && bun scripts/mac-release-signing.js --release && env -u MAC_CSC_LINK -u MAC_CSC_KEY_PASSWORD BUILD_ENV=${BUILD_ENV:-production} CSC_LINK="$MAC_CSC_LINK" CSC_KEY_PASSWORD="$MAC_CSC_KEY_PASSWORD" electron-builder --config electron-builder.sign.yml --mac --publish never'
+  it('defines signed and explicitly unsigned macOS release package paths', () => {
+    const releasePackage = packageScript('package:mac:release');
+
+    expect(releasePackage).toContain('bun scripts/mac-release-signing.js --release');
+    expect(releasePackage).toContain('if [ -n "$MAC_CSC_LINK" ]; then');
+    expect(releasePackage).toContain(
+      'env -u MAC_CSC_LINK -u MAC_CSC_KEY_PASSWORD BUILD_ENV=${BUILD_ENV:-production} CSC_LINK="$MAC_CSC_LINK" CSC_KEY_PASSWORD="$MAC_CSC_KEY_PASSWORD" electron-builder --config electron-builder.sign.yml --mac --publish never'
+    );
+    expect(releasePackage).toContain(
+      'env -u MAC_CSC_LINK -u MAC_CSC_KEY_PASSWORD -u CSC_LINK -u CSC_KEY_PASSWORD -u CSC_NAME -u CSC_KEYCHAIN -u CSC_INSTALLER_LINK -u CSC_INSTALLER_KEY_PASSWORD -u APPLE_ID -u APPLE_TEAM_ID -u APPLE_APP_PASSWORD BUILD_ENV=${BUILD_ENV:-production} CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.sign.yml --mac --publish never'
     );
     expect(packageScript('package')).not.toContain('--publish never');
   });
